@@ -30,6 +30,9 @@ In addition, another NSPanel can be configured very quickly. But have a look you
 ![My project-1-26](https://user-images.githubusercontent.com/41958506/192652263-297cda87-3eff-452c-9ec3-3cd76da94de7.png)
 
 
+![Bildschirmfoto 2022-09-27 um 23 13 33](https://user-images.githubusercontent.com/41958506/192652755-069f91c9-927e-4aea-9569-d596cdfa0e56.png)
+
+
 ## Thanks to:
 SmartHome yourself: https://www.youtube.com/c/SmarthomeyourselfDe_DIY
 
