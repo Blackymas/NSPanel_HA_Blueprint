@@ -15,11 +15,7 @@ Therefore I decided to put most of it into a HA Blueprint. This makes it possibl
 
 In addition, another NSPanel can be configured very quickly. But have a look yourself ;)
 
-
-
-
-
-
+![My project-1-16](https://user-images.githubusercontent.com/41958506/192649717-6b04cd1a-1829-4fd5-8ba4-09eaf32f85d0.png)
 
 
 
