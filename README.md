@@ -62,6 +62,78 @@ In addition, another NSPanel can be configured very quickly. But have a look you
 ## Blueprint:
 ![Bildschirmfoto 2022-09-27 um 23 13 33](https://user-images.githubusercontent.com/41958506/192652755-069f91c9-927e-4aea-9569-d596cdfa0e56.png)
 
+#Pages
+
+##Home
+- current weather with button to Weather Forcast
+- Temperature outside
+- Status icons at the top
+- Room temperature with button to thermostat
+- Room humidity
+- Hot water temperature
+- Button to display settings page
+
+##Weather Forcast
+- 5 days Weather Forcast via swipe
+- Lowest and highest temperature outside
+- Date
+- Rain probability
+- Sunshine hours
+- Sun pressure 
+- Thunderstorm probability
+- Wind speed
+- Night thunderstorm probability and wind speed
+
+##Thermostat
+- Touch Temp control 
+- Outside temperature
+- Hot water
+- Floor heating on, off and idle
+- Hot water button
+- Status icons
+
+##Display Settings
+- Restart NSPanel
+- Sleep mode - display off after time X
+- Display brightness slider
+- Display dim brightness slider
+- Status Brightness in %
+
+##Light Settings
+- Light on and off (alignment with HA)
+- Light color with Colorwheel
+- Light color with TempColor slider
+- Brightness Slider
+- Brightness in %.
+- Tempcolor value
+- Jump back to the right button page
+
+##Cover Settings
+- Open and close cover
+- Cover position via slider
+- Cover battery value (I use Ikea roller blind)
+- jump back to the right button page
+
+##Button Page
+- 40 Button
+- 5 Button pages
+- all buttons with long press function
+- automatic detection by long press if it is a light or cover for submenu
+- swipe between all pages 
+- swipe also down and up for fast access to certain pages
+- number of buttons and button pages can be extended - functions like long press, light settings and cover settings stay the same
+
+##Upcoming Features
+- Shorten Esphome code and transfer to Blueprint
+- Cover page with window open status as image
+- small design adjustments
+- Notifications on Home Page
+- Energy and Gas consumption on home page
+- Extra page for energy dashboard
+- Garbage plan with icon on home page
+- Let's see what ideas I still have ;)
+
+
 
 ## Thanks to:
 SmartHome yourself: https://www.youtube.com/c/SmarthomeyourselfDe_DIY
