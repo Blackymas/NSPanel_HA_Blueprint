@@ -62,9 +62,9 @@ In addition, another NSPanel can be configured very quickly. But have a look you
 ## Blueprint:
 ![Bildschirmfoto 2022-09-27 um 23 13 33](https://user-images.githubusercontent.com/41958506/192652755-069f91c9-927e-4aea-9569-d596cdfa0e56.png)
 
-#Pages
+# Pages
 
-##Home
+## Home
 - current weather with button to Weather Forcast
 - Temperature outside
 - Status icons at the top
@@ -73,7 +73,7 @@ In addition, another NSPanel can be configured very quickly. But have a look you
 - Hot water temperature
 - Button to display settings page
 
-##Weather Forcast
+## Weather Forcast
 - 5 days Weather Forcast via swipe
 - Lowest and highest temperature outside
 - Date
@@ -84,7 +84,7 @@ In addition, another NSPanel can be configured very quickly. But have a look you
 - Wind speed
 - Night thunderstorm probability and wind speed
 
-##Thermostat
+## Thermostat
 - Touch Temp control 
 - Outside temperature
 - Hot water
@@ -92,14 +92,14 @@ In addition, another NSPanel can be configured very quickly. But have a look you
 - Hot water button
 - Status icons
 
-##Display Settings
+## Display Settings
 - Restart NSPanel
 - Sleep mode - display off after time X
 - Display brightness slider
 - Display dim brightness slider
 - Status Brightness in %
 
-##Light Settings
+## Light Settings
 - Light on and off (alignment with HA)
 - Light color with Colorwheel
 - Light color with TempColor slider
@@ -108,13 +108,13 @@ In addition, another NSPanel can be configured very quickly. But have a look you
 - Tempcolor value
 - Jump back to the right button page
 
-##Cover Settings
+## Cover Settings
 - Open and close cover
 - Cover position via slider
 - Cover battery value (I use Ikea roller blind)
 - jump back to the right button page
 
-##Button Page
+## Button Page
 - 40 Button
 - 5 Button pages
 - all buttons with long press function
@@ -123,7 +123,7 @@ In addition, another NSPanel can be configured very quickly. But have a look you
 - swipe also down and up for fast access to certain pages
 - number of buttons and button pages can be extended - functions like long press, light settings and cover settings stay the same
 
-##Upcoming Features
+## Upcoming Features
 - Shorten Esphome code and transfer to Blueprint
 - Cover page with window open status as image
 - small design adjustments
