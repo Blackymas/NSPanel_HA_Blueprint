@@ -4,7 +4,7 @@ Custom Firmware for NsPanel (esphome) and HA Blueprint with configuration of but
 Why another version for the NSPanel? 
 Well - all versions I've seen (except @joBr99s version) have been missing something everywhere. 
 That's why I decided to create something myself.
-My thanks to Masto, Marcfager, lovejoy777, Hellis81 and SmartHome yourself ( link see below) for sharing your code. give them the credit they deserve, I'm merely a copy paste ninja. XDD
+My thanks to Masto, Marcfager, lovejoy777, Hellis81 and SmartHome yourself ( link see below) for sharing your code. Give them the credit they deserve, I'm merely a copy paste ninja. XDD
 
 
 ## GOAL:
