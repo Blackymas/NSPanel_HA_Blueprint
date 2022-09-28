@@ -2,31 +2,60 @@
 Custom Firmware for NsPanel (esphome) and HA Blueprint with configuration of button, light settings, thermostate, colorwheel, colortemp, cover, weather preview, automatic TFT upload etc.
 
 Why another version for the NSPanel? 
-Well - all versions I've seen (except @joBr99s version) have been missing something everywhere. 
+Well - all versions I've seen have been missing something everywhere. 
 That's why I decided to create something myself.
+
 My thanks to Masto, Marcfager, lovejoy777, Hellis81 and SmartHome yourself ( link see below) for sharing your code. Give them the credit they deserve, I'm merely a copy paste ninja. XDD
 
 
-## GOAL:
+### GOAL:
 My goal was to create a version that could be quickly adopted for multiple NSPanels.
-In addition, the configuration should be as simple as possible.
-
-Therefore I decided to put most of it into a HA Blueprint. This makes it possible to quickly and easily assign keys to the NSPanel or to exchange key programming.
+In addition, the configuration should be as simple as possible. Therefore I decided to put most of it into a HA Blueprint
 
 In addition, another NSPanel can be configured very quickly. But have a look yourself ;)
+
+![My project-1-16](https://user-images.githubusercontent.com/41958506/192649717-6b04cd1a-1829-4fd5-8ba4-09eaf32f85d0.png)
+![My project-1-18](https://user-images.githubusercontent.com/41958506/192650810-c7210d15-a07e-4f70-a593-af0a51c7f4bb.png)
+
+(Home / Thermostat - more pictures see below)
+
+## Features:
+- easy to use and simple configuration via Blueprint
+- 40 buttons on 5 button pages with long press function for settings (more buttons are also possible)
+- Weather + 5 days weather forcast
+- Thermostat + Touch + Relay control for floor heating
+- Light control (brightness-slider, colorwheel, TempColor-slider) - via Long Press
+- Cover control (open, close, position-slider) - via long press
+- Settings page (display brightness, display dim brightness, auto-dim, sleep mode, reboot NSPanel)
+- Swipe between pages
+- Top menu with 10 icons for specific states
+- Heating control (hot water)
+- Auto Upload TFT File to Nextion Display
+- Swipe between pages
+- modern design - design easy to change via Adobe Express (free + design template)
+- and much more ;)
+
 
 ## NSPanel:
 ![My project-1-16](https://user-images.githubusercontent.com/41958506/192649717-6b04cd1a-1829-4fd5-8ba4-09eaf32f85d0.png)
 ![My project-1-17](https://user-images.githubusercontent.com/41958506/192650793-9b657fa2-8056-46d7-aca3-065cde291df8.png)
 
+(Home / Weather Forcast)
+
 ![My project-1-18](https://user-images.githubusercontent.com/41958506/192650810-c7210d15-a07e-4f70-a593-af0a51c7f4bb.png)
 ![My project-1-20](https://user-images.githubusercontent.com/41958506/192652078-ec4f3268-c00b-42a8-b1f9-c4da3e53d7a5.png)
+
+(Thermostat / Settings Page)
 
 ![My project-1-22](https://user-images.githubusercontent.com/41958506/192652105-23baac1d-9dee-40c1-8596-9cae8827cf1c.png)
 ![My project-1-23](https://user-images.githubusercontent.com/41958506/192652116-93b850d3-553b-4f14-bb0f-78dff959e2fd.png)
 
+(Light Settings Colorwheel / Light Settings TempColor)
+
 ![My project-1-24](https://user-images.githubusercontent.com/41958506/192652126-91b0aae9-75ae-44a0-842d-0a78d93f2da5.png)
 ![My project-1-25](https://user-images.githubusercontent.com/41958506/192652131-604c0636-0f96-44b8-ae6a-793bde56d0e1.png)
+
+(Cover Settings / Button Page)
 
 ![My project-1-26](https://user-images.githubusercontent.com/41958506/192652263-297cda87-3eff-452c-9ec3-3cd76da94de7.png)
 
