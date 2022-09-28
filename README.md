@@ -33,6 +33,7 @@ In addition, another NSPanel can be configured very quickly. But have a look you
 - Auto Upload TFT File to Nextion Display
 - Swipe between pages
 - modern design - design easy to change via Adobe Express (free + design template)
+- 2 pysical switches
 - and much more ;)
 
 
