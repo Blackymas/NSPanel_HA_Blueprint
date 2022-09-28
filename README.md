@@ -66,10 +66,10 @@ In addition, another NSPanel can be configured very quickly. But have a look you
 # Pages
 
 ## Home
-- current weather with button to Weather Forcast
+- current weather with button to Weather Forcast page
 - Temperature outside
 - Status icons at the top
-- Room temperature with button to thermostat
+- Room temperature with button to thermostat page
 - Room humidity
 - Hot water temperature
 - Button to display settings page
