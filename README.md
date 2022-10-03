@@ -75,7 +75,7 @@ In addition, another NSPanel can be configured very quickly. But have a look you
 - Button to display settings page
 
 ## Weather Forcast
-- 5 days Weather Forcast via swipe
+- 5 days Weather Forcast via swipe (Integration Accuweather - but should also go with another integration)
 - Lowest and highest temperature outside
 - Date
 - Rain probability
