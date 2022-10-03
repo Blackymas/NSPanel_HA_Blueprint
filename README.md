@@ -134,6 +134,15 @@ In addition, another NSPanel can be configured very quickly. But have a look you
 - Garbage plan with icon on home page
 - Let's see what ideas I still have ;)
 
+## HowTo Deutsch
+1. den Code aus der Datei esphome.yaml kopieren und in HA unter esphome einfügen. Vorher muss natürlich ein Device erstellt werden.
+2. den Code aus der Datei blueprint.yaml kopieren und eine neue yaml Datei unter config/blueprints erstellen und den Code einfügen
+3. HA Automationen neu starten -> Enticklerwerkzege -> YAML -> Automatisierungen
+4. den Code aus der Datei sensor.yaml und climate.yaml kopieren und eine eigenen yaml Datei erstellen. Der Code wird in zukunft direkt im Blueprint eingebaut.
+5. den Code aus der Datei folder_wather kopieren und in der coniguration.yaml einfügen
+6. TFT File auf Home Assistant hochladen (Der Pfad kann später im Blueprint angegeben werden
+6. Blueprint unter Automationen auswählen und und Felder ausfüllen.
+
 
 
 ## Thanks to:
