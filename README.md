@@ -136,12 +136,14 @@ In addition, another NSPanel can be configured very quickly. But have a look you
 
 ## HowTo Deutsch
 1. den Code aus der Datei esphome.yaml kopieren und in HA unter esphome einfügen. Vorher muss natürlich ein Device erstellt werden.
-2. den Code aus der Datei blueprint.yaml kopieren und eine neue yaml Datei unter config/blueprints erstellen und den Code einfügen
-3. HA Automationen neu starten -> Enticklerwerkzege -> YAML -> Automatisierungen
-4. den Code aus der Datei sensor.yaml und climate.yaml kopieren und eine eigenen yaml Datei erstellen. Der Code wird in zukunft direkt im Blueprint eingebaut.
-5. den Code aus der Datei folder_wather kopieren und in der coniguration.yaml einfügen
-6. TFT File auf Home Assistant hochladen (Der Pfad kann später im Blueprint angegeben werden
-6. Blueprint unter Automationen auswählen und und Felder ausfüllen.
+1.2 in der ESPhome Datei müssen Passwörter eingesetzt werden. Entweder in der ESPHome Secret oder einfach in der ESPhome Datei
+1.3 Einige Entities sind aktuell noch in der Esphome Datei angegeben (direkt unter den Passwörtern. Diese Entities müssen noch angepasst werden. In zukunft will ich aber auch diese ins Bluebrint einbauen
+3. den Code aus der Datei blueprint.yaml kopieren und eine neue yaml Datei unter config/blueprints erstellen und den Code einfügen
+4. HA Automationen neu starten -> Enticklerwerkzege -> YAML -> Automatisierungen
+5. den Code aus der Datei sensor.yaml und climate.yaml kopieren und eine eigenen yaml Datei erstellen. Der Code wird in zukunft direkt im Blueprint eingebaut.
+6. den Code aus der Datei folder_wather kopieren und in der coniguration.yaml einfügen
+7. TFT File auf Home Assistant hochladen (Der Pfad kann später im Blueprint angegeben werden
+8. Blueprint unter Automationen auswählen und und Felder ausfüllen.
 
 
 
