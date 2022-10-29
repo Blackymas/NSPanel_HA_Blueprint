@@ -148,7 +148,7 @@ In addition, another NSPanel can be configured very quickly. But have a look you
 
 
 ## Thanks to:
-SmartHome yourself: https://www.youtube.com/c/SmarthomeyourselfDe_DIY
+SmartHome Yourself: https://www.youtube.com/c/SmarthomeyourselfDe_DIY
 
 Masto: https://github.com/masto/NSPanel-Demo-Files
 
