@@ -1,0 +1,1168 @@
+#############################################################
+##### START - SUBSTITUTIONS #####
+#############################################################
+substitutions:
+##### GENEREL CONFIG #############################################################################################
+  node_name: nspanel-buero # $node_name
+  device_name: NSPanel Büro # $device_name
+
+  wifi_ssid: !secret wifi_ssid # add in your esphome secrets file.
+  wifi_password: !secret wifi_password # add in your esphome secrets file.
+  ota_password: !secret ota_password # add in your esphome secrets file.
+  nextion_update_url: !secret nextion_update_url_buero # add in your esphome secrets file.
+
+###### EDIT THE BELOW ENTITIES FOR YOURS... #######################################################################
+
+  #ha_weekday: sensor.wochentag ##### Sensor Wochentag generiert in HA (custom_configuration -> nspanel) #####
+  #ha_outdoor_temp: sensor.terrasse_garage_motion_sensor_temperature ##### Temperatur von Bewegungsmelder Outdoor (Zigbee2Mqtt) #####
+  #ha_hotwater_temp: sensor.hotwater_temp ##### Buderus Heizung Warmwasser Temperatur (Integration) #####
+  ha_hotwater_charge: switch.charge
+  ha_heating_system_flame: binary_sensor.flamestatus ##### Buderus Heizung Flamen-Status (Integration) #####
+  ha_climate_thermostat_target_temp: sensor.nspanel_buro_target_temp  ##### Climate Thermostat generiert in HA (custom_configuration -> nspanel) #####
+  ha_climate_thermostat: climate.nspanel_buro ##### Climate Thermostat generiert in HA (custom_configuration -> nspanel) #####
+  #ha_humidity: sensor.kinderzimmer_lea_temperatur_sensor_humidity
+#########################################
+#
+#
+#############################################################
+##### CLOSE - SUBSTITUTIONS #####
+#############################################################
+#
+##
+###
+#############################################################################################################################################################################################
+###
+##
+#
+#############################################################
+##### START - Settings #####
+#############################################################
+#
+#
+#########################################
+
+##### Functionality for the Nextion display #####
+external_components:
+  - source: github://pr#2956
+    components: [nextion]
+    refresh: 1h
+
+##### ESP home CONFIG #####
+esphome:
+  name: $node_name
+  comment: $device_name
+
+##### TYPE OF ESP BOARD #####
+esp32:
+  board: esp32dev
+
+##### WIFI SETUP #####
+wifi:
+  ssid: $wifi_ssid
+  password: $wifi_password
+  power_save_mode: none
+
+captive_portal:
+
+##### OTA (Over the air updates) password #####
+ota:
+  password: $ota_password
+  safe_mode: true
+  reboot_timeout: 3min
+  num_attempts: 3
+
+##### LOGGER #####
+logger:
+#  baud_rate: 0
+#  level: WARN
+
+##### CONFIGURE INTERNAL BUZZER #####
+output:
+    ##### BUZZER FOR PLAYING RINGTONES #####
+  - platform: ledc
+    id: buzzer_out
+    pin:
+      number: 21
+
+##### ENABLE RINGTONE MUSIC SUPPORT #####
+rtttl:
+  id: buzzer
+  output: buzzer_out
+
+##### UART FOR NEXTION DISPLAY #####
+uart:
+  tx_pin: 16
+  rx_pin: 17
+  baud_rate: 115200
+  id: tf_uart
+
+##### INFO - Time component that fetches time from home Assistant and updates the display once a minute and when the display is ready at bootup (and time is available) #####
+#time:
+#  - platform: homeassistant
+#    id: homeassistant_time
+#    on_time:
+#      - seconds: 0
+#        minutes: /1
+#        then:
+#          - wait_until:
+#              switch.is_on: nextion_init
+#          - lambda: id(disp1).set_component_text_printf("home.a01", "%02i:%02i", id(homeassistant_time).now().hour, id(homeassistant_time).now().minute);
+#    on_time_sync:
+#        then:
+#          - wait_until:
+#              switch.is_on: nextion_init
+#          - lambda: id(disp1).set_component_text_printf("home.a01", "%02i:%02i", id(homeassistant_time).now().hour, id(homeassistant_time).now().minute);
+
+###### A reboot button is always useful #####
+button:
+  - platform: restart
+    name: $device_name Restart
+    id: restart_nspanel
+
+#########################################
+#
+#
+#############################################################
+##### CLOSE - Settings #####
+#############################################################
+#
+##
+###
+#############################################################################################################################################################################################
+###
+##
+#
+#############################################################
+##### START - API #####
+#############################################################
+#
+#
+#########################################
+
+api:
+  services:
+
+##### SERVICE TO UPDATE THE HMI FILE #####
+    - service: upload_tft
+      then:
+        - lambda: 'id(disp1)->upload_tft();'
+            
+##### Service to send a command "printf" directly to the display. Useful for testing #####
+    - service: send_command_printf
+      variables:
+        cmd: string
+      then:
+        - lambda: 'id(disp1).send_command_printf("%s", cmd.c_str());'
+
+##### Service to send a command "text_printf" directly to the display. Useful for testing #####
+    - service: send_command_text_printf
+      variables:
+        component: string
+        message: string
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: 'id(disp1).set_component_text_printf(component.c_str(), "%s", message.c_str());'
+
+##### Service to send a command "component_value (Dualstate Button)" directly to the display. Useful for testing #####
+    - service: send_command_value
+      variables:
+        component: string
+        message: int
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: 'id(disp1).set_component_value(component.c_str(), message);'
+
+#########################################
+#
+#
+#############################################################
+##### CLOSE - API #####
+#############################################################
+#
+##
+###
+#############################################################################################################################################################################################
+###
+##
+#
+#############################################################
+##### START - GLOBALS #####
+#############################################################
+#
+#
+#########################################
+
+globals:
+
+##### Save Target Temp #####
+  - id: climate_target_temp_val_global
+    type: float
+    restore_value: true
+    initial_value: '12'
+
+##### Save Thermostat PIC Position #####
+  - id: climate_slider_val_global
+    type: int
+    restore_value: true
+    initial_value: '0'
+
+##### Save Display Brightness for NSPanel reboot #####
+  - id: display_brightness_global
+    type: int
+    restore_value: true
+    initial_value: '100'
+
+##### Save Display DIM Brightness for NSPanel reboot
+  - id: display_dim_brightness_global
+    type: int
+    restore_value: true
+    initial_value: '10'
+
+##### Save Display DIM Brightness for NSPanel reboot
+  - id: sleep_modus_global
+    type: int
+    restore_value: true
+    initial_value: '0'
+
+##### Save State Heating Room #####
+  - id: heating_room_global
+    type: int
+    restore_value: true
+    initial_value: '0'
+
+##### Save State HVAC #####
+  - id: hvac_mode_global
+    type: int
+    restore_value: true
+    initial_value: '0'
+
+#########################################
+#
+#
+#############################################################
+##### CLOSE - GLOBALS #####
+#############################################################
+#
+##
+###
+#############################################################################################################################################################################################
+###
+##
+#
+#############################################################
+##### START - BINARY SENSOR #####
+#############################################################
+#
+#
+#########################################
+
+binary_sensor:
+
+###### LEFT BUTTON BELOW DISPLAY TO TOGGLE RELAY#####
+  - platform: gpio
+    name: $device_name Left Button
+    pin:
+      number: 14
+      inverted: true
+    on_click:
+      - switch.toggle: relay_1
+
+##### RIGHT BUTTON BELOW DISPLAY TO TOGGLE RELAY #####
+  - platform: gpio
+    name: $device_name Right Button
+    pin:
+      number: 27
+      inverted: true
+    on_click:
+        - switch.toggle: relay_2
+
+##### THERMOSTAT - BUTTON DECREASES CLIMATE TARGET TEMPERATURE IN HA #####
+  - platform: nextion
+    name: $device_name Climate Target DOWN
+    page_id: 6
+    component_id: 14
+    internal: true
+    on_click:
+      - homeassistant.service:
+          service: climate.set_temperature
+          data_template:
+            entity_id: $ha_climate_thermostat
+            temperature: !lambda return id(climate_target_temp_val_global) - 0.5;
+            
+##### THERMOSTAT - BUTTON INCREASES CLIMATE TARGET TEMPERATURE IN HA #####            
+  - platform: nextion
+    name: $device_name Climate Target UP
+    page_id: 6
+    component_id: 15
+    internal: true
+    on_click:
+      - homeassistant.service:
+          service: climate.set_temperature
+          data_template:
+            entity_id: $ha_climate_thermostat
+            temperature: !lambda return id(climate_target_temp_val_global) + 0.5;
+
+##### THERMOSTAT - BUTTON ON / OFF Heating #####
+  - platform: nextion
+    name: $device_name Heating Room State
+    id: heating_room_state
+    page_id: 6
+    component_id: 17
+    internal: true
+    on_click:
+      - switch.toggle: hvac_mode
+
+##### Display Brightness - BUTTON DECREASES Brightness #####
+  - platform: nextion
+    name: $device_name Brightness DOWN
+    page_id: 7
+    component_id: 12
+    internal: true
+    on_click:
+      - number.set:
+          id: display_brightness
+          value: !lambda return id(display_brightness_global) - 1;
+      - lambda: id(disp1).set_component_text_printf("settings.a03", "%i", id(display_brightness_global));
+      - lambda: id(disp1).send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
+
+##### Display Brightness - BUTTON INCREASES Brightness #####
+  - platform: nextion
+    name: $device_name Brightness UP
+    page_id: 7
+    component_id: 13
+    internal: true
+    on_click:
+      - number.set:
+          id: display_brightness
+          value: !lambda return id(display_brightness_global) + 1;      
+      - lambda: id(disp1).set_component_text_printf("settings.a03", "%i", id(display_brightness_global));
+      - lambda: id(disp1).send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
+
+##### Display DIM Brightness - BUTTON DECREASES Brightness #####
+  - platform: nextion
+    name: $device_name Brightness DIM DOWN
+    page_id: 7
+    component_id: 14
+    internal: true
+    on_click:
+      - number.set:
+          id: display_dim_brightness
+          value: !lambda return id(display_dim_brightness_global) - 1;
+      - lambda: id(disp1).set_component_text_printf("settings.a04", "%i", id(display_dim_brightness_global));
+      - lambda: id(disp1).send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
+          
+##### Display DIM Brightness - BUTTON INCREASES Brightness #####
+  - platform: nextion
+    name: $device_name Brightness DIM UP
+    page_id: 7
+    component_id: 15
+    internal: true
+    on_click:
+      - number.set:
+          id: display_dim_brightness
+          value: !lambda return id(display_dim_brightness_global) + 1;
+      - lambda: id(disp1).set_component_text_printf("settings.a04", "%i", id(display_dim_brightness_global));
+      - lambda: id(disp1).send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
+
+##### Restart NSPanel Button #####
+  - platform: nextion
+    name: $device_name Restart
+    page_id: 7
+    component_id: 11
+    internal: true
+    on_click:
+      - button.press: restart_nspanel
+
+##### Sleep Modus NSPanel Button #####
+  - platform: nextion
+    name: $device_name Sleep Modus
+    page_id: 7
+    component_id: 6
+    internal: true
+    on_click:
+      - switch.toggle: sleep_modus
+
+##### Hotwater Charge #####
+  - platform: nextion
+    name: $device_name Hotwater Charge
+    page_id: 6
+    component_id: 22
+    on_click:
+      - homeassistant.service:
+          service: switch.toggle
+          data:
+            entity_id: $ha_hotwater_charge
+
+#########################################
+#
+#
+#############################################################
+##### CLOSE - BINARY SENSOR #####
+#############################################################
+#
+##
+###
+#############################################################################################################################################################################################
+###
+##
+#
+#############################################################
+##### START - SENSOR #####
+#############################################################
+#
+#
+#########################################
+
+sensor:
+
+##### INTERNAL TEMPERATUE SENSOR, ADC VALUE #####
+  - platform: adc
+    id: ntc_source
+    pin: 38
+    update_interval: 10s
+    attenuation: 11db
+
+##### INTERNAL TEMPERATUE SENSOR, adc reading converted to resistance (calculation)#####
+  - platform: resistance
+    id: resistance_sensor
+    sensor: ntc_source
+    configuration: DOWNSTREAM
+    resistor: 11.2kOhm
+
+##### INTERNAL TEMPERATUE SENSOR, resistance to temperature (calculation) #####
+  - platform: ntc
+    name: $device_name Temperature
+    id: temp_nspanel
+    sensor: resistance_sensor
+    calibration:
+      b_constant: 3950
+      reference_temperature: 25°C
+      reference_resistance: 10kOhm
+    on_value:
+      then:
+        - wait_until:
+            switch.is_on: nextion_init
+        - lambda: id(disp1).set_component_text_printf("home.a03", "%.1f°", id(temp_nspanel).state); # onboard temp (thermostat temp) to home page.
+        - lambda: id(disp1).set_component_text_printf("thermostat.a04", "%.1f", id(temp_nspanel).state);
+ 
+##### TEMPERATURE Outdoor FROM HA #####
+#  - platform: homeassistant
+#    id: temp_outdoor
+#    entity_id: $ha_outdoor_temp
+#    on_value:
+#      then:
+#        - wait_until:
+#            switch.is_on: nextion_init
+#        - lambda: id(disp1).set_component_text_printf("home.a06", "%.0f°", id(temp_outdoor).state);
+#        - lambda: id(disp1).set_component_text_printf("thermostat.a07", "%.0f°", id(temp_outdoor).state);
+
+##### HUMIDITY Indoor FROM HA #####
+#  - platform: homeassistant
+#    id: humidity
+#    entity_id: $ha_humidity
+#    on_value:
+#      then:
+#        - wait_until:
+#            switch.is_on: nextion_init
+#        - lambda: id(disp1).set_component_text_printf("home.a04", "%.0f°", id(humidity).state);
+
+
+##### THERMOSTAT HOT WATER TEMP FROM HA #####
+#  - platform: homeassistant
+#    id: temp_hotwater
+#    entity_id: $ha_hotwater_temp
+#    on_value:
+#      then:
+#        - wait_until:
+#            switch.is_on: nextion_init
+#        - lambda: id(disp1).set_component_text_printf("home.a07", "%.1f°", id(temp_hotwater).state);
+#        - lambda: id(disp1).set_component_text_printf("thermostat.a08", "%.1f°", id(temp_hotwater).state);
+
+##### THERMOSTAT CLIMATE TARGET TEMPERATURE FROM HA #####
+  - platform: homeassistant
+    id: ha_climate_target_temp
+    entity_id: $ha_climate_thermostat_target_temp
+    on_value:
+      then:
+        - wait_until:
+            switch.is_on: nextion_init
+        - globals.set:
+            id: climate_target_temp_val_global
+            value: !lambda 'return float(x);'
+        - lambda: id(disp1).set_component_text_printf("thermostat.a05", "%.1f", id(climate_target_temp_val_global));
+          # THERMO PROGRESS CIRCLE, broken into 3 images to create space for the temperatures in the center.
+        - lambda: |-
+            int left=16; // 16 is empty left.
+            int mid=17; // 17 is empty mid.
+            int right=18; // 18 is empty right.
+            if (id(climate_target_temp_val_global) == 13) {
+              left=16;
+              mid=17;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 13.5) {
+              left=19;
+              mid=17;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 14) {
+              left=20;
+              mid=17;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 14.5) {
+              left=21;
+              mid=17;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 15) {
+              left=22;
+              mid=17;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 15.5) {
+              left=23;
+              mid=17;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 16) {
+              left=24;
+              mid=17;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 16.5) {
+              left=25;
+              mid=17;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 17) {
+              left=26;
+              mid=17;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 17.5) {
+              left=27;
+              mid=17;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 18) {
+              left=28;
+              mid=17;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 18.5) {
+              left=29;
+              mid=30;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 19) {
+              left=29; 
+              mid=31;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 19.5) {
+              left=29;
+              mid=32;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 20) {
+              left=29;
+              mid=33;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 20.5) {
+              left=29;
+              mid=34;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 21) {
+              left=29;
+              mid=35;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 21.5) {
+              left=29;
+              mid=36;
+              right=18;
+            } else if (id(climate_target_temp_val_global) == 22) {
+              left=29;
+              mid=37;
+              right=38;
+            } else if (id(climate_target_temp_val_global) == 22.5) {
+              left=29;
+              mid=37;
+              right=39;
+            } else if (id(climate_target_temp_val_global) == 23) {
+              left=29;
+              mid=37;
+              right=40;
+            } else if (id(climate_target_temp_val_global) == 23.5) {
+              left=29;
+              mid=37;
+              right=41;
+            } else if (id(climate_target_temp_val_global) == 24) {
+              left=29;
+              mid=37;
+              right=42;
+            } else if (id(climate_target_temp_val_global) == 24.5) {
+              left=29;
+              mid=37;
+              right=43;
+            } else if (id(climate_target_temp_val_global) == 25) {
+              left=29;
+              mid=37;
+              right=44;
+            } else if (id(climate_target_temp_val_global) == 25.5) {
+              left=29;
+              mid=37;
+              right=45;
+            } else if (id(climate_target_temp_val_global) == 26) {
+              left=29;
+              mid=37;
+              right=46;
+            } else if (id(climate_target_temp_val_global) == 26.5) {
+              left=29;
+              mid=37;
+              right=47;
+            } else if (id(climate_target_temp_val_global) == 27) {
+              left=29;
+              mid=37;
+              right=48;
+            }
+            // sends the 3 images to the display
+            id(disp1).send_command_printf("thermostat.a01.pic=%i", left);
+            id(disp1).send_command_printf("thermostat.a02.pic=%i", mid);
+            id(disp1).send_command_printf("thermostat.a03.pic=%i", right);
+
+###### TARGET TEMPERATURE GET VALUE FROM NEXTION CIRCLE SLIDER AND SET GLOBAL VARIBLE #####
+  - platform: nextion
+    id: climate_circleslider
+    name: $device_name Climate circleslider
+    variable_name: climateslider
+    internal: true
+    on_value:
+      then:
+        - wait_until:
+            switch.is_on: nextion_init
+        - globals.set:
+            id: climate_slider_val_global
+            value: !lambda 'return int(x);'
+        - lambda: |-
+            if (id(climate_slider_val_global) == 0) {
+              id(climate_target_temp_val_global) = 13;
+            } else if (id(climate_slider_val_global) == 1) {
+              id(climate_target_temp_val_global) = 13.5;
+            } else if (id(climate_slider_val_global) == 2) {
+              id(climate_target_temp_val_global) = 14;
+            } else if (id(climate_slider_val_global) == 3) {
+              id(climate_target_temp_val_global) = 14.5;
+            } else if (id(climate_slider_val_global) == 4) {
+              id(climate_target_temp_val_global) = 15;
+            } else if (id(climate_slider_val_global) == 5) {
+              id(climate_target_temp_val_global) = 15.5;
+            } else if (id(climate_slider_val_global) == 6) {
+              id(climate_target_temp_val_global) = 16;
+            } else if (id(climate_slider_val_global) == 7) {
+              id(climate_target_temp_val_global) = 16.5;
+            } else if (id(climate_slider_val_global) == 8) {
+              id(climate_target_temp_val_global) = 17;
+            } else if (id(climate_slider_val_global) == 9) {
+              id(climate_target_temp_val_global) = 17.5;
+            } else if (id(climate_slider_val_global) == 10) {
+              id(climate_target_temp_val_global) = 18;
+            } else if (id(climate_slider_val_global) == 11) {
+              id(climate_target_temp_val_global) = 18.5;
+            } else if (id(climate_slider_val_global) == 12) {
+              id(climate_target_temp_val_global) = 19;
+            } else if (id(climate_slider_val_global) == 13) {
+              id(climate_target_temp_val_global) = 19.5;
+            } else if (id(climate_slider_val_global) == 14) {
+              id(climate_target_temp_val_global) = 20;
+            } else if (id(climate_slider_val_global) == 15) {
+              id(climate_target_temp_val_global) = 20.5;
+            } else if (id(climate_slider_val_global) == 16) {
+              id(climate_target_temp_val_global) = 21;
+            } else if (id(climate_slider_val_global) == 17) {
+              id(climate_target_temp_val_global) = 21.5;
+            } else if (id(climate_slider_val_global) == 18) {
+              id(climate_target_temp_val_global) = 22;
+            } else if (id(climate_slider_val_global) == 19) {
+              id(climate_target_temp_val_global) = 22.5;
+            } else if (id(climate_slider_val_global) == 20) {
+              id(climate_target_temp_val_global) = 23;
+            } else if (id(climate_slider_val_global) == 21) {
+              id(climate_target_temp_val_global) = 23.5;
+            } else if (id(climate_slider_val_global) == 22) {
+              id(climate_target_temp_val_global) = 24;
+            } else if (id(climate_slider_val_global) == 23) {
+              id(climate_target_temp_val_global) = 24.5;
+            } else if (id(climate_slider_val_global) == 24) {
+              id(climate_target_temp_val_global) = 25;
+            } else if (id(climate_slider_val_global) == 25) {
+              id(climate_target_temp_val_global) = 25.5;
+            } else if (id(climate_slider_val_global) == 26) {
+              id(climate_target_temp_val_global) = 26;
+            } else if (id(climate_slider_val_global) == 27) {
+              id(climate_target_temp_val_global) = 26.5;
+            } else if (id(climate_slider_val_global) == 28) {
+              id(climate_target_temp_val_global) = 27;
+            }
+        - homeassistant.service:
+            service: climate.set_temperature
+            data_template:
+              entity_id: $ha_climate_thermostat
+              temperature: !lambda return id(climate_target_temp_val_global);
+
+###### Display Brightness GET VALUE FROM NSPanel SLIDER #####
+  - platform: nextion
+    id: brightslider
+    name: $device_name brightness Slider
+    variable_name: brightslider
+    internal: true
+    on_value:
+      then:
+        - wait_until:
+            switch.is_on: nextion_init
+        - number.set:
+            id: display_brightness
+            value: !lambda 'return int(x);'
+          # send text field percentage of current_lightslider_val  
+        - lambda: id(disp1).set_component_text_printf("settings.a03", "%i", id(display_brightness_global));
+
+###### Display DIM Brightness GET VALUE FROM NSPanel SLIDER #####
+  - platform: nextion
+    id: dimslider
+    name: $device_name dim brightness slider
+    variable_name: dimslider
+    internal: true
+    on_value:
+      then:
+        - wait_until:
+            switch.is_on: nextion_init
+        - number.set:
+            id: display_dim_brightness
+            value: !lambda 'return int(x);'
+          # send text field percentage of current_lightslider_val  
+        - lambda: id(disp1).set_component_text_printf("settings.a04", "%i", id(display_dim_brightness_global));
+
+
+#########################################
+#
+#
+#############################################################
+##### CLOSE - SENSOR #####
+#############################################################
+#
+##
+###
+#############################################################################################################################################################################################
+###
+##
+#
+#############################################################
+##### START - TEXT SENSOR#####
+#############################################################
+#
+#
+#########################################
+
+text_sensor:
+
+##### ESPhome version used to compile the app #####
+  - platform: version
+    name: $device_name ESPhome Version
+
+##### SUN SENSOR FROM HA #####
+  - platform: homeassistant
+    id: sun_sun
+    entity_id: sun.sun
+
+##### last click sensor, the main action variable - push to HA #####
+  - platform: nextion
+    nextion_id: disp1
+    name: $device_name last click
+    id: disp1_last_click_va
+    update_interval: 50ms
+    component_name: lastclick
+  
+##### last click lightsettings page, the main action variable - push to HA #####
+  - platform: nextion
+    nextion_id: disp1
+    name: $device_name last click lightsettings
+    id: disp1_last_click_lightsettings
+    update_interval: 50ms
+    component_name: lightsetting
+
+##### last click coversettings page, the main action variable - push to HA #####
+  - platform: nextion
+    nextion_id: disp1
+    name: $device_name last click coversettings
+    id: disp1_last_click_coversettings
+    update_interval: 50ms
+    component_name: coverposition
+
+##### Wochentag SENSOR FROM HA ##### 
+#  - platform: homeassistant
+#    id: weekday
+#    entity_id: $ha_weekday
+#    on_value:
+#      then:
+#        - wait_until:
+#            switch.is_on: nextion_init
+#        - lambda: id(disp1).set_component_text_printf("home.a02", "%s", id(weekday).state.c_str());
+
+##### HEATING System ICON #####
+  - platform: homeassistant
+    entity_id: $ha_heating_system_flame
+    name: "Heating System"
+    id: heating_system
+    on_value:
+      then:
+        - wait_until:
+            switch.is_on: nextion_init
+        - lambda: |-
+            int symbol=60; // 60 is a blank image 30x30
+            if (id(heating_system).state == "on") {
+              symbol=61;
+            }
+            id(disp1).send_command_printf("home.a50.pic=%i", symbol);
+            id(disp1).send_command_printf("thermostat.a50.pic=%i", symbol);
+
+##### Hotwater Charge ICON #####
+  - platform: homeassistant
+    entity_id: $ha_hotwater_charge
+    name: "Hotwater Charge"
+    id: hotwater_charge
+    on_value:
+      then:
+        - wait_until:
+            switch.is_on: nextion_init
+        - lambda: |- 
+            if (id(hotwater_charge).state == "on") {
+              id(disp1).set_component_value("thermostat.a12",1);
+            } else {
+              id(disp1).set_component_value("thermostat.a12",0);
+            }
+#        - lambda: |-
+#            id(disp1).set_component_value("thermostat.a12",0);
+#            if (id(hotwater_charge) == "on") 
+#            {
+#              id(disp1).set_component_value("thermostat.a12",1);
+#            }
+            
+##### WEATHER SYMBOL FROM HA WEATHER ENTITY #####
+  - platform: homeassistant
+    id: weather_symbol
+    entity_id: weather.home_wetter
+    on_value:
+      then:
+        - wait_until:
+            switch.is_on: nextion_init
+        - lambda: |-
+            int symbol=1; // 1 is a empty box.
+            if (id(weather_symbol).state == "sunny") {
+              symbol=2;
+            } else if (id(weather_symbol).state == "cloudy") {
+              symbol=3;
+              if (id(sun_sun).state == "below_horizon") {
+                symbol=3;
+              }
+            } else if (id(weather_symbol).state == "rainy") {
+              symbol=4;
+            } else if (id(weather_symbol).state == "pouring") {
+              symbol=5;
+            } else if (id(weather_symbol).state == "snowy") {
+              symbol=6;
+            } else if (id(weather_symbol).state == "hail" || id(weather_symbol).state == "snowy-rainy") {
+              symbol=7;
+            } else if (id(weather_symbol).state == "fog") {
+              symbol=8;
+            } else if (id(weather_symbol).state == "windy" || id(weather_symbol).state == "windy-variant") {
+              symbol=9;
+            } else if (id(weather_symbol).state == "lightning") {
+              symbol=10;
+            } else if (id(weather_symbol).state == "partlycloudy") {
+              symbol=11;
+              if (id(sun_sun).state == "below_horizon") {
+                symbol=12;
+              }
+            } else if (id(weather_symbol).state == "lightning-rainy" || id(weather_symbol).state == "exceptional") {
+              symbol=13;
+              if (id(sun_sun).state == "below_horizon") {
+                symbol=14;
+              }
+            } else if (id(weather_symbol).state == "clear-night") {
+              symbol=15;
+             }
+            id(disp1).send_command_printf("home.a05.pic=%i", symbol);
+
+#########################################
+#
+#
+#############################################################
+##### CLOSE - TEXT SENSOR #####
+#############################################################
+#
+##
+###
+#############################################################################################################################################################################################
+###
+##
+#
+#############################################################
+##### START - SWITCH #####
+#############################################################
+#
+#
+#########################################
+ 
+switch:
+
+##### global variable to keep track on whether the Nextion display is ready or not. Delays initial info from HA to the display #####
+  - platform: template
+    name: $device_name Nextion inited
+    id: nextion_init
+    entity_category: config
+    restore_state: false
+    assumed_state: off
+    optimistic: true
+
+##### UPDATE TFT DISPLAY #####
+  - platform: template
+    name: Update TFT display
+    id: tft_update
+    turn_on_action:
+      - delay: 16ms
+      - lambda: id(disp1).upload_tft();
+      - switch.turn_off: tft_update
+
+##### PHYSICAL SWITCH 1 #####
+  - platform: gpio
+    name: $device_name Relay 1
+    id: relay_1
+    pin:
+      number: 22
+
+##### PHYSICAL SWITCH 2 ######
+  - platform: gpio
+    name: $device_name Relay 2
+    id: relay_2
+    pin:
+      number: 19
+    on_turn_off:
+      - globals.set:
+            id: heating_room_global
+            value: '0'
+      - lambda: |-
+          if (id(hvac_mode_global) == 0) 
+          {
+            id(disp1).send_command_printf("thermostat.a06.pic=51");
+          } else if (id(hvac_mode_global) == 1) {
+              id(disp1).send_command_printf("thermostat.a06.pic=52");
+          }
+      - lambda: id(disp1).send_command_printf("home.a52.pic=60");
+      - lambda: id(disp1).send_command_printf("thermostat.a52.pic=60");
+    on_turn_on:
+      - globals.set:
+            id: heating_room_global
+            value: '1'
+      - lambda: id(disp1).send_command_printf("thermostat.a06.pic=53");
+      - lambda: id(disp1).send_command_printf("home.a52.pic=63");
+      - lambda: id(disp1).send_command_printf("thermostat.a52.pic=63");
+
+##### Switch Climate HVAC Mode #####
+  - platform: template
+    device_class: switch
+    name: $device_name hvac Mode
+    id: hvac_mode
+    restore_state: true
+    assumed_state: false
+    optimistic: true
+    on_turn_off:
+      - lambda: id(disp1).set_component_value("thermostat.a10",0);
+      - globals.set:
+            id: hvac_mode_global
+            value: '0'
+      - homeassistant.service:
+          service: climate.set_hvac_mode
+          data_template:
+            entity_id: $ha_climate_thermostat
+            hvac_mode: 'off'
+      - lambda: id(disp1).send_command_printf("thermostat.a06.pic=51");
+      - lambda: id(disp1).send_command_printf("home.a51.pic=60");
+      - lambda: id(disp1).send_command_printf("thermostat.a51.pic=60");
+    on_turn_on:
+      - lambda: id(disp1).set_component_value("thermostat.a10",1);
+      - globals.set:
+            id: hvac_mode_global
+            value: '1'
+      - homeassistant.service:
+          service: climate.set_hvac_mode
+          data_template:
+            entity_id: $ha_climate_thermostat
+            hvac_mode: 'heat'
+      - lambda: |-
+          if (id(heating_room_global) == 0) 
+          {
+            id(disp1).send_command_printf("thermostat.a06.pic=52");
+          } else if (id(heating_room_global) == 1) {
+            id(disp1).send_command_printf("thermostat.a06.pic=53");
+          } 
+      - lambda: id(disp1).send_command_printf("home.a51.pic=62");
+      - lambda: id(disp1).send_command_printf("thermostat.a51.pic=62");
+      
+##### DISPLAY ALWAYS ON #####
+  - platform: gpio
+    name: $device_name Screen Power
+    id: screen_power
+    entity_category: config
+    pin:
+      number: 4
+      inverted: true
+    restore_mode: ALWAYS_ON
+    internal: true
+
+##### Switch Display Sleep Modus #####
+  - platform: template
+    device_class: switch
+    name: $device_name Sleep Modus
+    id: sleep_modus
+    restore_state: true
+    assumed_state: false
+    optimistic: true
+    on_turn_off:
+      - lambda: id(disp1).send_command_printf("home.sleepmodus.val=0");
+      - globals.set:
+            id: sleep_modus_global
+            value: '0'
+      - lambda:  id(disp1).set_component_value("settings.a02",0);
+    on_turn_on:
+      - lambda: id(disp1).send_command_printf("home.sleepmodus.val=1");
+      - globals.set:
+            id: sleep_modus_global
+            value: '1'
+      - lambda:  id(disp1).set_component_value("settings.a02",1);
+
+#########################################
+#
+#
+#############################################################
+##### CLOSE - SWITCH #####
+#############################################################
+#
+##
+###
+#############################################################################################################################################################################################
+###
+##
+#
+#############################################################
+##### START - NUMBER #####
+#############################################################
+#
+#
+#########################################
+
+number:
+
+##### SCREEN BRIGHTNESS #####
+  - platform: template
+    name: $device_name Display Brightness
+    id: display_brightness
+    entity_category: config
+    unit_of_measurement: '%'
+    min_value: 1
+    max_value: 100
+    step: 1
+    restore_value: true
+    optimistic: true
+    set_action:
+      then:
+        - lambda: 'id(disp1).set_backlight_brightness(x/100);'
+        - lambda: 'id(disp1).send_command_printf("home.brightness.val=%i", int(x));'
+        - globals.set:
+            id: display_brightness_global
+            value: !lambda 'return int(x);'
+
+##### SCREEN BRIGHTNESS DIMMED DOWN #####
+  - platform: template
+    name: $device_name Display Brightness Dimdown
+    id: display_dim_brightness
+    entity_category: config
+    unit_of_measurement: '%'
+    min_value: 1
+    max_value: 100
+    step: 1
+    restore_value: true
+    optimistic: true
+    set_action:
+      then:
+        - lambda: 'id(disp1).send_command_printf("home.brightdd.val=%i", int(x));'
+        - globals.set:
+            id: display_dim_brightness_global
+            value: !lambda 'return int(x);'
+
+#########################################
+#
+#
+#############################################################
+##### CLOSE - NUMBER #####
+#############################################################
+#
+##
+###
+#############################################################################################################################################################################################
+###
+##
+#
+#############################################################
+##### START - DISPLAY START#####
+#############################################################
+#
+#
+#########################################
+
+display:
+  - platform: nextion
+    id: disp1
+    uart_id: tf_uart
+    tft_url: $nextion_update_url
+    on_setup:
+      then:
+        - lambda: id(disp1).send_command_printf("page 9"); ##### CHANGE! -  Loading page #####
+        - wait_until:
+            api.connected
+        - delay: 0.5s
+        - rtttl.play: "two short:d=4,o=5,b=100:16e6,16e6"
+        - delay: 0.5s
+        - switch.template.publish:
+            id: nextion_init
+            state: on
+        - lambda: id(disp1).send_command_printf("page 0"); #### home page #####
+        - delay: 2s ##### gives the display time to update other components & set the home page #####
+        - number.set:
+            id: display_brightness
+            value: !lambda 'return id(display_brightness_global);'
+        - number.set:
+            id: display_dim_brightness
+            value: !lambda 'return id(display_dim_brightness_global);'
+        - lambda: id(disp1).set_component_text_printf("settings.a03", "%i", id(display_brightness_global));
+        - lambda: id(disp1).set_component_text_printf("settings.a04", "%i", id(display_dim_brightness_global));
+        - lambda: id(disp1).send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
+        - lambda: id(disp1).send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
+        - lambda: id(disp1).send_command_printf("home.sleepmodus.val=%i", id(sleep_modus_global));
+        - lambda: |-
+            id(disp1).set_component_value("settings.a02",0);
+            if (id(sleep_modus_global) == 1) 
+            {
+              id(disp1).set_component_value("settings.a02",1);
+            }
+        - lambda: |-
+            id(disp1).send_command_printf("home.a50.pic=60");
+            id(disp1).send_command_printf("thermostat.a50.pic=60");
+            id(disp1).send_command_printf("thermostat.a06.pic=52");
+            if (id(heating_room_global) == 1) 
+            {
+              id(disp1).send_command_printf("home.a52.pic=63");
+              id(disp1).send_command_printf("thermostat.a52.pic=63");
+              id(disp1).send_command_printf("thermostat.a06.pic=53");
+            }
+        - lambda: |-
+            if (id(hvac_mode_global) == 0) {
+              id(disp1).send_command_printf("home.a51.pic=60");
+              id(disp1).send_command_printf("thermostat.a51.pic=60");
+              id(disp1).send_command_printf("thermostat.a06.pic=51");
+            } else if (id(hvac_mode_global) == 1) {
+              id(disp1).send_command_printf("home.a51.pic=62");
+              id(disp1).send_command_printf("thermostat.a51.pic=62");
+              id(disp1).set_component_value("thermostat.a10",1);
+            }
+
+#############################################################
+##### CLOSE - DISPLAY START #####
+#############################################################
