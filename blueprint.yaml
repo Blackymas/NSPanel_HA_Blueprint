@@ -767,6 +767,7 @@ variables:
   command_printf: "esphome.{{ nspanel_name }}_send_command_printf"
   command_font_color: "esphome.{{ nspanel_name }}_send_command_font_color"
   command_background_color: "esphome.{{ nspanel_name }}_send_command_background_color"
+  command_thermostat_cycle: "esphome.{{ nspanel_name }}_send_thermostat_cycle_state"
 
   ###### SYNC SETTINGS #####
   delay_boot: !input "delay"
@@ -4473,28 +4474,25 @@ action:
               - conditions: '{{ trigger.event.data.new_state.state == page_climate }}'
                 alias: 'climate page'
                 sequence:
-                  - choose:
-                    - conditions: '{{ outdoortemp is match "sensor." }}'
-                      alias: 'outdoor-sensor'
-                      sequence:
-                        - service: "{{ command_text_printf }}"
-                          data:
-                            component: outdoor_temp
-                            message: "{{ states(outdoortemp) |round(0) }}°"
-                    - conditions: '{{ weather == "Default" }}'
-                      alias: 'default-weather'
-                      sequence:
-                        - service: "{{ command_text_printf }}"
-                          data:
-                            component: outdoor_temp
-                            message: '{{state_attr(ha_weather,"temperature") | round(0)}}°'
-                    - conditions: '{{ weather == "AccuWeather" }}'
-                      alias: 'AccuWeather'
-                      sequence:
-                        - service: "{{ command_text_printf }}"
-                          data:
-                            component: outdoor_temp
-                            message: '{{state_attr(accuweather_value,"temperature") | round(0)}}°'
+                  - variables:
+                      target_temp: "{{state_attr(climate, 'temperature') | round(1)}}"
+                      hvac_mode: "{{ states(climate) }}"
+                      outdoor_temp: >-
+                        {%- if outdoortemp is match "sensor." -%} {{ states(outdoortemp) |round(0) }}
+                        {%- elif weather == "Default" -%} {{state_attr(ha_weather,"temperature") | round(0)}}
+                        {%- elif weather == "AccuWeather" -%} {{state_attr(accuweather_value,"temperature") | round(0)}}
+                        {%- endif -%}
+                      heating_state: >-
+                        {%- if hvac_mode == "off" and language == "DE" -%} aus
+                        {%- elif hvac_mode == "off" and language == "EN" -%} off
+                        {%- elif hvac_mode != "off" and language == "DE" -%} heizen
+                        {%- elif hvac_mode != "off" and language == "EN" -%} heat
+                        {%- endif -%}
+
+                  - service: "{{ command_text_printf }}"
+                    data:
+                      component: outdoor_temp
+                      message: "{{ outdoor_temp }}°"
                   - service: "{{ command_text_printf }}"
                     data:
                       component: current_temp
@@ -4502,7 +4500,14 @@ action:
                   - service: "{{ command_text_printf }}"
                     data:
                       component: target_temp
-                      message: "{{state_attr(climate, 'temperature') | round(0)}}°"
+                      message: "{{target_temp}}°"
+                  - service: "{{ command_thermostat_cycle }}"
+                    data:
+                      value: "{{target_temp}}"
+                  - service: "{{ command_text_printf }}"
+                    data:
+                      component: thermostat.heating_state
+                      message: "{{heating_state}}"
                   - if:
                       - condition: template
                         value_template: '{{ hotwatertemp is match "sensor." }}'
@@ -4511,6 +4516,7 @@ action:
                         data:
                           component: climate.hotwater_temp
                           message: "{{ states(hotwatertemp) |round(1) }}°"
+
 
               ## settings ## 
               - conditions: '{{ trigger.event.data.new_state.state == page_settings }}'
