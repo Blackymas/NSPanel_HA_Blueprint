@@ -103,6 +103,23 @@ blueprint:
         entity:
           domain:
             - sensor
+    hotwatercharge:
+      name: Hot Water Charge (Optional)
+      description: 'Entity is switchable on *"Thermostat Page"* to turn on hotwater charge'
+      default: []
+      selector:
+        entity:
+          domain:
+            - switch
+            - input_boolean
+    heatingsystemflame:
+      name: Flame State of Heating System (Optional)
+      description: 'Shows flame-symbol on *"Home Page"* if central heating system is burning'
+      default: []
+      selector:
+        entity:
+          domain:
+            - binary_sensor
     climate:
       name: Climate to control (Optional)
       description: 'If an entity is selected, *"Thermostat Page"* is enabled'
@@ -738,11 +755,14 @@ trigger_variables:
   last_click: "sensor.{{ nspanel_name_trigger }}_last_click"
   last_click_lightsettings: "sensor.{{ nspanel_name_trigger }}_last_click_lightsettings"
   last_click_coversettings: "sensor.{{ nspanel_name_trigger }}_last_click_coversettings"
+  last_click_climatesettings: "sensor.{{ nspanel_name_trigger }}_last_click_climatesettings"
   left_button: "binary_sensor.{{ nspanel_name_trigger }}_left_button"
   right_button: "binary_sensor.{{ nspanel_name_trigger }}_right_button"
   weather_forcast_button: "binary_sensor.{{ nspanel_name_trigger }}_weather_forcast"
   nextion_inited_trigger: "switch.{{ nspanel_name_trigger }}_nextion_inited"
   current_page: "sensor.{{ nspanel_name_trigger }}_current_page"
+  hotwatercharge: !input "hotwatercharge"
+  heatingsystemflame: !input "heatingsystemflame"
 
   ##### WEATHER Trigger #####
   weather: !input "weather"
@@ -807,6 +827,8 @@ variables:
   light_pic_on: "97"
   hotwater_pic_off: "60"
   hotwater_pic_on: "61"
+  flame_pic_on: "57"
+  flame_pic_off: "60"
 
   weather_sunny: "2"
   weather_cloudy: "3"
@@ -1104,6 +1126,13 @@ trigger:
       entity_id: !input "humidity"
     id: humidity_state
 
+  ##### Climate - Trigger "climate_state" #####
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input "climate"
+    id: climate_state
+
   ##### Hot Water - Trigger "hotwatertemp_state" #####
   - platform: event
     event_type: state_changed
@@ -1117,6 +1146,20 @@ trigger:
     event_data:
       entity_id: !input "outdoortemp"
     id: outdoortemp_state
+
+  ##### Hot Water Charge - Trigger "hotwatercharge_state" #####
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input "hotwatercharge"
+    id: hotwatercharge_state
+
+  ##### Heating System Flame - Trigger "heatingsystemflame_state" #####
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input "heatingsystemflame"
+    id: heatingsystemflame_state
 
   ##### Left Button - Trigger "left_button_press" #####
   - platform: template
@@ -1174,6 +1217,13 @@ trigger:
     event_data:
       entity_id: "{{ last_click_coversettings }}"
     id: cover_settings
+
+   ##### Page Climatesettings - Trigger "climate_settings" - Changes Climatesettings Page via "last_click_climatesettings" #####
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: "{{ last_click_climatesettings }}"
+    id: climate_settings
 
   ##### Current page changed #####
   - platform: event
@@ -2488,7 +2538,7 @@ action:
               ##### Page Lightsettings - Brightness Slider MOVE #####
               - conditions:
                   - condition: template
-                    value_template: '{{ trigger.event.data.new_state.state is match "brightness\d+" }}'
+                    value_template: '{{ trigger.event.data.new_state.state is match "brightness\d+" and trigger.event.data.new_state.state == states(last_click_lightsettings) }}'
                 sequence:
                   - service: light.turn_on
                     data:
@@ -2510,7 +2560,7 @@ action:
               ##### Page Lightsettings - color_Temp Slider MOVE #####
               - conditions:
                   - condition: template
-                    value_template: '{{ trigger.event.data.new_state.state is match "colortemp\d+" }}'
+                    value_template: '{{ trigger.event.data.new_state.state is match "colortemp\d+" and trigger.event.data.new_state.state == states(last_click_lightsettings) }}'
                 sequence:
                   - service: light.turn_on
                     data:
@@ -2558,7 +2608,7 @@ action:
               ##### Page Coversettings - Cover Slider MOVE #####
               - conditions:
                   - condition: template
-                    value_template: '{{ trigger.event.data.new_state.state is match "coverposition\d+" }}'
+                    value_template: '{{ trigger.event.data.new_state.state is match "coverposition\d+" and trigger.event.data.new_state.state == states(last_click_coversettings) }}'
                 sequence:
                   - service: cover.set_cover_position
                     data:
@@ -2613,6 +2663,87 @@ action:
                     data:
                       cmd: "{{ entity_back }}"
 
+
+      ##### LASTCLICK_CLIMATESETTINGS - Changes on page Climate-Settings #####     DONE
+      - conditions:
+          - condition: trigger
+            id: climate_settings
+        sequence:
+          - choose:
+              ##### Page Climatesettings - hotwater #####
+              - conditions: '{{ trigger.event.data.new_state.state == "releasehotwater" }}'
+                sequence:
+                  - if: 
+                      - condition: template
+                        value_template: '{{ states(hotwatercharge) == "off" }}'
+                    then:
+                      - service: >-
+                          {% if hotwatercharge is match 'switch.' %}
+                            switch.turn_on
+                          {% elif hotwatercharge is match 'input_boolean.' %}
+                            input_boolean.turn_on
+                          {% endif %}
+                        data:
+                          entity_id: "{{ hotwatercharge }}"
+
+              ##### Page Climatesettings - heating #####
+              - conditions: '{{ trigger.event.data.new_state.state == "releaseheating" }}'
+                sequence:
+                  - if:
+                      - condition: template
+                        value_template: '{{ states(climate) == "off" }}'
+                    then:
+                      - service: climate.turn_on
+                        data:
+                          entity_id: !input climate
+                      # - service: climate.set_temperature
+                      #   data:
+                      #     entity_id: !input climate
+                      #     hvac_mode: 'heat'
+                      #     temperature: "{{ state_attr(climate, 'temperature') }}"
+                    else:
+                      - service: climate.turn_off
+                        data:
+                          entity_id: !input climate
+                      # - service: climate.set_temperature
+                      #   data:
+                      #     entity_id:  !input climate
+                      #     hvac_mode: 'off'
+                      #     temperature: "{{ state_attr(climate, 'temperature') }}"
+
+              ##### Page Climatesettings - decreasetemp #####
+              - conditions: '{{ trigger.event.data.new_state.state == "releasedecreasetemp" }}'
+                sequence:
+                  - if:
+                      - condition: template
+                        value_template: '{{ states(climate) != "off" }}'
+                    then:
+                      - variables:
+                          current_setpoint: "{{state_attr(climate, 'temperature') | round(1)}}"
+                      - service: climate.set_temperature
+                        data:
+                          entity_id: !input climate
+                          #hvac_mode: 'heat'
+                          temperature: "{{ current_setpoint -1 }}"
+
+              ##### Page Climatesettings - increasetemp #####
+              - conditions: '{{ trigger.event.data.new_state.state == "releaseincreasetemp" }}'
+                sequence:
+                  - if:
+                      - condition: template
+                        value_template: '{{ states(climate) != "off" }}'
+                    then:
+                      - variables:
+                          current_setpoint: "{{state_attr(climate, 'temperature') | round(1)}}"
+                      - service: climate.set_temperature
+                        data:
+                          entity_id: !input climate
+                          #hvac_mode: 'heat'
+                          temperature: "{{ current_setpoint +1 }}"
+
+
+      
+                  
 
       ##### Left button press #####     DONE
       - conditions:
@@ -4139,7 +4270,7 @@ action:
                 alias: 'climate page'
                 sequence:
                   - variables:
-                      target_temp: "{{state_attr(climate, 'temperature') | round(1)}}"
+                      # target_temp: "{{state_attr(climate, 'temperature') | round(1)}}"
                       hvac_mode: "{{ states(climate) }}"
                       outdoor_temp: >-
                         {%- if outdoortemp is match "sensor." -%} {{ states(outdoortemp) |round(0) }}
@@ -4159,17 +4290,54 @@ action:
                     data:
                       component: current_temp
                       message: "{{state_attr(climate, 'current_temperature') | round(1)}}°"
-                  - service: "{{ command_text_printf }}"
-                    data:
-                      component: target_temp
-                      message: "{{target_temp}}°"
-                  - service: "{{ command_thermostat_cycle }}"
-                    data:
-                      value: "{{target_temp}}"
+                  - if:
+                      condition: template
+                      value_template: '{{ hvac_mode != "off" }}'
+                    then:
+                      - variables:
+                          target_temp: "{{state_attr(climate, 'temperature') | round(1)}}"
+                      - service: "{{ command_text_printf }}"
+                        data:
+                          component: target_temp
+                          message: "{{target_temp}}°"
+                      - service: "{{ command_thermostat_cycle }}"
+                        data:
+                          value: "{{target_temp}}"
+                    else:
+                      - service: "{{ command_text_printf }}"
+                        data:
+                          component: target_temp
+                          message: " "
+                      - service: "{{ command_thermostat_cycle }}"
+                        data:
+                          value: "0"
+
                   - service: "{{ command_text_printf }}"
                     data:
                       component: heating_state
                       message: "{{heating_state}}"
+
+                  # HVAC Button PIC
+                  - variables:
+                      heating_bt_pic: >-
+                        {%- if hvac_mode == "off" -%} {{ heating_bt_pic_off }}
+                        {%- else -%} {{ heating_bt_pic_on }}
+                        {%- endif -%}
+                  - delay:
+                      milliseconds: "{{ delay_value }}"
+                  - service: "{{ command_printf }}"
+                    data:
+                      cmd: heating_bt_pic.pic={{ heating_bt_pic }}
+                  - variables:
+                      hotw_bt_pic: >-
+                        {%- if hotwatercharge | length > 0 and states(hotwatercharge) == 'on' -%} {{ hotw_bt_on }}
+                        {%- elif hotwatercharge | length > 0 and states(hotwatercharge) == 'off' -%} {{ hotw_bt_off }}
+                        {%- else -%} {{ hotw_bt_blank }}
+                        {%- endif -%}
+                  - service: "{{ command_printf }}"
+                    data:
+                      cmd: hotw_bt_pic.pic={{ hotw_bt_pic }}
+                        
                   - if:
                       - condition: template
                         value_template: '{{ hotwatertemp is match "sensor." }}'
@@ -4178,7 +4346,6 @@ action:
                         data:
                           component: climate.hotwater_temp
                           message: "{{ states(hotwatertemp) |round(1) }}°"
-
 
               ## settings ## 
               - conditions: '{{ trigger.event.data.new_state.state == page_settings }}'
@@ -4229,6 +4396,89 @@ action:
               - service: "{{ command_printf }}"
                 data:
                   cmd: "page {{ page_climate }}"
+
+
+      ##### Set Flame-Symbol #####
+      - conditions:
+          - condition: trigger
+            id: heatingsystemflame_state
+        sequence:
+          - variables:
+              flame_pic: >-
+                {%- if trigger.event.data.new_state.state == 'on' -%} {{ flame_pic_on }}
+                {%- else -%} {{ flame_pic_off }}
+                {%- endif -%}
+          - service: "{{ command_printf }}"
+            data:
+              cmd: home.a50.pic={{ flame_pic }}
+
+      
+      ##### Sync Hotwater Charge button-symbol #####
+      - conditions:
+          - condition: trigger
+            id: hotwatercharge_state
+          - condition: template
+            value_template: '{{ states(current_page) == page_climate }}'
+        sequence:
+          - variables:
+              hotw_bt_pic: >-
+                {%- if trigger.event.data.new_state.state == 'on' -%} {{ hotw_bt_on }}
+                {%- elif trigger.event.data.new_state.state == 'off' -%} {{ hotw_bt_off }}
+                {%- else -%} {{ hotw_bt_blank }}
+                {%- endif -%}
+          - service: "{{ command_printf }}"
+            data:
+              cmd: hotw_bt_pic.pic={{ hotw_bt_pic }}
+
+      ##### Sync Climate #####
+      - conditions:
+          - condition: trigger
+            id: climate_state
+          - condition: template
+            value_template: '{{ states(current_page) == page_climate }}'
+        sequence:
+          - variables:
+              heating_state: >-
+                {%- if trigger.event.data.new_state.state == "off" -%} {{ off_mui }}
+                {%- elif trigger.event.data.new_state.state != "off" -%} {{ heat_mui }}
+                {%- endif -%}
+              heating_bt_pic: >-
+                {%- if trigger.event.data.new_state.state == "off" -%} {{ heating_bt_pic_off }}
+                {%- else -%} {{ heating_bt_pic_on }}
+                {%- endif -%}
+          - service: "{{ command_text_printf }}"
+            data:
+              component: current_temp
+              message: "{{ trigger.event.data.new_state.attributes.current_temperature | round(1)}}°"
+          - service: "{{ command_text_printf }}"
+            data:
+              component: heating_state
+              message: "{{heating_state}}"
+          - service: "{{ command_printf }}"
+            data:
+              cmd: heating_bt_pic.pic={{ heating_bt_pic }}
+          - if:
+            - condition: template
+              value_template: '{{ trigger.event.data.new_state.state != "off" }}'
+            then:
+              - service: "{{ command_text_printf }}"
+                data:
+                  component: target_temp
+                  message: "{{trigger.event.data.new_state.attributes.temperature | round(1)}}°"
+              - service: "{{ command_thermostat_cycle }}"
+                data:
+                  value: "{{trigger.event.data.new_state.attributes.temperature | round(1)}}"
+            else:
+              - service: "{{ command_text_printf }}"
+                data:
+                  component: target_temp
+                  message: " "
+              - service: "{{ command_thermostat_cycle }}"
+                data:
+                  value: "0" 
+          
+
+
             
 
 
