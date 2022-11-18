@@ -141,7 +141,7 @@ In addition, another NSPanel can be configured very quickly. But have a look you
 3. den Code aus der Datei blueprint.yaml kopieren und eine neue yaml Datei unter config/blueprints erstellen und den Code einfügen
 4. HA Automationen neu starten -> Enticklerwerkzege -> YAML -> Automatisierungen
 5. den Code aus der Datei sensor.yaml und climate.yaml kopieren und eine eigenen yaml Datei erstellen. Der Code wird in zukunft direkt im Blueprint eingebaut.
-6. den Code aus der Datei folder_wather kopieren und in der coniguration.yaml einfügen
+6. den Code aus der Datei folder_watcher kopieren und in der configuration.yaml einfügen
 7. TFT File auf Home Assistant hochladen (Der Pfad kann später im Blueprint angegeben werden
 8. Blueprint unter Automationen auswählen und und Felder ausfüllen.
 
