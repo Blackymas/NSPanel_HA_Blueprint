@@ -130,9 +130,9 @@ blueprint:
         entity:
           domain: climate
     climate_optimistic:
-      name: Climate control optimistic mode (BUGGY!)
-      default: false
-      description: Depends on your climate device and HA-Integration. If optimisitc mode is *off* then changes are made wait for response from device. This can cause delays. If *on* we assume changes are set and update the display immediately.
+      name: Climate control optimistic mode
+      default: true
+      description: Depends on your climate device and HA-Integration. If optimisitc mode is *off* then changes are made will wait for response from device to update temperature in the display. This can cause delays or jumping values. If *on* we update the display immediately but apply changes after closing climate-page.
       selector:
         boolean:
     
@@ -744,6 +744,7 @@ trigger_variables:
   current_page: "sensor.{{ nspanel_name_trigger }}_currentpage"
   hotwatercharge: !input "hotwatercharge"
   heatingsystemflame: !input "heatingsystemflame"
+  display_target_temperature: "sensor.{{ nspanel_name_trigger }}_display_target_temperature"
 
   ##### WEATHER Trigger #####
   weather: !input "weather"
@@ -2665,7 +2666,7 @@ action:
                       - condition: template
                         value_template: '{{ states(climate) == "off" }}'
                     then:
-                      - service: climate.turn_on
+                      - service: climate.turn_on ############
                         data:
                           entity_id: !input climate
                       # - service: climate.set_temperature
@@ -2674,7 +2675,7 @@ action:
                       #     hvac_mode: 'heat'
                       #     temperature: "{{ state_attr(climate, 'temperature') }}"
                     else:
-                      - service: climate.turn_off
+                      - service: climate.turn_off ############
                         data:
                           entity_id: !input climate
                       # - service: climate.set_temperature
@@ -2690,20 +2691,23 @@ action:
                       - condition: template
                         value_template: '{{ states(climate) != "off" }}'
                     then:
-                      - variables:
-                          current_setpoint: "{{state_attr(climate, 'temperature') | round(1)}}"
                       - if:
                         - condition: template
                           value_template: '{{ climate_optimistic == true }}'
                         then:
+                          - variables:
+                              current_setpoint: "{{states(display_target_temperature) | round(1)}}"
                           - service: "{{ command_thermostat_cycle }}"
                             data:
                               value: "{{ current_setpoint -1 }}"
-                      - service: climate.set_temperature
-                        data:
-                          entity_id: !input climate
-                          #hvac_mode: 'heat'
-                          temperature: "{{ current_setpoint -1 }}"
+                        else:
+                          - variables:
+                              current_setpoint: "{{state_attr(climate, 'temperature') | round(1)}}"
+                          - service: climate.set_temperature
+                            data:
+                              entity_id: !input climate
+                              #hvac_mode: 'heat'
+                              temperature: "{{ current_setpoint -1 }}"
                       
 
               ##### Page Climatesettings - increasetemp #####
@@ -2719,14 +2723,20 @@ action:
                         - condition: template
                           value_template: '{{ climate_optimistic == true }}'
                         then:
+                          - variables:
+                              current_setpoint: "{{states(display_target_temperature) | round(1)}}"
                           - service: "{{ command_thermostat_cycle }}"
                             data:
                               value: "{{ current_setpoint +1 }}"
-                      - service: climate.set_temperature
-                        data:
-                          entity_id: !input climate
-                          #hvac_mode: 'heat'
-                          temperature: "{{ current_setpoint +1 }}"
+                        else:
+                          - variables:
+                              current_setpoint: "{{state_attr(climate, 'temperature') | round(1)}}"
+                          - service: climate.set_temperature
+                            data:
+                              entity_id: !input climate
+                              #hvac_mode: 'heat'
+                              temperature: "{{ current_setpoint +1 }}"
+
 
               ##### Page Climatesettings - climateslider #####
               - conditions: '{{ trigger.event.data.new_state.state is match "climateslider\d+"  and trigger.event.data.new_state.state == states(last_click_climatesettings) }}'
@@ -2775,11 +2785,12 @@ action:
                           - service: "{{ command_thermostat_cycle }}"
                             data:
                               value: "{{ new_setpoint }}"
-                      - service: climate.set_temperature
-                        data:
-                          entity_id: !input climate
-                          #hvac_mode: 'heat'
-                          temperature: "{{ new_setpoint }}"
+                        else:
+                          - service: climate.set_temperature
+                            data:
+                              entity_id: !input climate
+                              #hvac_mode: 'heat'
+                              temperature: "{{ new_setpoint }}"
                       
 
 
@@ -3119,6 +3130,27 @@ action:
                   - service: "{{ command_printf }}"
                     data:
                       cmd: home.right_bt_pic.pic={{ right_hardware_button_state }} 
+
+                  ##### apply climate temperature if climate_optimistic #####
+                  - if:
+                      - condition: template
+                        value_template: '{{ trigger.event.data.old_state.state == page_climate }}'
+                    then:
+                      - if:
+                          - condition: template
+                            value_template: '{{ climate_optimistic == true }}'
+                        then:
+                          - variables:
+                              display_target_temperature: "{{states(display_target_temperature) | round(1)}}"
+                          - if:
+                              - condition: template
+                                value_template: '{{ display_target_temperature != 0.0 }}'
+                            then:
+                              - service: climate.set_temperature
+                                data:
+                                  entity_id: !input climate
+                                  #hvac_mode: 'heat'
+                                  temperature: "{{ display_target_temperature }}"
 
               ## weather01 ## 
               - conditions: '{{ trigger.event.data.new_state.state == page_weather01 }}'
@@ -4336,10 +4368,6 @@ action:
                     then:
                       - variables:
                           target_temp: "{{state_attr(climate, 'temperature') | round(1)}}"
-                      # - service: "{{ command_text_printf }}"
-                      #   data:
-                      #     component: target_temp
-                      #     message: "{{target_temp}}°"
                       - service: "{{ command_thermostat_cycle }}"
                         data:
                           value: "{{target_temp}}"
@@ -4476,8 +4504,8 @@ action:
             id: climate_state
           - condition: template
             value_template: '{{ states(current_page) == page_climate }}'
-          - condition: template
-            value_template: '{{ climate_optimistic == false }}'
+          # - condition: template
+          #   value_template: '{{ climate_optimistic == false }}'
         sequence:
           - variables:
               heating_state: >-
@@ -4503,10 +4531,6 @@ action:
             - condition: template
               value_template: '{{ trigger.event.data.new_state.state != "off" }}'
             then:
-              # - service: "{{ command_text_printf }}"
-              #   data:
-              #     component: target_temp
-              #     message: "{{trigger.event.data.new_state.attributes.temperature | round(1)}}°"
               - service: "{{ command_thermostat_cycle }}"
                 data:
                   value: "{{trigger.event.data.new_state.attributes.temperature | round(1)}}"
