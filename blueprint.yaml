@@ -936,8 +936,6 @@ variables:
     {%- endif -%}
   
 
-
-
   ##### FORCAST ACCUWEATHER - DAY 0 #####
   accuweather_realfeel_temperature_min_0d: "sensor.{{ accuweather }}_realfeel_temperature_min_0d"
   accuweather_realfeel_temperature_max_0d: "sensor.{{ accuweather }}_realfeel_temperature_max_0d"
@@ -1868,6 +1866,20 @@ action:
                 data:
                   cmd: home.right_bt_pic.pic={{ right_hardware_button_state }}
 
+          ###### SET Climate Symbol ######
+          - if:
+              - condition: template
+                value_template: '{{ climate |length > 0  }}'
+            then:
+              - variables:
+                  top_menu_climate: >-
+                    {%- if states(climate) == "heat" and state_attr(climate, "hvac_action") != None and state_attr(climate, "hvac_action") == "heating" -%} {{ heat_pic_on }}
+                    {%- elif states(climate) == "heat" -%} {{ thermostat_pic_on }}
+                    {%- else -%} {{ top_menu_blank }}
+                    {%- endif -%}
+              - service: "{{ command_printf }}"
+                data:
+                  cmd: home.icon_top_03.pic={{ top_menu_climate }}
 
           ##### NSPanel boot init finished #####
           - delay:
@@ -4367,7 +4379,7 @@ action:
                         {%- endif -%}
                       heating_state: >-
                         {%- if hvac_mode == "off" -%} {{ off_mui }}
-                        {%- elif hvac_mode != "off" -%} {{ heat_mui }}
+                        {%- elif hvac_mode != "off" -%} {{ on_mui }}
                         {%- endif -%}
 
                   - service: "{{ command_text_printf }}"
@@ -4548,51 +4560,68 @@ action:
       - conditions:
           - condition: trigger
             id: climate_state
-          - condition: template
-            value_template: '{{ states(current_page) == page_climate }}'
+          # - condition: template
+          #   value_template: '{{ states(current_page) == page_climate }}'
           # - condition: template
           #   value_template: '{{ climate_optimistic == false }}'
         sequence:
-          - variables:
-              heating_state: >-
-                {%- if trigger.event.data.new_state.state == "off" -%} {{ off_mui }}
-                {%- elif trigger.event.data.new_state.state != "off" -%} {{ heat_mui }}
-                {%- endif -%}
-              heating_bt_pic: >-
-                {%- if trigger.event.data.new_state.state == "off" -%} {{ heating_bt_pic_off }}
-                {%- else -%} {{ heating_bt_pic_on }}
-                {%- endif -%}
-          - service: "{{ command_text_printf }}"
-            data:
-              component: current_temp
-              message: "{{ trigger.event.data.new_state.attributes.current_temperature | round(1)}}°"
-          - service: "{{ command_text_printf }}"
-            data:
-              component: heating_state
-              message: "{{heating_state}}"
-          - service: "{{ command_printf }}"
-            data:
-              cmd: heating_bt_pic.pic={{ heating_bt_pic }}
-          - if:
-            - condition: template
-              value_template: '{{ trigger.event.data.new_state.state != "off" }}'
-            then:
-              - service: "{{ command_thermostat_cycle }}"
-                data:
-                  value: "{{trigger.event.data.new_state.attributes.temperature | round(1)}}"
-            else:
-              - service: "{{ command_thermostat_cycle }}"
-                data:
-                  value: "0" 
-              - service: "{{ command_text_printf }}"
-                data:
-                  component: target_temp
-                  message: " "
+          - choose:
+              ### current page is climate ###
+              - conditions: '{{ states(current_page) == page_climate }}'
+                sequence:
+                  - variables:
+                      heating_state: >-
+                        {%- if trigger.event.data.new_state.state == "off" -%} {{ off_mui }}
+                        {%- elif trigger.event.data.new_state.state != "off" -%} {{ on_mui }}
+                        {%- endif -%}
+                      heating_bt_pic: >-
+                        {%- if trigger.event.data.new_state.state == "off" -%} {{ heating_bt_pic_off }}
+                        {%- else -%} {{ heating_bt_pic_on }}
+                        {%- endif -%}
+
+                  - service: "{{ command_text_printf }}"
+                    data:
+                      component: current_temp
+                      message: "{{ trigger.event.data.new_state.attributes.current_temperature | round(1)}}°"
+                  - service: "{{ command_text_printf }}"
+                    data:
+                      component: heating_state
+                      message: "{{heating_state}}"
+                  - service: "{{ command_printf }}"
+                    data:
+                      cmd: heating_bt_pic.pic={{ heating_bt_pic }}
+                  - if:
+                    - condition: template
+                      value_template: '{{ trigger.event.data.new_state.state != "off" }}'
+                    then:
+                      - service: "{{ command_thermostat_cycle }}"
+                        data:
+                          value: "{{trigger.event.data.new_state.attributes.temperature | round(1)}}"
+                    else:
+                      - service: "{{ command_thermostat_cycle }}"
+                        data:
+                          value: "0" 
+                      - service: "{{ command_text_printf }}"
+                        data:
+                          component: target_temp
+                          message: " "
+
+              ### current page is home ###
+              - conditions: '{{ states(current_page) == page_home }}'
+                sequence:
+                  - variables:
+                      top_menu_climate: >-
+                        {%- if trigger.event.data.new_state.state == "heat" and trigger.event.data.new_state.attributes.hvac_action is defined and trigger.event.data.new_state.attributes.hvac_action == "heating" -%} {{ heat_pic_on }}
+                        {%- elif trigger.event.data.new_state.state == "heat" -%} {{ thermostat_pic_on }}
+                        {%- else -%} {{ top_menu_blank }}
+                        {%- endif -%}
+                  - service: "{{ command_printf }}"
+                    data:
+                      cmd: home.icon_top_03.pic={{ top_menu_climate }}
+
+
           
-
-
-            
-
+          
 
 #############################################################
 ##### CLOSE - Action #####
