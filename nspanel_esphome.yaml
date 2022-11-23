@@ -1,0 +1,816 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ADVANCED CONFIG + FULL ESPHOME CODE!                                                      #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+
+##### ADVANCED CONFIGURATION - activate only when you know what you do ##############################
+# substitutions: 
+  # ## usage of secrets-file ## -> comment in ###### Change ME ######
+  # device_name: "nspanel-name" # Wird im Blueprint benötigt!
+  # wifi_ssid: !secret nspanel_wifi_ssid # add in your esphome secrets file.
+  # wifi_password: !secret nspanel_wifi_password # add in your esphome secrets file.
+  # ota_password: !secret nspanel_ota_password # add in your esphome secrets file.
+  # nextion_update_url: !secret nspanel_update_url # add in your esphome secrets file. Example: "http://"HOME ASSISTANT IP":8123/local/nspanel/nspanel.tft"
+
+  # ## static ip config ##
+  # ip: "10.0.0.7"
+  # gw: "10.0.0.138"
+  # subnet: "255.255.255.0"
+  # dns: "10.0.0.138"
+  # domain: ".local"
+
+##### END OF ADVANCED CONFIGURATION ##############################################################
+
+##### WIFI SETUP #####
+wifi:
+  ssid: ${wifi_ssid}
+  password: ${wifi_password}
+  power_save_mode: none
+  ##### advanced config - uncomment to use static IP-Config #####  
+  # manual_ip:
+  #   static_ip: ${ip}
+  #   gateway: ${gw}
+  #   subnet: ${subnet}
+  #   dns1: ${dns}
+  # domain: ${domain}
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "${device_name}"
+    password: ${wifi_password}
+
+##### Functionality for the Nextion display #####
+external_components:
+  - source: github://pr#2956
+    components: [nextion]
+    refresh: 1h
+
+##### ESPHOME CONFIGURATION #####
+esphome:
+  name: ${device_name}
+  min_version: 2022.10.2
+
+##### TYPE OF ESP BOARD #####
+esp32:
+  board: esp32dev
+
+captive_portal:
+
+web_server:
+  port: 80
+  auth:
+    username: admin
+    password: ${ota_password}
+
+##### OTA PASSWORD #####
+ota:
+  password: ${ota_password}
+  safe_mode: true
+  reboot_timeout: 3min
+  num_attempts: 3
+
+##### LOGGER #####
+logger:
+#  baud_rate: 0
+#  level: WARN
+
+##### CONFIGURE INTERNAL BUZZER #####
+output:
+    ##### BUZZER FOR PLAYING RINGTONES #####
+  - platform: ledc
+    id: buzzer_out
+    pin:
+      number: 21
+
+##### ENABLE RINGTONE MUSIC SUPPORT #####
+rtttl:
+  id: buzzer
+  output: buzzer_out
+
+##### UART FOR NEXTION DISPLAY #####
+uart:
+  tx_pin: 16
+  rx_pin: 17
+  baud_rate: 115200
+  id: tf_uart
+
+###### REBOOT BUTTON #####
+button:
+  - platform: restart
+    name: ${device_name} Restart
+    id: restart_nspanel
+
+
+##### START - API CONFIGURATION #####
+api:
+  services:
+
+    ##### SERVICE TO UPDATE THE HMI FILE #####
+    - service: upload_tft
+      then:
+        - lambda: 'id(disp1)->upload_tft();'
+            
+    ##### Service to send a command "printf" directly to the display #####
+    - service: send_command_printf
+      variables:
+        cmd: string
+      then:
+        - lambda: 'id(disp1).send_command_printf("%s", cmd.c_str());'
+
+    ##### Service to send a command "text_printf" directly to the display #####
+    - service: send_command_text_printf
+      variables:
+        component: string
+        message: string
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: 'id(disp1).set_component_text_printf(component.c_str(), "%s", message.c_str());'
+
+    ##### Service to send a command "component_value (Dualstate Button)" directly to the display #####
+    - service: send_command_value
+      variables:
+        component: string
+        message: int
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: 'id(disp1).set_component_value(component.c_str(), message);'
+
+    ##### Service to send a command "hide componente" directly to the display #####
+    - service: send_command_hide
+      variables:
+        component: string
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: 'id(disp1).hide_component(component.c_str());'
+
+    ##### Service to send a command "show componente" directly to the display #####
+    - service: send_command_show
+      variables:
+        component: string
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: 'id(disp1).show_component(component.c_str());'
+
+    ##### Service to send a command "font color" directly to the display #####
+    - service: send_command_font_color
+      variables:
+        component: string
+        message: int
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: 'id(disp1).set_component_font_color(component.c_str(), message);'
+    ##### Service to send a command "background color" directly to the display #####
+    - service: send_command_background_color
+      variables:
+        component: string
+        message: int
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: 'id(disp1).set_component_background_color(component.c_str(), message);'
+
+    #### Service to send thermostat cycle state ####
+    - service: send_thermostat_cycle_state
+      variables:
+        value: float
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: |-
+            //ESP_LOGD("nextion", "thermostat sendig value %f", value);
+            int left=16; // 16 is empty left.
+            int mid=17; // 17 is empty mid.
+            int right=18; // 18 is empty right.
+            if (value < 13.5) {
+              left=16;
+              mid=17;
+              right=18;
+            } else if (value >= 13.5 and value < 14) {
+              left=19;
+              mid=17;
+              right=18;
+            } else if (value >= 14 and value < 14.5) {
+              left=20;
+              mid=17;
+              right=18;
+            } else if (value >= 14.5 and value < 15) {
+              left=21;
+              mid=17;
+              right=18;
+            } else if (value >= 15 and value < 15.5) {
+              left=22;
+              mid=17;
+              right=18;
+            } else if (value >= 15.5 and value < 16) {
+              left=23;
+              mid=17;
+              right=18;
+            } else if (value >= 16 and value < 16.5) {
+              left=24;
+              mid=17;
+              right=18;
+            } else if (value >= 16.5 and value < 17) {
+              left=25;
+              mid=17;
+              right=18;
+            } else if (value >= 17 and value < 17.5) {
+              left=26;
+              mid=17;
+              right=18;
+            } else if (value >= 17.5 and value < 18) {
+              left=27;
+              mid=17;
+              right=18;
+            } else if (value >= 18 and value < 18.5) {
+              left=28;
+              mid=17;
+              right=18;
+            } else if (value >= 18.5 and value < 19) {
+              left=29;
+              mid=30;
+              right=18;
+            } else if (value >= 19 and value < 19.5) {
+              left=29; 
+              mid=31;
+              right=18;
+            } else if (value >= 19.5 and value < 20) {
+              left=29;
+              mid=32;
+              right=18;
+            } else if (value >= 20 and value < 20.5) {
+              left=29;
+              mid=33;
+              right=18;
+            } else if (value >= 20.5 and value < 21) {
+              left=29;
+              mid=34;
+              right=18;
+            } else if (value >= 21 and value < 21.5) {
+              left=29;
+              mid=35;
+              right=18;
+            } else if (value >= 21.5 and value < 22) {
+              left=29;
+              mid=36;
+              right=18;
+            } else if (value >= 22 and value < 22.5) {
+              left=29;
+              mid=37;
+              right=38;
+            } else if (value >= 22.5 and value < 23) {
+              left=29;
+              mid=37;
+              right=39;
+            } else if (value >= 23 and value < 23.5) {
+              left=29;
+              mid=37;
+              right=40;
+            } else if (value >= 23.5 and value < 24) {
+              left=29;
+              mid=37;
+              right=41;
+            } else if (value >= 24 and value < 24.5) {
+              left=29;
+              mid=37;
+              right=42;
+            } else if (value >= 24.5 and value < 25) {
+              left=29;
+              mid=37;
+              right=43;
+            } else if (value >= 25 and value < 25.5) {
+              left=29;
+              mid=37;
+              right=44;
+            } else if (value >= 25.5 and value < 26) {
+              left=29;
+              mid=37;
+              right=45;
+            } else if (value >= 26 and value < 26.5) {
+              left=29;
+              mid=37;
+              right=46;
+            } else if (value >= 26.5 and value < 27) {
+              left=29;
+              mid=37;
+              right=47;
+            } else if (value >= 27) {
+              left=29;
+              mid=37;
+              right=48;
+            }
+            // sends the 3 images to the display
+            //ESP_LOGD("nextion", "thermostat left %i", left);
+            //ESP_LOGD("nextion", "thermostat mid %i", mid);
+            //ESP_LOGD("nextion", "thermostat right %i", right);
+            id(disp1).send_command_printf("climate_left.pic=%i", left);
+            id(disp1).send_command_printf("climate_middle.pic=%i", mid);
+            id(disp1).send_command_printf("climate_right.pic=%i", right);
+            // send target-temp
+            id(disp1).set_component_text_printf("target_temp", "%.1f°", value);
+            id(display_target_temp).publish_state(value);
+
+
+##### START - GLOBALS CONFIGURATION #####
+globals:
+
+  ##### Save Display Brightness for NSPanel reboot #####
+  - id: display_brightness_global
+    type: int
+    restore_value: true
+    initial_value: '100'
+
+  ##### Save Display DIM Brightness for NSPanel reboot
+  - id: display_dim_brightness_global
+    type: int
+    restore_value: true
+    initial_value: '10'
+
+  ##### Temperature Correction #####
+  - id: temperature_correction_global
+    type: float
+    restore_value: true
+    initial_value: '0.0'
+
+  ##### Save Display DIM Brightness for NSPanel reboot
+  - id: sleep_modus_global
+    type: int
+    restore_value: true
+    initial_value: '0'
+
+  ##### lastclick_general State #####
+  - id: lastclick_general_global
+    type: std::string
+    restore_value: no
+    initial_value: ''
+
+  ##### lastclick_lightsettings State #####
+  - id: lastclick_lightsettings_global
+    type: std::string
+    restore_value: no
+    initial_value: ''
+
+  ##### lastclick_coversettings State #####
+  - id: lastclick_coversettings_global
+    type: std::string
+    restore_value: no
+    initial_value: ''
+
+  ##### lastclick_climatesettings State #####
+  - id: lastclick_climatesettings_global
+    type: std::string
+    restore_value: no
+    initial_value: ''
+
+  ##### lastclick_ccurrentpage State #####
+  - id: currentpage_global
+    type: std::string
+    restore_value: no
+    initial_value: ''
+
+##### START - BINARY SENSOR CONFIGURATION #####
+binary_sensor:
+
+  ###### LEFT BUTTON BELOW DISPLAY TO TOGGLE RELAY#####
+  - platform: gpio
+    name: ${device_name} Left Button
+    pin:
+      number: 14
+      inverted: true
+
+  ##### RIGHT BUTTON BELOW DISPLAY TO TOGGLE RELAY #####
+  - platform: gpio
+    name: ${device_name} Right Button
+    pin:
+      number: 27
+      inverted: true
+
+  ##### Restart NSPanel Button #####
+  - platform: nextion
+    name: ${device_name} Restart
+    page_id: 7
+    component_id: 9
+    internal: true
+    on_click:
+      - button.press: restart_nspanel
+
+  ##### Sleep Modus NSPanel Button #####
+  - platform: nextion
+    name: ${device_name} Sleep Modus
+    page_id: 7
+    component_id: 4
+    internal: true
+    on_click:
+      - switch.toggle: sleep_modus
+
+  ##### Hotwater Charge #####
+  # - platform: nextion
+  #   name: ${device_name} Hotwater Charge
+  #   page_id: 6
+  #   component_id: 20
+    # on_click:
+    #   - homeassistant.service:
+    #       service: switch.toggle
+    #       data:
+    #         entity_id: ${ha_hotwater_charge}
+
+
+##### START - SENSOR CONFIGURATION #####
+sensor:
+
+  ##### Uptime #####
+  - platform: uptime
+    name: ${device_name} uptime
+    disabled_by_default: true
+
+  ##### WIFI Signal stregth
+  - platform: wifi_signal
+    name: ${device_name} RSSI
+    update_interval: 60s
+
+  ##### INTERNAL TEMPERATUE SENSOR, ADC VALUE #####
+  - platform: adc
+    id: ntc_source
+    pin: 38
+    update_interval: 10s
+    attenuation: 11db
+
+  ##### INTERNAL TEMPERATUE SENSOR, adc reading converted to resistance (calculation)#####
+  - platform: resistance
+    id: resistance_sensor
+    sensor: ntc_source
+    configuration: DOWNSTREAM
+    resistor: 11.2kOhm
+
+  ##### INTERNAL TEMPERATUE SENSOR, resistance to temperature (calculation) #####
+  - platform: ntc
+    name: ${device_name} Temperature
+    id: temp_nspanel
+    sensor: resistance_sensor
+    calibration:
+      b_constant: 3950
+      reference_temperature: 25°C
+      reference_resistance: 10kOhm
+    filters:
+      - lambda: return x + id(temperature_correction_global);
+    on_value:
+      then:
+        - wait_until:
+            switch.is_on: nextion_init
+        - lambda: id(disp1).set_component_text_printf("home.current_temp", "%.1f°", id(temp_nspanel).state); # onboard temp (thermostat temp) to home page.
+        # - lambda: id(disp1).set_component_text_printf("climate.current_temp", "%.1f", id(temp_nspanel).state);
+
+  ##### current value of page-climate target_temp #####
+  - platform: template
+    name: ${device_name} Display Target Temperature
+    id: display_target_temp
+    lambda: return {};
+    update_interval: 10s
+
+  ###### Display Brightness GET VALUE FROM NSPanel SLIDER #####
+  - platform: nextion
+    id: brightslider
+    name: ${device_name} brightness Slider
+    variable_name: brightslider
+    internal: true
+    on_value:
+      then:
+        - wait_until:
+            switch.is_on: nextion_init
+        - number.set:
+            id: display_brightness
+            value: !lambda 'return int(x);'
+          # send text field percentage of current_lightslider_val  
+        - lambda: id(disp1).set_component_text_printf("settings.a03", "%i", id(display_brightness_global));
+
+  ###### Display DIM Brightness GET VALUE FROM NSPanel SLIDER #####
+  - platform: nextion
+    id: dimslider
+    name: ${device_name} dim brightness slider
+    variable_name: dimslider
+    internal: true
+    on_value:
+      then:
+        - wait_until:
+            switch.is_on: nextion_init
+        - number.set:
+            id: display_dim_brightness
+            value: !lambda 'return int(x);'
+          # send text field percentage of current_lightslider_val  
+        - lambda: id(disp1).set_component_text_printf("settings.a04", "%i", id(display_dim_brightness_global));
+
+  ###### Send current page to HA
+  # - platform: nextion
+  #   id: current_page
+  #   name: "${device_name} Current Page"
+  #   variable_name: dp
+  #   update_interval: 1s
+  #   accuracy_decimals: 0
+  #   filters:
+  #     - delta: 1.0
+  #     - lambda: return int(x);
+
+
+##### START - TEXT SENSOR CONFIGURATION #####
+text_sensor:
+
+  ##### ESPhome version used to compile the app #####
+  - platform: version
+    name: ${device_name} ESPhome Version
+    disabled_by_default: true
+
+  - platform: wifi_info
+    ip_address:
+      name: ${device_name} IP
+      disabled_by_default: true
+    ssid:
+      name: ${device_name} SSID
+      disabled_by_default: true
+    bssid:
+      name: ${device_name} BSSID
+      disabled_by_default: true
+
+  ##### last click sensor, the main action variable - push to HA #####
+  - platform: nextion
+    nextion_id: disp1
+    name: ${device_name} Last Click
+    id: disp1_lastclick_general
+    update_interval: 50ms
+    component_name: lastclick
+    internal: false
+    filters:
+      - lambda: |-
+          if (strcmp(x.c_str(), id(lastclick_general_global).c_str()) != 0) {
+            return x;
+          } else {
+            return {};
+          }
+    on_value:
+      then:
+        - globals.set:
+            id: lastclick_general_global
+            value: !lambda return x;
+  
+  ##### last click lightsettings page, the main action variable - push to HA #####
+  - platform: nextion
+    nextion_id: disp1
+    name: ${device_name} last click lightsettings
+    id: disp1_lastclick_lightsettings
+    update_interval: 50ms
+    component_name: lightsetting
+    internal: false
+    filters:
+      - lambda: |-
+          if (strcmp(x.c_str(), id(lastclick_lightsettings_global).c_str()) != 0) {
+            return x;
+          } else {
+            return {};
+          }
+    on_value:
+      then:
+        - globals.set:
+            id: lastclick_lightsettings_global
+            value: !lambda return x;
+
+  ##### last click coversettings page, the main action variable - push to HA #####
+  - platform: nextion
+    nextion_id: disp1
+    name: ${device_name} last click coversettings
+    id: disp1_lastclick_coversettings
+    update_interval: 50ms
+    component_name: coversetting
+    internal: false
+    filters:
+      - lambda: |-
+          if (strcmp(x.c_str(), id(lastclick_coversettings_global).c_str()) != 0) {
+            return x;
+          } else {
+            return {};
+          }
+    on_value:
+      then:
+        - globals.set:
+            id: lastclick_coversettings_global
+            value: !lambda return x;
+
+  ##### last click climate page, the main action variable - push to HA #####
+  - platform: nextion
+    nextion_id: disp1
+    name: ${device_name} last click climatesettings
+    id: disp1_lastclick_climatesettings
+    update_interval: 50ms
+    component_name: climatesetting
+    internal: false
+    filters:
+      - lambda: |-
+          if (strcmp(x.c_str(), id(lastclick_climatesettings_global).c_str()) != 0) {
+            return x;
+          } else {
+            return {};
+          }
+    on_value:
+      then:
+        - globals.set:
+            id: lastclick_climatesettings_global
+            value: !lambda return x;
+
+  ##### currentpage sensor, the main action variable - push to HA #####
+  - platform: nextion
+    nextion_id: disp1
+    name: ${device_name} currentpage
+    id: disp1_currentpage
+    update_interval: 50ms
+    component_name: currentpage
+    internal: false
+    filters:
+      - lambda: |-
+          if (strcmp(x.c_str(), id(currentpage_global).c_str()) != 0) {
+            return x;
+          } else {
+            return {};
+          }
+    on_value:
+      then:
+        - globals.set:
+            id: currentpage_global
+            value: !lambda return x;
+
+
+##### START - SWITCH CONFIGURATION #####  
+switch:
+
+  # ##### Restart switch ######
+  # - platform: restart
+  #   name: ${device_name} Restart
+
+  # ##### Restart in safe-mode #####
+  # - platform: safe_mode
+  #   name: ${device_name} Restart (Safe Mode)
+
+  ##### global variable to keep track on whether the Nextion display is ready or not. Delays initial info from HA to the display #####
+  - platform: template
+    name: ${device_name} Nextion inited
+    id: nextion_init
+    entity_category: config
+    restore_state: false
+    assumed_state: off
+    optimistic: true
+
+  ##### UPDATE TFT DISPLAY #####
+  - platform: template
+    name: Update TFT display
+    id: tft_update
+    entity_category: config
+    turn_on_action:
+      - delay: 16ms
+      - lambda: id(disp1).upload_tft();
+      - switch.turn_off: tft_update
+
+  ##### PHYSICAL SWITCH 1 #####
+  - platform: gpio
+    name: ${device_name} Relay 1
+    id: relay_1
+    pin:
+      number: 22
+
+  ##### PHYSICAL SWITCH 2 ######
+  - platform: gpio
+    name: ${device_name} Relay 2
+    id: relay_2
+    pin:
+      number: 19
+      
+  ##### DISPLAY ALWAYS ON #####
+  - platform: gpio
+    name: ${device_name} Screen Power
+    id: screen_power
+    entity_category: config
+    pin:
+      number: 4
+      inverted: true
+    restore_mode: ALWAYS_ON
+    internal: true
+
+  ##### Switch Display Sleep Modus #####
+  - platform: template
+    device_class: switch
+    name: ${device_name} Sleep Modus
+    id: sleep_modus
+    entity_category: config
+    restore_state: true
+    assumed_state: false
+    optimistic: true
+    on_turn_off:
+      - lambda: id(disp1).send_command_printf("home.sleepmodus.val=0");
+      - globals.set:
+            id: sleep_modus_global
+            value: '0'
+      - lambda:  id(disp1).set_component_value("settings.a02",0);
+    on_turn_on:
+      - lambda: id(disp1).send_command_printf("home.sleepmodus.val=1");
+      - globals.set:
+            id: sleep_modus_global
+            value: '1'
+      - lambda:  id(disp1).set_component_value("settings.a02",1);
+
+
+##### START - NUMBER CONFIGURATION #####
+number:
+
+  ##### SCREEN BRIGHTNESS #####
+  - platform: template
+    name: ${device_name} Display Brightness
+    id: display_brightness
+    entity_category: config
+    unit_of_measurement: '%'
+    min_value: 1
+    max_value: 100
+    step: 1
+    restore_value: true
+    optimistic: true
+    set_action:
+      then:
+        - lambda: 'id(disp1).set_backlight_brightness(x/100);'
+        - lambda: 'id(disp1).send_command_printf("home.brightness.val=%i", int(x));'
+        - globals.set:
+            id: display_brightness_global
+            value: !lambda 'return int(x);'
+
+  ##### SCREEN BRIGHTNESS DIMMED DOWN #####
+  - platform: template
+    name: ${device_name} Display Brightness Dimdown
+    id: display_dim_brightness
+    entity_category: config
+    unit_of_measurement: '%'
+    min_value: 1
+    max_value: 100
+    step: 1
+    restore_value: true
+    optimistic: true
+    set_action:
+      then:
+        - lambda: 'id(disp1).send_command_printf("home.brightdd.val=%i", int(x));'
+        - globals.set:
+            id: display_dim_brightness_global
+            value: !lambda 'return int(x);'
+
+  ##### Temperature Correction #####
+  - platform: template
+    name: ${device_name} Temperature Correction
+    id: temperature_correction
+    entity_category: config
+    unit_of_measurement: '°C'
+    min_value: -10
+    max_value: 10
+    step: 0.5
+    restore_value: true
+    optimistic: true
+    set_action:
+      then:
+        - globals.set:
+            id: temperature_correction_global
+            value: !lambda 'return x;'
+
+
+##### START - DISPLAY START CONFIGURATION #####
+display:
+  - platform: nextion
+    id: disp1
+    uart_id: tf_uart
+    tft_url: ${nextion_update_url}
+    on_setup:
+      then:
+        - lambda: id(disp1).send_command_printf("page 9"); ##### CHANGE! -  Loading page #####
+        - wait_until:
+            api.connected
+        - delay: 0.5s
+        - rtttl.play: "two short:d=4,o=5,b=100:16e6,16e6"
+        - delay: 0.5s
+        - switch.template.publish:
+            id: nextion_init
+            state: on
+        - lambda: id(disp1).send_command_printf("page 0"); #### home page #####
+        - delay: 2s ##### gives the display time to update other components & set the home page #####
+        - number.set:
+            id: display_brightness
+            value: !lambda 'return id(display_brightness_global);'
+        - number.set:
+            id: display_dim_brightness
+            value: !lambda 'return id(display_dim_brightness_global);'
+        - lambda: id(disp1).set_component_text_printf("settings.a03", "%i", id(display_brightness_global));
+        - lambda: id(disp1).set_component_text_printf("settings.a04", "%i", id(display_dim_brightness_global));
+        - lambda: id(disp1).send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
+        - lambda: id(disp1).send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
+        - lambda: id(disp1).send_command_printf("home.sleepmodus.val=%i", id(sleep_modus_global));
+        - lambda: |-
+            id(disp1).set_component_value("settings.a02",0);
+            if (id(sleep_modus_global) == 1) 
+            {
+              id(disp1).set_component_value("settings.a02",1);
+            }
