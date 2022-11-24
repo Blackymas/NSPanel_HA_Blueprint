@@ -45,7 +45,8 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 
 
 ![Device Setting 1](https://user-images.githubusercontent.com/41958506/203723223-8afc0e44-51cf-49ed-8a49-8ba713716639.png)
-![Device Setting 2](https://user-images.githubusercontent.com/41958506/203723248-40d71ac3-ff75-4d5f-b2de-e280654c8cf3.png)
+![Device Setting 2](https://user-images.githubusercontent.com/41958506/203724491-53ecd93d-bc7c-4c2d-850b-f106691e2639.png)
+
 
 (HA Device Seeting for Example temperature correction)
 
