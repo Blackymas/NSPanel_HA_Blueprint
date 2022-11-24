@@ -10,7 +10,7 @@ And the best thing is, the installation takes only a few minutes.
 
 The goal was to create a version that allows everyone to use the NSpanel fully local without having to deal with programming or reading hours of documentation - *AND YES WE DID IT!!!!* ;)
 
-📕 Full documentation and installation is available here [NSPanel Configuration, Setup and HowTo ](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/Welcome-to-the-NSPanel_HA_Blueprint-WIKI). (coming soon)
+📕 Full documentation and installation is available here [NSPanel Configuration, Setup and HowTo ](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/Welcome-to-the-NSPanel_HA_Blueprint-WIKI).
 
 
 ℹ️ Version v2.0.0
