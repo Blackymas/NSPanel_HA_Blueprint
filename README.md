@@ -12,7 +12,7 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 📕 Full documentation and installation is available here [NSPanel Configuration, Setup and HowTo ](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki). (coming soon)
 
 
-ℹ️ Version 2.0.0
+ℹ️ Version v2.0.0
     
 
 ## NSPanel:
