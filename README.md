@@ -39,8 +39,9 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 
 
 ![10 Settings](https://user-images.githubusercontent.com/41958506/203654386-e4e574ad-8674-4268-84dd-1c4e40f98eb9.png)
+![1 Boot](https://user-images.githubusercontent.com/41958506/203667473-d33523a4-3197-4838-9099-cccebfc727db.png)
 
-(NSPanel Settings)
+(NSPanel Settings and Boot Screen)
 
 
 ## Blueprint:
