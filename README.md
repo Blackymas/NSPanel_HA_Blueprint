@@ -11,6 +11,7 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 
 📕 Full documentation and installation is available here [NSPanel Configuration, Setup and HowTo ](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/Welcome-to-the-NSPanel_HA_Blueprint-WIKI).
 
+🚀 How to create "Issues" when I have a problem 
 
 ℹ️ Version v2.0.0
     
