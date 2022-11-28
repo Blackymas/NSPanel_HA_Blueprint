@@ -1,4 +1,7 @@
 # NSPanel Custom with HA Blueprint
+
+ℹ️ Version v2.0.0
+
 [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBlackymas%2FNSPanel_HA_Blueprint%2Fblob%2Fmain%2Fnspnael_blueprint.yaml)
 
 This project allows you to configure your complete NSPanel via a Blueprint with UI.
@@ -14,8 +17,6 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 🚀 How to create "Issues" when I have a problem [WIKI HowTo](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/Welcome-to-the-NSPanel_HA_Blueprint-WIKI).
 
 ⭐ 
-
-ℹ️ Version v2.0.0
 
 🙋 WE ARE LOOKING FOR YOU! _**We are always looking for people who would like to support this project. We are looking for help with "programming new features, writing documentation or translating documentation to EN. If you are interested then please contact us :)**_
 
