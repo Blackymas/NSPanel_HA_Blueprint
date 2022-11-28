@@ -13,8 +13,11 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 
 🚀 How to create "Issues" when I have a problem [WIKI HowTo](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/Welcome-to-the-NSPanel_HA_Blueprint-WIKI).
 
+⭐ 
+
 ℹ️ Version v2.0.0
-    
+
+🙋 WE ARE LOOKING FOR YOU! _**We are always looking for people who would like to support this project. We are looking for help with "programming new features, writing documentation or translating documentation to EN. If you are interested then please contact us :)**_
 
 ## NSPanel:
 ![2 Home](https://user-images.githubusercontent.com/41958506/203653897-cf96a7af-2b92-4ad9-a375-987decad5aa7.png)
