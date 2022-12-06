@@ -15,7 +15,7 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 
 🚀 How to create "Issues" when I have a problem [WIKI HowTo](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/Welcome-to-the-NSPanel_HA_Blueprint-WIKI)
 
-⭐ All Feature Requests can be found here [All Feature Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/enhancement)
+⭐ All Feature Requests can be found here [All Feature Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/new%20feature%20request)
 
 🎉 Roadmap Roadmap can be found here [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
 
