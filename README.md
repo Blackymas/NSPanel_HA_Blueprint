@@ -1,5 +1,7 @@
 # NSPanel Custom with HA Blueprint
-[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBlackymas%2FNSPanel_HA_Blueprint%2Fblob%2Fmain%2Fnspnael_blueprint.yaml)
+
+
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBlackymas%2FNSPanel_HA_Blueprint%2Fblob%2Fmain%2Fnspanel_blueprint.yaml)
 
 This project allows you to configure your complete NSPanel via a Blueprint with UI.
 ### *That means you don't have to customize any code or change any lines in the code.*
@@ -11,10 +13,13 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 
 📕 Full documentation and installation is available here [NSPanel Configuration, Setup and HowTo](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki).
 
-🚀 How to create "Issues" when I have a problem [WIKI HowTo](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/Welcome-to-the-NSPanel_HA_Blueprint-WIKI).
+🚀 How to create "Issues" when I have a problem [WIKI HowTo](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/Welcome-to-the-NSPanel_HA_Blueprint-WIKI)
 
-ℹ️ Version v2.0.0
-    
+⭐ All Feature Requests can be found here [All Feature Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/new%20feature%20request)
+
+🎉 Roadmap Roadmap can be found here [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
+
+🙋 WE ARE LOOKING FOR YOU! _**We are always looking for people who would like to support this project. We are looking for help with "programming new features, writing documentation or translating documentation to EN. If you are interested then please contact us :)**_
 
 ## NSPanel:
 ![2 Home](https://user-images.githubusercontent.com/41958506/203653897-cf96a7af-2b92-4ad9-a375-987decad5aa7.png)
@@ -161,3 +166,4 @@ Marcfager:  https://github.com/marcfager/nspanel-mf
 lovejoy77: https://github.com/lovejoy777/NSpanel
 
 Hellis81: https://github.com/Hellis81/NS-panel
+
