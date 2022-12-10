@@ -43,7 +43,7 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 ![8 Cover](https://user-images.githubusercontent.com/41958506/203654290-c6ec2f2f-7924-492c-914c-0d96dc3907e0.png)
 ![9 Weather](https://user-images.githubusercontent.com/41958506/203654307-24000d00-b7e1-47eb-bd64-9e97b508db52.png)
 
-(Coversetting and Weather Forcast)
+(Coversetting and Weather Forecast)
 
 
 ![10 Settings](https://user-images.githubusercontent.com/41958506/203654386-e4e574ad-8674-4268-84dd-1c4e40f98eb9.png)
@@ -56,7 +56,7 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 ![Device Setting 2](https://user-images.githubusercontent.com/41958506/203724491-53ecd93d-bc7c-4c2d-850b-f106691e2639.png)
 
 
-(HA Device Seeting for Example temperature correction)
+(HA Device Setting for Example temperature correction)
 
 
 ## Blueprint:
@@ -66,28 +66,28 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 
 
 ## Features:
-- easy to use and simple configuration via Blueprint - no change in the code is necessary
+- Easy to use and simple configuration via Blueprint - no change in the code is necessary
 - 32 buttons on 4 button pages with long press function for settings (more buttons are also possible)
 - Button design is automatically generated based on the selected entity
 - Buttons show current brightness and cover position in the button itself
 - Buttons label can be assigned via blueprint
-- Weather + 5 days weather forcast
+- Weather + 5 days weather forecast
 - Thermostat + Touch + Relay control for floor heating
-- Light control (brightness-slider, colorwheel, TempColor-slider) - via Long Press
+- Light control (brightness-slider, colorwheel, TempColor-slider) - via long Press
 - Cover control (open, close, position-slider) - via long press
 - Settings page (display brightness, display dim brightness, auto-dim, sleep mode, reboot NSPanel)
 - Swipe between pages
 - Top menu with 10 icons for specific states
 - Heating control (hot water)
-- modern design - design easy to change via Adobe Express (free + design template)
-- 2 pysical switches
+- Modern design - design easy to change via Adobe Express (free + design template)
+- 2 physical switches
 - and much more ;)
 
 
 # Pages
 
 ## Home
-- current weather with button to Weather Forcast page
+- Current weather with button to Weather Forcast page
 - Hardware buttons can be freely assigned
 - Hardware button label or without label
 - Blue line indicates on or off of the entity
@@ -134,8 +134,8 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 - Hot water button
 
 
-## Weather Forcast
-- 5 days Weather Forcast via swipe (Integration Accuweather - but should also go with another integration)
+## Weather Forecast
+- 5 days Weather Forecast via swipe (Integration Accuweather - but should also go with another integration)
 - Lowest and highest temperature outside
 - Date
 - Rain probability
