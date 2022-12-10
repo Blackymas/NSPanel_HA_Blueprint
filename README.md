@@ -19,6 +19,8 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 
 🎉 Roadmap Roadmap can be found here [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
 
+💥 Please move pull request to DEV repositorie and not to main repositorie - thanks!
+
 🙋 WE ARE LOOKING FOR YOU! _**We are always looking for people who would like to support this project. We are looking for help with "programming new features, writing documentation or translating documentation to EN. If you are interested then please contact us :)**_
 
 ## NSPanel:
