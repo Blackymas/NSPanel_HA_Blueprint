@@ -25,7 +25,9 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 
 ## NSPanel:
 ![2 Home](https://user-images.githubusercontent.com/41958506/203653897-cf96a7af-2b92-4ad9-a375-987decad5aa7.png)
+
 ![3 Buttonpage](https://user-images.githubusercontent.com/41958506/203654022-c6d81263-ce56-4a84-917a-9d4911f19f55.png)
+![NEW Domains](https://user-images.githubusercontent.com/41958506/206879659-3aea30c1-b126-4d52-a869-abf6adfc8fa1.png)
 
 (Home and Buttonpage)
 
