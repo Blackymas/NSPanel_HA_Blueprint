@@ -13,6 +13,8 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 
 📕 Full documentation and installation is available here [NSPanel Configuration, Setup and HowTo](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki).
 
+📌 Step by Step - [Setup Video](https://www.youtube.com/watch?v=3afPFg6kUdc)
+
 🚀 How to create "Issues" when I have a problem [WIKI HowTo](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki)
 
 ⭐ All Feature Requests can be found here [All Feature Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/new%20feature%20request)
