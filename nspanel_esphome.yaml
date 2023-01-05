@@ -179,6 +179,7 @@ api:
         - wait_until:
               switch.is_on: nextion_init
         - lambda: 'id(disp1).set_component_font_color(component.c_str(), message);'
+    
     ##### Service to send a command "background color" directly to the display #####
     - service: send_command_background_color
       variables:
@@ -188,6 +189,46 @@ api:
         - wait_until:
               switch.is_on: nextion_init
         - lambda: 'id(disp1).set_component_background_color(component.c_str(), message);'
+
+    ##### Service to show a notification-message on the screen #####
+    - service: notification_show
+      variables:
+        label: string
+        text: string
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: |-
+            id(disp1).send_command_printf("page notification");
+            id(disp1).set_component_text_printf("notification.notifi_label", "%s", label.c_str());
+            id(disp1).set_component_text_printf("notification.notifi_text01", "%s", text.c_str());
+            id(notification_label).publish_state(label.c_str());
+            id(notification_text).publish_state(text.c_str());
+        - switch.turn_on: notification_unread
+        - if:
+            condition:
+              switch.is_on: notification_sound
+            then:
+              - rtttl.play: "two short:d=4,o=5,b=100:16e6,16e6"
+
+    ##### Service to clear the notification #####
+    - service: notification_clear
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: |-
+            id(notification_label).publish_state("");
+            id(notification_text).publish_state("");
+        - switch.turn_off: notification_unread
+
+    ##### Service to play a rtttl tones #####
+    # Example tones : https://codebender.cc/sketch:109888#RTTTL%20Songs.ino
+    - service: play_rtttl
+      variables:
+        song_str: string
+      then:
+        - rtttl.play:
+            rtttl: !lambda 'return song_str;'    
 
     #### Service to send thermostat cycle state ####
     - service: send_thermostat_cycle_state
@@ -549,6 +590,14 @@ text_sensor:
       name: ${device_name} BSSID
       disabled_by_default: true
 
+  - platform: template
+    name: ${device_name} Notification Label
+    id: notification_label
+
+  - platform: template
+    name: ${device_name} Notification Text
+    id: notification_text
+
   ##### last click sensor, the main action variable - push to HA #####
   - platform: nextion
     nextion_id: disp1
@@ -675,9 +724,25 @@ switch:
     assumed_state: off
     optimistic: true
 
+  ##### Notification unread #####
+  - platform: template
+    name: ${device_name} Notification unread
+    id: notification_unread
+    entity_category: config
+    restore_state: true
+    optimistic: true
+
+  ##### Notification sound #####
+  - platform: template
+    name: ${device_name} Notification sound
+    id: notification_sound
+    entity_category: config
+    restore_state: true
+    optimistic: true
+
   ##### UPDATE TFT DISPLAY #####
   - platform: template
-    name: Update TFT display
+    name: ${device_name} Update TFT display
     id: tft_update
     entity_category: config
     turn_on_action:
@@ -803,7 +868,11 @@ display:
         - wait_until:
             api.connected
         - delay: 0.5s
-        - rtttl.play: "two short:d=4,o=5,b=100:16e6,16e6"
+        - if:
+            condition:
+              switch.is_on: notification_sound
+            then:
+              - rtttl.play: "two short:d=4,o=5,b=100:16e6,16e6"
         - delay: 0.5s
         - switch.template.publish:
             id: nextion_init

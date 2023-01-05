@@ -1092,6 +1092,11 @@ trigger_variables:
   display_target_temperature: "sensor.{{ nspanel_name_trigger }}_display_target_temperature"
   relay01_entity: "switch.{{ nspanel_name_trigger }}_relay_1"
   relay02_entity: "switch.{{ nspanel_name_trigger }}_relay_2"
+  
+  ##### notification Trigger #####
+  notification_unread: "switch.{{ nspanel_name_trigger }}_notification_unread"
+  notification_text: "sensor.{{ nspanel_name_trigger }}_notification_text"
+  notification_label: "sensor.{{ nspanel_name_trigger }}_notification_label"
 
   ##### WEATHER Trigger #####
   weather: !input "weather"
@@ -1109,6 +1114,8 @@ variables:
   time: "{{ (as_timestamp(now()) | timestamp_custom('%H:%M')) }}"
   language: !input "language"
 
+  notification_sound: "switch.{{ nspanel_name_trigger }}_notification_sound"
+
   ##### PUSH TO NEXTION DISPLAY #####
   command_text_printf: "esphome.{{ nspanel_name }}_send_command_text_printf"
   command_value: "esphome.{{ nspanel_name }}_send_command_value"
@@ -1116,6 +1123,8 @@ variables:
   command_font_color: "esphome.{{ nspanel_name }}_send_command_font_color"
   command_background_color: "esphome.{{ nspanel_name }}_send_command_background_color"
   command_thermostat_cycle: "esphome.{{ nspanel_name }}_send_thermostat_cycle_state"
+  command_notification_show: "esphome.{{ nspanel_name }}_notification_show"
+  command_notification_clear: "esphome.{{ nspanel_name }}_notification_clear"
 
   ###### SYNC SETTINGS #####
   delay_boot: !input "delay"
@@ -1847,6 +1856,37 @@ trigger:
   - platform: template
     value_template: '{{ states(last_click) is match "releaseclimate" }}'
     id: open_climate_settings
+
+  ##### Trigger - Notification #####
+
+  ##### Notification Text - Trigger "notification_text_state" #####
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: '{{ notification_text }}'
+    id: notification_text_state
+
+  ##### Notification Text - Trigger "notification_text_state" #####
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: '{{ notification_unread }}'
+    id: notification_unread_state
+
+  #### Show notification - Trigger ####
+  - platform: template
+    value_template: '{{ states(last_click) is match "homebutton04release" }}'
+    id: open_notification_page
+
+  #### Notification clear - Trigger ####
+  - platform: template
+    value_template: '{{ states(last_click) is match "notificationclearrelease" }}'
+    id: btn_notificationclearrelease
+
+  #### Notification accept - Trigger ####
+  - platform: template
+    value_template: '{{ states(last_click) is match "notificationacceptrelease" }}'
+    id: btn_notificationacceptrelease
 
   ##### Trigger - Button General #################################################################################################################
 
@@ -2623,6 +2663,77 @@ action:
               - service: "{{ command_printf }}"
                 data:
                   cmd: home.icon_top_04.pic={{ flame_pic }}
+
+          ###### INIT Notify ######
+          - service: "{{ command_notification_clear }}"
+            data: {}
+
+      #### Notification Symbol ####
+      - conditions:
+          - condition: trigger
+            id:
+              - notification_text_state
+              - notification_unread_state
+          - condition: template
+            value_template: "{{ trigger.event.data.new_state.state != 'unavailable' and trigger.event.data.new_state.state != 'unknown' and states(current_page) == page_home }}"
+        sequence:
+          - alias: "Set notifiy pic"
+            variables:
+              notify_pic: >-
+                {%- if is_state(notification_unread, 'on') and states(notification_text) |length > 0 -%} {{ home_button_notify_red }}
+                {%- elif is_state(notification_unread, 'off') and states(notification_text) |length > 0 -%} {{ home_button_notify_white }}
+                {%- else -%} {{ home_button_blank }}
+                {%- endif -%}
+          - service: "{{ command_printf }}"
+            data:
+              cmd: "homebt04_pic.pic={{ notify_pic }}"
+
+      ##### Show last notification  #####
+      - conditions:
+          - condition: trigger
+            id: open_notification_page
+          - condition: template
+            value_template: "{{ states(notification_text) |length > 0}} "
+        sequence:
+          - service: "{{ command_printf }}"
+            data:
+              cmd: "page {{ page_notification }}"
+          - service: "{{ command_text_printf }}"
+            data:
+              component: notification.notifi_text01
+              message: "{{ states(notification_text) }}"
+          - delay:
+              milliseconds: "{{ delay_value }}"
+          - service: "{{ command_text_printf }}"
+            data:
+              component: notification.notifi_label
+              message: "{{ states(notification_label) }}"
+
+      ##### Button Notification clear #####
+      - conditions:
+          - condition: trigger
+            id: btn_notificationclearrelease
+        sequence:
+          - service: switch.turn_off
+            data:
+              entity_id: "{{ notification_unread }}"
+          - service: "{{ command_printf }}"
+            data:
+              cmd: "page {{ page_home }}"
+
+      ##### Button Notification accept #####
+      - conditions:
+          - condition: trigger
+            id: btn_notificationacceptrelease
+        sequence:
+          - service: switch.turn_off
+            data:
+              entity_id: "{{ notification_unread }}"
+          - service: "{{ command_notification_clear }}"
+            data: {}
+          - service: "{{ command_printf }}"
+            data:
+              cmd: "page {{ page_home }}"
 
       #### TFT Upload Automation #####
       - conditions:
@@ -4072,6 +4183,20 @@ action:
                                   entity_id: !input climate
                                   #hvac_mode: 'heat'
                                   temperature: "{{ display_target_temperature }}"
+                  
+                  ##### Set notify icon #####
+                  - variables:
+                      notify_pic: >-
+                        {%- if is_state(notification_unread, 'on') and states(notification_text) |length > 0 -%} {{ home_button_notify_red }}
+                        {%- elif is_state(notification_unread, 'off') and states(notification_text) |length > 0 -%} {{ home_button_notify_white }}
+                        {%- else -%} {{ home_button_blank }}
+                        {%- endif -%}
+                  - delay:
+                      milliseconds: "{{ delay_value }}"
+                  - service: "{{ command_printf }}"
+                    data:
+                      cmd: "homebt04_pic.pic={{ notify_pic }}"
+
 
               ## PAGE WEATHE01 ## 
               - conditions: '{{ trigger.event.data.new_state.state == page_weather01 }}'
