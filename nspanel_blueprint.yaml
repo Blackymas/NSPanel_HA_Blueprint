@@ -172,6 +172,16 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
         entity:
           domain:
             - sensor
+
+    indoortemp:
+      name: Indoor Temperature Sensor (Optional)
+      description: '* *An indoor temperature sensor is not necessary. Leave the field empty if you want to use the temperature sensor of the NSPanel. Additionally a temperature correction for the NSPanel sensor is possible under HA Devices. So everyone can adjust the sensor exactly*'
+      default: []
+      selector:
+        entity:
+          domain:
+            - sensor
+
     humidity:
       name: Humidity Sensor (Optional)
       description: '* *Choose your humidity sensor*'
@@ -1285,6 +1295,7 @@ trigger_variables:
   display_target_temperature: "sensor.{{ nspanel_name_trigger }}_display_target_temperature"
   relay01_entity: "switch.{{ nspanel_name_trigger }}_relay_1"
   relay02_entity: "switch.{{ nspanel_name_trigger }}_relay_2"
+  nspaneltemp: "sensor.{{ nspanel_name_trigger }}_temperature"
   
   ##### notification Trigger #####
   notification_unread: "switch.{{ nspanel_name_trigger }}_notification_unread"
@@ -1336,6 +1347,7 @@ variables:
   humidity: !input "humidity"
   hotwatertemp: !input "hotwatertemp"
   outdoortemp: !input "outdoortemp"
+  indoortemp: !input "indoortemp"
   climate: !input "climate"
 
   #### HARDWARE BUTTONS #####
@@ -2068,6 +2080,20 @@ trigger:
       entity_id: !input "outdoortemp"
     id: outdoortemp_state
 
+  ##### indoor Temp Sensor - Trigger "indoortemp_state" #####
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input "indoortemp"
+    id: indoortemp_state
+
+  ##### NSPAnel Temp Sensor - Trigger "nspaneltemp_state" #####
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: '{{ nspaneltemp }}'
+    id: nspaneltemp_state
+
   ##### Hot Water Charge - Trigger "hotwatercharge_state" #####
   - platform: event
     event_type: state_changed
@@ -2776,7 +2802,7 @@ action:
                 {%- if outdoortemp is match "sensor." and states(outdoortemp).state != "unavailable" -%} {{ states(outdoortemp) |round(0) }}
                 {%- elif weather == "Default" and state_attr(ha_weather, "temperature") != None -%} {{state_attr(ha_weather,"temperature") | round(0)}}
                 {%- elif weather == "AccuWeather" and state_attr(accuweather_value, "temperature") != None -%} {{state_attr(accuweather_value,"temperature") | round(0)}}
-                {%- else -%} 0
+                {%- else -%} sensor.nspanel_dev_temperature
                 {%- endif -%}
           - delay:
               milliseconds: "{{ delay_value }}"
@@ -2784,6 +2810,19 @@ action:
             data:
               component: home.outdoor_temp
               message: "{{ outdoor_temp }}°"
+
+          #####  NSPanel boot init - Indoor Temp #####
+          - variables:
+              indoor_temp: >-
+                {%- if indoortemp is match "sensor." and states(indoortemp).state != "unavailable" -%} {{ states(indoortemp) |round(0) }}
+                {%- else -%} {{ nspaneltemp }}
+                {%- endif -%}
+          - delay:
+              milliseconds: "{{ delay_value }}"
+          - service: "{{ command_text_printf }}"
+            data:
+              component: home.current_temp
+              message: "{{ indoor_temp }}°"
 
           ##### Weather Icon Home Page
           - variables:
@@ -4313,6 +4352,35 @@ action:
             data:
               component: climate.outdoor_temp
               message: "{{ trigger.event.data.new_state.state |round(0) }}°"
+
+
+      ##### Indoor Temp Entity #####
+      - conditions:
+          - condition: trigger
+            id: indoortemp_state
+          - condition: template
+            value_template: "{{ trigger.event.data.new_state.state != 'unavailable' }}"
+        sequence:
+          - service: "{{ command_text_printf }}"
+            data:
+              component: home.current_temp
+              message: "{{ trigger.event.data.new_state.state |round(0) }}°"
+
+      ##### Indoor NSPANEL Temp Entity #####
+      - conditions:
+          - condition: trigger
+            id: nspaneltemp_state
+          - condition: template
+            value_template: "{{ trigger.event.data.new_state.state != 'unavailable' }}"
+        sequence:
+          - if:
+              - condition: template
+                value_template: '{{ indoortemp is not match "sensor." }}'
+            then:
+              - service: "{{ command_text_printf }}"
+                data:
+                  component: home.current_temp
+                  message: "{{ trigger.event.data.new_state.state |round(0) }}°"
 
 
       ##### Weather state change update #####
