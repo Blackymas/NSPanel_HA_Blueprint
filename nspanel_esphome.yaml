@@ -124,6 +124,14 @@ api:
     - service: upload_tft
       then:
         - lambda: 'id(disp1)->upload_tft();'
+
+    ##### SERVICE TO UPDATE THE TFT FILE from URL #####
+    - service: upload_tft_url
+      variables:
+        url: string
+      then:
+        - lambda: 'id(disp1)->set_tft_url(url.c_str());'
+        - lambda: 'id(disp1)->upload_tft();'
             
     ##### Service to send a command "printf" directly to the display #####
     - service: send_command_printf
@@ -179,6 +187,7 @@ api:
         - wait_until:
               switch.is_on: nextion_init
         - lambda: 'id(disp1).set_component_font_color(component.c_str(), message);'
+    
     ##### Service to send a command "background color" directly to the display #####
     - service: send_command_background_color
       variables:
@@ -188,6 +197,46 @@ api:
         - wait_until:
               switch.is_on: nextion_init
         - lambda: 'id(disp1).set_component_background_color(component.c_str(), message);'
+
+    ##### Service to show a notification-message on the screen #####
+    - service: notification_show
+      variables:
+        label: string
+        text: string
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: |-
+            id(disp1).send_command_printf("page notification");
+            id(disp1).set_component_text_printf("notification.notifi_label", "%s", label.c_str());
+            id(disp1).set_component_text_printf("notification.notifi_text01", "%s", text.c_str());
+            id(notification_label).publish_state(label.c_str());
+            id(notification_text).publish_state(text.c_str());
+        - switch.turn_on: notification_unread
+        - if:
+            condition:
+              switch.is_on: notification_sound
+            then:
+              - rtttl.play: "two short:d=4,o=5,b=100:16e6,16e6"
+
+    ##### Service to clear the notification #####
+    - service: notification_clear
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: |-
+            id(notification_label).publish_state("");
+            id(notification_text).publish_state("");
+        - switch.turn_off: notification_unread
+
+    ##### Service to play a rtttl tones #####
+    # Example tones : https://codebender.cc/sketch:109888#RTTTL%20Songs.ino
+    - service: play_rtttl
+      variables:
+        song_str: string
+      then:
+        - rtttl.play:
+            rtttl: !lambda 'return song_str;'    
 
     #### Service to send thermostat cycle state ####
     - service: send_thermostat_cycle_state
@@ -404,11 +453,20 @@ binary_sensor:
       number: 27
       inverted: true
 
-  ##### Restart NSPanel Button #####
+  ##### Restart NSPanel Button - Setting Page #####
   - platform: nextion
     name: ${device_name} Restart
     page_id: 7
     component_id: 9
+    internal: true
+    on_click:
+      - button.press: restart_nspanel
+
+  ##### Restart NSPanel Button - Boot Page #####
+  - platform: nextion
+    name: ${device_name} Restart
+    page_id: 8
+    component_id: 5
     internal: true
     on_click:
       - button.press: restart_nspanel
@@ -472,12 +530,12 @@ sensor:
       reference_resistance: 10kOhm
     filters:
       - lambda: return x + id(temperature_correction_global);
-    on_value:
-      then:
-        - wait_until:
-            switch.is_on: nextion_init
-        - lambda: id(disp1).set_component_text_printf("home.current_temp", "%.1f°", id(temp_nspanel).state); # onboard temp (thermostat temp) to home page.
-        # - lambda: id(disp1).set_component_text_printf("climate.current_temp", "%.1f", id(temp_nspanel).state);
+#    on_value:
+#      then:
+#        - wait_until:
+#            switch.is_on: nextion_init
+#         - lambda: id(disp1).set_component_text_printf("home.current_temp", "%.1f°", id(temp_nspanel).state); # onboard temp (thermostat temp) to home page.
+#         - lambda: id(disp1).set_component_text_printf("climate.current_temp", "%.1f", id(temp_nspanel).state);
 
   ##### current value of page-climate target_temp #####
   - platform: template
@@ -548,6 +606,14 @@ text_sensor:
     bssid:
       name: ${device_name} BSSID
       disabled_by_default: true
+
+  - platform: template
+    name: ${device_name} Notification Label
+    id: notification_label
+
+  - platform: template
+    name: ${device_name} Notification Text
+    id: notification_text
 
   ##### last click sensor, the main action variable - push to HA #####
   - platform: nextion
@@ -675,9 +741,33 @@ switch:
     assumed_state: off
     optimistic: true
 
+  ##### Notification unread #####
+  - platform: template
+    name: ${device_name} Notification unread
+    id: notification_unread
+    entity_category: config
+    restore_state: true
+    optimistic: true
+
+  ##### Notification sound #####
+  - platform: template
+    name: ${device_name} Notification sound
+    id: notification_sound
+    entity_category: config
+    restore_state: true
+    optimistic: true
+
+  ##### Confirmation Message #####
+  - platform: template
+    name: ${device_name} Confirmation Message
+    id: confirmation_message
+    entity_category: config
+    restore_state: false
+    optimistic: true
+
   ##### UPDATE TFT DISPLAY #####
   - platform: template
-    name: Update TFT display
+    name: ${device_name} Update TFT display
     id: tft_update
     entity_category: config
     turn_on_action:
@@ -799,17 +889,10 @@ display:
     tft_url: ${nextion_update_url}
     on_setup:
       then:
-        - lambda: id(disp1).send_command_printf("page 9"); ##### CHANGE! -  Loading page #####
+        - lambda: id(disp1).send_command_printf("page 8");
         - wait_until:
             api.connected
         - delay: 0.5s
-        - rtttl.play: "two short:d=4,o=5,b=100:16e6,16e6"
-        - delay: 0.5s
-        - switch.template.publish:
-            id: nextion_init
-            state: on
-        - lambda: id(disp1).send_command_printf("page 0"); #### home page #####
-        - delay: 2s ##### gives the display time to update other components & set the home page #####
         - number.set:
             id: display_brightness
             value: !lambda 'return id(display_brightness_global);'
@@ -827,3 +910,7 @@ display:
             {
               id(disp1).set_component_value("settings.a02",1);
             }
+        - delay: 0.5s
+        - switch.template.publish:
+            id: nextion_init
+            state: on
