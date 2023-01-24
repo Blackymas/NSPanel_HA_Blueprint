@@ -1383,7 +1383,7 @@ trigger_variables:
 
 variables:
   ##### GENERAL #####
-  blueprint_version: "3.1.0"
+  blueprint_version: "3.1.1"
   nspanel_name: !input "nspanel_name"
   time: "{{ (as_timestamp(now()) | timestamp_custom('%H:%M')) }}"
   language: !input "language"
@@ -2112,6 +2112,11 @@ trigger:
     value_template: '{{ states(nextion_inited_trigger) is match "on" }}'
     id: nspanel_boot_init
 
+  ##### Automation reload
+  - platform: event
+    event_type: automation_reloaded
+    id: automation_reloaded
+
   ##### TFT Upload - Trigger "tft_upload" #####
   - platform: event
     event_type: folder_watcher
@@ -2607,16 +2612,24 @@ action:
       ##### NSPanel boot init #####
       - conditions:
           - condition: trigger
-            id: nspanel_boot_init
+            id: 
+              - nspanel_boot_init
+              - automation_reloaded
         sequence:
-
-          ##### NSPanel boot init start #####
           - delay:
               milliseconds: 100
-          - service: "{{ command_text_printf }}"
-            data:
-              component: boot.bluep_version
-              message: "{{ blueprint_version }}"
+
+          ##### NSPanel boot init only #####
+          - if:
+              - condition: template
+                value_template: '{{ trigger.id == "nspanel_boot_init" }}'
+            then:
+              ##### NSPanel boot init start #####
+              
+              - service: "{{ command_text_printf }}"
+                data:
+                  component: boot.bluep_version
+                  message: "{{ blueprint_version }}"
 
           ##### NSPanel boot init buttons #####
           - delay:
@@ -2834,21 +2847,6 @@ action:
                             component: "{{ component_to_update }}bri"
                             message: "{{ btn_bri_txt }}"
 
-          ###### INIT Notify ######
-          - service: "{{ command_notification_clear }}"
-            data: {}
-
-          ###### NSPanel beep ######
-          - delay:
-              milliseconds: 100
-          - if:
-              - condition: template
-                value_template: '{{ is_state(notification_sound, "on") }}'
-            then:
-              - service: "{{ command_play_rtttl }}"
-                data:
-                  song_str: "two short:d=4,o=5,b=100:16e6,16e6"
-
           ###### Set local fallback ######
           - if:
               - condition: template
@@ -2872,13 +2870,34 @@ action:
               - service: switch.turn_off
                 data:
                   entity_id: 'switch.{{ nspanel_name }}_relay_2_local_fallback'
+          
 
-          ##### NSPanel boot init finished and jump to Home Page#####
-          - delay:
-              milliseconds: "{{ delay_value }}"
-          - service: "{{ command_printf }}"
-            data:
-              cmd: page home
+          ##### NSPanel boot init only #####
+          - if:
+              - condition: template
+                value_template: '{{ trigger.id == "nspanel_boot_init" }}'
+            then:
+              ###### INIT Notify ######
+              - service: "{{ command_notification_clear }}"
+                data: {}
+
+              ###### NSPanel beep ######
+              - delay:
+                  milliseconds: 100
+              - if:
+                  - condition: template
+                    value_template: '{{ is_state(notification_sound, "on") }}'
+                then:
+                  - service: "{{ command_play_rtttl }}"
+                    data:
+                      song_str: "two short:d=4,o=5,b=100:16e6,16e6"
+
+              ##### NSPanel boot init finished and jump to Home Page#####
+              - delay:
+                  milliseconds: "{{ delay_value }}"
+              - service: "{{ command_printf }}"
+                data:
+                  cmd: page home
 
       #### Notification Symbol ####
       - conditions:
@@ -3565,7 +3584,7 @@ action:
                 {%- elif states(last_click) == "releasebuttonpage04button08" -%} {{ entity32_confirm }}
                 {%- endif -%}
           - condition: template
-            value_template: '{{ entity_short is not match "person." and entity_short is not match "binary_sensor." }}'
+            value_template: '{{ entity_short |length > 0 and entity_short is not match "person." and entity_short is not match "binary_sensor." }}'
           - if:
               - condition: template
                 value_template: "{{ entity_confirm }}"
