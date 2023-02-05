@@ -238,6 +238,17 @@ api:
         - rtttl.play:
             rtttl: !lambda 'return song_str;'    
 
+    # Service to show a QR code on the display (ex. for WiFi password)
+    - service: qr_code
+      variables:
+        qrdata: string
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: |-
+            id(disp1).send_command_printf("page qrcode");
+            id(disp1).set_component_text_printf("qrcode.qrcode_value", "%s", qrdata.c_str());
+
     #### Service to send thermostat cycle state ####
     - service: send_thermostat_cycle_state
       variables:
@@ -247,126 +258,12 @@ api:
               switch.is_on: nextion_init
         - lambda: |-
             //ESP_LOGD("nextion", "thermostat sendig value %f", value);
-            int left=16; // 16 is empty left.
-            int mid=17; // 17 is empty mid.
-            int right=18; // 18 is empty right.
-            if (value < 13.5) {
-              left=16;
-              mid=17;
-              right=18;
-            } else if (value >= 13.5 and value < 14) {
-              left=19;
-              mid=17;
-              right=18;
-            } else if (value >= 14 and value < 14.5) {
-              left=20;
-              mid=17;
-              right=18;
-            } else if (value >= 14.5 and value < 15) {
-              left=21;
-              mid=17;
-              right=18;
-            } else if (value >= 15 and value < 15.5) {
-              left=22;
-              mid=17;
-              right=18;
-            } else if (value >= 15.5 and value < 16) {
-              left=23;
-              mid=17;
-              right=18;
-            } else if (value >= 16 and value < 16.5) {
-              left=24;
-              mid=17;
-              right=18;
-            } else if (value >= 16.5 and value < 17) {
-              left=25;
-              mid=17;
-              right=18;
-            } else if (value >= 17 and value < 17.5) {
-              left=26;
-              mid=17;
-              right=18;
-            } else if (value >= 17.5 and value < 18) {
-              left=27;
-              mid=17;
-              right=18;
-            } else if (value >= 18 and value < 18.5) {
-              left=28;
-              mid=17;
-              right=18;
-            } else if (value >= 18.5 and value < 19) {
-              left=29;
-              mid=30;
-              right=18;
-            } else if (value >= 19 and value < 19.5) {
-              left=29; 
-              mid=31;
-              right=18;
-            } else if (value >= 19.5 and value < 20) {
-              left=29;
-              mid=32;
-              right=18;
-            } else if (value >= 20 and value < 20.5) {
-              left=29;
-              mid=33;
-              right=18;
-            } else if (value >= 20.5 and value < 21) {
-              left=29;
-              mid=34;
-              right=18;
-            } else if (value >= 21 and value < 21.5) {
-              left=29;
-              mid=35;
-              right=18;
-            } else if (value >= 21.5 and value < 22) {
-              left=29;
-              mid=36;
-              right=18;
-            } else if (value >= 22 and value < 22.5) {
-              left=29;
-              mid=37;
-              right=38;
-            } else if (value >= 22.5 and value < 23) {
-              left=29;
-              mid=37;
-              right=39;
-            } else if (value >= 23 and value < 23.5) {
-              left=29;
-              mid=37;
-              right=40;
-            } else if (value >= 23.5 and value < 24) {
-              left=29;
-              mid=37;
-              right=41;
-            } else if (value >= 24 and value < 24.5) {
-              left=29;
-              mid=37;
-              right=42;
-            } else if (value >= 24.5 and value < 25) {
-              left=29;
-              mid=37;
-              right=43;
-            } else if (value >= 25 and value < 25.5) {
-              left=29;
-              mid=37;
-              right=44;
-            } else if (value >= 25.5 and value < 26) {
-              left=29;
-              mid=37;
-              right=45;
-            } else if (value >= 26 and value < 26.5) {
-              left=29;
-              mid=37;
-              right=46;
-            } else if (value >= 26.5 and value < 27) {
-              left=29;
-              mid=37;
-              right=47;
-            } else if (value >= 27) {
-              left=29;
-              mid=37;
-              right=48;
-            }
+            int v = int(2 * std::min(std::max(value - 13.5, 0.0), 5.0));
+            int left = v + (v ? 19 : 16); // 16 is empty left.
+            v = int(2 * std::min(std::max(value - 18.0, 0.0), 4.0));
+            int mid = v + (v ? 29 : 17); // 17 is empty mid.
+            v = int(2 * std::min(std::max(value - 21.5, 0.0), 5.5));
+            int right = v + (v ? 37 : 18); // 18 is empty right.
             // sends the 3 images to the display
             //ESP_LOGD("nextion", "thermostat left %i", left);
             //ESP_LOGD("nextion", "thermostat mid %i", mid);
@@ -430,7 +327,7 @@ globals:
     restore_value: no
     initial_value: ''
 
-  ##### lastclick_ccurrentpage State #####
+  ##### lastclick_currentpage State #####
   - id: currentpage_global
     type: std::string
     restore_value: no
@@ -441,23 +338,126 @@ binary_sensor:
 
   ###### LEFT BUTTON BELOW DISPLAY TO TOGGLE RELAY#####
   - platform: gpio
-    name: ${device_name} Left Button
+    # name: ${device_name} Left Button
+    id: left_button
     pin:
       number: 14
       inverted: true
+    on_click:
+    - min_length: 50ms
+      max_length: 1000ms
+      then:
+        - binary_sensor.template.publish:
+            id: left_button_short
+            state: ON
+        - if:
+            condition:
+              and:
+                  - switch.is_on: relay1_fallback
+                  - not:
+                      api.connected:
+            then:
+              - switch.toggle: relay_1
+              - lambda: id(disp1).send_command_printf("home.icon_top_01.pic=51");
+              - lambda: id(disp1).send_command_printf("home.left_bt_pic.pic=98");
+              - if: 
+                  condition:
+                    switch.is_on: relay_1
+                  then:
+                    - lambda: id(disp1).send_command_printf("home.icon_top_01.pic=105");
+        - delay: 500ms
+        - binary_sensor.template.publish:
+            id: left_button_short
+            state: OFF
+    on_press:
+      then:
+        - lambda: |-
+            if (id(disp1_currentpage).state == "lightsettings" or id(disp1_currentpage).state == "coversettings") {
+              ESP_LOGD("nspanel", "settingspage -> no press");
+            } else {
+              // ESP_LOGD("nspanel", "release button");
+              id(disp1_lastclick_general).set_state("pressbuttonleft",true,true);
+            }
+    on_release:
+      then:
+        - lambda: |-
+            if (id(disp1_currentpage).state == "lightsettings" or id(disp1_currentpage).state == "coversettings") {
+              ESP_LOGD("nspanel", "settingspage -> no release");
+            } else {
+              // ESP_LOGD("nspanel", "release button");
+              id(disp1_lastclick_general).set_state("releasebuttonleft",true,true);
+            }
+
+  - platform: template
+    name: ${device_name} Left Button
+    id: left_button_short
+    lambda: |-
+      return {};
+
 
   ##### RIGHT BUTTON BELOW DISPLAY TO TOGGLE RELAY #####
   - platform: gpio
-    name: ${device_name} Right Button
+    # name: ${device_name} Right Button
+    id: right_button
     pin:
       number: 27
       inverted: true
+    on_click:
+    - min_length: 50ms
+      max_length: 1000ms
+      then:
+        - binary_sensor.template.publish:
+            id: right_button_short
+            state: ON
+        - if:
+            condition:
+              and:
+                  - switch.is_on: relay2_fallback
+                  - not:
+                      api.connected:
+            then:
+              - switch.toggle: relay_2
+              - lambda: id(disp1).send_command_printf("home.icon_top_02.pic=51");
+              - lambda: id(disp1).send_command_printf("home.right_bt_pic.pic=98");
+              - if: 
+                  condition:
+                    switch.is_on: relay_2
+                  then:
+                    - lambda: id(disp1).send_command_printf("home.icon_top_02.pic=106");
+        - delay: 500ms
+        - binary_sensor.template.publish:
+            id: right_button_short
+            state: OFF
+    on_press:
+      then:
+        - lambda: |-
+            if (id(disp1_currentpage).state == "lightsettings" or id(disp1_currentpage).state == "coversettings") {
+              ESP_LOGD("nspanel", "settingspage -> no press");
+            } else {
+              // ESP_LOGD("nspanel", "release button");
+              id(disp1_lastclick_general).set_state("pressbuttonright",true,true);
+            }
+    on_release:
+      then:
+        - lambda: |-
+            if (id(disp1_currentpage).state == "lightsettings" or id(disp1_currentpage).state == "coversettings") {
+              ESP_LOGD("nspanel", "settingspage -> no release");
+            } else {
+              // ESP_LOGD("nspanel", "release button");
+              id(disp1_lastclick_general).set_state("releasebuttonright",true,true);
+            }
+
+  - platform: template
+    name: ${device_name} Right Button
+    id: right_button_short
+    lambda: |-
+      return {};
 
   ##### Restart NSPanel Button - Setting Page #####
   - platform: nextion
     name: ${device_name} Restart
     page_id: 7
-    component_id: 9
+    component_id: 8
     internal: true
     on_click:
       - button.press: restart_nspanel
@@ -475,7 +475,7 @@ binary_sensor:
   - platform: nextion
     name: ${device_name} Sleep Modus
     page_id: 7
-    component_id: 4
+    component_id: 3
     internal: true
     on_click:
       - switch.toggle: sleep_modus
@@ -505,21 +505,21 @@ sensor:
     name: ${device_name} RSSI
     update_interval: 60s
 
-  ##### INTERNAL TEMPERATUE SENSOR, ADC VALUE #####
+  ##### INTERNAL TEMPERATURE SENSOR, ADC VALUE #####
   - platform: adc
     id: ntc_source
     pin: 38
-    update_interval: 10s
+    update_interval: 60s
     attenuation: 11db
 
-  ##### INTERNAL TEMPERATUE SENSOR, adc reading converted to resistance (calculation)#####
+  ##### INTERNAL TEMPERATURE SENSOR, adc reading converted to resistance (calculation)#####
   - platform: resistance
     id: resistance_sensor
     sensor: ntc_source
     configuration: DOWNSTREAM
     resistor: 11.2kOhm
 
-  ##### INTERNAL TEMPERATUE SENSOR, resistance to temperature (calculation) #####
+  ##### INTERNAL TEMPERATURE SENSOR, resistance to temperature (calculation) #####
   - platform: ntc
     name: ${device_name} Temperature
     id: temp_nspanel
@@ -600,6 +600,7 @@ text_sensor:
     ip_address:
       name: ${device_name} IP
       disabled_by_default: true
+      id: ip_address
     ssid:
       name: ${device_name} SSID
       disabled_by_default: true
@@ -635,6 +636,8 @@ text_sensor:
         - globals.set:
             id: lastclick_general_global
             value: !lambda return x;
+        - lambda: |-
+            id(page_timer)->execute(int(id(page_timeout).state));
   
   ##### last click lightsettings page, the main action variable - push to HA #####
   - platform: nextion
@@ -656,6 +659,8 @@ text_sensor:
         - globals.set:
             id: lastclick_lightsettings_global
             value: !lambda return x;
+        - lambda: |-
+            id(page_timer)->execute(int(id(page_timeout).state));
 
   ##### last click coversettings page, the main action variable - push to HA #####
   - platform: nextion
@@ -677,6 +682,8 @@ text_sensor:
         - globals.set:
             id: lastclick_coversettings_global
             value: !lambda return x;
+        - lambda: |-
+            id(page_timer)->execute(int(id(page_timeout).state));
 
   ##### last click climate page, the main action variable - push to HA #####
   - platform: nextion
@@ -698,6 +705,8 @@ text_sensor:
         - globals.set:
             id: lastclick_climatesettings_global
             value: !lambda return x;
+        - lambda: |-
+            id(page_timer)->execute(int(id(page_timeout).state));
 
   ##### currentpage sensor, the main action variable - push to HA #####
   - platform: nextion
@@ -719,6 +728,32 @@ text_sensor:
         - globals.set:
             id: currentpage_global
             value: !lambda return x;
+        - lambda: |-
+            id(page_timer)->execute(int(id(page_timeout).state));
+
+
+  ##### touchevent sensor, Reset the page timeout #####
+  - platform: nextion
+    nextion_id: disp1
+    #name: ${device_name} touchevent
+    id: disp1_touchevent
+    update_interval: 50ms
+    component_name: touchevent
+    internal: true
+    filters:
+      - lambda: |-
+          static std::string touchevent_history = "";
+          if (strcmp(x.c_str(), touchevent_history.c_str()) != 0) {
+            touchevent_history = x;
+            return x;
+            // touchevent_history = "";
+          } else {
+            return {};
+          }
+    on_value:
+      then:
+        - lambda: |-
+            id(page_timer)->execute(int(id(page_timeout).state));
 
 
 ##### START - SWITCH CONFIGURATION #####  
@@ -822,6 +857,20 @@ switch:
             value: '1'
       - lambda:  id(disp1).set_component_value("settings.a02",1);
 
+  ##### Relay Local control Fallback #####  
+  - platform: template
+    name: ${device_name} Relay 1 Local Fallback
+    id: relay1_fallback
+    entity_category: config
+    restore_state: true
+    optimistic: true
+
+  - platform: template
+    name: ${device_name} Relay 2 Local Fallback
+    id: relay2_fallback
+    entity_category: config
+    restore_state: true
+    optimistic: true
 
 ##### START - NUMBER CONFIGURATION #####
 number:
@@ -880,6 +929,17 @@ number:
             id: temperature_correction_global
             value: !lambda 'return x;'
 
+##### page-timeout #####
+  - platform: template
+    name: ${device_name} Page Timeout
+    id: page_timeout
+    entity_category: config
+    min_value: 0
+    max_value: 60
+    initial_value: 10
+    step: 1
+    restore_value: true
+    optimistic: true
 
 ##### START - DISPLAY START CONFIGURATION #####
 display:
@@ -890,8 +950,10 @@ display:
     on_setup:
       then:
         - lambda: id(disp1).send_command_printf("page 8");
+        - lambda: id(disp1).set_component_text_printf("boot.esph_version", "%s", "3.1.0"); ### esphome-version ###
         - wait_until:
             api.connected
+        - lambda: id(disp1).set_component_text_printf("boot.ip_addr", "%s", id(ip_address).state.c_str());
         - delay: 0.5s
         - number.set:
             id: display_brightness
@@ -904,13 +966,26 @@ display:
         - lambda: id(disp1).send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
         - lambda: id(disp1).send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
         - lambda: id(disp1).send_command_printf("home.sleepmodus.val=%i", id(sleep_modus_global));
-        - lambda: |-
-            id(disp1).set_component_value("settings.a02",0);
-            if (id(sleep_modus_global) == 1) 
-            {
-              id(disp1).set_component_value("settings.a02",1);
-            }
+        - lambda: id(disp1).set_component_value("settings.a02", id(sleep_modus_global) == 1);
         - delay: 0.5s
         - switch.template.publish:
             id: nextion_init
             state: on
+
+### Script for page_timer
+script:
+  - id: page_timer
+    mode: restart
+    parameters:
+      delay: int
+    then:
+      - lambda: ESP_LOGD("nspanel", "start page-timer delay %i", int(id(page_timeout).state));
+      - delay: !lambda return delay *1000;
+      - lambda: |-
+          if (id(disp1_currentpage).state == "home" or id(disp1_currentpage).state == "screensaver" or id(disp1_currentpage).state == "boot" or int(id(page_timeout).state) == 0) {
+            ESP_LOGD("nspanel", "no page-jump");
+          } else {
+            ESP_LOGD("nspanel", "timer->home");
+            id(disp1).send_command_printf("page 0");
+          }
+
