@@ -227,12 +227,17 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
       selector:
         entity:
           domain: climate
-    climate_optimistic:
-      name: Climate control optimistic mode (Optional)
-      default: true
-      description: '* *Depends on your climate device and HA-Integration. If optimisitc mode is **OFF** then changes are made will wait for response from device to update temperature in the display. This can cause delays or jumping values. If **ON** the script update the display immediately but apply changes after closing climate-page* '
+
+    climate_precision:
+      name: Climate temperature precision
+      default: "1"
       selector:
-        boolean:
+        select:
+          options:
+            - label: '%.0f'
+              value: "0"
+            - label: '%.1f'
+              value: "1"
 
     qrcode_state:
       name: Activate QR Code (Optional)
@@ -2078,6 +2083,7 @@ trigger_variables:
   last_click_lightsettings: "sensor.{{ nspanel_name }}_last_click_lightsettings"
   last_click_coversettings: "sensor.{{ nspanel_name }}_last_click_coversettings"
   last_click_climatesettings: "sensor.{{ nspanel_name }}_last_click_climatesettings"
+  climate_target_temperature: "sensor.{{ nspanel_name }}_climate_target_temperature"
   left_button: "binary_sensor.{{ nspanel_name }}_left_button"
   right_button: "binary_sensor.{{ nspanel_name }}_right_button"
   weather_forcast_button: "binary_sensor.{{ nspanel_name }}_weather_forcast"
@@ -2122,6 +2128,9 @@ variables:
   command_notification_clear: "esphome.{{ nspanel_name }}_notification_clear"
   command_play_rtttl: "esphome.{{ nspanel_name }}_play_rtttl"
   command_set_settings_entity: "esphome.{{ nspanel_name }}_set_settings_entity"
+  command_set_climate_settings: "esphome.{{ nspanel_name }}_set_climate_settings"
+  command_set_climate_state: "esphome.{{ nspanel_name }}_set_climate_state"
+  command_set_climate_target_temp: "esphome.{{ nspanel_name }}_set_climate_target_temp"
 
   ###### SYNC SETTINGS #####
   delay_boot: !input "delay"
@@ -2129,7 +2138,6 @@ variables:
   delay_jump_page: !input "delay"
   sync_slider_ha: !input "sync_slider_ha"
   sync_value_ha: !input "sync_value_ha"
-  climate_optimistic: !input "climate_optimistic"
 
   ##### TFT UPLOAD #####
   tft_upload:  "esphome.{{ nspanel_name }}_upload_tft"
@@ -2141,6 +2149,7 @@ variables:
   outdoortemp: !input "outdoortemp"
   indoortemp: !input "indoortemp"
   climate: !input "climate"
+  climate_precision: !input "climate_precision"
   qrcode_label: !input "qrcode_label"
   qrcode_value: !input "qrcode_value"
   qrcode_state: !input "qrcode_state"
@@ -2254,7 +2263,7 @@ variables:
   page_weather03: "weather03"
   page_weather04: "weather04"
   page_weather05: "weather05"
-  page_climate: "climate"
+  page_climate: "climatenew"
   page_settings: "settings"
   page_boot: "boot"
   page_screensaver: "screensaver"
@@ -3171,6 +3180,12 @@ trigger:
     event_data:
       entity_id: "{{ last_click_climatesettings }}"
     id: climate_settings
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: "{{ climate_target_temperature }}"
+    id: climate_target_temperature
 
   ##### Current page changed #####
   - platform: event
@@ -4798,24 +4813,21 @@ action:
                     data:
                       cmd: "page {{ entity_back }}"
 
+      - conditions:
+        - condition: trigger
+          id: climate_target_temperature
+        sequence:
+          - service: climate.set_temperature
+            data:
+              entity_id: '{{ entity_long }}'
+              temperature: "{{ trigger.event.data.new_state.state | float(1) }}"
+
       ##### LASTCLICK_CLIMATESETTINGS - Changes on page Climate-Settings #####
       - conditions:
           - condition: trigger
             id: climate_settings
         sequence:
           - choose:
-              ##### Page Climatesettings - hotwater #####
-              - conditions: '{{ trigger.event.data.new_state.state == "releasehotwater" }}'
-                sequence:
-                  - service: >-
-                      {% if hotwatercharge is match 'switch.' %}
-                        switch.toggle
-                      {% elif hotwatercharge is match 'input_boolean.' %}
-                        input_boolean.toggle
-                      {% endif %}
-                    data:
-                      entity_id: "{{ hotwatercharge }}"
-
               ##### Page Climatesettings - heating #####
               - conditions: '{{ trigger.event.data.new_state.state == "releaseheating" }}'
                 sequence:
@@ -4826,128 +4838,10 @@ action:
                       - service: climate.turn_on ############
                         data:
                           entity_id: '{{ entity_long }}'
-                      # - service: climate.set_temperature
-                      #   data:
-                      #     entity_id: !input climate
-                      #     hvac_mode: 'heat'
-                      #     temperature: "{{ state_attr(climate, 'temperature') }}"
                     else:
                       - service: climate.turn_off ############
                         data:
                           entity_id: '{{ entity_long }}'
-                      # - service: climate.set_temperature
-                      #   data:
-                      #     entity_id:  !input climate
-                      #     hvac_mode: 'off'
-                      #     temperature: "{{ state_attr(climate, 'temperature') }}"
-
-              ##### Page Climatesettings - decreasetemp #####
-              - conditions: '{{ trigger.event.data.new_state.state == "releasedecreasetemp" }}'
-                sequence:
-                  - if:
-                      - condition: template
-                        value_template: '{{ states(entity_long) != "off" }}'
-                    then:
-                      - if:
-                        - condition: template
-                          value_template: '{{ climate_optimistic == true }}' ## TODO - remove from here
-                        then:
-                          - variables:
-                              current_setpoint: "{{states(display_target_temperature) | round(1)}}"
-                          - service: "{{ command_thermostat_cycle }}"
-                            data:
-                              value: "{{ current_setpoint -0.5 }}"
-                        else:
-                          - variables:
-                              current_setpoint: "{{state_attr(entity_long, 'temperature') | round(1)}}"
-                          - service: climate.set_temperature
-                            data:
-                              entity_id: '{{ entity_long }}'
-                              #hvac_mode: 'heat'
-                              temperature: "{{ current_setpoint -0.5 }}"
-                      
-
-              ##### Page Climatesettings - increasetemp #####
-              - conditions: '{{ trigger.event.data.new_state.state == "releaseincreasetemp" }}'
-                sequence:
-                  - if:
-                      - condition: template
-                        value_template: '{{ states(entity_long) != "off" }}'
-                    then:
-                      - variables:
-                          current_setpoint: "{{state_attr(entity_long, 'temperature') | round(1)}}"
-                      - if:
-                        - condition: template
-                          value_template: '{{ climate_optimistic == true }}' ## TODO - remove from here
-                        then:
-                          - variables:
-                              current_setpoint: "{{states(display_target_temperature) | round(1)}}"
-                          - service: "{{ command_thermostat_cycle }}"
-                            data:
-                              value: "{{ current_setpoint +0.5 }}"
-                        else:
-                          - variables:
-                              current_setpoint: "{{state_attr(entity_long, 'temperature') | round(1)}}"
-                          - service: climate.set_temperature
-                            data:
-                              entity_id: '{{ entity_long }}'
-                              #hvac_mode: 'heat'
-                              temperature: "{{ current_setpoint +0.5 }}"
-
-
-              ##### Page Climatesettings - climateslider #####
-              - conditions: '{{ trigger.event.data.new_state.state is match "climateslider\d+"  and trigger.event.data.new_state.state == states(last_click_climatesettings) }}'
-                sequence:
-                  - if:
-                      - condition: template
-                        value_template: '{{ states(entity_long) != "off" }}'
-                    then:
-                      - variables:
-                          #climateslider: '{{ trigger.event.data.new_state.state |replace("climateslider","") | int }}'
-                          new_setpoint: >-
-                            {%- if trigger.event.data.new_state.state == "climateslider0" -%} 13.0
-                            {%- elif trigger.event.data.new_state.state == "climateslider1" -%} 13.5
-                            {%- elif trigger.event.data.new_state.state == "climateslider2" -%} 14
-                            {%- elif trigger.event.data.new_state.state == "climateslider3" -%} 14.5
-                            {%- elif trigger.event.data.new_state.state == "climateslider4" -%} 15
-                            {%- elif trigger.event.data.new_state.state == "climateslider5" -%} 15.5
-                            {%- elif trigger.event.data.new_state.state == "climateslider6" -%} 16
-                            {%- elif trigger.event.data.new_state.state == "climateslider7" -%} 16.5
-                            {%- elif trigger.event.data.new_state.state == "climateslider8" -%} 17
-                            {%- elif trigger.event.data.new_state.state == "climateslider9" -%} 17.5
-                            {%- elif trigger.event.data.new_state.state == "climateslider10" -%} 18
-                            {%- elif trigger.event.data.new_state.state == "climateslider11" -%} 18.5
-                            {%- elif trigger.event.data.new_state.state == "climateslider12" -%} 19
-                            {%- elif trigger.event.data.new_state.state == "climateslider13" -%} 19.5
-                            {%- elif trigger.event.data.new_state.state == "climateslider14" -%} 20
-                            {%- elif trigger.event.data.new_state.state == "climateslider15" -%} 20.5
-                            {%- elif trigger.event.data.new_state.state == "climateslider16" -%} 21
-                            {%- elif trigger.event.data.new_state.state == "climateslider17" -%} 21.5
-                            {%- elif trigger.event.data.new_state.state == "climateslider18" -%} 22
-                            {%- elif trigger.event.data.new_state.state == "climateslider19" -%} 22.5
-                            {%- elif trigger.event.data.new_state.state == "climateslider20" -%} 23
-                            {%- elif trigger.event.data.new_state.state == "climateslider21" -%} 23.5
-                            {%- elif trigger.event.data.new_state.state == "climateslider22" -%} 24
-                            {%- elif trigger.event.data.new_state.state == "climateslider23" -%} 24.5
-                            {%- elif trigger.event.data.new_state.state == "climateslider24" -%} 25
-                            {%- elif trigger.event.data.new_state.state == "climateslider25" -%} 25.5
-                            {%- elif trigger.event.data.new_state.state == "climateslider26" -%} 26
-                            {%- elif trigger.event.data.new_state.state == "climateslider27" -%} 26.5
-                            {%- elif trigger.event.data.new_state.state == "climateslider28" -%} 27
-                            {%- endif -%}
-                      - if:
-                        - condition: template
-                          value_template: '{{ climate_optimistic == true }}' ## TODO - remove from here
-                        then:
-                          - service: "{{ command_thermostat_cycle }}"
-                            data:
-                              value: "{{ new_setpoint }}"
-                        else:
-                          - service: climate.set_temperature
-                            data:
-                              entity_id: '{{ entity_long }}'
-                              #hvac_mode: 'heat'
-                              temperature: "{{ new_setpoint }}"
 
               #### Page Climate - Close Climate Page #####
               - conditions:
@@ -5259,26 +5153,6 @@ action:
           - condition: trigger
             id: current_page_changed
         sequence:
-          ##### climate-page left - apply climate temperature if climate_optimistic ##### ## TODO - remove from here
-          - if:
-              - condition: template
-                value_template: '{{ trigger.event.data.old_state.state == page_climate }}'
-            then:
-              - if:
-                  - condition: template
-                    value_template: '{{ climate_optimistic == true }}'
-                then:
-                  - variables:
-                      display_target_temperature: "{{states(display_target_temperature) | round(1)}}"
-                  - if:
-                      - condition: template
-                        value_template: '{{ display_target_temperature != 0.0 }}'
-                    then:
-                      - service: climate.set_temperature
-                        data:
-                          entity_id: '{{ entity_long }}'
-                          #hvac_mode: 'heat'
-                          temperature: "{{ display_target_temperature }}"
           - choose:
               ## PAGE HOME ## 
               - conditions: '{{ trigger.event.data.new_state.state == page_home }}'
@@ -6730,81 +6604,48 @@ action:
                 sequence:
                   - variables:
                       hvac_mode: "{{ states(entity_long) }}"
-                      outdoor_temp: >-
-                        {%- if outdoortemp is match "sensor." and states(outdoortemp).state != "unavailable" -%} {{ states(outdoortemp) |round(0) }}
-                        {%- elif state_attr(weather_entity, "temperature") != None -%} {{state_attr(weather_entity,"temperature") | round(0)}}
-                        {%- else -%} 0
-                        {%- endif -%}
                       heating_state: >-
                         {%- if hvac_mode == "off" -%} {{ off_mui }}
                         {%- elif hvac_mode != "off" -%} {{ on_mui }}
                         {%- endif -%}
+                      min_temp: "{{ state_attr(entity_long, 'min_temp') | float(default=7) }}"
+                      max_temp: "{{ state_attr(entity_long, 'max_temp') | float(default=35) }}"
+                      precision: "{{ climate_precision | float(default=1) }}"
+                      target_temp_step: "{{ state_attr(entity_long, 'target_temp_step') | float(default=1) }}"
+                      current_temp: >-
+                        {%- if climate_precision == "0" -%} {{ state_attr(entity_long, 'current_temperature') | float() | round(0) }}
+                        {%- else -%} {{ state_attr(entity_long, 'current_temperature') | float() | round(1) }}
+                        {%- endif -%}
+
+                  - service: "{{ command_set_climate_settings }}"
+                    data:
+                      min_temp: "{{ min_temp }}"
+                      max_temp: "{{ max_temp }}"
+                      precision: "{{ precision }}"
+                      target_temp_step: "{{ target_temp_step }}"
+
+                  - service: "{{ command_set_climate_state }}"
+                    data:
+                      climate_state: "{{ hvac_mode }}"
+
+                  - service: "{{ command_set_climate_target_temp }}"
+                    data:
+                      target_temperature: "{{ state_attr(entity_long, 'temperature') }}"
+
                   - service: "{{ command_text_printf }}"
                     data:
-                      component: climate.climate_label
+                      component: climate_label
                       message: '{{ entity_long_name }}'
-                  - delay:
-                      milliseconds: "{{ delay_value }}"
-                  - service: "{{ command_text_printf }}"
-                    data:
-                      component: outdoor_temp
-                      message: "{{ outdoor_temp }}°"
+
                   - service: "{{ command_text_printf }}"
                     data:
                       component: current_temp
-                      message: "{{state_attr(entity_long, 'current_temperature') | round(1)}}°"
-                  - if:
-                      condition: template
-                      value_template: '{{ hvac_mode != "off" }}'
-                    then:
-                      - variables:
-                          target_temp: "{{state_attr(entity_long, 'temperature') | round(1)}}"
-                      - service: "{{ command_thermostat_cycle }}"
-                        data:
-                          value: "{{target_temp}}"
-                    else:
-                      - service: "{{ command_thermostat_cycle }}"
-                        data:
-                          value: "0"
-                      - service: "{{ command_text_printf }}"
-                        data:
-                          component: target_temp
-                          message: " "
+                      message: "{{ current_temp }}°"
 
                   - service: "{{ command_text_printf }}"
                     data:
                       component: heating_state
-                      message: "{{heating_state}}"
-
-                  # HVAC Button PIC
-                  - variables:
-                      heating_bt_pic: >-
-                        {%- if hvac_mode == "off" -%} {{ heating_bt_pic_off }}
-                        {%- else -%} {{ heating_bt_pic_on }}
-                        {%- endif -%}
-                  - delay:
-                      milliseconds: "{{ delay_value }}"
-                  - service: "{{ command_printf }}"
-                    data:
-                      cmd: heating_bt_pic.pic={{ heating_bt_pic }}
-                  - variables:
-                      hotw_bt_pic: >-
-                        {%- if hotwatercharge | length > 0 and states(hotwatercharge) == 'on' -%} {{ hotw_bt_on }}
-                        {%- elif hotwatercharge | length > 0 and states(hotwatercharge) == 'off' -%} {{ hotw_bt_off }}
-                        {%- else -%} {{ hotw_bt_blank }}
-                        {%- endif -%}
-                  - service: "{{ command_printf }}"
-                    data:
-                      cmd: hotw_bt_pic.pic={{ hotw_bt_pic }}
-                        
-                  - if:
-                      - condition: template
-                        value_template: '{{ hotwatertemp is match "sensor." }}'
-                    then:
-                      - service: "{{ command_text_printf }}"
-                        data:
-                          component: climate.hotwater_temp
-                          message: "{{ states(hotwatertemp) |round(1) }}°"
+                      message: "{{ heating_state }}"
 
               ## PAGE SETTINGS ## 
               - conditions: '{{ trigger.event.data.new_state.state == page_settings }}'
@@ -7452,51 +7293,37 @@ action:
             id: climate_state
           - condition: template
             value_template: "{{ trigger.event.data.new_state.state != 'unavailable' }}"
-          # - condition: template
-          #   value_template: '{{ states(current_page) == page_climate }}'
-          # - condition: template
-          #   value_template: '{{ climate_optimistic == false }}'
         sequence:
           - choose:
               ### current page is climate ###
               - conditions: '{{ states(current_page) == page_climate }}'
                 sequence:
                   - variables:
+                      hvac_mode: "{{ trigger.event.data.new_state.state }}"
                       heating_state: >-
-                        {%- if trigger.event.data.new_state.state == "off" -%} {{ off_mui }}
-                        {%- elif trigger.event.data.new_state.state != "off" -%} {{ on_mui }}
+                        {%- if hvac_mode == "off" -%} {{ off_mui }}
+                        {%- elif hvac_mode != "off" -%} {{ on_mui }}
                         {%- endif -%}
-                      heating_bt_pic: >-
-                        {%- if trigger.event.data.new_state.state == "off" -%} {{ heating_bt_pic_off }}
-                        {%- else -%} {{ heating_bt_pic_on }}
+                      current_temp: >-
+                        {%- if climate_precision == "0" -%} {{ trigger.event.data.new_state.attributes.current_temperature | float() | round(0) }}
+                        {%- else -%} {{ trigger.event.data.new_state.attributes.current_temperature | float() | round(1) }}
                         {%- endif -%}
+                  - service: "{{ command_set_climate_state }}"
+                    data:
+                      climate_state: "{{ hvac_mode }}"
+  
+                  - service: "{{ command_set_climate_target_temp }}"
+                    data:
+                      target_temperature: "{{ state_attr(entity_long, 'temperature') | round(1) }}"
 
                   - service: "{{ command_text_printf }}"
                     data:
                       component: current_temp
-                      message: "{{ trigger.event.data.new_state.attributes.current_temperature | round(1)}}°"
+                      message: "{{ current_temp }}°"
                   - service: "{{ command_text_printf }}"
                     data:
                       component: heating_state
-                      message: "{{heating_state}}"
-                  - service: "{{ command_printf }}"
-                    data:
-                      cmd: heating_bt_pic.pic={{ heating_bt_pic }}
-                  - if:
-                    - condition: template
-                      value_template: '{{ trigger.event.data.new_state.state != "off" }}' #### TODO AND->OR (not) not optimistic-mode
-                    then:
-                      - service: "{{ command_thermostat_cycle }}"
-                        data:
-                          value: "{{trigger.event.data.new_state.attributes.temperature | round(1)}}"
-                    else:
-                      - service: "{{ command_thermostat_cycle }}"
-                        data:
-                          value: "0" 
-                      - service: "{{ command_text_printf }}"
-                        data:
-                          component: target_temp
-                          message: " "
+                      message: "{{ heating_state }}"
 
               ### current page is home ###
               - conditions: '{{ states(current_page) == page_home }}'
