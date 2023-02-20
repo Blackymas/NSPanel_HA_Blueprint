@@ -273,13 +273,15 @@ api:
             id(disp1).send_command_printf("page qrcode");
             id(disp1).set_component_text_printf("qrcode.qrcode_value", "%s", qrdata.c_str());
 
-    #### Service to set climate settings
+    #### Service to set climate settings (should be called once when climate page is opened)
     - service: set_climate_settings
       variables:
         min_temp: float
         max_temp: float
         precision: float
         target_temp_step: float
+        target_temperature: float
+        hvac_mode: string
       then:
         - wait_until:
             switch.is_on: nextion_init
@@ -295,31 +297,31 @@ api:
         - globals.set:
             id: target_temp_step
             value: !lambda "return target_temp_step;"
+        - globals.set:
+            id: target_temperature
+            value: !lambda "return target_temperature;"
+        - globals.set:
+            id: hvac_mode
+            value: !lambda "return hvac_mode;"
         - lambda: |-
+            id(climate_set_is_on)->execute();
             id(climate_set_settings)->execute();
+            id(climate_set_temperature)->execute(target_temperature);
+            id(climate_redraw_by_temperature)->execute(target_temperature);
 
     #### Service to set climate settings
     - service: set_climate_state
       variables:
-        climate_state: string
-      then:
-        - wait_until:
-            switch.is_on: nextion_init
-        - globals.set:
-            id: climate_state
-            value: !lambda "return climate_state;"
-        - lambda: |-
-            id(climate_redraw)->execute();
-
-    - service: set_climate_target_temp
-      variables:
+        hvac_mode: string
         target_temperature: float
       then:
         - wait_until:
             switch.is_on: nextion_init
+        - globals.set:
+            id: hvac_mode
+            value: !lambda "return hvac_mode;"
         - lambda: |-
-            id(climate_set_temperature)->execute(target_temperature);
-            id(climate_redraw_by_temperature)->execute(target_temperature);
+            id(climate_set_state_debounce)->execute(target_temperature);
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
@@ -393,7 +395,10 @@ globals:
   - id: target_temp_step
     type: float
     initial_value: "1.0"
-  - id: climate_state
+  - id: climate_is_on
+    type: boolean
+    initial_value: "false"
+  - id: hvac_mode
     type: std::string
     initial_value: '"off"'
 
@@ -732,6 +737,11 @@ text_sensor:
             value: !lambda return x;
         - lambda: |-
             id(page_timer)->execute(int(id(page_timeout).state));
+
+            if (strcmp(x.c_str(), "releaseheating") == 0) {
+              id(climate_is_on) = !id(climate_is_on);
+              id(climate_redraw)->execute();
+            }
 
             if (strcmp(x.c_str(), "releasedecreasetemp") == 0) {
               id(climate_temperature_decrease)->execute();
@@ -1080,7 +1090,7 @@ script:
           }
           // redraw thermostat circle
           std::string picId = "140";
-          if (strcmp(id(climate_state).c_str(), "off") != 0) {
+          if (id(climate_is_on)) {
             picId = "141";
           }
           id(disp1).send_command_printf("xpic 100,32,60,200,100,32,%s", picId.c_str()); // left side
@@ -1174,10 +1184,31 @@ script:
             id(disp1).set_component_text_printf("max_temp", "%.1f°", id(max_temp));
           }
 
+  - id: climate_set_is_on
+    mode: single
+    then:
+      - lambda: |-
+          id(climate_is_on) = strcmp(id(hvac_mode).c_str(), "off") != 0;
+
+  - id: climate_set_state_debounce
+    mode: restart
+    parameters:
+      target_temperature: float
+    then:
+      - lambda: |-
+          id(publish_climate_target_temperature)->stop();
+      - delay: 2s
+      - lambda: |-
+          id(climate_set_is_on)->execute();
+          id(climate_set_temperature)->execute(target_temperature);
+          id(climate_redraw)->execute();
+
   ### Script to bounce publish target temperature with 1s delay
   - id: publish_climate_target_temperature
     mode: restart
     then:
-      - delay: 1s
+      - lambda: |-
+          id(climate_set_state_debounce)->stop();
+      - delay: 2s
       - lambda: |-
           id(climate_target_temp).publish_state(id(target_temperature));
