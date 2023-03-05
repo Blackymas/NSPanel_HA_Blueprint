@@ -107,12 +107,22 @@ uart:
   baud_rate: 115200
   id: tf_uart
 
-###### REBOOT BUTTON #####
+##### START - BUTTON CONFIGURATION #####
 button:
+  ###### REBOOT BUTTON #####
   - platform: restart
     name: ${device_name} Restart
     id: restart_nspanel
 
+  ##### UPDATE TFT DISPLAY #####
+  - platform: template
+    name: ${device_name} Update TFT display
+    icon: mdi:file-sync
+    id: tft_update
+    entity_category: config
+    on_press:
+      - delay: 16ms
+      - lambda: id(disp1).upload_tft();
 
 ##### START - API CONFIGURATION #####
 api:
@@ -177,6 +187,13 @@ api:
         - wait_until:
               switch.is_on: nextion_init
         - lambda: 'id(disp1).show_component(component.c_str());'
+
+    ##### Service to send a command "show ALL componente" directly to the display #####
+    - service: send_command_show_all ### unused ###
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: 'id(disp1).show_component("255");'
 
     ##### Service to send a command "font color" directly to the display #####
     - service: send_command_font_color
@@ -397,6 +414,18 @@ binary_sensor:
                   then:
                     - lambda: id(disp1).send_command_printf("home.icon_top_02.pic=106");
 
+  ##### JUMP PAGE TO SETTING PAGE #####
+  - platform: nextion
+    name: $device_name setting page
+    page_id: 0
+    component_id: 53
+    internal: true
+    on_multi_click:
+      - timing:
+          - ON for at least 1s #LONG Press
+        then:
+          - lambda: 'id(disp1).send_command_printf("page settings");'
+
   ##### Restart NSPanel Button - Setting Page #####
   - platform: nextion
     name: ${device_name} Restart
@@ -448,6 +477,14 @@ sensor:
   - platform: wifi_signal
     name: ${device_name} RSSI
     update_interval: 60s
+    on_value:
+      - if:
+          condition:
+            wifi.connected:
+          then:
+            - lambda: id(disp1).set_component_text_printf("home.wifi_icon", "%s", "\U0000E5A8");
+          else:
+            - lambda: id(disp1).set_component_text_printf("home.wifi_icon", "%s", "\U0000FFFF");
 
   ##### INTERNAL TEMPERATURE SENSOR, ADC VALUE #####
   - platform: adc
@@ -748,16 +785,6 @@ switch:
     restore_state: false
     optimistic: true
 
-  ##### UPDATE TFT DISPLAY #####
-  - platform: template
-    name: ${device_name} Update TFT display
-    id: tft_update
-    entity_category: config
-    turn_on_action:
-      - delay: 16ms
-      - lambda: id(disp1).upload_tft();
-      - switch.turn_off: tft_update
-
   ##### PHYSICAL SWITCH 1 #####
   - platform: gpio
     name: ${device_name} Relay 1
@@ -898,7 +925,7 @@ display:
     on_setup:
       then:
         - lambda: id(disp1).send_command_printf("page 8");
-        - lambda: id(disp1).set_component_text_printf("boot.esph_version", "%s", "3.1.1"); ### esphome-version ###
+        - lambda: id(disp1).set_component_text_printf("boot.esph_version", "%s", "3.2"); ### esphome-version ###
         - wait_until:
             api.connected
         - lambda: id(disp1).set_component_text_printf("boot.ip_addr", "%s", id(ip_address).state.c_str());
@@ -936,4 +963,3 @@ script:
             ESP_LOGD("nspanel", "timer->home");
             id(disp1).send_command_printf("page 0");
           }
-
