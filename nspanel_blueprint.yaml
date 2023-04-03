@@ -2424,8 +2424,8 @@ variables:
       settings: "settings"
       boot: "boot"
       screensaver: "screensaver"
-      lightsettings: "lightsettings"
-      coversettings: "coversettings"
+      light: "lightsettings"
+      cover: "coversettings"
       buttonpage01: "buttonpage01"
       buttonpage02: "buttonpage02"
       buttonpage03: "buttonpage03"
@@ -3105,11 +3105,11 @@ variables:
   weather_attribution: "{{ state_attr(weather_entity, 'attribution') }}"
   weather:
     type: >
-      {% if weather_attribution is match 'AccuWeather' %} AccuWeather
-      {% elif weather_attribution is match 'OpenWeatherMap' %} OpenWeather
-      {% elif weather_attribution is match 'SMHI' %} SMHI
-      {% elif weather_attribution is match 'met.no' %} Met.no
-      {% elif weather_attribution is match 'OpenWeatherMap' %} OpenWeather
+      {% if   'AccuWeather'     in weather_attribution %} AccuWeather
+      {% elif 'OpenWeatherMap'  in weather_attribution %} OpenWeather
+      {% elif 'SMHI'            in weather_attribution %} SMHI
+      {% elif 'met.no'          in weather_attribution %} Met.no
+      {% elif 'OpenWeatherMap'  in weather_attribution %} OpenWeather
       {% else %} Other
       {% endif %}
     entity: !input "weather_entity"
@@ -3184,6 +3184,7 @@ variables:
           name: !input "right_button_name"
           color_rgb: !input "right_button_color"
           hold_select: !input "right_button_hold_select"
+  qrcode_enabled: !input "qrcode_enabled"
 
   ###### SYNC SETTINGS #####
   #delay_boot: !input "delay"              # NOT IN USE
@@ -3682,12 +3683,11 @@ trigger:
 ##### CLOSE - Trigger #####
 #############################################################
 
+condition: "{{ states(nextion_inited_trigger) == 'on' }}"
 
 #############################################################
 ##### START - Action #####
 #############################################################
-#condition: "{{ states(relay01_entity) != 'unavailable' and states(relay02_entity) != 'unavailable' }}"
-condition: "{{ states(nextion_inited_trigger) == 'on' }}"
 action:
   - variables:
       #settings_entity_value: "{{ states(settings_entity) }}"
@@ -3699,36 +3699,24 @@ action:
       entity_long_name:       "{{ settings_entity_split[2] if settings_entity_count >= 3 else 'unknown' }}"
       entity_long_icon:       "{{ settings_entity_split[3] if settings_entity_count >= 4 else 'unknown' }}"
       entity_long_icon_color: "{{ settings_entity_split[4] if settings_entity_count >= 5 else 'unknown' }}"
+      entity_long_domain:     "{{ entity_long.split('.')[0] if entity_long.split('.') | count > 0 else 'unknown' }}"
 
   ########################################################################################################################
 
   # main - alias: "choose alias (name)"
   - alias: Main choices
     choose:
-
       ##### JUMP TO - settings page lightsettings /coversettings / climate (SETTINGS ENTITY CHANGED) #####
       - alias: "Jump to light/cover/climate settings page"
         conditions:
           - condition: trigger
             id: settings_entity
           - "{{ trigger.event.data.new_state.state != 'unknown' }}"
+          - "{{ entity_long_domain in ['light', 'cover', 'climate'] }}"
         sequence:
-          - choose:
-              - conditions: "{{ entity_long is match 'light.' }}"
-                sequence:
-                  - service: "{{ nextion.commands.printf }}"
-                    data:
-                      cmd: "page {{ nextion.pages.lightsettings }}"
-              - conditions: "{{ entity_long is match 'cover.' }}"
-                sequence:
-                  - service: "{{ nextion.commands.printf }}"
-                    data:
-                      cmd: "page {{ nextion.pages.coversettings }}"
-              - conditions: "{{ entity_long is match 'climate.' }}"
-                sequence:
-                  - service: "{{ nextion.commands.printf }}"
-                    data:
-                      cmd: "page {{ nextion.pages.climate }}"
+          - service: "{{ nextion.commands.printf }}"
+            data:
+              cmd: "page {{ nextion.pages[entity_long_domain] }}"
 
       ##### BOOT NSPANEL - boot init #####
       - alias: Boot init
@@ -3737,34 +3725,21 @@ action:
             id: nspanel_boot_init
           - "{{ nextion.pages.current != nextion.pages.home or states(last_click) == 'unknown' }}"
         sequence:
+          ##### NSPanel boot init only #####
           - delay:
               milliseconds: 100
-
-          ##### NSPanel boot init only #####
           - service: "{{ nextion.commands.text_printf }}"
             data:
               component: boot.bluep_version
               message: "{{ blueprint_version }}"
 
           ###### Set local fallback ######
-          - if: "{{ relay_1_local_fallback }}"
-            then:
-              - service: switch.turn_on
-                data:
-                  entity_id: 'switch.{{ nspanel_name }}_relay_1_local_fallback'
-            else:
-              - service: switch.turn_off
-                data:
-                  entity_id: 'switch.{{ nspanel_name }}_relay_1_local_fallback'
-          - if: "{{ relay_2_local_fallback }}"
-            then:
-              - service: switch.turn_on
-                data:
-                  entity_id: 'switch.{{ nspanel_name }}_relay_2_local_fallback'
-            else:
-              - service: switch.turn_off
-                data:
-                  entity_id: 'switch.{{ nspanel_name }}_relay_2_local_fallback'
+          - service: "switch.turn_{{ 'on' if relay_1_local_fallback else 'off' }}"
+            data:
+              entity_id: 'switch.{{ nspanel_name }}_relay_1_local_fallback'
+          - service: "switch.turn_{{ 'on' if relay_2_local_fallback else 'off' }}"
+            data:
+              entity_id: 'switch.{{ nspanel_name }}_relay_2_local_fallback'
 
           ##### clear notification icon #####
           - service: "{{ nextion.commands.notification_clear }}"
@@ -3780,7 +3755,8 @@ action:
                   song_str: "two short:d=4,o=5,b=100:16e6,16e6"
 
           ##### NSPanel boot init finished and jump to Home Page#####
-          - delay:
+          - &delay-default
+            delay:
               milliseconds: "{{ delay_value }}"
           - service: "{{ nextion.commands.printf }}"
             data:
@@ -4465,7 +4441,7 @@ action:
 
               ## PAGE LIGHTSETTINGS ##
               - alias: Light settings page
-                conditions: "{{ trigger.event.data.new_state.state == nextion.pages.lightsettings }}"
+                conditions: "{{ trigger.event.data.new_state.state == nextion.pages.light }}"
                 sequence:
                   - service: "{{ nextion.commands.text_printf }}"
                     data:
@@ -4556,7 +4532,7 @@ action:
 
               ## PAGE COVERSETTINGS ##
               - alias: Cover settings page
-                conditions: "{{ trigger.event.data.new_state.state == nextion.pages.coversettings }}"
+                conditions: "{{ trigger.event.data.new_state.state == nextion.pages.cover }}"
                 sequence:
                   ##### COVER - OPEN / CLOSE #####
                   - variables:
@@ -4935,20 +4911,23 @@ action:
                           hours_of_sun: "{{ states(accuweather_sensor_prefix ~ 'hours_of_sun' ~ accuweather_sensor_sufix) | default('unknown') if accuweather else forecast_day | selectattr('hours_of_sun', 'defined') | map(attribute='hours_of_sun') | map('float') | list | sum | default('unknown') }}"
                           uv_index: "{{ states(accuweather_sensor_prefix ~ 'uv_index' ~ accuweather_sensor_sufix) | default('unknown') if accuweather else forecast_day | selectattr('uv_index', 'defined') | map(attribute='uv_index') | map('float') | list | max | default('unknown') }}"
                           wind_speed: "{{ forecast_day | selectattr('wind_speed', 'defined') | map(attribute='wind_speed') | map('float') | list | max | default('unknown') }}"
-                          thunderstorm_probability: "{{ states(accuweather_sensor_prefix ~ 'thunderstorm_probability' ~ accuweather_sensor_sufix) | default('unknown') if accuweather else forecast_day | selectattr('thunderstorm_probability', 'defined') | map(attribute='thunderstorm_probability') | map('float') | list | max | default('unknown') }}"
+                          thunderstorm_probability: "{{ states(accuweather_sensor_prefix ~ 'thunderstorm_probability_day' ~ accuweather_sensor_sufix) | default('unknown') if accuweather else forecast_day | selectattr('thunderstorm_probability', 'defined') | map(attribute='thunderstorm_probability') | map('float') | list | max | default('unknown') }}"
                           parameters:
-                            - name: precipitation_probability
-                              visibility: "{{ is_number(precipitation_probability) }}"
-                              value: "{{ (precipitation_probability | round(0) ~ weather.units.precipitation_probability) if is_number(precipitation_probability) }}"
-                              icon: "{{ nextion.icons.weather.rain }}"
-                            - name: precipitation
-                              visibility: "{{ is_number(precipitation) }}"
-                              value: "{{ (precipitation | round(0) ~ ' ' ~ weather.units.precipitation) if is_number(precipitation) }}"
-                              icon: "{{ nextion.icons.weather.rain }}"
                             - name: hours_of_sun
                               visibility: "{{ is_number(hours_of_sun) }}"
                               value: "{{ (hours_of_sun | round(0) ~ ' ' ~ weather.units.hours_of_sun) if is_number(hours_of_sun) }}"
                               icon: "{{ nextion.icons.weather.sun }}"
+                            - name: thunderstorm_probability
+                              visibility: "{{ is_number(thunderstorm_probability) }}"
+                              value: "{{ (thunderstorm_probability | round(0) ~ weather.units.thunderstorm_probability) if is_number(thunderstorm_probability) }}"
+                              icon: "{{ nextion.icons.weather.lightning }}"
+                            - name: precipitation
+                              visibility: "{{ is_number(precipitation) or is_number(precipitation_probability) }}"
+                              value: >
+                                {{ (precipitation | round(0) ~ ' ' ~ weather.units.precipitation) if is_number(precipitation) }}
+                                {{ '-' if is_number(precipitation) and is_number(precipitation_probability) }}
+                                {{ (precipitation_probability | round(0) ~ weather.units.precipitation_probability) if is_number(precipitation_probability) }}
+                              icon: "{{ nextion.icons.weather.rain }}"
                             - name: uv_index
                               visibility: "{{ is_number(uv_index) }}"
                               value: >
@@ -4959,11 +4938,6 @@ action:
                               visibility: "{{ is_number(wind_speed) }}"
                               value: "{{ (wind_speed | round(0) ~ ' ' ~ weather.units.wind_speed) if is_number(wind_speed) }}"
                               icon: "{{ nextion.icons.weather.wind }}"
-                            - name: thunderstorm_probability
-                              visibility: "{{ is_number(thunderstorm_probability) }}"
-                              value: "{{ (thunderstorm_probability | round(0) ~ weather.units.thunderstorm_probability) if is_number(thunderstorm_probability) }}"
-                              icon: "{{ nextion.icons.weather.lightning }}"
-
                       ##### Display weather PIC when available
                       - if: "{{ condition not in ['unknown', None] }}"
                         then:
@@ -5046,7 +5020,6 @@ action:
                   - variables:
                       qrcode_label: !input "qrcode_label"
                       qrcode_value: !input "qrcode_value"
-                      qrcode_enabled: !input "qrcode_enabled"
                   - if: "{{ qrcode_label | length > 0 }}"
                     then:
                       - service: "{{ nextion.commands.text_printf }}"
@@ -5281,7 +5254,7 @@ action:
         conditions:
           - condition: trigger
             id: light_settings
-          - "{{ nextion.pages.current == nextion.pages.lightsettings }}"
+          - "{{ nextion.pages.current == nextion.pages.light }}"
         sequence:
           - choose:
               ##### Page Lightsettings - Brightness Slider MOVE #####
@@ -5363,7 +5336,7 @@ action:
         conditions:
           - condition: trigger
             id: cover_settings
-          - "{{ nextion.pages.current == nextion.pages.coversettings }}"
+          - "{{ nextion.pages.current == nextion.pages.cover }}"
         sequence:
           - choose:
               ##### Page Coversettings - Cover Slider MOVE #####
