@@ -128,10 +128,10 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
                     value: '%d.%m'
                   - label: 'DD/MM (ex. 22/03)'
                     value: '%d/%m'
-                  - label: 'M/D   (ex. 3/22)'
-                    value: '%-m/%-d'
-                  - label: 'D/M   (ex. 22/3)'
+                  - label: 'D/M (ex. 22/3)'
                     value: '%-d/%-m'
+                  - label: 'M/D (ex. 3/22)'
+                    value: '%-m/%-d'
 
           time_format:
             name: Time Format
@@ -3796,6 +3796,9 @@ action:
                       entity: 'unknown'
                   ##### NSPanel Date #####
                   ### DATE Font Color ###
+                  - &variables-date_format
+                    variables:
+                      date_format: !input "date_format"
                   - *delay-default
                   - service: "{{ nextion.commands.font_color }}"
                     data:
@@ -3806,8 +3809,7 @@ action:
                   - service: "{{ nextion.commands.text_printf }}"
                     data:
                       component: home.date
-                      message: "{{ (dict.values(mui[language].weekdays) | list)[now().weekday()] ~ ', ' ~ as_timestamp(now()) | timestamp_custom('%d.%m') }}"
-
+                      message: "{{ (dict.values(mui[language].weekdays) | list)[now().weekday()] ~ ', ' ~ as_timestamp(now()) | timestamp_custom(date_format) }}"
                   ##### NSPanel Time #####
                   ### TIME Font Color ###
                   - *delay-default
@@ -4523,13 +4525,25 @@ action:
                       message: "{{ (state_attr(entity_long, 'current_position') | int ) | round(0) }} %"
 
                   ##### COVER Battery ICON Yes / NO #####
-                  - if: "{{ state_attr(entity_long, 'battery') != none }}"
+                  - variables:
+                      battery_level: >
+                        {% if state_attr(entity_long, 'battery') | default('unavailable') not in ['unavailable', 'unknown', None] %}
+                          {{ state_attr(entity_long, 'battery') | default('unavailable') }}
+                        {% elif expand(device_entities(device_id(entity_long))) | selectattr('attributes.device_class', 'defined') | selectattr('attributes.device_class', 'eq', 'battery') | map(attribute='state') | map('float') | list | count > 0 %}
+                          {{ expand(device_entities(device_id(entity_long))) | selectattr('attributes.device_class', 'defined') | selectattr('attributes.device_class', 'eq', 'battery') | map(attribute='state') | map('float') | list | first }}
+                        {% elif states(entity_long | replace('cover.','sensor.') ~ '_battery') | default('unavailable') not in ['unavailable', 'unknown', None] %}
+                          {{ states(entity_long | replace('cover.','sensor.') ~ '_battery') | default('unavailable') }}
+                        {% elif states(entity_long | replace('cover.','sensor.') | replace('cover', 'battery')) | default('unavailable') not in ['unavailable', 'unknown', None] %}
+                          {{ states(entity_long | replace('cover.','sensor.') | replace('cover', 'battery')) | default('unavailable') }}
+                        {% else %} unavailable
+                        {% endif %}
+                  - if: "{{ is_number(battery_level) }}"
                     then:
                       - *delay-default
                       - service: "{{ nextion.commands.text_printf }}"
                         data:
                           component: coversettings.battery_value
-                          message: "{{ (state_attr(entity_long, 'battery') | int ) | round(0) }} %"
+                          message: "{{ battery_level | round(0) }} %"
                       ### ICON Battery Font Color ###
                       - *delay-default
                       - service: "{{ nextion.commands.font_color }}"
@@ -4813,8 +4827,7 @@ action:
                   - *delay-default
 
                   ##### Display date (long) #####
-                  - variables:
-                      date_format: !input "date_format"
+                  - *variables-date_format
                   - service: "{{ nextion.commands.text_printf }}"
                     data:
                       component: "{{ page_name }}.date"
@@ -5060,6 +5073,7 @@ action:
               last_click_state: "{{ states(last_click) | default('unavailable') if last_click is string else 'unavailable' }}"
               last_click_coordinates: "{{ last_click_state.replace('releasebuttonpage', '').split('button') if last_click_state not in ['unavailable', 'unknown', None] else [-1, -1] }}"
               last_click_entity_index: "{{ (last_click_coordinates[0] | int(-99) -1)*8 + last_click_coordinates[1] | int(-99) - 1 }}"
+          - service: notify.signal
           - condition: "{{ last_click_entity_index > 0 }}"
           - variables:
               last_click_button: "{{ button_pages_buttons[last_click_entity_index] | default([]) }}"
