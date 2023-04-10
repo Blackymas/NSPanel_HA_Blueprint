@@ -34,14 +34,14 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 🎉 Roadmap Roadmap can be found here [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
 
 
-ℹ️ Version: v.3.2.3
+ℹ️ Version: v.3.3.0
 
 '
 
   source_url: https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/nspnael_blueprint.yaml
   domain: automation
   homeassistant:
-    min_version: 2022.11.1
+    min_version: 2023.3.0
   input:
 
     ##### MAIN NAME #####
@@ -2317,6 +2317,7 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 
 mode: parallel
 max: 50
+
 trace:
   stored_traces: 10
 
@@ -2325,7 +2326,8 @@ trace:
 #############################################################
 
 trigger_variables:
-  nspanel_name: !input "nspanel_name"
+  nspanel_name_temp: !input "nspanel_name"
+  nspanel_name: "{{ nspanel_name_temp | replace('-','_') | replace(' ','_') | replace('___','_') | replace('__','_') }}"
   last_click: "sensor.{{ nspanel_name }}_last_click"
   last_click_lightsettings: "sensor.{{ nspanel_name }}_last_click_lightsettings"
   last_click_coversettings: "sensor.{{ nspanel_name }}_last_click_coversettings"
@@ -2351,12 +2353,12 @@ trigger_variables:
 
 variables:
   ##### GENERAL #####
-  blueprint_version: "3.2.3"
+  blueprint_version: "3.3.0"
   language: !input "language"
   date_format: !input "date_format"
   time_format: !input "time_format"
   time: "{{ as_timestamp(now()) | timestamp_custom(time_format) }}"
-  meridiem: "{{ as_timestamp(now()) | timestamp_custom('%p') if time_format == '%-I:%M' else '' }}"
+  meridiem: "{{ as_timestamp(now()) | timestamp_custom('%p') if time_format == '%-I:%M' }}"
   sun_is_up: "{{ is_state('sun.sun', 'above_horizon') }}"
 
   notification_sound: "switch.{{ nspanel_name }}_notification_sound"
@@ -3693,20 +3695,6 @@ condition: "{{ is_state(nextion_inited_trigger, 'on') | default(false) if nextio
 ##### START - Action #####
 #############################################################
 action:
-  - variables:
-      #settings_entity_value: "{{ states(settings_entity) }}"
-      settings_entity_value: "{{ states(settings_entity) | default('unavailable') if settings_entity is string else 'unavailable' }}"
-      settings_entity_split: "{{ settings_entity_value.split(',') if settings_entity_value is string and settings_entity_value not in ['unavailable', 'unknown', None] else [] }}"
-      settings_entity_count: "{{ settings_entity_split | count if settings_entity_split else 0 }}"
-      entity_long:            "{{ settings_entity_split[0] if settings_entity_count >= 1 else 'unknown' }}"
-      entity_back:            "{{ settings_entity_split[1] if settings_entity_count >= 2 else 'unknown' }}"
-      entity_long_name:       "{{ settings_entity_split[2] if settings_entity_count >= 3 else 'unknown' }}"
-      entity_long_icon:       "{{ settings_entity_split[3] if settings_entity_count >= 4 else 'unknown' }}"
-      entity_long_icon_color: "{{ settings_entity_split[4] if settings_entity_count >= 5 else 'unknown' }}"
-      entity_long_domain:     "{{ entity_long.split('.')[0] if entity_long.split('.') | count > 0 else 'unknown' }}"
-
-  ########################################################################################################################
-
   # main - alias: "choose alias (name)"
   - alias: Main choices
     choose:
@@ -3716,12 +3704,25 @@ action:
           - condition: trigger
             id: settings_entity
           - "{{ trigger.event.data.new_state.state not in ['unavailable', 'unknown', None] }}"
-          - "{{ entity_long_domain in ['light', 'cover', 'climate'] }}"
         sequence:
-          - service: "{{ nextion.commands.printf }}"
-            data:
-              cmd: "page {{ nextion.pages[entity_long_domain] }}"
-            continue_on_error: true
+          - &variables-settings_entity
+            variables:
+              settings_entity_value: "{{ states(settings_entity) | default('unavailable') if settings_entity is string else 'unavailable' }}"
+              settings_entity_split: "{{ settings_entity_value.split(',') if settings_entity_value is string and settings_entity_value not in ['unavailable', 'unknown', None] else [] }}"
+              settings_entity_count: "{{ settings_entity_split | count if settings_entity_split else 0 }}"
+              entity_long:            "{{ settings_entity_split[0] if settings_entity_count >= 1 else 'unknown' }}"
+              entity_back:            "{{ settings_entity_split[1] if settings_entity_count >= 2 else 'unknown' }}"
+              entity_long_name:       "{{ settings_entity_split[2] if settings_entity_count >= 3 else 'unknown' }}"
+              entity_long_icon:       "{{ settings_entity_split[3] if settings_entity_count >= 4 else 'unknown' }}"
+              entity_long_icon_color: "{{ settings_entity_split[4] if settings_entity_count >= 5 else 'unknown' }}"
+          - variables:
+              entity_long_domain: "{{ entity_long.split('.')[0] if entity_long.split('.') | count > 0 else 'unknown' }}"
+          - if: "{{ entity_long_domain in ['light', 'cover', 'climate'] }}"
+            then:
+              - service: "{{ nextion.commands.printf }}"
+                data:
+                  cmd: "page {{ nextion.pages[entity_long_domain] }}"
+                continue_on_error: true
 
       ##### BOOT NSPANEL - boot init #####
       - alias: Boot init
@@ -3786,6 +3787,7 @@ action:
                   display_target_temperature_state: "{{ states(display_target_temperature) | default('unavailable') if display_target_temperature is string else 'unavailable' }}"
               - if: "{{ is_number(display_target_temperature_state) }}"
                 then:
+                  - *variables-settings_entity
                   - service: climate.set_temperature
                     data:
                       entity_id: "{{ entity_long }}"
@@ -3831,71 +3833,77 @@ action:
                       component: home.time
                       message: "{{ time }}"
                     continue_on_error: true
-                  ### TIME Meridiem Font Color ###
-                  - *delay-default
-                  - service: "{{ nextion.commands.font_color }}"
-                    data:
-                      component: home.meridiem
-                      message: "{{ page_home.general.time.label.color_rgb if is_number(page_home.general.time.label.color_rgb) else ((page_home.general.time.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.time.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.time.label.color_rgb[2] //(2**3)) }}"
-                    continue_on_error: true
-                  ### TIME Meridiem Font ###
-                  - *delay-default
-                  - service: "{{ nextion.commands.text_printf }}"
-                    data:
-                      component: home.meridiem
-                      message: "{{ meridiem }}"
-                    continue_on_error: true
+                  - if: "{{ meridiem }}"
+                    then:
+                      ### TIME Meridiem Font Color ###
+                      - *delay-default
+                      - service: "{{ nextion.commands.font_color }}"
+                        data:
+                          component: home.meridiem
+                          message: "{{ page_home.general.time.label.color_rgb if is_number(page_home.general.time.label.color_rgb) else ((page_home.general.time.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.time.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.time.label.color_rgb[2] //(2**3)) }}"
+                        continue_on_error: true
+                      ### TIME Meridiem Font ###
+                      - *delay-default
+                      - service: "{{ nextion.commands.text_printf }}"
+                        data:
+                          component: home.meridiem
+                          message: "{{ meridiem }}"
+                        continue_on_error: true
 
                   ##### NSPanel Outdoor Temp #####
                   - variables:
                       outdoor_temp_state: "{{ states(outdoortemp) | default('unavailable') if outdoortemp is string else 'unavailable' }}"
                       outdoor_temp: "{{ outdoor_temp_state if is_number(outdoor_temp_state) else state_attr(weather_entity, 'temperature') | default('unavailable') if weather_entity is string else 'unavailable' }}"
-                  ### LABEL Outdoor Temp Font Color ###
-                  - *delay-default
-                  - service: "{{ nextion.commands.font_color }}"
-                    data:
-                      component: home.outdoor_temp
-                      message: "{{ page_home.general.outdoor_temp.label.color_rgb if is_number(page_home.general.outdoor_temp.label.color_rgb) else ((page_home.general.outdoor_temp.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.outdoor_temp.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.outdoor_temp.label.color_rgb[2] //(2**3)) }}"
-                    continue_on_error: true
-                  ### LABEL Outdoor Temp Font ###
-                  - *delay-default
-                  - service: "{{ nextion.commands.text_printf }}"
-                    data:
-                      component: home.outdoor_temp
-                      message: "{{ (outdoor_temp | round(1) ~ temperature_units) if is_number(outdoor_temp) else (mui[language].unavailable if outdoor_temp in ['unavailable', 'unknown', None] else outdoor_temp) }}"
-                    continue_on_error: true
+                  - if: "{{ is_number(outdoor_temp) }}"
+                    then:
+                      ### LABEL Outdoor Temp Font Color ###
+                      - *delay-default
+                      - service: "{{ nextion.commands.font_color }}"
+                        data:
+                          component: home.outdoor_temp
+                          message: "{{ page_home.general.outdoor_temp.label.color_rgb if is_number(page_home.general.outdoor_temp.label.color_rgb) else ((page_home.general.outdoor_temp.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.outdoor_temp.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.outdoor_temp.label.color_rgb[2] //(2**3)) }}"
+                        continue_on_error: true
+                      ### LABEL Outdoor Temp Font ###
+                      - *delay-default
+                      - service: "{{ nextion.commands.text_printf }}"
+                        data:
+                          component: home.outdoor_temp
+                          message: "{{ outdoor_temp | round(1) ~ temperature_units }}"
+                        continue_on_error: true
 
                   ##### NSPanel Indoor Temp #####
                   - variables:
                       indoor_temp_state: "{{ states(indoortemp) | default('unavailable') if indoortemp is string else 'unavailable' }}"
-                  ### ICON Indoor Temp Font Color ###
-                  - *delay-default
-                  - service: "{{ nextion.commands.font_color }}"
-                    data:
-                      component: home.indoortempicon
-                      message: "{{ page_home.general.indoor_temp.icon.color_rgb if is_number(page_home.general.indoor_temp.icon.color_rgb) else ((page_home.general.indoor_temp.icon.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.indoor_temp.icon.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.indoor_temp.icon.color_rgb[2] //(2**3)) }}"
-                    continue_on_error: true
-                  ### ICON Indoor Temp Font ###
-                  - *delay-default
-                  - service: "{{ nextion.commands.text_printf }}"
-                    data:
-                      component: home.indoortempicon
-                      message: "{{ page_home.general.indoor_temp.icon.icon }}"
-                    continue_on_error: true
-                  ### LABEL Indoor Temp Font Color ###
-                  - *delay-default
-                  - service: "{{ nextion.commands.font_color }}"
-                    data:
-                      component: home.current_temp
-                      message: "{{ page_home.general.indoor_temp.label.color_rgb if is_number(page_home.general.indoor_temp.label.color_rgb) else ((page_home.general.indoor_temp.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.indoor_temp.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.indoor_temp.label.color_rgb[2] //(2**3)) }}"
-                    continue_on_error: true
-                  ### LABEL Indoor Temp Font ###
-                  - *delay-default
-                  - service: "{{ nextion.commands.text_printf }}"
-                    data:
-                      component: home.current_temp
-                      message: "{{ (indoor_temp_state | round(1) ~ temperature_units) if is_number(indoor_temp_state) else (mui[language].unavailable if indoor_temp_state in ['unavailable', 'unknown', None] else indoor_temp_state) }}"
-                    continue_on_error: true
+                  - if: "{{ is_number(indoor_temp_state) }}"
+                    then:
+                      ### ICON Indoor Temp Font Color ###
+                      - *delay-default
+                      - service: "{{ nextion.commands.font_color }}"
+                        data:
+                          component: home.indoortempicon
+                          message: "{{ page_home.general.indoor_temp.icon.color_rgb if is_number(page_home.general.indoor_temp.icon.color_rgb) else ((page_home.general.indoor_temp.icon.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.indoor_temp.icon.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.indoor_temp.icon.color_rgb[2] //(2**3)) }}"
+                        continue_on_error: true
+                      ### ICON Indoor Temp Font ###
+                      - *delay-default
+                      - service: "{{ nextion.commands.text_printf }}"
+                        data:
+                          component: home.indoortempicon
+                          message: "{{ page_home.general.indoor_temp.icon.icon }}"
+                        continue_on_error: true
+                      ### LABEL Indoor Temp Font Color ###
+                      - *delay-default
+                      - service: "{{ nextion.commands.font_color }}"
+                        data:
+                          component: home.current_temp
+                          message: "{{ page_home.general.indoor_temp.label.color_rgb if is_number(page_home.general.indoor_temp.label.color_rgb) else ((page_home.general.indoor_temp.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.indoor_temp.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.indoor_temp.label.color_rgb[2] //(2**3)) }}"
+                        continue_on_error: true
+                      ### LABEL Indoor Temp Font ###
+                      - *delay-default
+                      - service: "{{ nextion.commands.text_printf }}"
+                        data:
+                          component: home.current_temp
+                          message: "{{ (indoor_temp_state | round(1) ~ temperature_units) if is_number(indoor_temp_state) else (mui[language].unavailable if indoor_temp_state in ['unavailable', 'unknown', None] else indoor_temp_state) }}"
+                        continue_on_error: true
 
                   ##### Weather Icon Home Page #####
                   - *delay-default
@@ -4013,19 +4021,24 @@ action:
                         - &display-home_page_status_bar
                           if: "{{ repeat.item.entity is defined and repeat.item.entity is string and repeat.item.entity | length > 0 }}"
                           then:
-                            ### ICON Font Color ###
-                            - *delay-default
-                            - service: "{{ nextion.commands.font_color }}"
-                              data:
-                                component: "{{ 'home.icon_top_%02d' | format(repeat.index) }}"
-                                message: "{{ repeat.item.icon_color_rgb if is_number(repeat.item.icon_color_rgb) else ((repeat.item.icon_color_rgb[0] //(2**3)) *(2**11))+((repeat.item.icon_color_rgb[1] //(2**2)) *(2**5))+(repeat.item.icon_color_rgb[2] //(2**3)) }}"
-                              continue_on_error: true
+                            - variables:
+                                repeat_item_state: "{{ states(repeat.item.entity) | default('unavailable') }}"
+                                repeat_item_state_is_on: "{{ repeat_item_state in ['on', 'open'] }}"
+                            - if: "{{ repeat_item_state_is_on }}"
+                              then:
+                                ### ICON Font Color ###
+                                - *delay-default
+                                - service: "{{ nextion.commands.font_color }}"
+                                  data:
+                                    component: "{{ 'home.icon_top_%02d' | format(repeat.index) }}"
+                                    message: "{{ repeat.item.icon_color_rgb if is_number(repeat.item.icon_color_rgb) else ((repeat.item.icon_color_rgb[0] //(2**3)) *(2**11))+((repeat.item.icon_color_rgb[1] //(2**2)) *(2**5))+(repeat.item.icon_color_rgb[2] //(2**3)) }}"
+                                  continue_on_error: true
                             ### ICON Font ###
                             - *delay-default
                             - service: "{{ nextion.commands.text_printf }}"
                               data:
                                 component: "{{ 'home.icon_top_%02d' | format(repeat.index) }}"
-                                message: "{{ repeat.item.icon if is_state(repeat.item.entity, 'on') | default(False) else nextion.icons.blank }}"
+                                message: "{{ repeat.item.icon if repeat_item_state_is_on else nextion.icons.blank }}"
                               continue_on_error: true
                                 # {{ is_state(repeat.item.entity, 'on') | default(False) if repeat.item.entity is string else 'unavailable' }}
 
@@ -4052,7 +4065,7 @@ action:
                         - &display-home_page_value
                           if: "{{ repeat.item.entity is string and repeat.item.entity is match 'sensor.' and states(repeat.item.entity) not in ['unavailable', 'unknown', None] }}"
                           then:
-                            - if: "{{ repeat.item.entity_icon | length > 0 }}"
+                            - if: "{{ repeat.item.icon | length > 0 }}"
                               then:
                                 ### ICON Font Color ###
                                 - *delay-default
@@ -4068,42 +4081,50 @@ action:
                                     component: "{{ 'home.value%02d_icon' | format(repeat.index) }}"
                                     message: "{{ repeat.item.icon }}"
                                   continue_on_error: true
-                            ### LABEL Font Color ###
-                            - *delay-default
-                            - service: "{{ nextion.commands.font_color }}"
-                              data:
-                                component: "{{ 'home.value%02d_state' | format(repeat.index) }}"
-                                message: "{{ repeat.item.label_color_rgb if is_number(repeat.item.label_color_rgb) else ((repeat.item.label_color_rgb[0] //(2**3)) *(2**11))+((repeat.item.label_color_rgb[1] //(2**2)) *(2**5))+(repeat.item.label_color_rgb[2] //(2**3)) }}"
-                              continue_on_error: true
-                            ### LABEL Font ###
-                            - *delay-default
-                            - service: "{{ nextion.commands.text_printf }}"
-                              data:
-                                component: "{{ 'home.value%02d_state' | format(repeat.index) }}"
-                                message: "{{ (states(repeat.item.entity) | round(1) ~ (state_attr(repeat.item.entity, 'unit_of_measurement') if state_attr(repeat.item.entity, 'unit_of_measurement') else '')) if is_number(states(repeat.item.entity)) else states(repeat.item.entity) | default('unknown') }}"
-                              continue_on_error: true
+                            - variables:
+                                repeat_item_state: "{{ states(repeat.item.entity) | default('unavailable') }}"
+                                repeat_item_state_available: "{{ repeat_item_state not in ['unavailable', 'unknown', None] }}"
+                            - if: "{{ repeat_item_state_available }}"
+                              then:
+                                ### LABEL Font Color ###
+                                - *delay-default
+                                - service: "{{ nextion.commands.font_color }}"
+                                  data:
+                                    component: "{{ 'home.value%02d_state' | format(repeat.index) }}"
+                                    message: "{{ repeat.item.label_color_rgb if is_number(repeat.item.label_color_rgb) else ((repeat.item.label_color_rgb[0] //(2**3)) *(2**11))+((repeat.item.label_color_rgb[1] //(2**2)) *(2**5))+(repeat.item.label_color_rgb[2] //(2**3)) }}"
+                                  continue_on_error: true
+                                ### LABEL Font ###
+                                - *delay-default
+                                - service: "{{ nextion.commands.text_printf }}"
+                                  data:
+                                    component: "{{ 'home.value%02d_state' | format(repeat.index) }}"
+                                    message: "{{ (repeat_item_state | round(1) ~ state_attr(repeat.item.entity, 'unit_of_measurement') | default('')) if is_number(repeat_item_state) else repeat_item_state }}"
+                                  continue_on_error: true
 
                   ##### Set notify icon #####
                   - variables:
                       notification_unread_state: "{{ states(notification_unread) | default('unavailable') if notification_unread is string else 'unavailable' }}"
-                      notification_text_state: "{{ states(notification_text) | default(None) if notification_text is string else None }}"
-                      set_button04_icon: "{{ page_home.buttons[3].icon if notification_unread_state in ['on', 'off'] and notification_text_state | length > 0 else nextion.icons.blank }}"
-                      set_button04_icon_font: "{{ (page_home.buttons[3].color_rgb[notification_unread_state] if is_number(page_home.buttons[3].color_rgb[notification_unread_state]) else ((page_home.buttons[3].color_rgb[notification_unread_state][0] //(2**3)) *(2**11))+((page_home.buttons[3].color_rgb[notification_unread_state][1] //(2**2)) *(2**5))+(page_home.buttons[3].color_rgb[notification_unread_state][2] //(2**3))) if notification_unread_state in ['on', 'off'] and notification_text_state | length > 0 else nextion.colors.grey_light }}"
-                  ##### SET ICON Font - Notify #####
-                  - *delay-default
-                  - service: "{{ nextion.commands.text_printf }}"
-                    data:
-                      component: home.button04_icon
-                      message: "{{ set_button04_icon }}"
-                    continue_on_error: true
+                  - if: "{{ notification_unread_state in ['on', 'off'] }}"
+                    then:
+                      - variables:
+                          notification_text_state: "{{ states(notification_text) | default(None) if notification_text is string else None }}"
+                          set_button04_icon: "{{ page_home.buttons[3].icon if notification_unread_state == 'on' and notification_text_state | length > 0 else nextion.icons.blank }}"
+                          set_button04_icon_font: "{{ (page_home.buttons[3].color_rgb[notification_unread_state] if is_number(page_home.buttons[3].color_rgb[notification_unread_state]) else ((page_home.buttons[3].color_rgb[notification_unread_state][0] //(2**3)) *(2**11))+((page_home.buttons[3].color_rgb[notification_unread_state][1] //(2**2)) *(2**5))+(page_home.buttons[3].color_rgb[notification_unread_state][2] //(2**3))) if notification_unread_state in ['on', 'off'] and notification_text_state | length > 0 else nextion.colors.grey_light }}"
+                      ##### SET ICON Font - Notify #####
+                      - *delay-default
+                      - service: "{{ nextion.commands.text_printf }}"
+                        data:
+                          component: home.button04_icon
+                          message: "{{ set_button04_icon }}"
+                        continue_on_error: true
 
-                  ##### SET ICON Font Color - Notify #####
-                  - *delay-default
-                  - service: "{{ nextion.commands.font_color }}"
-                    data:
-                      component: home.button04_icon
-                      message: "{{ set_button04_icon_font }}"
-                    continue_on_error: true
+                      ##### SET ICON Font Color - Notify #####
+                      - *delay-default
+                      - service: "{{ nextion.commands.font_color }}"
+                        data:
+                          component: home.button04_icon
+                          message: "{{ set_button04_icon_font }}"
+                        continue_on_error: true
 
                   ###### QR Code - Icon ######
                   - *delay-default
@@ -4447,6 +4468,7 @@ action:
               - alias: Light settings page
                 conditions: "{{ trigger.event.data.new_state.state == nextion.pages.light }}"
                 sequence:
+                  - *variables-settings_entity
                   - service: "{{ nextion.commands.text_printf }}"
                     data:
                       component: lightsettings.light_name
@@ -4535,6 +4557,7 @@ action:
                 conditions: "{{ trigger.event.data.new_state.state == nextion.pages.cover }}"
                 sequence:
                   ##### COVER - OPEN / CLOSE #####
+                  - *variables-settings_entity
                   - variables:
                       coversettings_icon_font: "{{ entity_long_icon if entity_long_icon | length > 0 else nextion.icons.buttons.cover }}"
                       coversettings_icon_font_color: "{{ entity_long_icon_color if is_state(entity_long, 'open') else nextion.colors.grey_light }}"
@@ -4797,6 +4820,7 @@ action:
               - alias: Climate page
                 conditions: "{{ trigger.event.data.new_state.state == nextion.pages.climate }}"
                 sequence:
+                  - *variables-settings_entity
                   - variables:
                       hvac_mode: "{{ states(entity_long) | default('unavailable') if entity_long is string else 'unavailable' }}"
                       outdoor_temp_state: "{{ states(outdoortemp) | default('unavailable') if outdoortemp is string else 'unavailable' }}"
@@ -5014,7 +5038,7 @@ action:
                           message: "{{ mui[language].unavailable }}"
                         continue_on_error: true
                       - *delay-default
- 
+
               ## PAGE NOTIFICATION ##
               - alias: Notification page
                 conditions: "{{ trigger.event.data.new_state.state == nextion.pages.notification }}"
@@ -5148,13 +5172,13 @@ action:
           - variables:
               ##### Entity - Page Button - Toggle Entity #####
               last_click_state: "{{ states(last_click) | default('unavailable') if last_click is string else 'unavailable' }}"
-              last_click_coordinates: "{{ last_click_state.replace('releasebuttonpage', '').split('button') if last_click_state not in ['unavailable', 'unknown', None] else [-1, -1] }}"
-              last_click_entity_index: "{{ (last_click_coordinates[0] | int(-99) -1)*8 + last_click_coordinates[1] | int(-99) - 1 }}"
+              last_click_coordinates: "{{ last_click_state.replace('releasebuttonpage', '').split('button') if last_click_state not in ['unavailable', 'unknown', None] else None }}"
+              last_click_entity_index: "{{ (last_click_coordinates[0] | int(-99) -1)*8 + last_click_coordinates[1] | int(-99) - 1 if last_click_coordinates and last_click_coordinates | count >= 1 else -1 }}"
           - condition: "{{ last_click_entity_index >= 0 }}"
           - variables:
               last_click_button: "{{ button_pages_buttons[last_click_entity_index] | default([]) }}"
               entity_short: "{{ last_click_button.entity | default('unavailable') if last_click_button and last_click_button.entity is defined }}"
-              entity_domain: "{{ (entity_short.split('.')[0] | default('unknown')) if entity_short is string and entity_short | length > 0 else 'unknown' }}"
+              entity_domain: "{{ (entity_short.split('.')[0] | default('unknown')) if entity_short is string and entity_short | length > 0 and entity_short.split('.') | count > 0 else 'unknown' }}"
           - condition: "{{ entity_domain not in ['unknown', 'person', 'binary_sensor', 'sensor'] }}"
           - if: "{{ entity_domain == 'climate' }}"
             then:
@@ -5290,6 +5314,7 @@ action:
             id: light_settings
           - "{{ nextion.pages.current == nextion.pages.light }}"
         sequence:
+          - *variables-settings_entity
           - choose:
               ##### Page Lightsettings - Brightness Slider MOVE #####
               - conditions:
@@ -5376,6 +5401,7 @@ action:
             id: cover_settings
           - "{{ nextion.pages.current == nextion.pages.cover }}"
         sequence:
+          - *variables-settings_entity
           - choose:
               ##### Page Coversettings - Cover Slider MOVE #####
               - conditions:
@@ -5444,6 +5470,7 @@ action:
             id: climate_settings
           - "{{ nextion.pages.current == nextion.pages.climate }}"
         sequence:
+          - *variables-settings_entity
           - variables:
               entity_long_state: "{{ states(entity_long) | default('unavailable') if entity_long is string else 'unavailable' }}"
           - choose:
