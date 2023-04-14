@@ -44,11 +44,14 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 
     ##### MAIN NAME #####
           nspanel_name:
-            name: ESPhome Node Name
-            description: '* *"SYSTEM" - here you have to enter exactly the same **"device_name"** you entered in the Esphome file*'
-            default: [nspanel_name]
+            name: (REQUIRED) NSPanel device
+            description: '* *"SYSTEM" - Please select the ESPHome device reated to the NSPanel to be controlled by this automation*'
+            default: []
             selector:
-              text: {}
+              device:
+                filter:
+                  - integration: esphome
+                multiple: false
 
     ##### SYSTEM SETTINGS #####
           language:
@@ -2322,16 +2325,20 @@ trace:
 
 trigger_variables:
   nspanel_name_temp: !input "nspanel_name"
-  nspanel_name: "{{ nspanel_name_temp | replace('-','_') | replace(' ','_') | replace('___','_') | replace('__','_') }}"
+  nspanel_entities: "{{ device_entities(nspanel_name_temp) }}"
+  nspanel_name: >
+    {% if nspanel_entities | count > 0 %}{{ (nspanel_entities | selectattr(None, 'search', '_nextion_inited') | list | first).split('.')[1].split('_nextion_inited')[0] }}
+    {% elif nspanel_name_temp is string %}{{ nspanel_name_temp | replace('-','_') | replace(' ','_') | replace('___','_') | replace('__','_') }}
+    {% endif %}
   last_click: "sensor.{{ nspanel_name }}_last_click"
   last_click_lightsettings: "sensor.{{ nspanel_name }}_last_click_lightsettings"
   last_click_coversettings: "sensor.{{ nspanel_name }}_last_click_coversettings"
   last_click_climatesettings: "sensor.{{ nspanel_name }}_last_click_climatesettings"
   left_button: "binary_sensor.{{ nspanel_name }}_left_button"
   right_button: "binary_sensor.{{ nspanel_name }}_right_button"
-  weather_forcast_button: "binary_sensor.{{ nspanel_name }}_weather_forcast"
-  nextion_inited_trigger: "switch.{{ nspanel_name }}_nextion_inited"
-  # current_page: "sensor.{{ nspanel_name }}_current_page"
+  #weather_forcast_button: "binary_sensor.{{ nspanel_name }}_weather_forcast"
+  nextion_inited: "switch.{{ nspanel_name }}_nextion_inited"
+  #current_page: "sensor.{{ nspanel_name }}_current_page"
   current_page: "sensor.{{ nspanel_name }}_currentpage"
   hotwatercharge: !input "hotwatercharge"
   display_target_temperature: "sensor.{{ nspanel_name }}_display_target_temperature"
@@ -3123,7 +3130,11 @@ variables:
       no_name: No name
 
   ##### WEATHER ####
-  weather_entity: !input "weather_entity" # used only during the creation of weather in variables
+  weather_entity_tmp: !input "weather_entity" # used only during the creation of weather in variables
+  weather_entity: >
+    {% if weather_entity_tmp is string and weather_entity_tmp | length > 0 %} {{ weather_entity_tmp }}
+    {% elif states.weather | list | count > 0 %} {{ states.weather | map(attribute='entity_id') | list | first }}
+    {% endif %}
   temperature_units: '°'
 
   ##### Home page #####
@@ -3229,7 +3240,7 @@ trigger:
 
   ##### Reboot - Trigger "nspanel_boot_init" #####
   - platform: template
-    value_template: "{{ is_state(nextion_inited_trigger, 'on') | default(false) if nextion_inited_trigger is string else false }}"
+    value_template: "{{ is_state(nextion_inited, 'on') | default(false) if nextion_inited is string else false }}"
     for:
       seconds: 1
     id: nspanel_boot_init
@@ -3686,7 +3697,7 @@ trigger:
 ##### CLOSE - Trigger #####
 #############################################################
 
-condition: "{{ is_state(nextion_inited_trigger, 'on') | default(false) if nextion_inited_trigger is string else false }}"
+condition: "{{ is_state(nextion_inited, 'on') | default(false) if nextion_inited is string else false }}"
 
 #############################################################
 ##### START - Action #####
