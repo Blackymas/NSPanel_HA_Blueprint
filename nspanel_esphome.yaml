@@ -7,7 +7,8 @@
 
 
 ##### ADVANCED CONFIGURATION - activate only when you know what you do ##############################
-# substitutions:
+substitutions:
+  baud_rate: "115200" # requires 115200 if tft is installed but can be changed to 9600 if tft upload fails and nextion switches to 9600
   # ## usage of secrets-file ## -> comment in ###### Change ME ######
   # device_name: "nspanel-name" # Wird im Blueprint benötigt!
   # wifi_ssid: !secret nspanel_wifi_ssid # add in your esphome secrets file.
@@ -23,6 +24,16 @@
   # subnet: "255.255.255.0"
   # dns: "10.0.0.138"
   # domain: ".local"
+
+###### USE THIS ONLY FOR YOUR FIRST TFT UPLOAD
+###### AND IF EXIT-REPARSE BUTTON FAILS
+###### ONCE IT WORKED, REMOVE THOSE LINES
+###### https://github.com/esphome/esphome/pull/2956
+# external_components:
+#   - source: github://pr#2956
+#     components: [nextion]
+#     refresh: 1h
+##################################################
 
 ##### if you rename this file to .nspanel_esphome.yaml then you can activate nested config
 ##### use the ADVANCED CONFIG-Section as device configuration
@@ -48,20 +59,10 @@ wifi:
     ssid: "${device_name}"
     password: ${wifi_password}
 
-##### Functionality for the Nextion display #####
-# external_components:
-#   - source: github://pr#2956
-#     components: [nextion]
-#     refresh: 1h
-
 ##### ESPHOME CONFIGURATION #####
 esphome:
   name: ${device_name}
   min_version: 2022.10.2
-  on_boot:
-    priority: 601
-    then:
-      - lambda: id(disp1).send_command_printf("DRAKJHSUYDGBNCJHGJKSHBDN");
 
 ##### TYPE OF ESP BOARD #####
 esp32:
@@ -88,7 +89,7 @@ ota:
 
 ##### LOGGER #####
 logger:
-#  baud_rate: 0
+  baud_rate: 0
 #  level: WARN
 
 ##### CONFIGURE INTERNAL BUZZER #####
@@ -108,7 +109,7 @@ rtttl:
 uart:
   tx_pin: 16
   rx_pin: 17
-  baud_rate: 115200
+  baud_rate: ${baud_rate}
   id: tf_uart
 
 ##### START - BUTTON CONFIGURATION #####
@@ -125,8 +126,23 @@ button:
     id: tft_update
     entity_category: config
     on_press:
+      - switch.turn_off: nextion_init
       - delay: 16ms
       - lambda: id(disp1).upload_tft();
+
+  ##### EXIT REPARSE TFT DISPLAY #####
+  - platform: template
+    name: ${device_name} Exit reparse
+    icon: mdi:file-sync
+    id: tft_reparse_off
+    entity_category: config
+    on_press:
+      - uart.write:
+          id: tf_uart
+          data: "DRAKJHSUYDGBNCJHGJKSHBDN"
+      - uart.write:
+          id: tf_uart
+          data: [0xFF, 0xFF, 0xFF]
 
 ##### START - API CONFIGURATION #####
 api:
@@ -137,6 +153,7 @@ api:
     ##### SERVICE TO UPDATE THE HMI FILE #####
     - service: upload_tft
       then:
+        - switch.turn_off: nextion_init
         - lambda: 'id(disp1)->upload_tft();'
 
     ##### SERVICE TO UPDATE THE TFT FILE from URL #####
@@ -144,6 +161,7 @@ api:
       variables:
         url: string
       then:
+        - switch.turn_off: nextion_init
         - lambda: 'id(disp1)->set_tft_url(url.c_str());'
         - lambda: 'id(disp1)->upload_tft();'
 
@@ -341,6 +359,26 @@ api:
             } else {
               id(disp1).set_component_text_printf(btnbri.c_str(), " ");
             }
+    #### Service to set the entities ####
+    - service: set_entity
+      variables:
+        ent_id: string
+        ent_icon: string
+        ent_label: string
+        ent_value: string
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: |-
+            // ESP_LOGD("nextion", "set entity %s", ent_id.c_str());
+            std::string enticon = ent_id.c_str() + std::string("_pic");
+            std::string entlabel = ent_id.c_str() + std::string("_label");
+            id(disp1).set_component_text_printf(enticon.c_str(), "%s", ent_icon.c_str());
+            if (strcmp(ent_icon.c_str(), "0") != 0) {
+              id(disp1).set_component_text_printf(enticon.c_str(), "%s", ent_icon.c_str());
+            }
+            id(disp1).set_component_text_printf(entlabel.c_str(), "%s", ent_label.c_str());
+            id(disp1).set_component_text_printf(ent_id.c_str(), "%s", ent_value.c_str());
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
@@ -496,18 +534,6 @@ binary_sensor:
     on_click:
       - switch.toggle: sleep_modus
 
-  ##### Hotwater Charge #####
-  # - platform: nextion
-  #   name: ${device_name} Hotwater Charge
-  #   page_id: 6
-  #   component_id: 20
-    # on_click:
-    #   - homeassistant.service:
-    #       service: switch.toggle
-    #       data:
-    #         entity_id: ${ha_hotwater_charge}
-
-
 ##### START - SENSOR CONFIGURATION #####
 sensor:
 
@@ -599,17 +625,6 @@ sensor:
             value: !lambda 'return int(x);'
           # send text field percentage of current_lightslider_val
         - lambda: id(disp1).set_component_text_printf("settings.a04", "%i", id(display_dim_brightness_global));
-
-  ###### Send current page to HA
-  # - platform: nextion
-  #   id: current_page
-  #   name: "${device_name} Current Page"
-  #   variable_name: dp
-  #   update_interval: 1s
-  #   accuracy_decimals: 0
-  #   filters:
-  #     - delta: 1.0
-  #     - lambda: return int(x);
 
 
 ##### START - TEXT SENSOR CONFIGURATION #####
@@ -787,14 +802,6 @@ text_sensor:
 ##### START - SWITCH CONFIGURATION #####
 switch:
 
-  # ##### Restart switch ######
-  # - platform: restart
-  #   name: ${device_name} Restart
-
-  # ##### Restart in safe-mode #####
-  # - platform: safe_mode
-  #   name: ${device_name} Restart (Safe Mode)
-
   ##### global variable to keep track on whether the Nextion display is ready or not. Delays initial info from HA to the display #####
   - platform: template
     name: ${device_name} Nextion inited
@@ -867,13 +874,13 @@ switch:
       - globals.set:
             id: sleep_modus_global
             value: '0'
-      - lambda:  id(disp1).set_component_value("settings.a02",0);
+      - lambda:  id(disp1).set_component_value("settings.bt1",0);
     on_turn_on:
       - lambda: id(disp1).send_command_printf("home.sleepmodus.val=1");
       - globals.set:
             id: sleep_modus_global
             value: '1'
-      - lambda:  id(disp1).set_component_value("settings.a02",1);
+      - lambda:  id(disp1).set_component_value("settings.bt1",1);
 
   ##### Relay Local control Fallback #####
   - platform: template
@@ -968,7 +975,7 @@ display:
     on_setup:
       then:
         - lambda: id(disp1).send_command_printf("page 8");
-        - lambda: id(disp1).set_component_text_printf("boot.esph_version", "%s", "3.2.2"); ### esphome-version ###
+        - lambda: id(disp1).set_component_text_printf("boot.esph_version", "%s", "3.2.3"); ### esphome-version ###
         - wait_until:
             api.connected
         - lambda: id(disp1).set_component_text_printf("boot.ip_addr", "%s", id(ip_address).state.c_str());
