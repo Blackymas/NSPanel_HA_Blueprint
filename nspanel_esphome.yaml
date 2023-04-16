@@ -111,6 +111,13 @@ uart:
   rx_pin: 17
   baud_rate: ${baud_rate}
   id: tf_uart
+  # debug:
+  #   direction: BOTH
+  #   dummy_receiver: false
+  #   after:
+  #     delimiter: "\n"
+  #   sequence:
+  #     - lambda: UARTDebug::log_string(direction, bytes);
 
 ##### START - BUTTON CONFIGURATION #####
 button:
@@ -150,7 +157,7 @@ api:
   # password: ${api_password}
   services:
 
-    ##### SERVICE TO UPDATE THE HMI FILE #####
+    ##### SERVICE TO UPDATE THE HMI FILE ##############
     - service: upload_tft
       then:
         - switch.turn_off: nextion_init
@@ -427,12 +434,6 @@ globals:
 
   ##### lastclick_climatesettings State #####
   - id: lastclick_climatesettings_global
-    type: std::string
-    restore_value: no
-    initial_value: ''
-
-  ##### lastclick_currentpage State #####
-  - id: currentpage_global
     type: std::string
     restore_value: no
     initial_value: ''
@@ -751,29 +752,22 @@ text_sensor:
         - lambda: |-
             id(page_timer)->execute(int(id(page_timeout).state));
 
-  ##### currentpage sensor, the main action variable - push to HA #####
+  ##### NSPanel event sensor, the main action sensor - push to HA #####
   - platform: nextion
     nextion_id: disp1
-    name: ${device_name} currentpage
-    id: disp1_currentpage
-    update_interval: 50ms
-    component_name: currentpage
+    name: ${device_name} NSPanel event
+    id: disp1_nspanel_event
+    component_name: nspanelevent
     internal: false
     filters:
       - lambda: |-
-          if (strcmp(x.c_str(), id(currentpage_global).c_str()) != 0) {
-            return x;
-          } else {
-            return {};
-          }
+          x = x.c_str();
+          x.shrink_to_fit();
+          return x;
     on_value:
       then:
-        - globals.set:
-            id: currentpage_global
-            value: !lambda return x;
         - lambda: |-
             id(page_timer)->execute(int(id(page_timeout).state));
-
 
   ##### touchevent sensor, Reset the page timeout #####
   - platform: nextion
@@ -1007,7 +1001,10 @@ script:
       - lambda: ESP_LOGD("nspanel", "start page-timer delay %i", int(id(page_timeout).state));
       - delay: !lambda return delay *1000;
       - lambda: |-
-          if (id(disp1_currentpage).state == "home" or id(disp1_currentpage).state == "screensaver" or id(disp1_currentpage).state == "boot" or int(id(page_timeout).state) == 0) {
+          DynamicJsonDocument doc(1024);
+          deserializeJson(doc, id(disp1_nspanel_event).state);
+          std::string page = doc["page"];
+          if (page == "home" or page == "screensaver" or page == "boot" or int(id(page_timeout).state) == 0) {
             ESP_LOGD("nspanel", "no page-jump");
           } else {
             ESP_LOGD("nspanel", "timer->home");
