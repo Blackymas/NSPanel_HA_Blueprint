@@ -2332,7 +2332,7 @@ trigger_variables:
     {% elif nspanel_name_temp is string %}{{ nspanel_name_temp | replace('-','_') | replace(' ','_') | replace('___','_') | replace('__','_') }}
     {% endif %}
   last_click: "sensor.{{ nspanel_name }}_last_click"
-  last_click_lightsettings: "sensor.{{ nspanel_name }}_last_click_lightsettings"
+  # last_click_lightsettings: "sensor.{{ nspanel_name }}_last_click_lightsettings"
   last_click_coversettings: "sensor.{{ nspanel_name }}_last_click_coversettings"
   last_click_climatesettings: "sensor.{{ nspanel_name }}_last_click_climatesettings"
   left_button: "binary_sensor.{{ nspanel_name }}_left_button"
@@ -3501,13 +3501,6 @@ trigger:
     for:
       seconds: 1
     id: long_press
-
-  ##### Page Lightsettings - Trigger "light_settings" - Changes Lightsettings Page via "last_click_lightsettings" #####
-  - platform: event
-    event_type: state_changed
-    event_data:
-      entity_id: "{{ last_click_lightsettings }}"
-    id: light_settings
 
   ##### Page Coversettings - Trigger "cover_settings" - Changes Coversettings Page via "last_click_coversettings" #####
   - platform: event
@@ -5163,6 +5156,25 @@ action:
                       #  conditions: "{{ nextion.pages.current == nextion.pages.screensaver }}"
                       #  sequence:
 
+              - alias: Page close # general
+                conditions: '{{ nspanel_event.component == "close" and nspanel_event.value == "release" }}'
+                sequence:
+                  - *variables-settings_entity
+                  - service: "{{ nextion.commands.printf }}"
+                    data:
+                      cmd: "page {{ entity_back }}"
+                    continue_on_error: true
+
+              - alias: lightsetting # rgb_color, brightness, color_temp
+                conditions: '{{ nspanel_event.component in ["rgb_color", "brightness_pct", "color_temp"] }}'
+                sequence:
+                  - *variables-settings_entity
+                  - service: light.turn_on
+                    data:
+                      entity_id: "{{ entity_long }}"
+                      "{{ nspanel_event.component }}": "{{ nspanel_event.value }}"
+                    continue_on_error: true
+
       ##### BOOT NSPANEL - automation reload #####
       - alias: Automation reloaded
         conditions:
@@ -5378,93 +5390,6 @@ action:
             data:
               entity: "{{ entity_long }},{{ entity_back }},{{ entity_long_name }},{{ entity_long_icon }},{{ entity_long_icon_color }}"
             continue_on_error: true
-
-      ##### LASTCLICK_LIGHTSETTINGS - changes on page lightsettings #####
-      - alias: Changes on page lightsettings
-        conditions:
-          - condition: trigger
-            id: light_settings
-          - "{{ nextion.pages.current == nextion.pages.light }}"
-        sequence:
-          - *variables-settings_entity
-          - choose:
-              ##### Page Lightsettings - Brightness Slider MOVE #####
-              - conditions:
-                  #- '{{ trigger.event.data.new_state.state is match "brightness\d+" and trigger.event.data.new_state.state == states(last_click_lightsettings) }}'
-                  - '{{ trigger.event.data.new_state.state is match "brightness\d+" }}'
-                sequence:
-                  - service: light.turn_on
-                    data:
-                      entity_id: "{{ entity_long }}"
-                      brightness: "{{ (trigger.event.data.new_state.state | replace('brightness','') | int / 100 * 255) | round(0) }}"
-                    continue_on_error: true
-                  #### wird nicht mehr benötigt, da es im nextion editor nun direkt gemacht wird
-                  # - delay:
-                  #     milliseconds: "{{ delay_value }}"
-                  # - service: "{{ nextion.commands.text_printf }}"
-                  #   data:
-                  #     component: lightsettings.light_value
-                  #     message: "{{ (trigger.event.data.new_state.state | replace('brightness','') | int * 100 /255) | round(0) }}%'
-                  # - delay:
-                  #     milliseconds: "{{ delay_value }}"
-                  # - service: "{{ nextion.commands.text_printf }}"
-                  #   data:
-                  #     component: lightsettings.light_value_2
-                  #     message: "{{ (trigger.event.data.new_state.state | replace('brightness','') | int * 100 /255) | round(0) }}%'
-
-                #     value_template: "{{ states(last_click_lightsettings) is match 'brightness\d+' }}"
-                # sequence:
-                #   - service: light.turn_on
-                #     data:
-                #       entity_id: "{{ entity_long }}"
-                #       brightness: "{{ states(last_click_lightsettings) | replace('brightness','') | int }}"
-                #   - service: "{{ nextion.commands.text_printf }}"
-                #     data:
-                #       component: lightsettings.light_value
-                #       message: "{{ (states(last_click_lightsettings) | replace('brightness','') | int * 100 /255) | round(0) }}"
-
-
-              ##### Page Lightsettings - color_Temp Slider MOVE #####
-              - conditions:
-                  - '{{ trigger.event.data.new_state.state is match "colortemp\d+" and trigger.event.data.new_state.state == (states(last_click_lightsettings) | default("unavailable") if last_click_lightsettings is string else "unavailable") }}'
-                sequence:
-                  - service: light.turn_on
-                    data:
-                      entity_id: "{{ entity_long }}"
-                      color_temp: "{{ trigger.event.data.new_state.state | replace('colortemp','') | int }}"
-                    continue_on_error: true
-                  #### wird nicht mehr benötigt, da es im nextion editor nun direkt gemacht wird
-                  # - delay:
-                  #     milliseconds: "{{ delay_value }}"
-                  # - service: "{{ nextion.commands.text_printf }}"
-                  #   data:
-                  #     component: lightsettings.temp_value
-                  #     message: "{{ trigger.event.data.new_state.state | replace('colortemp','') | int }}"
-                  # - delay:
-                  #     milliseconds: "{{ delay_value }}"
-                  # - service: "{{ nextion.commands.text_printf }}"
-                  #   data:
-                  #     component: lightsettings.temp_value_2
-                  #     message: "{{ trigger.event.data.new_state.state | replace('colortemp','') | int }}"
-
-              ##### Page Lightsettings - Color RGB Slider MOVE #####
-              - conditions:
-                  - '{{ trigger.event.data.new_state.state is match "\d+,\d+,\d+" }}'
-                sequence:
-                  - service: light.turn_on
-                    data:
-                      entity_id: "{{ entity_long }}"
-                      rgb_color: "{{ trigger.event.data.new_state.state.split(',') }}"
-                    continue_on_error: true
-
-              ##### Page Lightsettings - Close Lightsetting Page #####
-              - conditions:
-                  - "{{ trigger.event.data.new_state.state == 'releaselightsettingsclose' }}"
-                sequence:
-                  - service: "{{ nextion.commands.printf }}"
-                    data:
-                      cmd: "page {{ entity_back }}"
-                    continue_on_error: true
 
       ##### LASTCLICK_COVERSETTINGS - changes on page coversettings #####
       - alias: Changes on page coversettings
