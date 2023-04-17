@@ -2332,15 +2332,10 @@ trigger_variables:
     {% elif nspanel_name_temp is string %}{{ nspanel_name_temp | replace('-','_') | replace(' ','_') | replace('___','_') | replace('__','_') }}
     {% endif %}
   last_click: "sensor.{{ nspanel_name }}_last_click"
-  # last_click_lightsettings: "sensor.{{ nspanel_name }}_last_click_lightsettings"
-  last_click_coversettings: "sensor.{{ nspanel_name }}_last_click_coversettings"
-  last_click_climatesettings: "sensor.{{ nspanel_name }}_last_click_climatesettings"
   left_button: "binary_sensor.{{ nspanel_name }}_left_button"
   right_button: "binary_sensor.{{ nspanel_name }}_right_button"
   #weather_forcast_button: "binary_sensor.{{ nspanel_name }}_weather_forcast"
   nextion_inited: "switch.{{ nspanel_name }}_nextion_inited"
-  #current_page: "sensor.{{ nspanel_name }}_current_page"
-  # current_page: "sensor.{{ nspanel_name }}_currentpage"
   nspanelevent: "sensor.{{ nspanel_name }}_nspanel_event"
   hotwatercharge: !input "hotwatercharge"
   display_target_temperature: "sensor.{{ nspanel_name }}_display_target_temperature"
@@ -3501,20 +3496,6 @@ trigger:
     for:
       seconds: 1
     id: long_press
-
-  ##### Page Coversettings - Trigger "cover_settings" - Changes Coversettings Page via "last_click_coversettings" #####
-  - platform: event
-    event_type: state_changed
-    event_data:
-      entity_id: "{{ last_click_coversettings }}"
-    id: cover_settings
-
-   ##### Page Climatesettings - Trigger "climate_settings" - Changes Climatesettings Page via "last_click_climatesettings" #####
-  - platform: event
-    event_type: state_changed
-    event_data:
-      entity_id: "{{ last_click_climatesettings }}"
-    id: climate_settings
 
   ##### NSPanel event changed #####
   - platform: event
@@ -5194,6 +5175,103 @@ action:
                       entity_id: "{{ entity_long }}"
                     continue_on_error: true
 
+              - alias: climate hotwater
+                conditions: '{{ nspanel_event.component == "hotwater" and nspanel_event.value == "release" }}'
+                sequence:
+                  - *variables-settings_entity
+                  - service: >-
+                      {% if hotwatercharge is match 'switch.' %}
+                        switch.toggle
+                      {% elif hotwatercharge is match 'input_boolean.' %}
+                        input_boolean.toggle
+                      {% endif %}
+                    data:
+                      entity_id: "{{ hotwatercharge }}"
+                    continue_on_error: true
+
+              - alias: climate heating
+                conditions: '{{ nspanel_event.component == "heating" and nspanel_event.value == "release" }}'
+                sequence:
+                  - *variables-settings_entity
+                  - variables:
+                      entity_long_state: "{{ states(entity_long) | default('unavailable') if entity_long is string else 'unavailable' }}"
+                  - if: "{{ entity_long_state == 'off' }}"
+                    then:
+                      - service: climate.turn_on ############
+                        data:
+                          entity_id: "{{ entity_long }}"
+                        continue_on_error: true
+                      # - service: climate.set_temperature
+                      #   data:
+                      #     entity_id: !input climate
+                      #     hvac_mode: 'heat'
+                      #     temperature: "{{ state_attr(climate, 'temperature') }}"
+                    else:
+                      - service: climate.turn_off ############
+                        data:
+                          entity_id: "{{ entity_long }}"
+                        continue_on_error: true
+                      # - service: climate.set_temperature
+                      #   data:
+                      #     entity_id:  !input climate
+                      #     hvac_mode: 'off'
+                      #     temperature: "{{ state_attr(climate, 'temperature') }}"
+
+              - alias: climate increasetemp decreasetemp
+                conditions: '{{ nspanel_event.component in ["decreasetemp","increasetemp"] and nspanel_event.value == "release" }}'
+                sequence:
+                  - *variables-settings_entity
+                  - variables:
+                      entity_long_state: "{{ states(entity_long) | default('unavailable') if entity_long is string else 'unavailable' }}"
+                      delta: "{{ +0.5 if nspanel_event.component == 'increasetemp' else -0.5 }}"
+                  - if: "{{ entity_long_state != 'off' }}"
+                    then:
+                      - if: "{{ climate_optimistic == true }}" ## TODO - remove from here
+                        then:
+                          - variables:
+                              current_setpoint: "{{ states(display_target_temperature) | default('unavailable') if display_target_temperature is string else 'unavailable' }}"
+                          - if: "{{ is_number(current_setpoint) }}"
+                            then:
+                              - service: "{{ nextion.commands.thermostat_cycle }}"
+                                data:
+                                  value: "{{ (current_setpoint + delta) | round(1) }}"
+                                continue_on_error: true
+                        else:
+                          - variables:
+                              current_setpoint: "{{state_attr(entity_long, 'temperature') | default('unavailable') if entity_long is string else 'unavailable' }}"
+                          - if: "{{ is_number(current_setpoint) }}"
+                            then:
+                              - service: climate.set_temperature
+                                data:
+                                  entity_id: "{{ entity_long }}"
+                                  #hvac_mode: 'heat'
+                                  temperature: "{{ (current_setpoint + delta) | round(1) }}"
+                                continue_on_error: true
+
+              - alias: climate climateslider
+                conditions: '{{ nspanel_event.component == "climateslider" }}'
+                sequence:
+                  - *variables-settings_entity
+                  - if: "{{ entity_long_state != 'off' }}"
+                    then:
+                      - variables:
+                          entity_long_state: "{{ states(entity_long) | default('unavailable') if entity_long is string else 'unavailable' }}"
+                          climateslider: "{{ nspanel_event.value | int(-1) }}"
+                          new_setpoint: "{{ (13.0 + (climateslider * 0.5)) if climateslider >= 0 and climateslider <= 27 }}"
+                      - if: "{{ climate_optimistic == true }}" ## TODO - remove from here
+                        then:
+                          - service: "{{ nextion.commands.thermostat_cycle }}"
+                            data:
+                              value: "{{ new_setpoint }}"
+                            continue_on_error: true
+                        else:
+                          - service: climate.set_temperature
+                            data:
+                              entity_id: "{{ entity_long }}"
+                              #hvac_mode: 'heat'
+                              temperature: "{{ new_setpoint }}"
+                            continue_on_error: true                  
+
       ##### BOOT NSPANEL - automation reload #####
       - alias: Automation reloaded
         conditions:
@@ -5250,19 +5328,45 @@ action:
               - current_state_entity30
               - current_state_entity31
               - current_state_entity32
-          - "{{ nextion.pages.current in nextion.pages.buttonpages and trigger.to_state.state not in ['unavailable', 'unknown'] }}"
+          - "{{ trigger.to_state.state not in ['unavailable', 'unknown'] }}"
         sequence:
-          - *variables-page_buttons
-          - variables:
-              buttonpage: "{{ nextion.pages.current }}"
-          - repeat:
-              for_each: "{{ button_pages_buttons | selectattr('component', 'defined') | selectattr('component', 'match', buttonpage) | selectattr('entity', 'defined') | selectattr('entity', 'eq', trigger.entity_id) | list }}"
-              sequence: *display-button_page_button
-          ##### release button/scene (stateless) #####
-          - if: "{{ trigger.to_state.entity_id is match 'button.' or trigger.to_state.entity_id is match 'input_button.' or trigger.to_state.entity_id is match 'scene.' }}"
-            then:
-              - delay:
-                  milliseconds: "1000"
+          - alias: choose current page
+            choose:
+              - alias: buttonpage
+                conditions: '{{ nextion.pages.current in nextion.pages.buttonpages }}'
+                sequence:
+                  - *variables-page_buttons
+                  - variables:
+                      buttonpage: "{{ nextion.pages.current }}"
+                  - repeat:
+                      for_each: "{{ button_pages_buttons | selectattr('component', 'defined') | selectattr('component', 'match', buttonpage) | selectattr('entity', 'defined') | selectattr('entity', 'eq', trigger.entity_id) | list }}"
+                      sequence: *display-button_page_button
+                  ##### release button/scene (stateless) #####
+                  - if: "{{ trigger.to_state.entity_id is match 'button.' or trigger.to_state.entity_id is match 'input_button.' or trigger.to_state.entity_id is match 'scene.' }}"
+                    then:
+                      - delay:
+                          milliseconds: "1000"
+              - alias: page climate
+                conditions: '{{ nextion.pages.current == nextion.pages.climate and trigger.entity_id is match "climate." }}'
+                sequence:
+                  # - *variables-page_buttons
+                  - *variables-settings_entity
+                  - if: "{{ trigger.entity_id == entity_long }}"
+                    then:
+                      - variables:
+                          hvac_mode: "{{ states(entity_long) | default('unavailable') if entity_long is string else 'unavailable' }}"
+                          heating_state: "{{ mui[language].climate.states.off if hvac_mode == 'off' else mui[language].climate.states.on }}"
+                          heating_bt_pic: "{{ nextion.pics.heating.button.off if hvac_mode == 'off' else nextion.pics.heating.button.on }}"
+                      - service: "{{ nextion.commands.text_printf }}"
+                        data:
+                          component: heating_state
+                          message: "{{ heating_state }}"
+                        continue_on_error: true
+                      - *delay-default
+                      - service: "{{ nextion.commands.printf }}"
+                        data:
+                          cmd: heating_bt_pic.pic={{ heating_bt_pic }}
+                        continue_on_error: true
 
       ##### SHORT PRESS BUTTON PAGE - toggle enities #####
       - alias: Button page - Short press
@@ -5409,115 +5513,6 @@ action:
             data:
               entity: "{{ entity_long }},{{ entity_back }},{{ entity_long_name }},{{ entity_long_icon }},{{ entity_long_icon_color }}"
             continue_on_error: true
-
-      ##### LASTCLICK_CLIMATESETTINGS - changes on page climatesettings #####
-      - alias: Changes on page climatesettings
-        conditions:
-          - condition: trigger
-            id: climate_settings
-          - "{{ nextion.pages.current == nextion.pages.climate }}"
-        sequence:
-          - *variables-settings_entity
-          - variables:
-              entity_long_state: "{{ states(entity_long) | default('unavailable') if entity_long is string else 'unavailable' }}"
-          - choose:
-              ##### Page Climatesettings - hotwater #####
-              - conditions: "{{ trigger.event.data.new_state.state == 'releasehotwater' }}"
-                sequence:
-                  - service: >-
-                      {% if hotwatercharge is match 'switch.' %}
-                        switch.toggle
-                      {% elif hotwatercharge is match 'input_boolean.' %}
-                        input_boolean.toggle
-                      {% endif %}
-                    data:
-                      entity_id: "{{ hotwatercharge }}"
-                    continue_on_error: true
-
-              ##### Page Climatesettings - heating #####
-              - conditions: "{{ trigger.event.data.new_state.state == 'releaseheating' }}"
-                sequence:
-                  - if: "{{ entity_long_state == 'off' }}"
-                    then:
-                      - service: climate.turn_on ############
-                        data:
-                          entity_id: "{{ entity_long }}"
-                        continue_on_error: true
-                      # - service: climate.set_temperature
-                      #   data:
-                      #     entity_id: !input climate
-                      #     hvac_mode: 'heat'
-                      #     temperature: "{{ state_attr(climate, 'temperature') }}"
-                    else:
-                      - service: climate.turn_off ############
-                        data:
-                          entity_id: "{{ entity_long }}"
-                        continue_on_error: true
-                      # - service: climate.set_temperature
-                      #   data:
-                      #     entity_id:  !input climate
-                      #     hvac_mode: 'off'
-                      #     temperature: "{{ state_attr(climate, 'temperature') }}"
-
-              ##### Page Climatesettings - increase/decrease temp #####
-              - conditions: "{{ trigger.event.data.new_state.state in [ 'releaseincreasetemp', 'releasedecreasetemp'] }}"
-                sequence:
-                  - variables:
-                      delta: "{{ +0.5 if trigger.event.data.new_state.state == 'releaseincreasetemp' else -0.5 }}"
-                  - if: "{{ entity_long_state != 'off' }}"
-                    then:
-                      - if: "{{ climate_optimistic == true }}" ## TODO - remove from here
-                        then:
-                          - variables:
-                              current_setpoint: "{{ states(display_target_temperature) | default('unavailable') if display_target_temperature is string else 'unavailable' }}"
-                          - if: "{{ is_number(current_setpoint) }}"
-                            then:
-                              - service: "{{ nextion.commands.thermostat_cycle }}"
-                                data:
-                                  value: "{{ (current_setpoint + delta) | round(1) }}"
-                                continue_on_error: true
-                        else:
-                          - variables:
-                              current_setpoint: "{{state_attr(entity_long, 'temperature') | default('unavailable') if entity_long is string else 'unavailable' }}"
-                          - if: "{{ is_number(current_setpoint) }}"
-                            then:
-                              - service: climate.set_temperature
-                                data:
-                                  entity_id: "{{ entity_long }}"
-                                  #hvac_mode: 'heat'
-                                  temperature: "{{ (current_setpoint + delta) | round(1) }}"
-                                continue_on_error: true
-
-              ##### Page Climatesettings - climateslider #####
-              - conditions: '{{ trigger.event.data.new_state.state is match "climateslider\d+" and trigger.event.data.new_state.state == states(last_click_climatesettings) }}'
-                sequence:
-                  - if: "{{ entity_long_state != 'off' }}"
-                    then:
-                      - variables:
-                          climateslider: "{{ trigger.event.data.new_state.state | replace('climateslider','') | int(-1) }}"
-                          new_setpoint: "{{ (13.0 + (climateslider * 0.5)) if climateslider >= 0 and climateslider <= 27 }}"
-                      - if: "{{ climate_optimistic == true }}" ## TODO - remove from here
-                        then:
-                          - service: "{{ nextion.commands.thermostat_cycle }}"
-                            data:
-                              value: "{{ new_setpoint }}"
-                            continue_on_error: true
-                        else:
-                          - service: climate.set_temperature
-                            data:
-                              entity_id: "{{ entity_long }}"
-                              #hvac_mode: 'heat'
-                              temperature: "{{ new_setpoint }}"
-                            continue_on_error: true
-
-              #### Page Climate - Close Climate Page #####
-              - conditions:
-                  - "{{ trigger.event.data.new_state.state == 'releaseclimateclose' }}"
-                sequence:
-                  - service: "{{ nextion.commands.printf }}"
-                    data:
-                      cmd: "page {{ entity_back }}"
-                    continue_on_error: true
 
       ##### TRIGGER - HOME PAGE ######
 
