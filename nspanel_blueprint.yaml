@@ -5319,12 +5319,18 @@ action:
                               component: notification.notifi_label
                               message: "{{ mui[language].please_confirm }}"
                             continue_on_error: true
-                          - wait_template: "{{ nspanel_event.component in ['notificationacceptrelease', 'notificationclearrelease', 'homepage'] }}"
+                          - wait_template: >
+                              {% set notification_answer = states(nspanelevent) %}
+                              {% set notification_answer = notification_answer | from_json if notification_answer is string and notification_answer not in ["unavailable", "unknown", None] else { "page": "unknown", "component": "unknown", "value": "unknown" } %}
+                              {{ notification_answer.component in ["accept", "clear", "homepage"] }}
                             timeout:
                               seconds: 10
                             continue_on_timeout: true
+                          - variables:
+                              notification_answer: '{{ states(nspanelevent) if nspanelevent is string and states(nspanelevent) not in ["unavailable", "unknown", None] else { "page": "unknown", "component": "unknown", "value": "unknown" } }}'
+                            continue_on_error: true
                           - choose:
-                            - conditions: "{{ nspanel_event.component == 'notificationacceptrelease' }}"
+                            - conditions: '{{ notification_answer.component == "accept" }}'
                               sequence:
                                 - service: "{{ nextion.commands.printf }}"
                                   data:
@@ -5348,7 +5354,7 @@ action:
                                   data:
                                     entity_id: "{{ last_click_button.entity }}"
                                   continue_on_error: true
-                            - conditions: "{{ nspanel_event.component == 'notificationclearrelease' }}"
+                            - conditions: "{{ notification_answer.component == 'clear' }}"
                               sequence:
                                 - service: "{{ nextion.commands.printf }}"
                                   data:
@@ -5358,7 +5364,7 @@ action:
                                   data:
                                     entity_id: "{{ confirmation_message }}"
                                   continue_on_error: true
-                            - conditions: "{{ nspanel_event.component == 'homepage' }}"
+                            - conditions: '{{ notification_answer.component == "homepage" }}'
                               sequence:
                                 - service: switch.turn_off
                                   data:
