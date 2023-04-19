@@ -7,7 +7,8 @@
 
 
 ##### ADVANCED CONFIGURATION - activate only when you know what you do ##############################
-# substitutions: 
+substitutions:
+  baud_rate: "115200" # requires 115200 if tft is installed but can be changed to 9600 if tft upload fails and nextion switches to 9600
   # ## usage of secrets-file ## -> comment in ###### Change ME ######
   # device_name: "nspanel-name" # Wird im Blueprint benötigt!
   # wifi_ssid: !secret nspanel_wifi_ssid # add in your esphome secrets file.
@@ -24,6 +25,16 @@
   # dns: "10.0.0.138"
   # domain: ".local"
 
+###### USE THIS ONLY FOR YOUR FIRST TFT UPLOAD
+###### AND IF EXIT-REPARSE BUTTON FAILS
+###### ONCE IT WORKED, REMOVE THOSE LINES
+###### https://github.com/esphome/esphome/pull/2956
+# external_components:
+#   - source: github://pr#2956
+#     components: [nextion]
+#     refresh: 1h
+##################################################
+
 ##### if you rename this file to .nspanel_esphome.yaml then you can activate nested config
 ##### use the ADVANCED CONFIG-Section as device configuration
 ##### https://esphome.io/guides/configuration-types.html#yaml-insertion-operator
@@ -36,7 +47,7 @@ wifi:
   ssid: ${wifi_ssid}
   password: ${wifi_password}
   power_save_mode: none
-  ##### advanced config - uncomment to use static IP-Config #####  
+  ##### advanced config - uncomment to use static IP-Config #####
   # manual_ip:
   #   static_ip: ${ip}
   #   gateway: ${gw}
@@ -47,12 +58,6 @@ wifi:
   ap:
     ssid: "${device_name}"
     password: ${wifi_password}
-
-##### Functionality for the Nextion display #####
-external_components:
-  - source: github://pr#2956
-    components: [nextion]
-    refresh: 1h
 
 ##### ESPHOME CONFIGURATION #####
 esphome:
@@ -70,13 +75,13 @@ web_server:
   auth:
     username: admin
     password: ${wifi_password}
-    ##### advanced config - change to use web_password ##### 
+    ##### advanced config - change to use web_password #####
     # password: ${web_password}
 
 ##### OTA PASSWORD #####
 ota:
   password: ${wifi_password}
-  ##### advanced config - change to use ota_password ##### 
+  ##### advanced config - change to use ota_password #####
   # password: ${ota_password}
   safe_mode: true
   reboot_timeout: 3min
@@ -84,7 +89,7 @@ ota:
 
 ##### LOGGER #####
 logger:
-#  baud_rate: 0
+  baud_rate: 0
 #  level: WARN
 
 ##### CONFIGURE INTERNAL BUZZER #####
@@ -104,25 +109,58 @@ rtttl:
 uart:
   tx_pin: 16
   rx_pin: 17
-  baud_rate: 115200
+  baud_rate: ${baud_rate}
   id: tf_uart
+  # debug:
+  #   direction: BOTH
+  #   dummy_receiver: false
+  #   after:
+  #     delimiter: "\n"
+  #   sequence:
+  #     - lambda: UARTDebug::log_string(direction, bytes);
 
-###### REBOOT BUTTON #####
+##### START - BUTTON CONFIGURATION #####
 button:
+  ###### REBOOT BUTTON #####
   - platform: restart
     name: ${device_name} Restart
     id: restart_nspanel
 
+  ##### UPDATE TFT DISPLAY #####
+  - platform: template
+    name: ${device_name} Update TFT display
+    icon: mdi:file-sync
+    id: tft_update
+    entity_category: config
+    on_press:
+      - switch.turn_off: nextion_init
+      - delay: 16ms
+      - lambda: id(disp1).upload_tft();
+
+  ##### EXIT REPARSE TFT DISPLAY #####
+  - platform: template
+    name: ${device_name} Exit reparse
+    icon: mdi:file-sync
+    id: tft_reparse_off
+    entity_category: config
+    on_press:
+      - uart.write:
+          id: tf_uart
+          data: "DRAKJHSUYDGBNCJHGJKSHBDN"
+      - uart.write:
+          id: tf_uart
+          data: [0xFF, 0xFF, 0xFF]
 
 ##### START - API CONFIGURATION #####
 api:
-  ##### advanced config - activate to use api_password ##### 
+  ##### advanced config - activate to use api_password #####
   # password: ${api_password}
   services:
 
-    ##### SERVICE TO UPDATE THE HMI FILE #####
+    ##### SERVICE TO UPDATE THE HMI FILE ##############
     - service: upload_tft
       then:
+        - switch.turn_off: nextion_init
         - lambda: 'id(disp1)->upload_tft();'
 
     ##### SERVICE TO UPDATE THE TFT FILE from URL #####
@@ -130,9 +168,10 @@ api:
       variables:
         url: string
       then:
+        - switch.turn_off: nextion_init
         - lambda: 'id(disp1)->set_tft_url(url.c_str());'
         - lambda: 'id(disp1)->upload_tft();'
-            
+
     ##### Service to send a command "printf" directly to the display #####
     - service: send_command_printf
       variables:
@@ -161,7 +200,7 @@ api:
         - lambda: 'id(disp1).set_component_value(component.c_str(), message);'
 
     ##### Service to send a command "hide componente" directly to the display #####
-    - service: send_command_hide
+    - service: send_command_hide ### unused ###
       variables:
         component: string
       then:
@@ -170,13 +209,20 @@ api:
         - lambda: 'id(disp1).hide_component(component.c_str());'
 
     ##### Service to send a command "show componente" directly to the display #####
-    - service: send_command_show
+    - service: send_command_show ### unused ###
       variables:
         component: string
       then:
         - wait_until:
               switch.is_on: nextion_init
         - lambda: 'id(disp1).show_component(component.c_str());'
+
+    ##### Service to send a command "show ALL componente" directly to the display #####
+    - service: send_command_show_all ### unused ###
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: 'id(disp1).show_component("255");'
 
     ##### Service to send a command "font color" directly to the display #####
     - service: send_command_font_color
@@ -187,7 +233,7 @@ api:
         - wait_until:
               switch.is_on: nextion_init
         - lambda: 'id(disp1).set_component_font_color(component.c_str(), message);'
-    
+
     ##### Service to send a command "background color" directly to the display #####
     - service: send_command_background_color
       variables:
@@ -229,6 +275,16 @@ api:
             id(notification_text).publish_state("");
         - switch.turn_off: notification_unread
 
+    ##### Service to set entity-information for settings-page(s)
+    - service: set_settings_entity
+      variables:
+        entity: string
+      then:
+        - wait_until:
+            switch.is_on: nextion_init
+        - lambda: |-
+            id(settings_entity).publish_state(entity.c_str());
+
     ##### Service to play a rtttl tones #####
     # Example tones : https://codebender.cc/sketch:109888#RTTTL%20Songs.ino
     - service: play_rtttl
@@ -236,7 +292,7 @@ api:
         song_str: string
       then:
         - rtttl.play:
-            rtttl: !lambda 'return song_str;'    
+            rtttl: !lambda 'return song_str;'
 
     # Service to show a QR code on the display (ex. for WiFi password)
     - service: qr_code
@@ -275,6 +331,61 @@ api:
             id(disp1).set_component_text_printf("target_temp", "%.1f°", value);
             id(display_target_temp).publish_state(value);
 
+    #### Service to set the buttons ####
+    - service: set_button
+      variables:
+        btn_id: string
+        btn_pic: int
+        btn_bg: int
+        btn_icon_font: int
+        btn_txt_font: int
+        btn_bri_font: int
+        btn_icon: string
+        btn_label: string
+        btn_bri_txt: string
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: |-
+            // ESP_LOGD("nextion", "set button %s", btn_id.c_str());
+            std::string btnicon = btn_id.c_str() + std::string("icon");
+            std::string btntext = btn_id.c_str() + std::string("text");
+            std::string btnbri = btn_id.c_str() + std::string("bri");
+            id(disp1).send_command_printf("%spic.pic=%i", btn_id.c_str(), btn_pic);
+            id(disp1).set_component_background_color(btnicon.c_str(), btn_bg);
+            id(disp1).set_component_background_color(btntext.c_str(), btn_bg);
+            id(disp1).set_component_background_color(btnbri.c_str(), btn_bg);
+            id(disp1).set_component_font_color(btnicon.c_str(), btn_icon_font);
+            id(disp1).set_component_font_color(btntext.c_str(), btn_txt_font);
+            id(disp1).set_component_font_color(btnbri.c_str(), btn_bri_font);
+            id(disp1).set_component_text_printf(btnicon.c_str(), "%s", btn_icon.c_str());
+            id(disp1).set_component_text_printf(btntext.c_str(), "%s", btn_label.c_str());
+            // id(disp1).set_component_text_printf(btnbri.c_str(), "%s", btn_bri_txt.c_str());
+            if (strcmp(btn_bri_txt.c_str(), "0") != 0) {
+              id(disp1).set_component_text_printf(btnbri.c_str(), "%s", btn_bri_txt.c_str());
+            } else {
+              id(disp1).set_component_text_printf(btnbri.c_str(), " ");
+            }
+    #### Service to set the entities ####
+    - service: set_entity
+      variables:
+        ent_id: string
+        ent_icon: string
+        ent_label: string
+        ent_value: string
+      then:
+        - wait_until:
+              switch.is_on: nextion_init
+        - lambda: |-
+            // ESP_LOGD("nextion", "set entity %s", ent_id.c_str());
+            std::string enticon = ent_id.c_str() + std::string("_pic");
+            std::string entlabel = ent_id.c_str() + std::string("_label");
+            id(disp1).set_component_text_printf(enticon.c_str(), "%s", ent_icon.c_str());
+            if (strcmp(ent_icon.c_str(), "0") != 0) {
+              id(disp1).set_component_text_printf(enticon.c_str(), "%s", ent_icon.c_str());
+            }
+            id(disp1).set_component_text_printf(entlabel.c_str(), "%s", ent_label.c_str());
+            id(disp1).set_component_text_printf(ent_id.c_str(), "%s", ent_value.c_str());
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
@@ -303,53 +414,18 @@ globals:
     restore_value: true
     initial_value: '0'
 
-  ##### lastclick_general State #####
-  - id: lastclick_general_global
-    type: std::string
-    restore_value: no
-    initial_value: ''
-
-  ##### lastclick_lightsettings State #####
-  - id: lastclick_lightsettings_global
-    type: std::string
-    restore_value: no
-    initial_value: ''
-
-  ##### lastclick_coversettings State #####
-  - id: lastclick_coversettings_global
-    type: std::string
-    restore_value: no
-    initial_value: ''
-
-  ##### lastclick_climatesettings State #####
-  - id: lastclick_climatesettings_global
-    type: std::string
-    restore_value: no
-    initial_value: ''
-
-  ##### lastclick_currentpage State #####
-  - id: currentpage_global
-    type: std::string
-    restore_value: no
-    initial_value: ''
-
 ##### START - BINARY SENSOR CONFIGURATION #####
 binary_sensor:
 
   ###### LEFT BUTTON BELOW DISPLAY TO TOGGLE RELAY#####
   - platform: gpio
-    # name: ${device_name} Left Button
+    name: ${device_name} Left Button
     id: left_button
     pin:
       number: 14
       inverted: true
     on_click:
-    - min_length: 50ms
-      max_length: 1000ms
       then:
-        - binary_sensor.template.publish:
-            id: left_button_short
-            state: ON
         - if:
             condition:
               and:
@@ -358,57 +434,26 @@ binary_sensor:
                       api.connected:
             then:
               - switch.toggle: relay_1
-              - lambda: id(disp1).send_command_printf("home.icon_top_01.pic=51");
-              - lambda: id(disp1).send_command_printf("home.left_bt_pic.pic=98");
               - if: 
                   condition:
                     switch.is_on: relay_1
                   then:
-                    - lambda: id(disp1).send_command_printf("home.icon_top_01.pic=105");
-        - delay: 500ms
-        - binary_sensor.template.publish:
-            id: left_button_short
-            state: OFF
-    on_press:
-      then:
-        - lambda: |-
-            if (id(disp1_currentpage).state == "lightsettings" or id(disp1_currentpage).state == "coversettings") {
-              ESP_LOGD("nspanel", "settingspage -> no press");
-            } else {
-              // ESP_LOGD("nspanel", "release button");
-              id(disp1_lastclick_general).set_state("pressbuttonleft",true,true);
-            }
-    on_release:
-      then:
-        - lambda: |-
-            if (id(disp1_currentpage).state == "lightsettings" or id(disp1_currentpage).state == "coversettings") {
-              ESP_LOGD("nspanel", "settingspage -> no release");
-            } else {
-              // ESP_LOGD("nspanel", "release button");
-              id(disp1_lastclick_general).set_state("releasebuttonleft",true,true);
-            }
-
-  - platform: template
-    name: ${device_name} Left Button
-    id: left_button_short
-    lambda: |-
-      return {};
+                    - lambda: id(disp1).send_command_printf("home.left_bt_pic.pic=78");
+                    - lambda: id(disp1).send_command_printf("home.icon_top_01","\U0000E3A5");
+                  else:
+                    - lambda: id(disp1).send_command_printf("home.left_bt_pic.pic=77");
+                    - lambda: id(disp1).send_command_printf("home.icon_top_01","\U0000FFFF");
 
 
   ##### RIGHT BUTTON BELOW DISPLAY TO TOGGLE RELAY #####
   - platform: gpio
-    # name: ${device_name} Right Button
+    name: ${device_name} Right Button
     id: right_button
     pin:
       number: 27
       inverted: true
     on_click:
-    - min_length: 50ms
-      max_length: 1000ms
       then:
-        - binary_sensor.template.publish:
-            id: right_button_short
-            state: ON
         - if:
             condition:
               and:
@@ -417,47 +462,33 @@ binary_sensor:
                       api.connected:
             then:
               - switch.toggle: relay_2
-              - lambda: id(disp1).send_command_printf("home.icon_top_02.pic=51");
-              - lambda: id(disp1).send_command_printf("home.right_bt_pic.pic=98");
               - if: 
                   condition:
                     switch.is_on: relay_2
                   then:
-                    - lambda: id(disp1).send_command_printf("home.icon_top_02.pic=106");
-        - delay: 500ms
-        - binary_sensor.template.publish:
-            id: right_button_short
-            state: OFF
-    on_press:
-      then:
-        - lambda: |-
-            if (id(disp1_currentpage).state == "lightsettings" or id(disp1_currentpage).state == "coversettings") {
-              ESP_LOGD("nspanel", "settingspage -> no press");
-            } else {
-              // ESP_LOGD("nspanel", "release button");
-              id(disp1_lastclick_general).set_state("pressbuttonright",true,true);
-            }
-    on_release:
-      then:
-        - lambda: |-
-            if (id(disp1_currentpage).state == "lightsettings" or id(disp1_currentpage).state == "coversettings") {
-              ESP_LOGD("nspanel", "settingspage -> no release");
-            } else {
-              // ESP_LOGD("nspanel", "release button");
-              id(disp1_lastclick_general).set_state("releasebuttonright",true,true);
-            }
+                    - lambda: id(disp1).send_command_printf("home.right_bt_pic.pic=78");
+                    - lambda: id(disp1).send_command_printf("home.icon_top_02","\U0000E3A8");
+                  else:
+                    - lambda: id(disp1).send_command_printf("home.right_bt_pic.pic=77");
+                    - lambda: id(disp1).send_command_printf("home.icon_top_02","\U0000FFFF");
 
-  - platform: template
-    name: ${device_name} Right Button
-    id: right_button_short
-    lambda: |-
-      return {};
+  ##### JUMP PAGE TO SETTING PAGE #####
+  - platform: nextion
+    name: $device_name setting page
+    page_id: 0
+    component_id: 52
+    internal: true
+    on_multi_click:
+      - timing:
+          - ON for at least 1s #LONG Press
+        then:
+          - lambda: 'id(disp1).send_command_printf("page settings");'
 
   ##### Restart NSPanel Button - Setting Page #####
   - platform: nextion
     name: ${device_name} Restart
     page_id: 7
-    component_id: 8
+    component_id: 13
     internal: true
     on_click:
       - button.press: restart_nspanel
@@ -466,7 +497,7 @@ binary_sensor:
   - platform: nextion
     name: ${device_name} Restart
     page_id: 8
-    component_id: 5
+    component_id: 4
     internal: true
     on_click:
       - button.press: restart_nspanel
@@ -475,22 +506,10 @@ binary_sensor:
   - platform: nextion
     name: ${device_name} Sleep Modus
     page_id: 7
-    component_id: 3
+    component_id: 14
     internal: true
     on_click:
       - switch.toggle: sleep_modus
-
-  ##### Hotwater Charge #####
-  # - platform: nextion
-  #   name: ${device_name} Hotwater Charge
-  #   page_id: 6
-  #   component_id: 20
-    # on_click:
-    #   - homeassistant.service:
-    #       service: switch.toggle
-    #       data:
-    #         entity_id: ${ha_hotwater_charge}
-
 
 ##### START - SENSOR CONFIGURATION #####
 sensor:
@@ -504,6 +523,14 @@ sensor:
   - platform: wifi_signal
     name: ${device_name} RSSI
     update_interval: 60s
+    on_value:
+      - if:
+          condition:
+            wifi.connected:
+          then:
+            - lambda: id(disp1).set_component_text_printf("home.wifi_icon", "%s", "\U0000E5A8");
+          else:
+            - lambda: id(disp1).set_component_text_printf("home.wifi_icon", "%s", "\U0000FFFF");
 
   ##### INTERNAL TEMPERATURE SENSOR, ADC VALUE #####
   - platform: adc
@@ -557,7 +584,7 @@ sensor:
         - number.set:
             id: display_brightness
             value: !lambda 'return int(x);'
-          # send text field percentage of current_lightslider_val  
+          # send text field percentage of current_lightslider_val
         - lambda: id(disp1).set_component_text_printf("settings.a03", "%i", id(display_brightness_global));
 
   ###### Display DIM Brightness GET VALUE FROM NSPanel SLIDER #####
@@ -573,19 +600,8 @@ sensor:
         - number.set:
             id: display_dim_brightness
             value: !lambda 'return int(x);'
-          # send text field percentage of current_lightslider_val  
+          # send text field percentage of current_lightslider_val
         - lambda: id(disp1).set_component_text_printf("settings.a04", "%i", id(display_dim_brightness_global));
-
-  ###### Send current page to HA
-  # - platform: nextion
-  #   id: current_page
-  #   name: "${device_name} Current Page"
-  #   variable_name: dp
-  #   update_interval: 1s
-  #   accuracy_decimals: 0
-  #   filters:
-  #     - delta: 1.0
-  #     - lambda: return int(x);
 
 
 ##### START - TEXT SENSOR CONFIGURATION #####
@@ -616,156 +632,47 @@ text_sensor:
     name: ${device_name} Notification Text
     id: notification_text
 
-  ##### last click sensor, the main action variable - push to HA #####
-  - platform: nextion
-    nextion_id: disp1
-    name: ${device_name} Last Click
-    id: disp1_lastclick_general
-    update_interval: 50ms
-    component_name: lastclick
-    internal: false
-    filters:
-      - lambda: |-
-          if (strcmp(x.c_str(), id(lastclick_general_global).c_str()) != 0) {
-            return x;
-          } else {
-            return {};
-          }
-    on_value:
-      then:
-        - globals.set:
-            id: lastclick_general_global
-            value: !lambda return x;
-        - lambda: |-
-            id(page_timer)->execute(int(id(page_timeout).state));
-  
-  ##### last click lightsettings page, the main action variable - push to HA #####
-  - platform: nextion
-    nextion_id: disp1
-    name: ${device_name} last click lightsettings
-    id: disp1_lastclick_lightsettings
-    update_interval: 50ms
-    component_name: lightsetting
-    internal: false
-    filters:
-      - lambda: |-
-          if (strcmp(x.c_str(), id(lastclick_lightsettings_global).c_str()) != 0) {
-            return x;
-          } else {
-            return {};
-          }
-    on_value:
-      then:
-        - globals.set:
-            id: lastclick_lightsettings_global
-            value: !lambda return x;
-        - lambda: |-
-            id(page_timer)->execute(int(id(page_timeout).state));
+  - platform: template
+    name: ${device_name} Settings Entity
+    id: settings_entity
 
-  ##### last click coversettings page, the main action variable - push to HA #####
+  ##### NSPanel event sensor, the main action sensor - push to HA #####
   - platform: nextion
     nextion_id: disp1
-    name: ${device_name} last click coversettings
-    id: disp1_lastclick_coversettings
-    update_interval: 50ms
-    component_name: coversetting
+    name: ${device_name} NSPanel event
+    id: disp1_nspanel_event
+    component_name: nspanelevent
     internal: false
     filters:
       - lambda: |-
-          if (strcmp(x.c_str(), id(lastclick_coversettings_global).c_str()) != 0) {
-            return x;
-          } else {
-            return {};
-          }
+          x = x.c_str();
+          x.shrink_to_fit();
+          return x;
     on_value:
       then:
-        - globals.set:
-            id: lastclick_coversettings_global
-            value: !lambda return x;
         - lambda: |-
             id(page_timer)->execute(int(id(page_timeout).state));
-
-  ##### last click climate page, the main action variable - push to HA #####
-  - platform: nextion
-    nextion_id: disp1
-    name: ${device_name} last click climatesettings
-    id: disp1_lastclick_climatesettings
-    update_interval: 50ms
-    component_name: climatesetting
-    internal: false
-    filters:
-      - lambda: |-
-          if (strcmp(x.c_str(), id(lastclick_climatesettings_global).c_str()) != 0) {
-            return x;
-          } else {
-            return {};
-          }
-    on_value:
-      then:
-        - globals.set:
-            id: lastclick_climatesettings_global
-            value: !lambda return x;
-        - lambda: |-
-            id(page_timer)->execute(int(id(page_timeout).state));
-
-  ##### currentpage sensor, the main action variable - push to HA #####
-  - platform: nextion
-    nextion_id: disp1
-    name: ${device_name} currentpage
-    id: disp1_currentpage
-    update_interval: 50ms
-    component_name: currentpage
-    internal: false
-    filters:
-      - lambda: |-
-          if (strcmp(x.c_str(), id(currentpage_global).c_str()) != 0) {
-            return x;
-          } else {
-            return {};
-          }
-    on_value:
-      then:
-        - globals.set:
-            id: currentpage_global
-            value: !lambda return x;
-        - lambda: |-
-            id(page_timer)->execute(int(id(page_timeout).state));
-
 
   ##### touchevent sensor, Reset the page timeout #####
   - platform: nextion
     nextion_id: disp1
     #name: ${device_name} touchevent
     id: disp1_touchevent
-    update_interval: 50ms
     component_name: touchevent
     internal: true
     filters:
       - lambda: |-
-          static std::string touchevent_history = "";
-          if (strcmp(x.c_str(), touchevent_history.c_str()) != 0) {
-            touchevent_history = x;
-            return x;
-            // touchevent_history = "";
-          } else {
-            return {};
-          }
+          x = x.c_str();
+          x.shrink_to_fit();
+          return x;
     on_value:
       then:
         - lambda: |-
             id(page_timer)->execute(int(id(page_timeout).state));
 
 
-##### START - SWITCH CONFIGURATION #####  
+##### START - SWITCH CONFIGURATION #####
 switch:
-
-  # ##### Restart switch ######
-  # - platform: restart
-  #   name: ${device_name} Restart
-
-  # ##### Restart in safe-mode #####
-  # - platform: safe_mode
-  #   name: ${device_name} Restart (Safe Mode)
 
   ##### global variable to keep track on whether the Nextion display is ready or not. Delays initial info from HA to the display #####
   - platform: template
@@ -800,16 +707,6 @@ switch:
     restore_state: false
     optimistic: true
 
-  ##### UPDATE TFT DISPLAY #####
-  - platform: template
-    name: ${device_name} Update TFT display
-    id: tft_update
-    entity_category: config
-    turn_on_action:
-      - delay: 16ms
-      - lambda: id(disp1).upload_tft();
-      - switch.turn_off: tft_update
-
   ##### PHYSICAL SWITCH 1 #####
   - platform: gpio
     name: ${device_name} Relay 1
@@ -823,7 +720,7 @@ switch:
     id: relay_2
     pin:
       number: 19
-      
+
   ##### DISPLAY ALWAYS ON #####
   - platform: gpio
     name: ${device_name} Screen Power
@@ -849,15 +746,15 @@ switch:
       - globals.set:
             id: sleep_modus_global
             value: '0'
-      - lambda:  id(disp1).set_component_value("settings.a02",0);
+      - lambda:  id(disp1).set_component_value("settings.bt1",0);
     on_turn_on:
       - lambda: id(disp1).send_command_printf("home.sleepmodus.val=1");
       - globals.set:
             id: sleep_modus_global
             value: '1'
-      - lambda:  id(disp1).set_component_value("settings.a02",1);
+      - lambda:  id(disp1).set_component_value("settings.bt1",1);
 
-  ##### Relay Local control Fallback #####  
+  ##### Relay Local control Fallback #####
   - platform: template
     name: ${device_name} Relay 1 Local Fallback
     id: relay1_fallback
@@ -950,11 +847,11 @@ display:
     on_setup:
       then:
         - lambda: id(disp1).send_command_printf("page 8");
-        - lambda: id(disp1).set_component_text_printf("boot.esph_version", "%s", "3.1.0"); ### esphome-version ###
+        - lambda: id(disp1).set_component_text_printf("boot.esph_version", "%s", "3.2.3"); ### esphome-version ###
         - wait_until:
             api.connected
         - lambda: id(disp1).set_component_text_printf("boot.ip_addr", "%s", id(ip_address).state.c_str());
-        - delay: 0.5s
+        - delay: 1s
         - number.set:
             id: display_brightness
             value: !lambda 'return id(display_brightness_global);'
@@ -967,7 +864,7 @@ display:
         - lambda: id(disp1).send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
         - lambda: id(disp1).send_command_printf("home.sleepmodus.val=%i", id(sleep_modus_global));
         - lambda: id(disp1).set_component_value("settings.a02", id(sleep_modus_global) == 1);
-        - delay: 0.5s
+        - delay: 1s
         - switch.template.publish:
             id: nextion_init
             state: on
@@ -982,10 +879,12 @@ script:
       - lambda: ESP_LOGD("nspanel", "start page-timer delay %i", int(id(page_timeout).state));
       - delay: !lambda return delay *1000;
       - lambda: |-
-          if (id(disp1_currentpage).state == "home" or id(disp1_currentpage).state == "screensaver" or id(disp1_currentpage).state == "boot" or int(id(page_timeout).state) == 0) {
+          DynamicJsonDocument doc(1024);
+          deserializeJson(doc, id(disp1_nspanel_event).state);
+          std::string page = doc["page"];
+          if (page == "home" or page == "screensaver" or page == "boot" or int(id(page_timeout).state) == 0) {
             ESP_LOGD("nspanel", "no page-jump");
           } else {
             ESP_LOGD("nspanel", "timer->home");
             id(disp1).send_command_printf("page 0");
           }
-
