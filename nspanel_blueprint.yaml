@@ -4459,20 +4459,38 @@ action:
                                             current_entity_state: "{{ states(repeat.item.entity) | default('unavailable') }}"
                                             current_entity_state_available: "{{ current_entity_state not in ['unavailable'] }}"
                                             # Button PIC GRAY/WHITE
-                                            btn_pic: "{{ nextion.pics.button.on if current_entity_state in ['on', 'open', 'opening', 'home'] or (item_domain == 'climate' and current_entity_state != 'off') else nextion.pics.button.off }}"
+                                            btn_pic: >
+                                              {{
+                                                nextion.pics.button.on 
+                                                if current_entity_state in ['on', 'open', 'opening', 'home'] 
+                                                or (item_domain == 'climate' and current_entity_state != 'off') 
+                                                or (item_domain in ['button','input_button','scene'] and trigger.id is match 'current_state_entity')
+                                                else nextion.pics.button.off 
+                                              }}
                                             # TEXT, BRIGHTNESS and ICON Background
-                                            btn_bg: "{{ nextion.colors.white if current_entity_state in ['on', 'open', 'opening', 'home'] or (item_domain == 'climate' and current_entity_state != 'off') else nextion.colors.grey_dark }}"
+                                            btn_bg: >
+                                              {{
+                                                nextion.colors.white 
+                                                if current_entity_state in ['on', 'open', 'opening', 'home'] 
+                                                or (item_domain == 'climate' and current_entity_state != 'off') 
+                                                or (item_domain in ['button','input_button','scene'] and trigger.id is match 'current_state_entity')
+                                                else nextion.colors.grey_dark 
+                                              }}
                                             # ICON Font Color
                                             btn_icon_font: >
                                               {% if not current_entity_state_available %} {{ nextion.colors.red }}
-                                              {% elif item_domain in ['button', 'input_button', 'scene'] or current_entity_state in ['off', 'closed', 'closing'] or (item_domain == 'person' and current_entity_state != 'home') %} {{ nextion.colors.grey_light }}
+                                              {% elif current_entity_state in ['off', 'closed', 'closing'] or (item_domain == 'person' and current_entity_state != 'home') %} {{ nextion.colors.grey_light }}
+                                              {% elif item_domain in ['button', 'input_button', 'scene'] and trigger.id is match 'current_state_entity' %} {{ repeat.item.icon_color_rgb if is_number(repeat.item.icon_color_rgb) else ((repeat.item.icon_color_rgb[0] //(2**3)) *(2**11))+((repeat.item.icon_color_rgb[1] //(2**2)) *(2**5))+(repeat.item.icon_color_rgb[2] //(2**3)) }}
+                                              {% elif item_domain in ['button', 'input_button', 'scene'] %} {{ nextion.colors.grey_light }}
                                               {% elif current_entity_state in ['on', 'open', 'opening', 'home'] or (item_domain == 'climate' and current_entity_state != 'off') %} {{ repeat.item.icon_color_rgb if is_number(repeat.item.icon_color_rgb) else ((repeat.item.icon_color_rgb[0] //(2**3)) *(2**11))+((repeat.item.icon_color_rgb[1] //(2**2)) *(2**5))+(repeat.item.icon_color_rgb[2] //(2**3)) }}
                                               {% else %}{{ nextion.colors.red }}
                                               {% endif %}
                                             # LABEL Font Color
                                             btn_txt_font: >-
                                               {% if not current_entity_state_available %} {{ nextion.colors.white }}
-                                              {% elif item_domain in ['button', 'input_button', 'scene'] or current_entity_state in ['off', 'closed', 'closing'] or (item_domain == 'person' and current_entity_state != 'home') %} {{ nextion.colors.white }}
+                                              {% elif current_entity_state in ['off', 'closed', 'closing'] or (item_domain == 'person' and current_entity_state != 'home') %} {{ nextion.colors.white }}
+                                              {% elif item_domain in ['button', 'input_button', 'scene'] and trigger.id is match 'current_state_entity' %} {{ nextion.colors.grey_dark }}
+                                              {% elif item_domain in ['button', 'input_button', 'scene'] %} {{ nextion.colors.white }}
                                               {% elif current_entity_state in ['on', 'open', 'opening', 'home'] or (item_domain == 'climate' and current_entity_state != 'off') %} {{ nextion.colors.grey_dark }}
                                               {% else %}{{ nextion.colors.white }}
                                               {% endif %}
@@ -4508,6 +4526,22 @@ action:
                                             btn_label: "{{ btn_label }}"
                                             btn_bri_txt: "{{ btn_bri_txt }}"
                                           continue_on_error: true
+                                        - if: "{{ item_domain in ['button','input_button','scene'] and trigger.id is match 'current_state_entity' }}"
+                                          then:
+                                            - delay:
+                                                milliseconds: "1000"
+                                            - service: "{{ nextion.commands.set_button }}"
+                                              data:
+                                                btn_id: "{{ repeat.item.page }}.{{ repeat.item.component }}"
+                                                btn_pic: "{{ nextion.pics.button.off }}"
+                                                btn_bg: "{{ nextion.colors.grey_dark }}"
+                                                btn_icon_font: "{{ repeat.item.icon_color_rgb if is_number(repeat.item.icon_color_rgb) else ((repeat.item.icon_color_rgb[0] //(2**3)) *(2**11))+((repeat.item.icon_color_rgb[1] //(2**2)) *(2**5))+(repeat.item.icon_color_rgb[2] //(2**3)) }}"
+                                                btn_txt_font: "{{ nextion.colors.white }}"
+                                                btn_bri_font: "{{ btn_bri_font }}"
+                                                btn_icon: "{{ btn_icon }}"
+                                                btn_label: "{{ btn_label }}"
+                                                btn_bri_txt: "{{ btn_bri_txt }}"
+                                              continue_on_error: true
                           ###### SHOW All component when page loading done #####
                           - *delay-default
                           - service: "{{ nextion.commands.show_all }}"
@@ -5614,11 +5648,6 @@ action:
                   - repeat:
                       for_each: "{{ button_pages_buttons | selectattr('page', 'defined') | selectattr('page', 'eq', nspanel_event.page) | selectattr('component', 'defined') | selectattr('component', 'eq', nspanel_event.component) | selectattr('entity', 'defined') | selectattr('entity', 'eq', trigger.entity_id) | list }}"
                       sequence: *display-button_page_button
-                  ##### release button/scene (stateless) #####
-                  - if: "{{ trigger.to_state.entity_id is match 'button.' or trigger.to_state.entity_id is match 'input_button.' or trigger.to_state.entity_id is match 'scene.' }}"
-                    then:
-                      - delay:
-                          milliseconds: "1000"
               - alias: page climate
                 conditions: '{{ nspanel_event.page == nextion.pages.climate and trigger.entity_id is match "climate." }}'
                 sequence:
