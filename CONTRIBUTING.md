@@ -1,17 +1,16 @@
-# Welcome to Lovelace Horizon Card contributing guide <!-- omit in toc -->
+# Welcome to the contributing guide <!-- omit in toc -->
 
-Thank you for investing your time in contributing to our project! Any contribution you make will be reflected on the card and make lots of other users happy. :sparkles:.
+Thank you for investing your time in contributing to our project! Any contribution you make could be reflected on the final solution and make lots of other users happy. :sparkles:.
 
 Please read [GitHub/docs Code of Conduct](https://github.com/github/docs/blob/main/CODE_OF_CONDUCT.md) to keep our community approachable and respectable.
 
 In this guide you will get an overview of the contribution workflow from opening an issue, creating a PR, reviewing, and merging the PR.
 
-Use the table of contents icon <img src="/contributing/images/table-of-contents.png" width="25" height="25" /> on the top left corner of this document to get to a specific section of this guide quickly.
-
 ## New contributor guide
 
-To get an overview of the project, read the [README](README.md). Here are some resources to help you get started with open source contributions:
+To get an overview of the project, read the [README](README.md) and play around the [Wiki pages](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki).
 
+Here are some resources to help you get started with open source contributions:
 - [GitHub flow](https://docs.github.com/en/get-started/quickstart/github-flow)
 - [Collaborating with pull requests](https://docs.github.com/en/github/collaborating-with-pull-requests)
 
@@ -20,11 +19,11 @@ To get an overview of the project, read the [README](README.md). Here are some r
 
 #### Create a new issue
 
-If you spot a problem with the docs, [search if an issue already exists](https://github.com/rejuvenate/lovelace-horizon-card/issues). If a related issue doesn't exist, you can open a new issue.
+If you spot a problem with the blueprint, the ESPHome or the visualization in the screen, [search if an issue already exists](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues). If a related issue doesn't exist, please open a new one.
 
 #### Solve an issue
 
-Scan through our [existing issues](https://github.com/rejuvenate/lovelace-horizon-card/issues) to find one that interests you. You can narrow down the search using `labels` as filters. See [Labels](/contributing/how-to-use-labels.md) for more information. As a general rule, we don’t assign issues to anyone. If you find an issue to work on, you are welcome to open a PR with a fix.
+Scan through our [existing issues](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues) to find one that interests you. As a general rule, we don’t assign issues to anyone. If you find an issue to work on, you are welcome to open a PR with a fix.
 
 ### Make Changes
 
@@ -36,7 +35,7 @@ Click **Make a contribution** at the bottom of any docs page to make small chang
 
 1. Fork the repository.
 
-2. Create a working branch and start with your changes!
+2. Create a working branch based on the `dev` branch and start with your changes!
 
 ### Commit your update
 
@@ -45,7 +44,8 @@ Commit the changes once you are happy with them. Don't forget to self review to 
 ### Pull Request
 
 When you're finished with the changes, create a pull request, also known as a PR.
-- Fill the "Ready for review" template so that we can review your PR. This template helps reviewers understand your changes as well as the purpose of your pull request.
+- Make sure your pull request is using the `dev` branch as the base branch. PRs to the `main` branch will be rejected.
+- Provide detailed information about what you are trying to change and why you want to change that.
 - Don't forget to [link PR to issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue) if you are solving one.
 - Enable the checkbox to [allow maintainer edits](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/allowing-changes-to-a-pull-request-branch-created-from-a-fork) so the branch can be updated for a merge.
 Once you submit your PR, a team member will review your proposal. We may ask questions or request additional information.
@@ -55,7 +55,7 @@ Once you submit your PR, a team member will review your proposal. We may ask que
 
 ### Your PR is merged!
 
-Congratulations :tada::tada: The Lovelace Horizon Card team thanks you :sparkles:.
+Congratulations :tada::tada: The community thanks you :sparkles:.
 
 Once your PR is merged, your contributions will be publicly visible.
 
