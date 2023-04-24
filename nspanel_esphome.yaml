@@ -415,12 +415,6 @@ globals:
     restore_value: true
     initial_value: '0.0'
 
-  ##### Save Display DIM Brightness for NSPanel reboot
-  - id: sleep_mode_global
-    type: int
-    restore_value: true
-    initial_value: '0'
-
 ##### START - BINARY SENSOR CONFIGURATION #####
 binary_sensor:
 
@@ -515,6 +509,7 @@ binary_sensor:
     component_id: 14
     internal: true
     on_click:
+      - logger.log: "Sleep mode - Nextion toggle"
       - switch.toggle: sleep_mode
 
   ##### global variable to keep track on whether the Nextion display is ready or not.
@@ -743,21 +738,23 @@ switch:
     device_class: switch
     id: sleep_mode
     entity_category: config
+    restore_mode: RESTORE_DEFAULT_ON
     restore_state: true
-    assumed_state: false
-    optimistic: true
-    on_turn_off:
-      - lambda: id(disp1).send_command_printf("home.sleepmodus.val=0");
-      - globals.set:
-          id: sleep_mode_global
-          value: '0'
-      - lambda: id(disp1).set_component_value("settings.bt1",0);
-    on_turn_on:
+    optimistic: false
+    turn_on_action: &sleep_mode-turn_on
+      - logger.log: "Sleep mode - Turn on"
       - lambda: id(disp1).send_command_printf("home.sleepmodus.val=1");
-      - globals.set:
-          id: sleep_mode_global
-          value: '1'
       - lambda: id(disp1).set_component_value("settings.bt1",1);
+      - switch.template.publish:
+          id: sleep_mode
+          state: ON
+    turn_off_action: &sleep_mode-turn_off
+      - logger.log: "Sleep mode - Turn off"
+      - lambda: id(disp1).send_command_printf("home.sleepmodus.val=0");
+      - lambda: id(disp1).set_component_value("settings.bt1",0);
+      - switch.template.publish:
+          id: sleep_mode
+          state: OFF
 
   ##### Relay Local control Fallback #####
   - name: ${device_name} Relay 1 Local Fallback
@@ -851,28 +848,40 @@ display:
     tft_url: ${nextion_update_url}
     on_setup:
       then:
+        - logger.log: "Nextion start - Jump to page 8"
         - lambda: id(disp1).send_command_printf("page 8");
+        - logger.log: "Nextion start - Publish ESPHome version"
         - lambda: id(disp1).set_component_text_printf("boot.esph_version", "%s", "3.3"); ### esphome-version ###
+        - logger.log: "Nextion start - Wait for Home Assistant API"
         - wait_until:
             api.connected
+        - logger.log: "Nextion start - Publish IP address"
         - lambda: id(disp1).set_component_text_printf("boot.ip_addr", "%s", id(ip_address).state.c_str());
         - delay: 1s
+        - logger.log: "Nextion start - Set display brigntess"
         - number.set:
             id: display_brightness
             value: !lambda 'return id(display_brightness_global);'
+        - logger.log: "Nextion start - Set display dim brightness"
         - number.set:
             id: display_dim_brightness
             value: !lambda 'return id(display_dim_brightness_global);'
+        - logger.log: "Nextion start - Update settings page"
         - lambda: id(disp1).set_component_text_printf("settings.a03", "%i", id(display_brightness_global));
         - lambda: id(disp1).set_component_text_printf("settings.a04", "%i", id(display_dim_brightness_global));
         - lambda: id(disp1).send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
         - lambda: id(disp1).send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
-        - lambda: id(disp1).send_command_printf("home.sleepmodus.val=%i", id(sleep_mode_global));
-        - lambda: id(disp1).set_component_value("settings.a02", id(sleep_mode_global) == 1);
+        - if:
+            condition:
+              switch.is_off: sleep_mode
+            then: *sleep_mode-turn_off
+            else: *sleep_mode-turn_on
         - delay: 1s
+        - logger.log: "Nextion start - Inform Home Assistant display is ready"
         - binary_sensor.template.publish:
             id: nextion_init
             state: true
+        - logger.log: "Nextion start - Done!"
 
 ### Script for page_timer
 script:
