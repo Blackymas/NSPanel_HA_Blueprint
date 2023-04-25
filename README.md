@@ -85,12 +85,12 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 - Thermostat + Touch + Relay control for floor heating
 - Light control (brightness-slider, colorwheel, TempColor-slider) - via long Press
 - Cover control (open, close, position-slider) - via long press
-- Settings page (display brightness, display dim brightness, auto-dim, sleep mode, reboot NSPanel)
+- Settings page (display brightness, display dim brightness, sleep mode, reboot NSPanel)
 - Swipe between pages
 - Top menu with 10 icons for specific states
 - Heating control (hot water)
 - Modern design - design easy to change via Adobe Express (free + design template)
-- 2 physical switches
+- 2 physical switches with optional fallback mode
 - and much more ;)
 
 
@@ -99,14 +99,13 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 ## Home
 - Current weather with button to Weather Forcast page
 - Hardware buttons can be freely assigned
-- Hardware button label or without label
-- Blue line indicates on or off of the entity
-- Temperature outside
+- Hardware button label (optional)
+- Blue line indicates the entity's states (`on` or `off`)
+- Outside temperature
 - Status icons at the top
 - Room temperature with button to thermostat page
 - Room humidity
-- Hot water temperature
-- Button to display settings page
+- Up to 3 user's selectable entities
 
 
 ## Button Page
@@ -145,15 +144,14 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 
 
 ## Weather Forecast
-- 5 days Weather Forecast via swipe (Integration Accuweather - but should also go with another integration)
+- 5 days Weather Forecast via swipe (Integration Accuweather - but should also go with other integrations)
 - Lowest and highest temperature outside
 - Date
 - Rain probability
 - Sunshine hours
-- Sun pressure 
+- UV index
 - Thunderstorm probability
 - Wind speed
-- Night thunderstorm probability and wind speed
 
 
 ## Display Settings
