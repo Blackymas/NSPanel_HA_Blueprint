@@ -3292,6 +3292,18 @@ blueprint:
             default: []
             selector:
               text: {}
+          show_while_loading:
+            name: Show pages while loading?
+            description: >
+              *SYSTEM settings*
+
+              *When this is enable, the pages will be shown earlier, but some information might not be visible from the begining and will be shown when available.*
+              *When disabled (default), the pages will be shown when all the data is loaded and ready to be displayed.*
+
+              **This may be useful when your pages takes too long to load and can help you identifying the elements slowing down the page construction.**
+            default: false
+            selector:
+              boolean:
           #sync_value_ha:
           #  name: Synchronization of all values (Optional)
           #  description: >
@@ -4779,6 +4791,8 @@ action:
                       - alias: Home page
                         conditions: '{{ nspanel_event.page == nextion.pages.home }}'
                         sequence: &refresh_page_home
+                          - variables:
+                              show_while_loading: !input 'show_while_loading'
                           - service: '{{ nextion.commands.set_settings_entity }}'
                             data:
                               entity: '{{ nspanel_event }}'
@@ -4847,6 +4861,21 @@ action:
                                       component: home.meridiem
                                       message: '{{ meridiem }}'
                                     continue_on_error: true
+
+                          ###### Display page while other elements are still loading #####
+                          - if: '{{ show_while_loading }}'
+                            then:
+                              - *delay-default
+                              - service: '{{ nextion.commands.show_all }}'
+                                continue_on_error: true
+
+                          ##### Weather Icon Home Page #####
+                          - *delay-default
+                          - &refresh-page_home-weather_pic
+                            service: '{{ nextion.commands.printf }}'
+                            data:
+                              cmd: home.weather.pic={{ nextion.pics.weather[states(weather_entity) | default("unavailable") if weather_entity is string else "unavailable"] | default(None) }}
+                            continue_on_error: true
 
                           - &refresh-page_home-outdoor_temp
                             if: '{{ true }}'
@@ -4933,14 +4962,6 @@ action:
                                       component: home.current_temp
                                       message: '{{ (indoor_temp_state | round(1) ~ temperature_units) if is_number(indoor_temp_state) else (mui[language].unavailable if indoor_temp_state in ["unavailable", "unknown", "", None] else indoor_temp_state) }}'
                                     continue_on_error: true
-
-                          ##### Weather Icon Home Page #####
-                          - *delay-default
-                          - &refresh-page_home-weather_pic
-                            service: '{{ nextion.commands.printf }}'
-                            data:
-                              cmd: home.weather.pic={{ nextion.pics.weather[states(weather_entity) | default("unavailable") if weather_entity is string else "unavailable"] | default(None) }}
-                            continue_on_error: true
 
                           ##### NSPanel Buttons #####
                           - variables:
@@ -5221,10 +5242,12 @@ action:
                                       continue_on_error: true
 
                           ##### Set notify icon #####
-                          - variables:
-                              notification_unread_state: '{{ states(notification_unread) | default("unavailable") if notification_unread is string else "unavailable" }}'
-                          - if: '{{ notification_unread_state in ["on", "off"] }}'
+                          - &refresh-page_home-notifications_icon
+                            if: '{{ true }}'
                             then:
+                              - variables:
+                                  notification_unread_state: '{{ states(notification_unread) | default("unavailable") if notification_unread is string else "unavailable" }}'
+                              - condition: '{{ notification_unread_state in ["on", "off"] }}'
                               - variables:
                                   notification_text_state: '{{ states(notification_text) | default(None) if notification_text is string else None }}'
                                   set_button04_icon: >
@@ -5336,10 +5359,12 @@ action:
                                   message: '{{ all_icons.blank }}'
                                 continue_on_error: true
 
-                          ###### SHOW All component when page loading done #####
-                          - *delay-default
-                          - service: '{{ nextion.commands.show_all }}'
-                            continue_on_error: true
+                          ##### Show page if not visible #####
+                          - if: '{{ not show_while_loading }}'
+                            then:
+                              - *delay-default
+                              - service: '{{ nextion.commands.show_all }}'
+                                continue_on_error: true
 
                       ## BUTTON PAGES 01 - 04 ##
                       - alias: Button pages
@@ -5597,6 +5622,15 @@ action:
                                       message: '{{ button_pages_labels[button_page_index].label }}'
                                     continue_on_error: true
 
+                              ###### Display page while other elements are still loading #####
+                              - variables:
+                                  show_while_loading: !input 'show_while_loading'
+                              - if: '{{ show_while_loading }}'
+                                then:
+                                  - *delay-default
+                                  - service: '{{ nextion.commands.show_all }}'
+                                    continue_on_error: true
+
                               ##### NSPanel build Button page #####
                               - repeat:
                                   for_each: '{{ button_pages_buttons[first_button:last_button] }}'
@@ -5736,10 +5770,17 @@ action:
                                                 btn_label: '{{ btn_label }}'
                                                 btn_bri_txt: '{{ btn_bri_txt }}'
                                               continue_on_error: true
-                          ###### SHOW All component when page loading done #####
-                          - *delay-default
-                          - service: '{{ nextion.commands.show_all }}'
-                            continue_on_error: true
+                              ###### SHOW All component when page loading done #####
+                              - if: '{{ not show_while_loading }}'
+                                then:
+                                  - *delay-default
+                                  - service: '{{ nextion.commands.show_all }}'
+                                    continue_on_error: true
+                            else:
+                              ###### Show empty page #####
+                              - *delay-default
+                              - service: '{{ nextion.commands.show_all }}'
+                                continue_on_error: true
 
                       ## PAGE LIGHTSETTINGS ##
                       - alias: Light settings page
@@ -7088,58 +7129,7 @@ action:
           - '{{ nspanel_event.page == nextion.pages.home }}'
           - '{{ trigger.event.data.new_state.state not in ["unavailable", "unknown", "", None] }}'
         sequence:
-          - alias: 'Set notifiy pic'
-            variables:
-              notification_text_state: >
-                {{
-                  states(notification_text) | default("unavailable")
-                  if notification_text is string
-                  else "unavailable"
-                }}
-              notification_text_available: '{{ notification_text_state not in ["unavailable", "unknown", "", None] }}'
-              notification_unread_state: >
-                {{
-                  states(notification_unread) | default("unavailable")
-                  if notification_unread is string
-                  else "unavailable"
-                }}
-              set_button04_icon: >
-                {{
-                  (
-                    all_icons[page_home.buttons[3].icon.split(":")[1]] | default(all_icons.unknown)
-                    if page_home.buttons[3].icon.split(":") | count > 0
-                    else page_home.buttons[3].icon
-                  )
-                  if notification_unread_state in ["on", "off"] and notification_text_available
-                  else all_icons.blank
-                }}
-              set_button04_icon_font: >
-                {{
-                  (
-                    page_home.buttons[3].color_rgb[notification_unread_state]
-                    if is_number(page_home.buttons[3].color_rgb[notification_unread_state])
-                    else
-                      ((page_home.buttons[3].color_rgb[notification_unread_state][0] //(2**3)) *(2**11))+
-                      ((page_home.buttons[3].color_rgb[notification_unread_state][1] //(2**2)) *(2**5))+
-                       (page_home.buttons[3].color_rgb[notification_unread_state][2] //(2**3)))
-                  if notification_unread_state in ["on", "off"] and notification_text_available
-                  else nextion.colors.grey_light
-                }}
-          ##### SET ICON Font - Notify #####
-          - *delay-default
-          - service: '{{ nextion.commands.text_printf }}'
-            data:
-              component: home.button04_icon
-              message: '{{ set_button04_icon }}'
-            continue_on_error: true
-
-          ##### SET ICON Font Color - Notify #####
-          - *delay-default
-          - service: '{{ nextion.commands.font_color }}'
-            data:
-              component: home.button04_icon
-              message: '{{ set_button04_icon_font }}'
-            continue_on_error: true
+          - *refresh-page_home-notifications_icon
 
       ##### HW BUTTON - press #####
       - alias: Hardware button - Press
