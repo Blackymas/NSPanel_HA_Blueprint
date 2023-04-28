@@ -25,17 +25,18 @@ If you spot a problem with the blueprint, the ESPHome or the visualization in th
 
 Scan through our [existing issues](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues) to find one that interests you. As a general rule, we don’t assign issues to anyone. If you find an issue to work on, you are welcome to open a PR with a fix.
 
-### Make Changes
-
-#### Make changes in the UI
-
-Click **Make a contribution** at the bottom of any docs page to make small changes such as a typo, sentence fix, or a broken link. This takes you to the `.md` file where you can make your changes and [create a pull request](#pull-request) for a review.
+## Contributing
 
 #### Make changes
 
 1. Fork the repository.
 
 2. Create a working branch based on the `dev` branch and start with your changes!
+
+- When proposing a change, think about all users. Some thinks to remember:
+ - Support both EU and US models
+ - Support to translations (add new strings in English to all languages if needed, but let us know in your comments, so we can ask the community to help with the translations)
+ - Avoid breaking changes (anything changing the current behaviour) and document when you cannot avoid it. Let us know, so we can add to the release notes.
 
 ### Commit your update
 
@@ -45,7 +46,7 @@ Commit the changes once you are happy with them. Don't forget to self review to 
 
 When you're finished with the changes, create a pull request, also known as a PR.
 - Make sure your pull request is using the `dev` branch as the base branch. PRs to the `main` branch will be rejected.
-- Provide detailed information about what you are trying to change and why you want to change that.
+- Provide detailed information about what you are trying to change, why you want to change that, any breaking change, translations needed, etc.
 - Don't forget to [link PR to issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue) if you are solving one.
 - Enable the checkbox to [allow maintainer edits](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/allowing-changes-to-a-pull-request-branch-created-from-a-fork) so the branch can be updated for a merge.
 Once you submit your PR, a team member will review your proposal. We may ask questions or request additional information.
