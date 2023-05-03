@@ -424,27 +424,6 @@ api:
             id(disp1).set_component_text_printf(entlabel.c_str(), "%s", ent_label.c_str());
             id(disp1).set_component_text_printf(ent_id.c_str(), "%s", ent_value.c_str());
 
-##### START - GLOBALS CONFIGURATION #####
-globals:
-
-  ##### Save Display Brightness for NSPanel reboot #####
-  - id: display_brightness_global
-    type: int
-    restore_value: true
-    initial_value: '100'
-
-  ##### Save Display DIM Brightness for NSPanel reboot
-  - id: display_dim_brightness_global
-    type: int
-    restore_value: true
-    initial_value: '10'
-
-  ##### Temperature Correction #####
-  - id: temperature_correction_global
-    type: float
-    restore_value: true
-    initial_value: '0.0'
-
 ##### START - BINARY SENSOR CONFIGURATION #####
 binary_sensor:
 
@@ -597,7 +576,7 @@ sensor:
       reference_temperature: 25°C
       reference_resistance: 10kOhm
     filters:
-      - lambda: return x + id(temperature_correction_global);
+      - lambda: return x + id(temperature_correction).state;
     #on_value:
     #  then:
     #    - wait_until:
@@ -625,8 +604,6 @@ sensor:
         - number.set:
             id: display_brightness
             value: !lambda 'return int(x);'
-          # send text field percentage of current_lightslider_val
-        - lambda: id(disp1).set_component_text_printf("settings.a03", "%i", id(display_brightness_global));
 
   ###### Display DIM Brightness GET VALUE FROM NSPanel SLIDER #####
   - name: ${device_name} dim brightness slider
@@ -641,8 +618,6 @@ sensor:
         - number.set:
             id: display_dim_brightness
             value: !lambda 'return int(x);'
-          # send text field percentage of current_lightslider_val
-        - lambda: id(disp1).set_component_text_printf("settings.a04", "%i", id(display_dim_brightness_global));
 
 ##### START - TEXT SENSOR CONFIGURATION #####
 text_sensor:
@@ -820,13 +795,11 @@ number:
     step: 1
     restore_value: true
     optimistic: true
-    set_action:
+    on_value:
       then:
-        - lambda: 'id(disp1).set_backlight_brightness(x/100);'
-        - lambda: 'id(disp1).send_command_printf("home.brightness.val=%i", int(x));'
-        - globals.set:
-            id: display_brightness_global
-            value: !lambda 'return int(x);'
+        - lambda: id(disp1).set_backlight_brightness(x/100);
+        - lambda: id(disp1).send_command_printf("home.brightness.val=%i", int(x));
+        - lambda: id(disp1).set_component_text_printf("settings.a03", "%i", int(x));
 
   ##### SCREEN BRIGHTNESS DIMMED DOWN #####
   - platform: template
@@ -834,17 +807,45 @@ number:
     id: display_dim_brightness
     entity_category: config
     unit_of_measurement: '%'
-    min_value: 1
+    min_value: 0
     max_value: 100
     step: 1
     restore_value: true
     optimistic: true
-    set_action:
+    on_value:
       then:
-        - lambda: 'id(disp1).send_command_printf("home.brightdd.val=%i", int(x));'
-        - globals.set:
-            id: display_dim_brightness_global
-            value: !lambda 'return int(x);'
+        - lambda: id(disp1).send_command_printf("home.brightdd.val=%i", int(x));
+        - lambda: id(disp1).set_component_text_printf("settings.a04", "%i", int(x));
+
+  ##### SLEEP TIMEOUT #####
+  - platform: template
+    name: ${device_name} Sleep Timeout
+    id: sleep_timeout
+    entity_category: config
+    min_value: 1
+    max_value: 65
+    step: 1
+    initial_value: 60
+    restore_value: true
+    optimistic: true
+    on_value:
+      then:
+        - lambda: id(disp1).send_command_printf("home.sleeptimer.tim=%i", int(x)*1000);
+
+  ##### DIMDOWN TIMEOUT #####
+  - platform: template
+    name: ${device_name} Dimdown Timeout
+    id: dimdown_timeout
+    entity_category: config
+    min_value: 1
+    max_value: 65
+    step: 1
+    initial_value: 50
+    restore_value: true
+    optimistic: true
+    on_value:
+      then:
+        - lambda: id(disp1).send_command_printf("home.dimtimer.tim=%i", int(x)*1000);
 
   ##### Temperature Correction #####
   - platform: template
@@ -857,11 +858,6 @@ number:
     step: 0.5
     restore_value: true
     optimistic: true
-    set_action:
-      then:
-        - globals.set:
-            id: temperature_correction_global
-            value: !lambda 'return x;'
 
   ##### page-timeout #####
   - platform: template
@@ -894,18 +890,15 @@ display:
         - lambda: id(disp1).set_component_text_printf("boot.ip_addr", "%s", id(ip_address).state.c_str());
         - delay: 1s
         - logger.log: "Nextion start - Set display brigntess"
-        - number.set:
-            id: display_brightness
-            value: !lambda 'return id(display_brightness_global);'
+        - lambda: id(disp1).set_backlight_brightness(int(id(display_brightness).state));
+        - lambda: id(disp1).send_command_printf("home.brightness.val=%i", int(id(display_brightness).state));
         - logger.log: "Nextion start - Set display dim brightness"
-        - number.set:
-            id: display_dim_brightness
-            value: !lambda 'return id(display_dim_brightness_global);'
+        - lambda: id(disp1).send_command_printf("home.brightdd.val=%i", int(id(display_dim_brightness).state));
         - logger.log: "Nextion start - Update settings page"
-        - lambda: id(disp1).set_component_text_printf("settings.a03", "%i", id(display_brightness_global));
-        - lambda: id(disp1).set_component_text_printf("settings.a04", "%i", id(display_dim_brightness_global));
-        - lambda: id(disp1).send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
-        - lambda: id(disp1).send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
+        - lambda: id(disp1).set_component_text_printf("settings.a03", "%i", int(id(display_brightness).state));
+        - lambda: id(disp1).set_component_text_printf("settings.a04", "%i", int(id(display_dim_brightness).state));
+        - lambda: id(disp1).send_command_printf("settings.brightslider.val=%i", int(id(display_brightness).state));
+        - lambda: id(disp1).send_command_printf("settings.dimslider.val=%i", int(id(display_dim_brightness).state));
         - if:
             condition:
               switch.is_off: sleep_mode
