@@ -33,7 +33,7 @@ blueprint:
     🎉 Roadmap Roadmap can be found here [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
 
 
-    ℹ️ Version: v.3.3
+    ℹ️ Version: v.3.3.1
 
   source_url: https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/nspanel_blueprint.yaml
   domain: automation
@@ -3359,7 +3359,7 @@ trigger_variables:
 
 variables:
   ##### GENERAL #####
-  blueprint_version: '3.3'
+  blueprint_version: '3.3.1'
   language: !input 'language'
   date_format: !input 'date_format'
   time_format: !input 'time_format'
@@ -4701,6 +4701,78 @@ action:
                   cmd: 'page {{ nextion.pages[settings_entity_domain] }}'
                 continue_on_error: true
 
+      ##### DATE AND TIME #####
+      - alias: 'Date & Time'
+        conditions:
+          - condition: trigger
+            id: time_state
+        sequence:
+          - &refresh-datetime
+            if: '{{ true }}'
+            then:
+              ##### NSPanel Date #####
+              ### DATE Font Color ###
+              - service: '{{ nextion.commands.font_color }}'
+                data:
+                  component: home.date
+                  message: >
+                    {{
+                      page_home.general.date.label.color_rgb
+                      if is_number(page_home.general.date.label.color_rgb)
+                      else ((page_home.general.date.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.date.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.date.label.color_rgb[2] //(2**3))
+                    }}
+                continue_on_error: true
+              - &delay-default
+                delay:
+                  milliseconds: '{{ delay_value }}'
+              ### DATE Font ###
+              - service: '{{ nextion.commands.text_printf }}'
+                data:
+                  component: home.date
+                  message: '{{ (dict.values(mui[language].weekdays) | list)[now().weekday()] ~ ", " ~ as_timestamp(now()) | timestamp_custom(date_format) }}'
+                continue_on_error: true
+              ##### NSPanel Time #####
+              ### TIME Font Color ###
+              - *delay-default
+              - service: '{{ nextion.commands.font_color }}'
+                data:
+                  component: home.time
+                  message: >
+                    {{
+                      page_home.general.time.label.color_rgb
+                      if is_number(page_home.general.time.label.color_rgb)
+                      else ((page_home.general.time.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.time.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.time.label.color_rgb[2] //(2**3))
+                    }}
+                continue_on_error: true
+              ### TIME Font ###
+              - *delay-default
+              - service: '{{ nextion.commands.text_printf }}'
+                data:
+                  component: home.time
+                  message: '{{ time }}'
+                continue_on_error: true
+              - if: '{{ meridiem }}'
+                then:
+                  ### TIME Meridiem Font Color ###
+                  - *delay-default
+                  - service: '{{ nextion.commands.font_color }}'
+                    data:
+                      component: home.meridiem
+                      message: >
+                        {{
+                          page_home.general.time.label.color_rgb
+                          if is_number(page_home.general.time.label.color_rgb)
+                          else ((page_home.general.time.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.time.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.time.label.color_rgb[2] //(2**3))
+                        }}
+                    continue_on_error: true
+                  ### TIME Meridiem Font ###
+                  - *delay-default
+                  - service: '{{ nextion.commands.text_printf }}'
+                    data:
+                      component: home.meridiem
+                      message: '{{ meridiem }}'
+                    continue_on_error: true
+
       ##### BOOT NSPANEL - boot init #####
       - alias: Boot init
         conditions:
@@ -4742,10 +4814,11 @@ action:
                   song_str: 'two short:d=4,o=5,b=100:16e6,16e6'
                 continue_on_error: true
 
+          ##### Update Date & Time before showing the Home page #####
+          - *refresh-datetime
+
           ##### NSPanel boot init finished and jump to Home Page#####
-          - &delay-default
-            delay:
-              milliseconds: '{{ delay_value }}'
+          - *delay-default
           - service: '{{ nextion.commands.printf }}'
             data:
               cmd: "page {{ nextion.pages.home }}"
@@ -4788,83 +4861,10 @@ action:
                       - alias: Home page
                         conditions: '{{ nspanel_event.page == nextion.pages.home }}'
                         sequence: &refresh_page_home
-                          - variables:
-                              show_while_loading: !input 'show_while_loading'
                           - service: '{{ nextion.commands.set_settings_entity }}'
                             data:
                               entity: '{{ nspanel_event }}'
                             continue_on_error: true
-                          - &refresh-page_home-date_time
-                            if: '{{ true }}'
-                            then:
-                              ##### NSPanel Date #####
-                              ### DATE Font Color ###
-                              - *delay-default
-                              - service: '{{ nextion.commands.font_color }}'
-                                data:
-                                  component: home.date
-                                  message: >
-                                    {{
-                                      page_home.general.date.label.color_rgb
-                                      if is_number(page_home.general.date.label.color_rgb)
-                                      else ((page_home.general.date.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.date.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.date.label.color_rgb[2] //(2**3))
-                                    }}
-                                continue_on_error: true
-                              ### DATE Font ###
-                              - *delay-default
-                              - service: '{{ nextion.commands.text_printf }}'
-                                data:
-                                  component: home.date
-                                  message: '{{ (dict.values(mui[language].weekdays) | list)[now().weekday()] ~ ", " ~ as_timestamp(now()) | timestamp_custom(date_format) }}'
-                                continue_on_error: true
-                              ##### NSPanel Time #####
-                              ### TIME Font Color ###
-                              - *delay-default
-                              - service: '{{ nextion.commands.font_color }}'
-                                data:
-                                  component: home.time
-                                  message: >
-                                    {{
-                                      page_home.general.time.label.color_rgb
-                                      if is_number(page_home.general.time.label.color_rgb)
-                                      else ((page_home.general.time.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.time.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.time.label.color_rgb[2] //(2**3))
-                                    }}
-                                continue_on_error: true
-                              ### TIME Font ###
-                              - *delay-default
-                              - service: '{{ nextion.commands.text_printf }}'
-                                data:
-                                  component: home.time
-                                  message: '{{ time }}'
-                                continue_on_error: true
-                              - if: '{{ meridiem }}'
-                                then:
-                                  ### TIME Meridiem Font Color ###
-                                  - *delay-default
-                                  - service: '{{ nextion.commands.font_color }}'
-                                    data:
-                                      component: home.meridiem
-                                      message: >
-                                        {{
-                                          page_home.general.time.label.color_rgb
-                                          if is_number(page_home.general.time.label.color_rgb)
-                                          else ((page_home.general.time.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.time.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.time.label.color_rgb[2] //(2**3))
-                                        }}
-                                    continue_on_error: true
-                                  ### TIME Meridiem Font ###
-                                  - *delay-default
-                                  - service: '{{ nextion.commands.text_printf }}'
-                                    data:
-                                      component: home.meridiem
-                                      message: '{{ meridiem }}'
-                                    continue_on_error: true
-
-                          ###### Display page while other elements are still loading #####
-                          - if: '{{ show_while_loading }}'
-                            then:
-                              - *delay-default
-                              - service: '{{ nextion.commands.show_all }}'
-                                continue_on_error: true
 
                           ##### Weather Icon Home Page #####
                           - *delay-default
@@ -5385,13 +5385,6 @@ action:
                                 data:
                                   component: home.button06_icon
                                   message: '{{ all_icons.blank }}'
-                                continue_on_error: true
-
-                          ##### Show page if not visible #####
-                          - if: '{{ not show_while_loading }}'
-                            then:
-                              - *delay-default
-                              - service: '{{ nextion.commands.show_all }}'
                                 continue_on_error: true
 
                       ## BUTTON PAGES 01 - 04 ##
@@ -7015,13 +7008,15 @@ action:
                       cmd: 'page {{ nextion.pages.home }}'
                     continue_on_error: true
 
-
       ##### BOOT NSPANEL - automation reload #####
       - alias: Automation reloaded
         conditions:
           - condition: trigger
             id: automation_reloaded
         sequence:
+          ##### Update Date & Time before showing the pages (just in case display format changed) #####
+          - *refresh-datetime
+
           - choose:
               ## PAGE HOME ##
               - conditions: '{{ nspanel_event.page == nextion.pages.home }}'
@@ -7238,15 +7233,6 @@ action:
             data:
               cmd: 'home.{{ "left" if trigger.id == "left_button_state" else "right"}}_bt_pic.pic={{ nextion.pics.hardware.button.off }}'
             continue_on_error: true
-
-      ##### DATE AND TIME #####
-      - alias: 'Date & Time'
-        conditions:
-          - condition: trigger
-            id: time_state
-          - '{{ nspanel_event.page == nextion.pages.home }}'
-        sequence:
-          - *refresh-page_home-date_time
 
       ##### OUTDOOR TEMP - entity #####
       - alias: Outdoor temp - Entity
