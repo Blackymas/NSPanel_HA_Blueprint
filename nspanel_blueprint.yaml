@@ -33,9 +33,9 @@ blueprint:
     🎉 Roadmap Roadmap can be found here [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
 
 
-    ℹ️ Version: v.3.3
+    ℹ️ Version: v.3.3.1
 
-  source_url: https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/nspnael_blueprint.yaml
+  source_url: https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/nspanel_blueprint.yaml
   domain: automation
   homeassistant:
     min_version: 2022.11.1
@@ -71,10 +71,10 @@ blueprint:
                 options:
                   - label: 'Bulgarian'
                     value: BGR
-                  - label: 'Czech'
-                    value: CZE
                   - label: 'Croatian'
                     value: HRV
+                  - label: 'Czech'
+                    value: CZE
                   - label: 'Danish'
                     value: DNK
                   - label: 'Dutch'
@@ -3375,7 +3375,7 @@ trigger_variables:
 
 variables:
   ##### GENERAL #####
-  blueprint_version: '3.3'
+  blueprint_version: '3.3.1'
   language: !input 'language'
   date_format: !input 'date_format'
   time_format: !input 'time_format'
@@ -3481,7 +3481,13 @@ variables:
       hardware:
         button:
           "off": "77"
+          closed: "77"
+          closing: "77"
+          "false": "77"
           "on": "78"
+          open: "78"
+          opened: "78"
+          "true": "78"
       button:
         "off": "101"
         "on": "102"
@@ -4711,6 +4717,78 @@ action:
                   cmd: 'page {{ nextion.pages[settings_entity_domain] }}'
                 continue_on_error: true
 
+      ##### DATE AND TIME #####
+      - alias: 'Date & Time'
+        conditions:
+          - condition: trigger
+            id: time_state
+        sequence:
+          - &refresh-datetime
+            if: '{{ true }}'
+            then:
+              ##### NSPanel Date #####
+              ### DATE Font Color ###
+              - service: '{{ nextion.commands.font_color }}'
+                data:
+                  component: home.date
+                  message: >
+                    {{
+                      page_home.general.date.label.color_rgb
+                      if is_number(page_home.general.date.label.color_rgb)
+                      else ((page_home.general.date.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.date.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.date.label.color_rgb[2] //(2**3))
+                    }}
+                continue_on_error: true
+              - &delay-default
+                delay:
+                  milliseconds: '{{ delay_value }}'
+              ### DATE Font ###
+              - service: '{{ nextion.commands.text_printf }}'
+                data:
+                  component: home.date
+                  message: '{{ (dict.values(mui[language].weekdays) | list)[now().weekday()] ~ ", " ~ as_timestamp(now()) | timestamp_custom(date_format) }}'
+                continue_on_error: true
+              ##### NSPanel Time #####
+              ### TIME Font Color ###
+              - *delay-default
+              - service: '{{ nextion.commands.font_color }}'
+                data:
+                  component: home.time
+                  message: >
+                    {{
+                      page_home.general.time.label.color_rgb
+                      if is_number(page_home.general.time.label.color_rgb)
+                      else ((page_home.general.time.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.time.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.time.label.color_rgb[2] //(2**3))
+                    }}
+                continue_on_error: true
+              ### TIME Font ###
+              - *delay-default
+              - service: '{{ nextion.commands.text_printf }}'
+                data:
+                  component: home.time
+                  message: '{{ time }}'
+                continue_on_error: true
+              - if: '{{ meridiem }}'
+                then:
+                  ### TIME Meridiem Font Color ###
+                  - *delay-default
+                  - service: '{{ nextion.commands.font_color }}'
+                    data:
+                      component: home.meridiem
+                      message: >
+                        {{
+                          page_home.general.time.label.color_rgb
+                          if is_number(page_home.general.time.label.color_rgb)
+                          else ((page_home.general.time.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.time.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.time.label.color_rgb[2] //(2**3))
+                        }}
+                    continue_on_error: true
+                  ### TIME Meridiem Font ###
+                  - *delay-default
+                  - service: '{{ nextion.commands.text_printf }}'
+                    data:
+                      component: home.meridiem
+                      message: '{{ meridiem }}'
+                    continue_on_error: true
+
       ##### BOOT NSPANEL - boot init #####
       - alias: Boot init
         conditions:
@@ -4752,10 +4830,11 @@ action:
                   song_str: 'two short:d=4,o=5,b=100:16e6,16e6'
                 continue_on_error: true
 
+          ##### Update Date & Time before showing the Home page #####
+          - *refresh-datetime
+
           ##### NSPanel boot init finished and jump to Home Page#####
-          - &delay-default
-            delay:
-              milliseconds: '{{ delay_value }}'
+          - *delay-default
           - service: '{{ nextion.commands.printf }}'
             data:
               cmd: "page {{ nextion.pages.home }}"
@@ -4798,83 +4877,10 @@ action:
                       - alias: Home page
                         conditions: '{{ nspanel_event.page == nextion.pages.home }}'
                         sequence: &refresh_page_home
-                          - variables:
-                              show_while_loading: !input 'show_while_loading'
                           - service: '{{ nextion.commands.set_settings_entity }}'
                             data:
                               entity: '{{ nspanel_event }}'
                             continue_on_error: true
-                          - &refresh-page_home-date_time
-                            if: '{{ true }}'
-                            then:
-                              ##### NSPanel Date #####
-                              ### DATE Font Color ###
-                              - *delay-default
-                              - service: '{{ nextion.commands.font_color }}'
-                                data:
-                                  component: home.date
-                                  message: >
-                                    {{
-                                      page_home.general.date.label.color_rgb
-                                      if is_number(page_home.general.date.label.color_rgb)
-                                      else ((page_home.general.date.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.date.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.date.label.color_rgb[2] //(2**3))
-                                    }}
-                                continue_on_error: true
-                              ### DATE Font ###
-                              - *delay-default
-                              - service: '{{ nextion.commands.text_printf }}'
-                                data:
-                                  component: home.date
-                                  message: '{{ (dict.values(mui[language].weekdays) | list)[now().weekday()] ~ ", " ~ as_timestamp(now()) | timestamp_custom(date_format) }}'
-                                continue_on_error: true
-                              ##### NSPanel Time #####
-                              ### TIME Font Color ###
-                              - *delay-default
-                              - service: '{{ nextion.commands.font_color }}'
-                                data:
-                                  component: home.time
-                                  message: >
-                                    {{
-                                      page_home.general.time.label.color_rgb
-                                      if is_number(page_home.general.time.label.color_rgb)
-                                      else ((page_home.general.time.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.time.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.time.label.color_rgb[2] //(2**3))
-                                    }}
-                                continue_on_error: true
-                              ### TIME Font ###
-                              - *delay-default
-                              - service: '{{ nextion.commands.text_printf }}'
-                                data:
-                                  component: home.time
-                                  message: '{{ time }}'
-                                continue_on_error: true
-                              - if: '{{ meridiem }}'
-                                then:
-                                  ### TIME Meridiem Font Color ###
-                                  - *delay-default
-                                  - service: '{{ nextion.commands.font_color }}'
-                                    data:
-                                      component: home.meridiem
-                                      message: >
-                                        {{
-                                          page_home.general.time.label.color_rgb
-                                          if is_number(page_home.general.time.label.color_rgb)
-                                          else ((page_home.general.time.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.time.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.time.label.color_rgb[2] //(2**3))
-                                        }}
-                                    continue_on_error: true
-                                  ### TIME Meridiem Font ###
-                                  - *delay-default
-                                  - service: '{{ nextion.commands.text_printf }}'
-                                    data:
-                                      component: home.meridiem
-                                      message: '{{ meridiem }}'
-                                    continue_on_error: true
-
-                          ###### Display page while other elements are still loading #####
-                          - if: '{{ show_while_loading }}'
-                            then:
-                              - *delay-default
-                              - service: '{{ nextion.commands.show_all }}'
-                                continue_on_error: true
 
                           ##### Weather Icon Home Page #####
                           - *delay-default
@@ -4929,6 +4935,23 @@ action:
                               ##### NSPanel Indoor Temp #####
                               - variables:
                                   indoor_temp_state: '{{ states(indoortemp) | default("unavailable") if indoortemp is string and indoortemp is match "sensor." else states(nspaneltemp) }}'
+                                  indoor_temp_units: >
+                                    {{
+                                      state_attr(indoortemp, "unit_of_measurement") | default(temperature_units)
+                                      if
+                                        indoortemp is string and
+                                        indoortemp is match "sensor." and
+                                        state_attr(indoortemp, "unit_of_measurement") is string and
+                                        state_attr(indoortemp, "unit_of_measurement") | length > 0
+                                      else
+                                        (
+                                          state_attr(nspaneltemp, "unit_of_measurement") | default(temperature_units)
+                                          if
+                                            state_attr(nspaneltemp, "unit_of_measurement") is string and
+                                            state_attr(nspaneltemp, "unit_of_measurement") | length > 0
+                                          else temperature_units
+                                        )
+                                    }}
                               - if: '{{ is_number(indoor_temp_state) }}'
                                 then:
                                   ### ICON Indoor Temp Font Color ###
@@ -4977,7 +5000,7 @@ action:
                                   - service: '{{ nextion.commands.text_printf }}'
                                     data:
                                       component: home.current_temp
-                                      message: '{{ (indoor_temp_state | round(1) ~ temperature_units) if is_number(indoor_temp_state) else (mui[language].unavailable if indoor_temp_state in ["unavailable", "unknown", "", None] else indoor_temp_state) }}'
+                                      message: '{{ indoor_temp_state | round(1) ~ indoor_temp_units }}'
                                     continue_on_error: true
 
                           ##### NSPanel Buttons #####
@@ -5013,7 +5036,7 @@ action:
                             then:
                               - variables:
                                   # Hardware Button PIC
-                                  left_hardware_button_state: '{{ nextion.pics.hardware.button[left_button_state] | default(None) }}'
+                                  left_hardware_button_state: '{{ nextion.pics.hardware.button[left_button_state] | default(nextion.pics.hardware.button.off) }}'
                               - *delay-default
                               - service: '{{ nextion.commands.printf }}'
                                 data:
@@ -5048,7 +5071,7 @@ action:
                             then:
                               - variables:
                               # Hardware Button PIC
-                                  right_hardware_button_state: '{{ nextion.pics.hardware.button[right_button_state] | default(None) }}'
+                                  right_hardware_button_state: '{{ nextion.pics.hardware.button[right_button_state] | default(nextion.pics.hardware.button.off) }}'
                               - *delay-default
                               - service: '{{ nextion.commands.printf }}'
                                 data:
@@ -5256,7 +5279,7 @@ action:
                                         component: '{{ repeat.item.page }}.{{ repeat.item.component }}_state'
                                         message: >
                                           {{
-                                            (repeat_item_state | round(1) ~ state_attr(repeat.item.entity, "unit_of_measurement") | default(""))
+                                            (repeat_item_state | round(1) ~ (state_attr(repeat.item.entity, "unit_of_measurement") | default("") if state_attr(repeat.item.entity, "unit_of_measurement") is string else ""))
                                             if is_number(repeat_item_state)
                                             else repeat_item_state
                                           }}
@@ -5378,13 +5401,6 @@ action:
                                 data:
                                   component: home.button06_icon
                                   message: '{{ all_icons.blank }}'
-                                continue_on_error: true
-
-                          ##### Show page if not visible #####
-                          - if: '{{ not show_while_loading }}'
-                            then:
-                              - *delay-default
-                              - service: '{{ nextion.commands.show_all }}'
                                 continue_on_error: true
 
                       ## BUTTON PAGES 01 - 04 ##
@@ -6366,7 +6382,7 @@ action:
                                           {%- elif repeat_item_state in ["unavailable", "unknown", "", None] -%} {{ repeat.item.entity }}
                                           {%- else -%} {{ state_attr(repeat.item.entity, "friendly_name") | default(mui[language].no_name) }}
                                           {%- endif -%}
-                                        ent_value: '{{ repeat_item_state ~ ((state_attr(repeat.item.entity, "unit_of_measurement") | default("")) if state_attr(repeat.item.entity, "unit_of_measurement") else "") }}'
+                                        ent_value: '{{ repeat_item_state ~ ((state_attr(repeat.item.entity, "unit_of_measurement") | default("")) if state_attr(repeat.item.entity, "unit_of_measurement") is string else "") }}'
                                         ent_value_xcen: '{{ entitypages_value_alignment }}'
                                       continue_on_error: true
 
@@ -6385,13 +6401,13 @@ action:
                                 {% else %} Other
                                 {% endif %}
                               weather_units:
-                                hours_of_sun: '{{ state_attr(weather_entity, "hours_of_sun_unit") | default("h") if weather_entity is string and state_attr(weather_entity, "hours_of_sun_unit")               else "h" }}'
+                                hours_of_sun: '{{ state_attr(weather_entity, "hours_of_sun_unit") | default("h") if weather_entity is string and state_attr(weather_entity, "hours_of_sun_unit") else "h" }}'
                                 precipitation: '{{ state_attr(weather_entity, "precipitation_unit") | default("") if weather_entity is string and state_attr(weather_entity, "precipitation_unit") }}'
-                                precipitation_probability: '{{ state_attr(weather_entity, "precipitation_probability_unit") | default("%") if weather_entity is string and state_attr(weather_entity, "precipitation_probability_unit")  else "%" }}'
+                                precipitation_probability: '{{ state_attr(weather_entity, "precipitation_probability_unit") | default("%") if weather_entity is string and state_attr(weather_entity, "precipitation_probability_unit") else "%" }}'
                                 pressure: '{{ state_attr(weather_entity, "pressure_unit") | default("") if weather_entity is string and state_attr(weather_entity, "pressure_unit") }}'
-                                #temperature: '{{ state_attr(weather_entity, "temperature_unit") | default("°") if weather_entity is string and state_attr(weather_entity, "temperature_unit")                else "°" }}'
-                                thunderstorm_probability: '{{ state_attr(weather_entity, "thunderstorm_probability_unit") | default("%") if weather_entity is string and state_attr(weather_entity, "thunderstorm_probability_unit")   else "%" }}'
-                                uv_index: '{{ state_attr(weather_entity, "uv_index_unit") | default("") if weather_entity is string and state_attr(weather_entity, "uv_index_unit")   }}'
+                                #temperature: '{{ state_attr(weather_entity, "temperature_unit") | default("°") if weather_entity is string and state_attr(weather_entity, "temperature_unit") else "°" }}'
+                                thunderstorm_probability: '{{ state_attr(weather_entity, "thunderstorm_probability_unit") | default("%") if weather_entity is string and state_attr(weather_entity, "thunderstorm_probability_unit") else "%" }}'
+                                uv_index: '{{ state_attr(weather_entity, "uv_index_unit") | default("") if weather_entity is string and state_attr(weather_entity, "uv_index_unit") }}'
                                 #visibility: '{{ state_attr(weather_entity, "visibility_unit") | default("") if weather_entity is string and state_attr(weather_entity, "visibility_unit") }}'
                                 wind_speed: '{{ state_attr(weather_entity, "wind_speed_unit") | default("") if weather_entity is string and state_attr(weather_entity, "wind_speed_unit") }}'
                               page_name: '{{ nspanel_event.page }}'
@@ -7019,13 +7035,15 @@ action:
                       cmd: 'page {{ nextion.pages.home }}'
                     continue_on_error: true
 
-
       ##### BOOT NSPANEL - automation reload #####
       - alias: Automation reloaded
         conditions:
           - condition: trigger
             id: automation_reloaded
         sequence:
+          ##### Update Date & Time before showing the pages (just in case display format changed) #####
+          - *refresh-datetime
+
           - choose:
               ## PAGE HOME ##
               - conditions: '{{ nspanel_event.page == nextion.pages.home }}'
@@ -7243,15 +7261,6 @@ action:
               cmd: 'home.{{ "left" if trigger.id == "left_button_state" else "right"}}_bt_pic.pic={{ nextion.pics.hardware.button.off }}'
             continue_on_error: true
 
-      ##### DATE AND TIME #####
-      - alias: 'Date & Time'
-        conditions:
-          - condition: trigger
-            id: time_state
-          - '{{ nspanel_event.page == nextion.pages.home }}'
-        sequence:
-          - *refresh-page_home-date_time
-
       ##### OUTDOOR TEMP - entity #####
       - alias: Outdoor temp - Entity
         conditions:
@@ -7307,6 +7316,22 @@ action:
                   if trigger.event.data.new_state.state == "off"
                   else nextion.pics.heating.button.on
                 }}
+              target_temperature: >
+                    {{
+                      trigger.event.data.new_state.attributes.temperature | round(1)
+                      if
+                        trigger.event.data.new_state.attributes.temperature is defined and
+                        is_number(trigger.event.data.new_state.attributes.temperature)
+                      else
+                        (
+                          ((trigger.event.data.new_state.attributes.target_temp_high + trigger.event.data.new_state.attributes.target_temp_low) / 2) | round(1)
+                          if
+                            trigger.event.data.new_state.attributes.target_temp_high is defined and
+                            trigger.event.data.new_state.attributes.target_temp_low is defined and
+                            is_number(trigger.event.data.new_state.attributes.target_temp_high) and
+                            is_number(trigger.event.data.new_state.attributes.target_temp_low)
+                        )
+                    }}
 
           - service: '{{ nextion.commands.text_printf }}'
             data:
@@ -7322,11 +7347,11 @@ action:
             data:
               cmd: heating_bt_pic.pic={{ heating_bt_pic }}
             continue_on_error: true
-          - if: '{{ trigger.event.data.new_state.state != "off" }}' #### TODO AND->OR (not) not optimistic-mode
+          - if: '{{ trigger.event.data.new_state.state != "off" and is_number(target_temperature) }}' #### TODO AND->OR (not) not optimistic-mode
             then:
               - service: '{{ nextion.commands.thermostat_cycle }}'
                 data:
-                  value: '{{trigger.event.data.new_state.attributes.temperature | round(1)}}'
+                  value: ' {{ target_temperature }}'
                 continue_on_error: true
             else:
               - service: '{{ nextion.commands.thermostat_cycle }}'
