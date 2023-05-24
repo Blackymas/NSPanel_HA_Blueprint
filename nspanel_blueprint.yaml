@@ -3422,7 +3422,7 @@ variables:
       printf: 'esphome.{{ nspanel_name }}_send_command_printf'
       font_color: 'esphome.{{ nspanel_name }}_send_command_font_color'
       background_color: 'esphome.{{ nspanel_name }}_send_command_background_color'
-      thermostat_cycle: 'esphome.{{ nspanel_name }}_send_thermostat_cycle_state'
+      #thermostat_cycle: 'esphome.{{ nspanel_name }}_send_thermostat_cycle_state'  ## Deprecated on v3.3.1
       notification_show: 'esphome.{{ nspanel_name }}_notification_show'
       notification_clear: 'esphome.{{ nspanel_name }}_notification_clear'
       play_rtttl: 'esphome.{{ nspanel_name }}_play_rtttl'
@@ -3431,6 +3431,8 @@ variables:
       tft_upload: 'esphome.{{ nspanel_name }}_upload_tft'
       set_button: 'esphome.{{ nspanel_name }}_set_button'
       set_entity: 'esphome.{{ nspanel_name }}_set_entity'
+      set_climate: 'esphome.{{ nspanel_name }}_set_climate'
+      set_climate_target_temp: 'esphome.{{ nspanel_name }}_set_climate_target_temp'
     icons:
       buttons:
         automation: "\uF6FC" #F6FC
@@ -7221,92 +7223,79 @@ action:
                                   else "unknown"
                                 }}
                           - condition: '{{ settings_entity_domain == "climate" }}'
-                          - variables:
-                              hvac_mode: '{{ states(settings_entity_dict.entity) | default("unavailable") if settings_entity_dict.entity is string else "unavailable" }}'
-                              outdoor_temp_state: '{{ states(outdoortemp) | default("unavailable") if outdoortemp is string else "unavailable" }}'
-                              outdoor_temp: '{{ outdoor_temp_state if is_number(outdoor_temp_state) else state_attr(weather_entity, "temperature") | default("unavailable") if weather_entity is string else "unavailable" }}'
-                              heating_state: '{{ mui[language].climate.states.off if hvac_mode == "off" else mui[language].climate.states.on }}'
                           - service: '{{ nextion.commands.text_printf }}'
                             data:
                               component: climate.climate_label
                               message: '{{ settings_entity_dict.name }}'
                             continue_on_error: true
-                          - *delay-default
-                          - service: '{{ nextion.commands.text_printf }}'
+
+                          - service: '{{ nextion.commands.set_climate }}'
                             data:
-                              component: outdoor_temp
-                              message: >
-                                {{
-                                  (outdoor_temp | round(1) ~ temperature_units)
-                                  if is_number(outdoor_temp)
-                                  else
-                                    (
-                                      mui[language].unavailable
-                                      if outdoor_temp in ["unavailable", "unknown", "", None]
-                                      else outdoor_temp
-                                    )
-                                }}
+                              state: '{{ states(settings_entity_dict.entity) }}'
+                              hvac_modes: '{{ state_attr(settings_entity_dict.entity, "hvac_modes") }}'
+                              current_temp: '{{ state_attr(settings_entity_dict.entity, "current_temperature") | float(default=-999) | round(1) }}'
+                              target_temp: '{{ state_attr(settings_entity_dict.entity, "temperature") | float(default=-999) | round(1) }}'
+                              min_temp: '{{state_attr(settings_entity_dict.entity, "min_temp") | round(0, default=5) | int }}'
+                              max_temp: '{{state_attr(settings_entity_dict.entity, "max_temp") | round(0, default=25) | int }}'
                             continue_on_error: true
 
-                          - service: '{{ nextion.commands.text_printf }}'
-                            data:
-                              component: current_temp
-                              message: >
-                                {{
-                                  (state_attr(settings_entity_dict.entity, "current_temperature") | round(1) ~ temperature_units)
-                                  if is_number(state_attr(settings_entity_dict.entity, "current_temperature"))
-                                  else ""
-                                }}
-                            continue_on_error: true
-                          - if: '{{ hvac_mode != "off" and is_number(state_attr(settings_entity_dict.entity, "temperature")) }}'
-                            then:
-                              - variables:
-                                  target_temp: '{{state_attr(settings_entity_dict.entity, "temperature") | round(1)}}'
-                              - service: '{{ nextion.commands.thermostat_cycle }}'
-                                data:
-                                  value: '{{ target_temp }}'
-                                continue_on_error: true
-                            else:
-                              - service: '{{ nextion.commands.thermostat_cycle }}'
-                                data:
-                                  value: '0'
-                                continue_on_error: true
-                              - service: '{{ nextion.commands.text_printf }}'
-                                data:
-                                  component: target_temp
-                                  message: ' '
-                                continue_on_error: true
-                          - service: '{{ nextion.commands.text_printf }}'
-                            data:
-                              component: heating_state
-                              message: '{{ heating_state }}'
-                            continue_on_error: true
+                          ##- variables:
+                              #outdoor_temp_state: '{{ states(outdoortemp) | default("unavailable") if outdoortemp is string else "unavailable" }}'
+                              #outdoor_temp: '{{ outdoor_temp_state if is_number(outdoor_temp_state) else state_attr(weather_entity, "temperature") | default("unavailable") if weather_entity is string else "unavailable" }}'
+                              #heating_state: '{{ mui[language].climate.states.off if hvac_mode == "off" else mui[language].climate.states.on }}'
 
-                          # HVAC Button PIC
-                          - variables:
-                              heating_bt_pic: '{{ nextion.pics.heating.button.off if hvac_mode == "off" else nextion.pics.heating.button.on }}'
-                          - *delay-default
-                          - service: '{{ nextion.commands.printf }}'
-                            data:
-                              cmd: heating_bt_pic.pic={{ heating_bt_pic }}
-                            continue_on_error: true
-                          - variables:
-                              hotwatercharge_state: '{{ states(hotwatercharge) | default("unavailable") if hotwatercharge is string else "unavailable" }}'
-                              hotwatertemp_state: '{{ states(hotwatertemp) | default("unavailable") if hotwatertemp is string else "unavailable" }}'
-                              hotw_bt_pic: '{{ nextion.pics.hvac.button[hotwatercharge_state] | default(nextion.pics.hvac.button.blank) if hotwatercharge_state not in ["unavailable", "unknown", "", None] else nextion.pics.hvac.button.blank }}'
-                          - *delay-default
-                          - service: '{{ nextion.commands.printf }}'
-                            data:
-                              cmd: hotw_bt_pic.pic={{ hotw_bt_pic }}
-                            continue_on_error: true
-                          - if: '{{ hotwatertemp_state not in ["unavailable", "unknown", "", None] }}'
-                            then:
-                              - *delay-default
-                              - service: '{{ nextion.commands.text_printf }}'
-                                data:
-                                  component: climate.hotwater_temp
-                                  message: '{{ (hotwatertemp_state | round(1) ~ temperature_units) if is_number(hotwatertemp_state) else hotwatertemp_state }}'
-                                continue_on_error: true
+                          ## outdoor temp deprecatec in v3.3.1
+                          #- *delay-default
+                          #- service: '{{ nextion.commands.text_printf }}'
+                          #  data:
+                          #    component: outdoor_temp
+                          #    message: >
+                          #      {{
+                          #        (outdoor_temp | round(1) ~ temperature_units)
+                          #        if is_number(outdoor_temp)
+                          #        else
+                          #          (
+                          #            mui[language].unavailable
+                          #            if outdoor_temp in ["unavailable", "unknown", "", None]
+                          #            else outdoor_temp
+                          #          )
+                          #      }}
+                          #  continue_on_error: true
+
+                          ## heating state deprecated on v3.3.1
+                          #- service: '{{ nextion.commands.text_printf }}'
+                          #  data:
+                          #    component: heating_state
+                          #    message: '{{ heating_state }}'
+                          #  continue_on_error: true
+
+                          ## HVAC Button deprecated on v3.3.1
+                          #- variables:
+                          #    heating_bt_pic: '{{ nextion.pics.heating.button.off if hvac_mode == "off" else nextion.pics.heating.button.on }}'
+                          #- *delay-default
+                          #- service: '{{ nextion.commands.printf }}'
+                          #  data:
+                          #    cmd: heating_bt_pic.pic={{ heating_bt_pic }}
+                          #  continue_on_error: true
+
+                          ## hotwater deprecated on v3.3.1
+                          #- variables:
+                          #    hotwatercharge_state: '{{ states(hotwatercharge) | default("unavailable") if hotwatercharge is string else "unavailable" }}'
+                          #    hotwatertemp_state: '{{ states(hotwatertemp) | default("unavailable") if hotwatertemp is string else "unavailable" }}'
+                          #    hotw_bt_pic: '{{ nextion.pics.hvac.button[hotwatercharge_state] | default(nextion.pics.hvac.button.blank) if hotwatercharge_state not in ["unavailable", "unknown", "", None] else nextion.pics.hvac.button.blank }}'
+                          #- *delay-default
+                          #- service: '{{ nextion.commands.printf }}'
+                          #  data:
+                          #    cmd: hotw_bt_pic.pic={{ hotw_bt_pic }}
+                          #  continue_on_error: true
+                          #- if: '{{ hotwatertemp_state not in ["unavailable", "unknown", "", None] }}'
+                          #  then:
+                          #    - *delay-default
+                          #    - service: '{{ nextion.commands.text_printf }}'
+                          #      data:
+                          #        component: climate.hotwater_temp
+                          #        message: '{{ (hotwatertemp_state | round(1) ~ temperature_units) if is_number(hotwatertemp_state) else hotwatertemp_state }}'
+                          #      continue_on_error: true
 
                       ## ENTITY PAGES 01 - 04 ##
                       - alias: Entity pages
@@ -7915,9 +7904,9 @@ action:
                               current_setpoint: '{{ states(display_target_temperature) | default("unavailable") if display_target_temperature is string else "unavailable" }}'
                           - if: '{{ is_number(current_setpoint) }}'
                             then:
-                              - service: '{{ nextion.commands.thermostat_cycle }}'
+                              - service: '{{ nextion.commands.set_climate_target_temp }}'
                                 data:
-                                  value: '{{ (current_setpoint + delta) | round(1) }}'
+                                  target_temp: '{{ (current_setpoint + delta) | round(1) }}'
                                 continue_on_error: true
                         else:
                           - variables:
@@ -7942,9 +7931,9 @@ action:
                           new_setpoint: '{{ (13.0 + (climateslider * 0.5)) if climateslider >= 0 and climateslider <= 27 }}'
                       - if: '{{ climate_optimistic == true }}' ## TODO - remove from here
                         then:
-                          - service: '{{ nextion.commands.thermostat_cycle }}'
+                          - service: '{{ nextion.commands.set_climate_target_temp }}'
                             data:
-                              value: '{{ new_setpoint }}'
+                              target_temp: '{{ new_setpoint }}'
                             continue_on_error: true
                         else:
                           - service: climate.set_temperature
@@ -8533,14 +8522,14 @@ action:
             continue_on_error: true
           - if: '{{ trigger.event.data.new_state.state != "off" and is_number(target_temperature) }}' #### TODO AND->OR (not) not optimistic-mode
             then:
-              - service: '{{ nextion.commands.thermostat_cycle }}'
+              - service: '{{ nextion.commands.set_climate_target_temp }}'
                 data:
-                  value: ' {{ target_temperature }}'
+                  target_temp: ' {{ target_temperature }}'
                 continue_on_error: true
             else:
-              - service: '{{ nextion.commands.thermostat_cycle }}'
+              - service: '{{ nextion.commands.set_climate_target_temp }}'
                 data:
-                  value: '0'
+                  target_temp: '0'
                 continue_on_error: true
               - service: '{{ nextion.commands.text_printf }}'
                 data:
