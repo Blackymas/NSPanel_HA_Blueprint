@@ -3561,6 +3561,14 @@ variables:
       red: '63488' # rgb(248, 0, 0)
       white: '65535' # rgb(255, 255, 255)
       yellow: '65472' # rgb(248, 248, 0)
+      #### Colors from HA Style:
+      green: '19818' # rgb(76, 175, 80)
+      orange: '64704' # rgb(255, 152, 0)
+      cyan: '1530' # rgb(0, 188, 212)
+      deep-orange: '64164' # rgb(255, 87, 34)
+      amber: '65024' # rgb(255, 193, 7)
+      "off": '35921' #8a8a8a
+      disabled: '48631' # rgb(189, 189, 189)
     commands:
       text_printf: 'esphome.{{ nspanel_name }}_send_command_text_printf'
       value: 'esphome.{{ nspanel_name }}_send_command_value'
@@ -5342,6 +5350,38 @@ variables:
           color_rgb: !input 'right_button_color'
           hold_select: !input 'right_button_hold_select'
           #custom_action: !input 'right_button_hold_custom_action'
+  ##### Climate page #####
+  page_climate:
+    buttons:
+      hvac_mode:
+        - mode: auto
+          icon: calendarsync
+          color: green
+          component: button01
+        - mode: heat_cool
+          icon: autorenew
+          color: amber
+          component: button02
+        - mode: heat
+          icon: fire
+          color: deep-orange
+          component: button03
+        - mode: cool
+          icon: snowflake
+          color: blue
+          component: button04
+        - mode: "off"
+          icon: power
+          color: "off"
+          component: button05
+        - mode: fan_only
+          icon: fan
+          color: cyan
+          component: button06
+        - mode: dry
+          icon: waterpercent
+          color: orange
+          component: button07
   qrcode_enabled: !input 'qrcode_enabled'
 
   ###### SYNC SETTINGS #####
@@ -7381,7 +7421,8 @@ action:
                         conditions: '{{ nspanel_event.page == pages.climate }}'
                         sequence: &refresh_page_climate
                           - *variables-settings_entity
-                          - variables:
+                          - &variables-climate_entity
+                            variables:
                               settings_entity_dict: >
                                 {% if settings_entity_dict.entity is not defined and settings_entity_dict.page == pages.home and settings_entity_dict.component == 'climate' %}
                                   {
@@ -7399,32 +7440,24 @@ action:
                                   }
                                 {% else %}{{ settings_entity_dict }}
                                 {% endif %}
+                              climate_entity: '{{ settings_entity_dict.entity }}'
                               settings_entity_domain: >
                                 {{
-                                  settings_entity_dict.entity.split(".")[0]
+                                  climate_entity.split(".")[0]
                                   if
-                                    settings_entity_dict.entity is defined and
-                                    settings_entity_dict.entity is string and
-                                    settings_entity_dict.entity.split(".") | count > 0
+                                    climate_entity is defined and
+                                    climate_entity is string and
+                                    climate_entity.split(".") | count > 0
                                   else "unknown"
                                 }}
-                          - if: '{{ settings_entity_domain == "climate" }}'
-                            then:
-                              - service: '{{ nextion.commands.text_printf }}'
-                                data:
-                                  component: climate.climate_label
-                                  message: '{{ settings_entity_dict.name }}'
-                                continue_on_error: true
+                              hvac_modes: '{{ state_attr(climate_entity, "hvac_modes") if settings_entity_domain == "climate" }}'
 
-                              - service: '{{ nextion.commands.set_climate }}'
-                                data:
-                                  state: '{{ states(settings_entity_dict.entity) }}'
-                                  hvac_modes: '{{ state_attr(settings_entity_dict.entity, "hvac_modes") }}'
-                                  current_temp: '{{ state_attr(settings_entity_dict.entity, "current_temperature") | float(default=-999) | round(1) }}'
-                                  target_temp: '{{ state_attr(settings_entity_dict.entity, "temperature") | float(default=-999) | round(1) }}'
-                                  min_temp: '{{state_attr(settings_entity_dict.entity, "min_temp") | round(0, default=5) | int }}'
-                                  max_temp: '{{state_attr(settings_entity_dict.entity, "max_temp") | round(0, default=25) | int }}'
-                                continue_on_error: true
+                          ##### Page title #####
+                          - service: '{{ nextion.commands.text_printf }}'
+                            data:
+                              component: climate.climate_label
+                              message: '{{ settings_entity_dict.name }}'
+                            continue_on_error: true
 
                           ##### Values #####
                           - &variables-climate_page
@@ -7457,6 +7490,49 @@ action:
                           - repeat:
                               for_each: '{{ climate_page_entities }}'
                               sequence: *display_value
+
+                          - condition: '{{ settings_entity_domain == "climate" }}'
+
+                          ##### Slider #####
+                          - *delay-default
+                          - service: '{{ nextion.commands.set_climate }}'
+                            data:
+                              state: '{{ states(climate_entity) }}'
+                              hvac_modes: '{{ state_attr(climate_entity, "hvac_modes") }}'
+                              current_temp: '{{ state_attr(climate_entity, "current_temperature") | float(default=-999) | round(1) }}'
+                              target_temp: '{{ state_attr(climate_entity, "temperature") | float(default=-999) | round(1) }}'
+                              min_temp: '{{state_attr(climate_entity, "min_temp") | round(0, default=5) | int }}'
+                              max_temp: '{{state_attr(climate_entity, "max_temp") | round(0, default=25) | int }}'
+                            continue_on_error: true
+
+                          ##### Buttons #####
+                          - repeat:
+                              for_each: '{{ page_climate.buttons.hvac_mode }}'
+                              sequence: &update_climate_button
+                                - if: >
+                                    {{
+                                      repeat.item.mode in hvac_modes
+                                    }}
+                                  then:
+                                    - *delay-default
+                                    ### ICON Font Color ###
+                                    - service: '{{ nextion.commands.font_color }}'
+                                      data:
+                                        component: 'climate.{{ repeat.item.component }}_icon'
+                                        message: >
+                                          {{
+                                            nextion.colors[repeat.item.color]
+                                            if states(climate_entity) == repeat.item.mode
+                                            else nextion.colors.disabled
+                                          }}
+                                      continue_on_error: true
+                                    ### ICON Font ###
+                                    - *delay-default
+                                    - service: '{{ nextion.commands.text_printf }}'
+                                      data:
+                                        component: 'climate.{{ repeat.item.component }}_icon'
+                                        message: '{{ all_icons[repeat.item.icon] }}'
+                                      continue_on_error: true
 
                           ##- variables:
                               #outdoor_temp_state: '{{ states(outdoortemp) | default("unavailable") if outdoortemp is string else "unavailable" }}'
@@ -8116,51 +8192,77 @@ action:
                   - if: '{{ settings_entity_dict.entity is string and states(settings_entity_dict.entity) != "off" }}'
                     then:
                       - variables:
+                          current_setpoint: '{{state_attr(settings_entity_dict.entity, "temperature") | default("unavailable") if settings_entity_dict.entity is string else "unavailable" }}'
+                      - condition: '{{ is_number(current_setpoint) }}'
+                      - variables:
                           delta: '{{ +0.5 if nspanel_event.component == "increasetemp" else -0.5 }}'
-                      - if: '{{ climate_optimistic == true }}' ## TODO - remove from here
-                        then:
-                          - variables:
-                              current_setpoint: '{{ states(display_target_temperature) | default("unavailable") if display_target_temperature is string else "unavailable" }}'
-                          - if: '{{ is_number(current_setpoint) }}'
-                            then:
-                              - service: '{{ nextion.commands.set_climate_target_temp }}'
-                                data:
-                                  target_temp: '{{ (current_setpoint + delta) | round(1) }}'
-                                continue_on_error: true
-                        else:
-                          - variables:
-                              current_setpoint: '{{state_attr(settings_entity_dict.entity, "temperature") | default("unavailable") if settings_entity_dict.entity is string else "unavailable" }}'
-                          - if: '{{ is_number(current_setpoint) }}'
-                            then:
-                              - service: climate.set_temperature
-                                data:
-                                  entity_id: '{{ settings_entity_dict.entity }}'
-                                  #hvac_mode: "heat"
-                                  temperature: '{{ (current_setpoint + delta) | round(1) }}'
-                                continue_on_error: true
+                          min_temp: '{{state_attr(settings_entity_dict.entity, "min_temp") | round(0, default=5) | int }}'
+                          max_temp: '{{state_attr(settings_entity_dict.entity, "max_temp") | round(0, default=25) | int }}'
+                          new_setpoint: '{{ current_setpoint + delta }}'
+                      - variables:
+                          new_setpoint: '{{ max(min_temp, min(max_temp, new_setpoint)) }}'
+                      - condition: '{{ is_number(new_setpoint) }}'
+                      - service: '{{ nextion.commands.set_climate_target_temp }}'
+                        data:
+                          target_temp: '{{ new_setpoint | round(1) }}'
+                        continue_on_error: true
+                      - service: climate.set_temperature
+                        data:
+                          entity_id: '{{ settings_entity_dict.entity }}'
+                          temperature: '{{ new_setpoint | round(1) }}'
+                        continue_on_error: true
 
               - alias: climate climateslider
-                conditions: '{{ nspanel_event.component == "climateslider" }}'
+                conditions:
+                  - '{{ nspanel_event.page in [pages.climate, "climatesettings"] }}'
+                  - '{{ nspanel_event.component == "climate_position" }}'
                 sequence:
                   - *variables-settings_entity
                   - if: '{{ settings_entity_dict.entity is string and states(settings_entity_dict.entity) != "off" }}'
                     then:
                       - variables:
-                          climateslider: '{{ nspanel_event.value | int(-1) }}'
-                          new_setpoint: '{{ (13.0 + (climateslider * 0.5)) if climateslider >= 0 and climateslider <= 27 }}'
-                      - if: '{{ climate_optimistic == true }}' ## TODO - remove from here
+                          new_setpoint: '{{ nspanel_event.value | int(-999) }}'
+                      - if: '{{ is_number(new_setpoint) and new_setpoint > -999 }}' ## TODO - remove from here
                         then:
                           - service: '{{ nextion.commands.set_climate_target_temp }}'
                             data:
                               target_temp: '{{ new_setpoint }}'
                             continue_on_error: true
-                        else:
                           - service: climate.set_temperature
                             data:
                               entity_id: '{{ settings_entity_dict.entity }}'
-                              #hvac_mode: "heat"
                               temperature: '{{ new_setpoint }}'
                             continue_on_error: true
+
+              - alias: climate button press
+                conditions:
+                  - '{{ nspanel_event.page == pages.climate }}'
+                  - '{{ "button" in nspanel_event.component }}'
+                  - '{{ nspanel_event.value == "release" }}'
+                sequence:
+                  - *variables-settings_entity
+                  - *variables-climate_entity
+                  - condition: '{{ settings_entity_domain == "climate" }}'
+                  - variables:
+                      new_hvac_mode: >
+                        {{
+                          page_climate.buttons.hvac_mode
+                          | selectattr("component", "defined")
+                          | selectattr("component", "eq", nspanel_event.component)
+                          | map(attribute="mode")
+                          | list
+                          | first
+                        }}
+                  - condition: '{{ new_hvac_mode in hvac_modes }}'
+                  - service: climate.set_hvac_mode
+                    data:
+                      hvac_mode: '{{ new_hvac_mode }}'
+                    target:
+                      entity_id: '{{ climate_entity }}'
+                    continue_on_error: true
+                  - repeat:
+                      for_each: '{{ page_climate.buttons.hvac_mode }}'
+                      sequence: *update_climate_button
 
               - alias: Button page - Button press
                 conditions:
