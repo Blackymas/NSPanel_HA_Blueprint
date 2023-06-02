@@ -7460,36 +7460,44 @@ action:
                                   sequence: *display_value
 
                               ##### Slider #####
-                              - variables:
-                                  current_temp: '{{ state_attr(climate_entity, "current_temperature") | float(-999) | round(1) }}'
-                                  target_temp: '{{ state_attr(climate_entity, "temperature") | float(-999) * 10 | round(0) | int }}'
-                                  temp_offset: '{{ (state_attr(climate_entity, "min_temp") | float(5) * 10) | round(0) | int }}'
-                                  max_temp: '{{ (state_attr(climate_entity, "max_temp") | float(25) * 10) | round(0) | int }}'
-                                  temp_step: >
-                                    {% set target_temp_step = state_attr(climate_entity, "target_temp_step") %}
-                                    {% if not is_number(target_temp_step) %}
-                                      {% set target_temp_step = state_attr(climate_entity, "target_temperature_step") %}
-                                    {% endif %}
-                                    {% set target_temp_step = target_temp_step | float(0.5) | abs %}
-                                    {{ ((10 * target_temp_step) | round(0) | int) if is_number(target_temp_step) and target_temp_step > 0 else 10 }}
-                                  total_steps: '{{ ((max_temp-temp_offset)/temp_step) | round(0) | int }}'
-                              - *delay-default
-                              - service: '{{ nextion.commands.set_climate }}'
-                                data:
-                                  current_temp: '{{ current_temp }}'
-                                  target_temp: '{{ target_temp }}'
-                                  temp_step: '{{ temp_step }}'
-                                  total_steps: '{{ total_steps }}'
-                                  slider_val: '{{ ((target_temp - temp_offset) / temp_step) | round(0) | int }}'
-                                  temp_offset: '{{ temp_offset }}'
-                                continue_on_error: true
+                              - &climate-update_slider
+                                if: '{{ true }}'
+                                then:
+                                  - variables:
+                                      current_temp: '{{ state_attr(climate_entity, "current_temperature") | float(-999) | round(1) }}'
+                                      target_temp: >
+                                        {{
+                                          state_attr(climate_entity, "temperature") | float(-999) * 10 | round(0) | int
+                                          if states(climate_entity) not in ["unavailable", "unknown", "", None, "off"]
+                                          else -999
+                                        }}
+                                      temp_offset: '{{ (state_attr(climate_entity, "min_temp") | float(5) * 10) | round(0) | int }}'
+                                      max_temp: '{{ (state_attr(climate_entity, "max_temp") | float(25) * 10) | round(0) | int }}'
+                                      temp_step: >
+                                        {% set target_temp_step = state_attr(climate_entity, "target_temp_step") %}
+                                        {% if not is_number(target_temp_step) %}
+                                          {% set target_temp_step = state_attr(climate_entity, "target_temperature_step") %}
+                                        {% endif %}
+                                        {% set target_temp_step = target_temp_step | float(0.5) | abs %}
+                                        {{ ((10 * target_temp_step) | round(0) | int) if is_number(target_temp_step) and target_temp_step > 0 else 10 }}
+                                      total_steps: '{{ ((max_temp-temp_offset)/temp_step) | round(0) | int }}'
+                                  - *delay-default
+                                  - service: '{{ nextion.commands.set_climate }}'
+                                    data:
+                                      current_temp: '{{ current_temp }}'
+                                      target_temp: '{{ target_temp }}'
+                                      temp_step: '{{ temp_step }}'
+                                      total_steps: '{{ total_steps }}'
+                                      slider_val: '{{ ((target_temp - temp_offset) / temp_step) | round(0) | int }}'
+                                      temp_offset: '{{ temp_offset }}'
+                                    continue_on_error: true
 
                               ##### Buttons #####
-                              - repeat:
+                              - &climate-update_buttons
+                                repeat:
                                   for_each: '{{ page_climate.buttons.hvac_mode }}'
-                                  sequence: &update_climate_button
-                                    - variables:
-                                        mode_supported: '{{ repeat.item.mode in hvac_modes }}'
+                                  sequence:
+                                    - condition: '{{ repeat.item.mode in hvac_modes }}'
                                     - *delay-default
                                     ### ICON Font Color ###
                                     - service: '{{ nextion.commands.font_color }}'
@@ -7499,7 +7507,7 @@ action:
                                           {{
                                             nextion.colors[repeat.item.color]
                                             if states(climate_entity) == repeat.item.mode
-                                            else (nextion.colors.disabled if mode_supported else nextion.colors.grey_dark)
+                                            else nextion.colors.disabled
                                           }}
                                       continue_on_error: true
                                     ### ICON Font ###
@@ -7509,16 +7517,11 @@ action:
                                         component: 'climate.{{ repeat.item.component }}_icon'
                                         message: '{{ all_icons[repeat.item.icon] }}'
                                       continue_on_error: true
-                                    ### Show button ###
+                                    ### Enable button click ###
                                     - *delay-default
                                     - service: '{{ nextion.commands.show }}'
                                       data:
-                                        component: '{{ repeat.item.component }}_icon'
-                                      continue_on_error: true
-                                    - *delay-default
-                                    - service: '{{ nextion.commands.show }}'
-                                      data:
-                                        component: '{{ repeat.item.component if mode_supported else nextion.commands.hide }}'
+                                        component: '{{ repeat.item.component }}'
                                       continue_on_error: true
                             else:
                               ##### Return to Home page in case is not a climate entity #####
@@ -8161,9 +8164,7 @@ action:
                     target:
                       entity_id: '{{ climate_entity }}'
                     continue_on_error: true
-                  - repeat:
-                      for_each: '{{ page_climate.buttons.hvac_mode }}'
-                      sequence: *update_climate_button
+                  - *climate-update_buttons
 
               - alias: Button page - Button press
                 conditions:
@@ -8561,55 +8562,8 @@ action:
         sequence:
           - variables:
               climate_entity: '{{ trigger.event.data.entity_id }}'
-              hvac_modes: >
-                {{
-                  trigger.event.data.new_state.attributes.hvac_modes
-                  if trigger.event.data.new_state.attributes.hvac_modes is defined
-                  else []
-                }}
-              target_temp: >
-                {{
-                  trigger.event.data.new_state.attributes.temperature * 10
-                  if
-                    trigger.event.data.new_state.state != "off"
-                    and trigger.event.data.new_state.attributes.temperature is defined
-                    and is_number(trigger.event.data.new_state.attributes.temperature)
-                  else -999
-                }}
-              temp_offset: >
-                {{
-                  trigger.event.data.new_state.attributes.min_temp * 10
-                  if
-                    trigger.event.data.new_state.state != "off"
-                    and trigger.event.data.new_state.attributes.min_temp is defined
-                    and is_number(trigger.event.data.new_state.attributes.min_temp)
-                  else 50
-                }}
-              temp_step: >
-                {{
-                  ((trigger.event.data.new_state.attributes.target_temp_step * 10) | abs)
-                  if
-                    trigger.event.data.new_state.state != "off"
-                    and trigger.event.data.new_state.attributes.target_temp_step is defined
-                    and is_number(trigger.event.data.new_state.attributes.target_temp_step)
-                  else
-                    (
-                      ((trigger.event.data.new_state.attributes.target_temperature_step * 10) | abs)
-                      if
-                        trigger.event.data.new_state.state != "off"
-                        and trigger.event.data.new_state.attributes.target_temperature_step is defined
-                        and is_number(trigger.event.data.new_state.attributes.target_temperature_step)
-                      else 10
-                    )
-                }}
-          - service: '{{ nextion.commands.set_climate_target_temp }}'
-            data:
-              target_temp: '{{ target_temp | round(0) | int }}'
-              slider_val: '{{ ((target_temp - temp_offset) / temp_step) | round(0) | int }}'
-            continue_on_error: true
-          - repeat:
-              for_each: '{{ page_climate.buttons.hvac_mode }}'
-              sequence: *update_climate_button
+          - *climate-update_slider
+          - *climate-update_buttons
 
       ########## TRIGGER - HOME PAGE ###########
 
