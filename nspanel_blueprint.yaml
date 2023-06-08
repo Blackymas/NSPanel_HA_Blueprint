@@ -8305,88 +8305,92 @@ action:
               - alias: climate button press
                 conditions:
                   - '{{ nspanel_event.page == page.climate }}'
-                  - '{{ "button" in nspanel_event.component }}'
+                  - '{{ nspanel_event.component in ["button01", "button02", "button03", "button04", "button05", "button06", "button07"] }}'
                   - '{{ nspanel_event.value == "release" }}'
                 sequence:
-                  - if: '{{ nspanel_event.component in ["button08", "button09"] }}'
-                    then: # Custom buttons
-                      - wait_template: >
-                          {% set button_wait = states(nspanelevent) %}
-                          {% set button_wait = button_wait | from_json if button_wait is string and button_wait not in ["unavailable", "unknown", "", None] else { "page": "unknown", "component": "unknown", "value": "unknown" } %}
-                          {{
-                            button_wait.page == nspanel_event.page and
-                            button_wait.component == nspanel_event.component and
-                            button_wait.value == "release"
-                          }}
-                        timeout:
-                          seconds: 1
-                        continue_on_timeout: true
-                      - *climate-update_custom_buttons-variables
+                  - *variables-settings_entity
+                  - *variables-climate_entity
+                  - condition: '{{ settings_entity_domain == "climate" }}'
+                  - variables:
+                      new_hvac_mode: >
+                        {{
+                          page_climate.buttons.hvac_mode
+                          | selectattr("component", "defined")
+                          | selectattr("component", "eq", nspanel_event.component)
+                          | map(attribute="mode")
+                          | list
+                          | first
+                        }}
+                  - condition: '{{ new_hvac_mode in hvac_modes and new_hvac_mode in ["off", "heat", "cool", "heat_cool", "auto", "dry", "fan_only"] }}'
+                  - service: climate.set_hvac_mode
+                    data:
+                      hvac_mode: '{{ new_hvac_mode }}'
+                    target:
+                      entity_id: '{{ climate_entity }}'
+                    continue_on_error: true
+                  - *climate-update_buttons
+
+              - alias: climate custom button press
+                conditions:
+                  - '{{ nspanel_event.page == page.climate }}'
+                  - '{{ nspanel_event.component in ["button08", "button09"] }}'
+                  - '{{ nspanel_event.value == "press" }}'
+                sequence:
+                  - wait_template: >
+                      {% set button_wait = states(nspanelevent) %}
+                      {% set button_wait = button_wait | from_json if button_wait is string and button_wait not in ["unavailable", "unknown", "", None] else { "page": "unknown", "component": "unknown", "value": "unknown" } %}
+                      {{
+                        button_wait.page == nspanel_event.page and
+                        button_wait.component == nspanel_event.component and
+                        button_wait.value == "release"
+                      }}
+                    timeout:
+                      seconds: 1
+                    continue_on_timeout: true
+                  - *climate-update_custom_buttons-variables
+                  - variables:
+                      ##### Entity - Page Button - Toggle Entity #####
+                      button_wait: >
+                        {{
+                          states(nspanelevent)
+                          if nspanelevent is string and states(nspanelevent) not in ["unavailable", "unknown", "", None]
+                          else { "page": "unknown", "component": "unknown", "value": "unknown" }
+                        }}
+                      last_click_button: '{{ climate_custom_buttons | selectattr("component", "defined") | selectattr("component", "eq", nspanel_event.component) | list }}'
+                  - condition: '{{ last_click_button | count >= 0 and button_wait.page == nspanel_event.page }}'
+                  - if: '{{ not wait.completed }}'
+                    then: # Long press
+                      - choose:
+                          - conditions: '{{ button_wait.component == "button08" }}'
+                            sequence: !input climate_button08_hold_custom_action
+                          - conditions: '{{ button_wait.component == "button09" }}'
+                            sequence: !input climate_button09_hold_custom_action
+                    else: # Short press
                       - variables:
-                          ##### Entity - Page Button - Toggle Entity #####
-                          button_wait: >
+                          last_click_button: '{{ last_click_button[0] }}'
+                          entity_domain: >
                             {{
-                              states(nspanelevent)
-                              if nspanelevent is string and states(nspanelevent) not in ["unavailable", "unknown", "", None]
-                              else { "page": "unknown", "component": "unknown", "value": "unknown" }
+                              last_click_button.entity.split(".")[0] | default("unknown")
+                              if
+                                last_click_button.entity is string and
+                                last_click_button.entity | length > 0 and
+                                last_click_button.entity.split(".") | count > 0
+                              else "unknown"
                             }}
-                          last_click_button: '{{ climate_custom_buttons | selectattr("component", "defined") | selectattr("component", "eq", nspanel_event.component) | list }}'
-                      - condition: '{{ last_click_button | count >= 0 and button_wait.page == nspanel_event.page }}'
-                      - if: '{{ not wait.completed }}'
-                        then: # Long press
-                          - choose:
-                              - conditions: '{{ button_wait.component == "button08" }}'
-                                sequence: !input climate_button08_hold_custom_action
-                              - conditions: '{{ button_wait.component == "button09" }}'
-                                sequence: !input climate_button09_hold_custom_action
-                        else: # Short press
-                          - variables:
-                              last_click_button: '{{ last_click_button[0] }}'
-                              entity_domain: >
-                                {{
-                                  last_click_button.entity.split(".")[0] | default("unknown")
-                                  if
-                                    last_click_button.entity is string and
-                                    last_click_button.entity | length > 0 and
-                                    last_click_button.entity.split(".") | count > 0
-                                  else "unknown"
-                                }}
-                          - condition: '{{ entity_domain not in ["unknown", "person", "binary_sensor", "sensor", "climate"] }}'
-                          - service: >-
-                              {% if entity_domain in ["light", "switch", "cover", "input_boolean", "automation", "fan"] %}
-                                {{ entity_domain }}.toggle
-                              {% elif entity_domain in ["button", "input_button"] %}
-                                {{ entity_domain }}.press
-                              {% elif entity_domain in ["scene", "script"] %}
-                                {{ entity_domain }}.turn_on
-                              {% else %}
-                                homeassistant.update_entity
-                              {% endif %}
-                            data:
-                              entity_id: '{{ last_click_button.entity }}'
-                            continue_on_error: true
-                    else: # Climate buttons
-                      - *variables-settings_entity
-                      - *variables-climate_entity
-                      - condition: '{{ settings_entity_domain == "climate" }}'
-                      - variables:
-                          new_hvac_mode: >
-                            {{
-                              page_climate.buttons.hvac_mode
-                              | selectattr("component", "defined")
-                              | selectattr("component", "eq", nspanel_event.component)
-                              | map(attribute="mode")
-                              | list
-                              | first
-                            }}
-                      - condition: '{{ new_hvac_mode in hvac_modes and new_hvac_mode in ["off", "heat", "cool", "heat_cool", "auto", "dry", "fan_only"] }}'
-                      - service: climate.set_hvac_mode
+                      - condition: '{{ entity_domain not in ["unknown", "person", "binary_sensor", "sensor", "climate"] }}'
+                      - service: >-
+                          {% if entity_domain in ["light", "switch", "cover", "input_boolean", "automation", "fan"] %}
+                            {{ entity_domain }}.toggle
+                          {% elif entity_domain in ["button", "input_button"] %}
+                            {{ entity_domain }}.press
+                          {% elif entity_domain in ["scene", "script"] %}
+                            {{ entity_domain }}.turn_on
+                          {% else %}
+                            homeassistant.update_entity
+                          {% endif %}
                         data:
-                          hvac_mode: '{{ new_hvac_mode }}'
-                        target:
-                          entity_id: '{{ climate_entity }}'
+                          entity_id: '{{ last_click_button.entity }}'
                         continue_on_error: true
-                      - *climate-update_buttons
 
               - alias: Button page - Button press
                 conditions:
