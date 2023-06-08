@@ -575,18 +575,6 @@ blueprint:
             selector:
               entity:
                 domain: climate
-          hotwatercharge:
-            name: Hot Water Charge Button - ENTITY (Optional)
-            description: >
-              *CLIMATE page*
-
-              *Choose your switch to turn on/off*
-            default: []
-            selector:
-              entity:
-                domain:
-                  - switch
-                  - input_boolean
       ## Climate page - Custom buttons
         ## Climate page - Custom button 01
           climate_button08:
@@ -3495,18 +3483,7 @@ blueprint:
             default: [255, 255, 255] #65535 White
             selector: *color-selector
 
-        ###### Muss noch Raus ###############################################################################################################################################################################
-          hotwatertemp:
-            name: Hot Water Temperature Sensor (Optional)
-            description: >
-              *SYSTEM settings*
-
-              *Choose your hot water sensor*
-            default: []
-            selector:
-              entity:
-                domain:
-                  - sensor
+        ###### Special settings ###############################################################################################################################################################################
           tft_path:
             name: Nextion TFT File Folder (Optional)
             description: >
@@ -3534,28 +3511,6 @@ blueprint:
             default: false
             selector:
               boolean:
-          #sync_value_ha:
-          #  name: Synchronization of all values (Optional)
-          #  description: >
-          #    *SYSTEM settings*
-
-          #    *Synchronization of values between HA and NSPanel for Lightsetting and Coversetting Page -> Maybe causes number jumps*
-          #  default: 'select_no'
-          #  selector: &sync-selector-bool
-          #    select:
-          #      options:
-          #        - label: 'No'
-          #          value: select_no
-          #        - label: 'Yes'
-          #          value: select_yes
-          #sync_slider_ha:
-          #  name: Synchronization of all Sliders (Optional)
-          #  description: >
-          #    *SYSTEM settings*
-
-          #    *Synchronization of sliders between HA and NSPanel for Lightsetting and Coversetting Page -> Maybe causes flickering on the Slider*
-          #  default: 'select_no'
-          #  selector: *sync-selector-bool
 # yamllint enable rule:line-length
 #############################################################
 ##### CLOSE - INPUT #####
@@ -3582,7 +3537,6 @@ trigger_variables:
   right_button: 'binary_sensor.{{ nspanel_name }}_right_button'
   nextion_inited: 'binary_sensor.{{ nspanel_name }}_nextion_display'
   nspanelevent: 'sensor.{{ nspanel_name }}_nspanel_event'
-  hotwatercharge: !input 'hotwatercharge'
   relay01_entity: 'switch.{{ nspanel_name }}_relay_1'
   relay02_entity: 'switch.{{ nspanel_name }}_relay_2'
   nspaneltemp: 'sensor.{{ nspanel_name }}_temperature'
@@ -5463,7 +5417,6 @@ variables:
   delay_value: !input 'delay'
 
   ##### GENERAL ENTITYS #####
-  hotwatertemp: !input 'hotwatertemp'
   outdoortemp: !input 'outdoortemp'
   indoortemp: !input 'indoortemp'
   climate: !input 'climate'
@@ -6060,22 +6013,6 @@ trigger:
       event_data:
         entity_id: !input 'weather_entity'
       id: weather_state_change
-
-  ##### Trigger - Hot water #################################################################################################################
-
-    ##### Hot Water Charge - Trigger 'hotwatercharge_state' #####
-    - platform: event
-      event_type: state_changed
-      event_data:
-        entity_id: !input 'hotwatercharge'
-      id: hotwatercharge_state
-
-    ##### Hot Water - Trigger 'hotwatertemp_state' #####
-    - platform: event
-      event_type: state_changed
-      event_data:
-        entity_id: !input 'hotwatertemp'
-      id: hotwatertemp_state
 
   ##### Trigger - TFT #################################################################################################################
 
@@ -8265,35 +8202,6 @@ action:
                       entity_id: '{{ settings_entity_dict.entity }}'
                     continue_on_error: true
 
-              - alias: climate hotwater
-                conditions: '{{ nspanel_event.component == "hotwater" and nspanel_event.value == "release" }}'
-                sequence:
-                  - service: >-
-                      {% if hotwatercharge is match "switch." %}
-                        switch.toggle
-                      {% elif hotwatercharge is match "input_boolean." %}
-                        input_boolean.toggle
-                      {% endif %}
-                    data:
-                      entity_id: '{{ hotwatercharge }}'
-                    continue_on_error: true
-
-              - alias: climate heating
-                conditions: '{{ nspanel_event.component == "heating" and nspanel_event.value == "release" }}'
-                sequence:
-                  - *variables-settings_entity
-                  - if: '{{ settings_entity_dict.entity is string and states(settings_entity_dict.entity) == "off" }}'
-                    then:
-                      - service: climate.turn_on
-                        data:
-                          entity_id: '{{ settings_entity_dict.entity }}'
-                        continue_on_error: true
-                    else:
-                      - service: climate.turn_off
-                        data:
-                          entity_id: '{{ settings_entity_dict.entity }}'
-                        continue_on_error: true
-
               - alias: climate climateslider
                 conditions:
                   - '{{ nspanel_event.page in [page.climate, "climatesettings"] }}'
@@ -8970,44 +8878,6 @@ action:
           - *refresh-page_home-outdoor_temp
           - *delay-default
           - *refresh-page_home-weather_pic
-
-      ##### Sync Hotwater Charge button-symbol ##### -> kann wenn climate page fertig
-      - alias: Hotwater - Sync
-        conditions:
-          - condition: trigger
-            id: hotwatercharge_state
-          - '{{ nspanel_event.page == page.climate }}'
-        sequence:
-          - variables:
-              hotw_bt_pic: '{{ nextion.pic.hvac.button[trigger.event.data.new_state.state] }}'
-          - service: '{{ nextion.command.printf }}'
-            data:
-              cmd: hotw_bt_pic.pic={{ hotw_bt_pic }}
-            continue_on_error: true
-
-      ##### Hotwater Temp ##### kann raus und wird durch neue value 01 und value 02 ersetzt wenn climate page fertig
-      - alias: Hotwater - Temp
-        conditions:
-          - condition: trigger
-            id: hotwatertemp_state
-          - '{{ nspanel_event.page == page.climate and trigger.event.data.new_state.state not in ["unavailable", "unknown", "", None] }}'
-        sequence:
-          - service: '{{ nextion.command.text_printf }}'
-            data:
-              component: home.hotwater_temp
-              message: '{{ trigger.event.data.new_state.state | round(1) }}{{ temperature_units }}'
-            continue_on_error: true
-          - *delay-default
-          - service: '{{ nextion.command.text_printf }}'
-            data:
-              component: climate.hotwater_temp
-              message: '{{ trigger.event.data.new_state.state | round(1) }}{{ temperature_units }}'
-            continue_on_error: true
-          # - delay:
-          #     milliseconds: '{{ delay_value }}'
-          # - service: '{{ nextion.command.printf }}'
-          #   data:
-          #     cmd: home.hotwater_pic.pic={{ hotwater_pic_on }}
 
       #### TFT Upload Automation #####
       - alias: TFT auto-upload
