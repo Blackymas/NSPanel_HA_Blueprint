@@ -311,33 +311,48 @@ api:
             id(disp1).send_command_printf("page qrcode");
             id(disp1).set_component_text_printf("qrcode.qrcode_value", "%s", qrdata.c_str());
 
-    #### Service to send thermostat cycle state ####
-    - service: send_thermostat_cycle_state
+    #### Service to set climate state ####
+    - service: set_climate
       variables:
-        value: float
+        current_temp: float
+        target_temp: float
+        temp_step: int
+        total_steps: int
+        slider_val: int
+        temp_offset: int
+        climate_icon: string
       then:
         - wait_until:
             binary_sensor.is_on: nextion_init
         - lambda: |-
-            //ESP_LOGD("nextion", "thermostat sendig value %f", value);
-            int v = int(2 * std::min(std::max(value - 13.5, 0.0), 5.0));
-            int left = v + (v ? 19 : 16); // 16 is empty left.
-            v = int(2 * std::min(std::max(value - 18.0, 0.0), 4.0));
-            int mid = v + (v ? 29 : 17); // 17 is empty mid.
-            v = int(2 * std::min(std::max(value - 21.5, 0.0), 5.5));
-            int right = v + (v ? 37 : 18); // 18 is empty right.
-            // sends the 3 images to the display
-            //ESP_LOGD("nextion", "thermostat left %i", left);
-            //ESP_LOGD("nextion", "thermostat mid %i", mid);
-            //ESP_LOGD("nextion", "thermostat right %i", right);
-            id(disp1).send_command_printf("climate_left.pic=%i", left);
-            id(disp1).send_command_printf("climate_middle.pic=%i", mid);
-            id(disp1).send_command_printf("climate_right.pic=%i", right);
-            // send target-temp
-            id(disp1).set_component_text_printf("target_temp", "%.1f°", value);
-            id(display_target_temp).publish_state(value);
+            if (target_temp > -999)
+              {
+                id(disp1).set_component_value("climateslider", slider_val);
+                id(disp1).set_component_text_printf("target_temp", "%.1f°", target_temp);
+                id(disp1).set_component_text_printf("target_icon", "%s", climate_icon.c_str());
+                id(disp1).show_component("target_icon");
+                id(disp1).show_component("target_temp");
+                id(disp1).show_component("climateslider");
+                id(disp1).show_component("decrease_temp");
+                id(disp1).show_component("increase_temp");
+              }
+              else
+              {
+                id(disp1).hide_component("target_icon");
+                id(disp1).hide_component("target_temp");
+                id(disp1).hide_component("climateslider");
+                id(disp1).hide_component("decrease_temp");
+                id(disp1).hide_component("increase_temp");
+              }
+        - lambda: |-
+            id(disp1).send_command_printf("climateslider.maxval=%i", total_steps);
+            id(disp1).set_component_value("temp_offset", temp_offset);
+            id(disp1).set_component_value("temp_step", temp_step);
+            id(disp1).set_component_text_printf("current_temp", "%.1f°", current_temp);
+            id(disp1).show_component("current_temp");
+            id(disp1).show_component("current_icon");
 
-    #### Service to set the buttons ####
+  #### Service to set the buttons ####
     - service: set_button
       variables:
         btn_id: string
@@ -372,6 +387,7 @@ api:
             } else {
               id(disp1).set_component_text_printf(btnbri.c_str(), " ");
             }
+
     ##### SERVICE TO WAKE UP THE DISPLAY #####
     - service: wake_up_display
       variables:
@@ -410,6 +426,7 @@ api:
         ent_icon: string
         ent_label: string
         ent_value: string
+        ent_value_xcen: string
       then:
         - wait_until:
             binary_sensor.is_on: nextion_init
@@ -417,12 +434,16 @@ api:
             // ESP_LOGD("nextion", "set entity %s", ent_id.c_str());
             std::string enticon = ent_id.c_str() + std::string("_pic");
             std::string entlabel = ent_id.c_str() + std::string("_label");
+            std::string entxcen = ent_id.c_str() + std::string(".xcen=") + ent_value_xcen.c_str();
             id(disp1).set_component_text_printf(enticon.c_str(), "%s", ent_icon.c_str());
             if (strcmp(ent_icon.c_str(), "0") != 0) {
               id(disp1).set_component_text_printf(enticon.c_str(), "%s", ent_icon.c_str());
             }
             id(disp1).set_component_text_printf(entlabel.c_str(), "%s", ent_label.c_str());
             id(disp1).set_component_text_printf(ent_id.c_str(), "%s", ent_value.c_str());
+            if (strcmp(ent_value_xcen.c_str(), "0") != 0) {
+              id(disp1).send_command_printf("%s", entxcen.c_str());
+            }
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
@@ -552,6 +573,10 @@ binary_sensor:
     entity_category: diagnostic
     icon: mdi:tablet-dashboard
 
+  ##### API connection status
+  - platform: status
+    name: ${device_name} Status
+
 ##### START - SENSOR CONFIGURATION #####
 sensor:
 
@@ -604,13 +629,6 @@ sensor:
     #        binary_sensor.is_on: nextion_init
     #     - lambda: id(disp1).set_component_text_printf("home.current_temp", "%.1f°", id(temp_nspanel).state); # onboard temp (thermostat temp) to home page.
     #     - lambda: id(disp1).set_component_text_printf("climate.current_temp", "%.1f", id(temp_nspanel).state);
-
-  ##### current value of page-climate target_temp #####
-  - name: ${device_name} Display Target Temperature
-    platform: template
-    id: display_target_temp
-    lambda: return {};
-    update_interval: 10s
 
   ###### Display Brightness GET VALUE FROM NSPanel SLIDER #####
   - name: ${device_name} brightness Slider
@@ -886,7 +904,7 @@ display:
         - logger.log: "Nextion start - Jump to page 8"
         - lambda: id(disp1).send_command_printf("page 8");
         - logger.log: "Nextion start - Publish ESPHome version"
-        - lambda: id(disp1).set_component_text_printf("boot.esph_version", "%s", "3.3"); ### esphome-version ###
+        - lambda: id(disp1).set_component_text_printf("boot.esph_version", "%s", "3.4"); ### esphome-version ###
         - logger.log: "Nextion start - Wait for Home Assistant API"
         - wait_until:
             api.connected
