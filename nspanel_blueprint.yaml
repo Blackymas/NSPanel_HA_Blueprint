@@ -33,12 +33,12 @@ blueprint:
     🎉 Roadmap Roadmap can be found here [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
 
 
-    ℹ️ Version: v.3.4
+    ℹ️ Version: v.3.5_dev
 
   source_url: https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/nspanel_blueprint.yaml
   domain: automation
   homeassistant:
-    min_version: 2022.11.1
+    min_version: 2023.5.0
 
 # yamllint disable rule:line-length
   input:
@@ -3527,7 +3527,7 @@ trigger_variables:
 
 variables:
   ##### GENERAL #####
-  blueprint_version: '3.4'
+  blueprint_version: '3.5_dev'
   language: !input 'language'
   date_format_temp: !input 'date_format'
   #Avoid breaking change for existing users with legacy type format
@@ -3549,7 +3549,7 @@ variables:
   nspanel_event: >
     {{
       states(nspanelevent)
-      if nspanelevent is string and states(nspanelevent) not in ["unavailable", "unknown", "", None]
+      if nspanelevent is string and has_value(nspanelevent)
       else { "page": "unknown", "component": "unknown", "value": "unknown" }
     }}
 
@@ -6059,7 +6059,7 @@ action:
               settings_entity_state: >
                 {{
                   states(settings_entity)
-                  if settings_entity is string
+                  if settings_entity is string and has_value(settings_entity)
                   else "unknown"
                 }}
               settings_entity_dict: >
@@ -6250,7 +6250,7 @@ action:
                           - &refresh-page_home-weather_pic
                             service: '{{ nextion.command.printf }}'
                             data:
-                              cmd: home.weather.pic={{ nextion.pic.weather[states(weather_entity) | default("unavailable") if weather_entity is string else "unavailable"] | default(None) }}
+                              cmd: home.weather.pic={{ nextion.pic.weather[states(weather_entity) | default("unavailable") if weather_entity is string and has_value(weather_entity) else "unavailable"] | default(None) }}
                             continue_on_error: true
 
                           - &refresh-page_home-outdoor_temp
@@ -6260,8 +6260,8 @@ action:
                               - variables:
                                   outdoor_temp_state: >
                                     {{
-                                      states(outdoortemp) | default("unavailable")
-                                      if outdoortemp is string and outdoortemp is match "sensor."
+                                      states(outdoortemp, rounded=true) | default("unavailable")
+                                      if outdoortemp is string and outdoortemp is match "sensor." and has_value(outdoortemp)
                                       else "unavailable"
                                     }}
                                   outdoor_temp: >
@@ -6297,7 +6297,7 @@ action:
                             then:
                               ##### NSPanel Indoor Temp #####
                               - variables:
-                                  indoor_temp_state: '{{ states(indoortemp) | default("unavailable") if indoortemp is string and indoortemp is match "sensor." else states(nspaneltemp) }}'
+                                  indoor_temp_state: '{{ states(indoortemp, rounded=true) | default("unavailable") if indoortemp is string and indoortemp is match "sensor." else states(nspaneltemp, rounded=true) }}'
                                   indoor_temp_units: >
                                     {{
                                       state_attr(indoortemp, "unit_of_measurement") | default(temperature_units)
@@ -6593,7 +6593,7 @@ action:
                               for_each: '{{ home_page_values }}'
                               sequence:
                                 - &display_value
-                                  if: '{{ repeat.item.entity is string and repeat.item.entity is match "sensor." and states(repeat.item.entity) not in ["unavailable", "unknown", "", None] }}'
+                                  if: '{{ repeat.item.entity is string and repeat.item.entity is match "sensor." and has_value(repeat.item.entity) }}'
                                   then:
                                     - if: '{{ repeat.item.icon | length > 0 }}'
                                       then:
@@ -6628,7 +6628,7 @@ action:
                                               {% endif %}
                                           continue_on_error: true
                                     - variables:
-                                        repeat_item_state: '{{ states(repeat.item.entity) | default("unavailable") }}'
+                                        repeat_item_state: '{{ states(repeat.item.entity, rounded=true) | default("unavailable") }}'
                                         repeat_item_state_available: '{{ repeat_item_state not in ["unavailable", "unknown", "", None] }}'
                                     - condition: '{{ repeat_item_state_available }}'
                                     ### LABEL Font Color ###
@@ -6653,7 +6653,7 @@ action:
                                         component: '{{ repeat.item.page }}.{{ repeat.item.component }}{{ "_state" if repeat.item.page == page.home }}'
                                         message: >
                                           {{
-                                            (repeat_item_state | round(1) ~ (state_attr(repeat.item.entity, "unit_of_measurement") | default("") if state_attr(repeat.item.entity, "unit_of_measurement") is string else ""))
+                                            (repeat_item_state ~ (state_attr(repeat.item.entity, "unit_of_measurement") | default("") if state_attr(repeat.item.entity, "unit_of_measurement") is string else ""))
                                             if is_number(repeat_item_state)
                                             else repeat_item_state
                                           }}
@@ -7055,7 +7055,6 @@ action:
                                       then:
                                         - variables:
                                             item_domain: '{{ repeat.item.entity.split(".")[0] | default("unknown") }}'
-                                            # {{ states(entity_id) | default("unavailable") if entity_id is string else "unavailable" }}
                                             current_entity_state: '{{ states(repeat.item.entity) | default("unavailable") }}'
                                             current_entity_state_available: '{{ current_entity_state not in ["unavailable"] }}'
                                             # Button PIC GRAY/WHITE
@@ -7383,11 +7382,12 @@ action:
                                         | map(attribute="state") | map("float")
                                         | list
                                         | first
+                                        | round(0)
                                       }}
-                                    {% elif states(settings_entity_dict.entity | replace("cover.","sensor.") ~ "_battery") | default("unavailable") not in ["unavailable", "unknown", "", None] %}
-                                      {{ states(settings_entity_dict.entity | replace("cover.","sensor.") ~ "_battery") | default("unavailable") }}
-                                    {% elif states(settings_entity_dict.entity | replace("cover.","sensor.") | replace("cover", "battery")) | default("unavailable") not in ["unavailable", "unknown", "", None] %}
-                                      {{ states(settings_entity_dict.entity | replace("cover.","sensor.") | replace("cover", "battery")) | default("unavailable") }}
+                                    {% elif has_value(settings_entity_dict.entity | replace("cover.","sensor.") ~ "_battery") %}
+                                      {{ states(settings_entity_dict.entity | replace("cover.","sensor.") ~ "_battery", rounded=true) | default("unavailable") }}
+                                    {% elif has_value(settings_entity_dict.entity | replace("cover.","sensor.") | replace("cover", "battery")) %}
+                                      {{ states(settings_entity_dict.entity | replace("cover.","sensor.") | replace("cover", "battery"), rounded=true) | default("unavailable") }}
                                     {% else %} unavailable
                                     {% endif %}
                               - if: '{{ is_number(battery_level) }}'
@@ -7396,7 +7396,7 @@ action:
                                   - service: '{{ nextion.command.text_printf }}'
                                     data:
                                       component: coversettings.battery_value
-                                      message: '{{ battery_level | round(0) }} %'
+                                      message: '{{ battery_level }} %'
                                     continue_on_error: true
                                   ### ICON Battery Font Color ###
                                   - *delay-default
@@ -7499,7 +7499,7 @@ action:
                                       target_temp: >
                                         {{
                                           state_attr(climate_entity, "temperature") | float(-999) | round(1)
-                                          if states(climate_entity) not in ["unavailable", "unknown", "", None, "off"]
+                                          if has_value(climate_entity)
                                           else -999
                                         }}
                                       temp_offset: '{{ (state_attr(climate_entity, "min_temp") | float(5) * 10) | round(0) | int }}'
@@ -7838,7 +7838,7 @@ action:
                                 - if: '{{ repeat.item.entity is string and repeat.item.entity | length > 0 }}'
                                   then:
                                     - variables:
-                                        repeat_item_state: '{{ states(repeat.item.entity) | default("unavailable") }}'
+                                        repeat_item_state: '{{ states(repeat.item.entity, rounded=true) | default("unavailable") }}'
                                         repeat_item_icon: >
                                           {% if repeat.item.icon is string and repeat.item.icon | length > 0 %}
                                             {{
@@ -7929,7 +7929,7 @@ action:
                             then: # Display forecast
                               - variables:
                                   metnoweather: '{{ weather_type == "Met.no" }}'
-                                  metnoweather_hourly_forecast: '{{ state_attr(weather_entity ~ "_hourly", "forecast") if metnoweather and states(weather_entity ~ "_hourly") not in ["unavailable", "unknown", "", None] }}'
+                                  metnoweather_hourly_forecast: '{{ state_attr(weather_entity ~ "_hourly", "forecast") if metnoweather and has_value(weather_entity ~ "_hourly") }}'
                                   forecast_day: >
                                     {% if forecast_day | count > 0 %}{{ forecast_day }}
                                     {% elif metnoweather and metnoweather_hourly_forecast %}
@@ -7976,83 +7976,83 @@ action:
                                         }}
                                       precipitation: >
                                         {{
-                                          forecast_day | selectattr("precipitation", "defined") | map(attribute="precipitation") | map("float") | list | sum
+                                          forecast_day | selectattr("precipitation", "defined") | map(attribute="precipitation") | map("float") | list | sum | round(0)
                                           if forecast_day | selectattr("precipitation", "defined") | map(attribute="precipitation") | map("float") | list | count > 0
                                         }}
                                       precipitation_probability: >
                                         {{
-                                          forecast_day | selectattr("precipitation_probability", "defined") | map(attribute="precipitation_probability") | map("float") | list | max
+                                          forecast_day | selectattr("precipitation_probability", "defined") | map(attribute="precipitation_probability") | map("float") | list | max | round(0)
                                           if forecast_day | selectattr("precipitation_probability", "defined") | map(attribute="precipitation_probability") | map("float") | list | count > 0
                                         }}
                                       pressure: >
                                         {{
-                                          forecast_day | selectattr("pressure", "defined") | map(attribute="pressure") | map("float") | list | max
+                                          forecast_day | selectattr("pressure", "defined") | map(attribute="pressure") | map("float") | list | max | round(0)
                                           if forecast_day | selectattr("pressure", "defined") | map(attribute="pressure") | map("float") | list | count > 0
                                         }}
                                       wind_speed: >
                                         {{
-                                          forecast_day | selectattr("wind_speed", "defined") | map(attribute="wind_speed") | map("float") | list | max
+                                          forecast_day | selectattr("wind_speed", "defined") | map(attribute="wind_speed") | map("float") | list | max | round(0)
                                           if forecast_day | selectattr("wind_speed", "defined") | map(attribute="wind_speed") | map("float") | list | count > 0
                                         }}
                                       hours_of_sun: >
                                         {{
-                                          states(accuweather_sensor_prefix ~ "hours_of_sun" ~ accuweather_sensor_sufix) | default("unknown")
+                                          states(accuweather_sensor_prefix ~ "hours_of_sun" ~ accuweather_sensor_sufix, rounded=true) | default("unknown")
                                           if accuweather
                                           else
                                             (
-                                              forecast_day | selectattr("hours_of_sun", "defined") | map(attribute="hours_of_sun") | map("float") | list | sum
+                                              forecast_day | selectattr("hours_of_sun", "defined") | map(attribute="hours_of_sun") | map("float") | list | sum | round(0)
                                               if forecast_day | selectattr("hours_of_sun", "defined") | map(attribute="hours_of_sun") | map("float") | list | count > 0
                                             )
                                         }}
                                       uv_index: >
                                         {{
-                                          states(accuweather_sensor_prefix ~ "uv_index" ~ accuweather_sensor_sufix) | default("unknown")
+                                          states(accuweather_sensor_prefix ~ "uv_index" ~ accuweather_sensor_sufix, rounded=true) | default("unknown")
                                           if accuweather
                                           else
                                             (
-                                              forecast_day | selectattr("uv_index", "defined") | map(attribute="uv_index") | map("float") | list | max
+                                              forecast_day | selectattr("uv_index", "defined") | map(attribute="uv_index") | map("float") | list | max | round(0)
                                               if forecast_day | selectattr("uv_index", "defined") | map(attribute="uv_index") | map("float") | list | count > 0
                                             )
                                         }}
                                       thunderstorm_probability: >
                                         {{
-                                          states(accuweather_sensor_prefix ~ "thunderstorm_probability_day" ~ accuweather_sensor_sufix) | default("unknown")
+                                          states(accuweather_sensor_prefix ~ "thunderstorm_probability_day" ~ accuweather_sensor_sufix, rounded=true) | default("unknown")
                                           if accuweather
                                           else
                                             (
-                                              forecast_day | selectattr("thunderstorm_probability", "defined") | map(attribute="thunderstorm_probability") | map("float") | list | max
+                                              forecast_day | selectattr("thunderstorm_probability", "defined") | map(attribute="thunderstorm_probability") | map("float") | list | max | round(0)
                                               if forecast_day | selectattr("thunderstorm_probability", "defined") | map(attribute="thunderstorm_probability") | map("float") | list | count > 0
                                             )
                                         }}
                                       parameters:
                                         - name: hours_of_sun
                                           visibility: '{{ is_number(hours_of_sun) }}'
-                                          value: '{{ (hours_of_sun | round(0) ~ " " ~ weather_units.hours_of_sun) if is_number(hours_of_sun) }}'
+                                          value: '{{ (hours_of_sun ~ " " ~ weather_units.hours_of_sun) if is_number(hours_of_sun) }}'
                                           icon: '{{ nextion.icon.weather.sun }}'
                                         - name: thunderstorm_probability
                                           visibility: '{{ is_number(thunderstorm_probability) }}'
-                                          value: '{{ (thunderstorm_probability | round(0) ~ weather_units.thunderstorm_probability) if is_number(thunderstorm_probability) }}'
+                                          value: '{{ (thunderstorm_probability ~ weather_units.thunderstorm_probability) if is_number(thunderstorm_probability) }}'
                                           icon: '{{ nextion.icon.weather.lightning }}'
                                         - name: precipitation
                                           visibility: '{{ is_number(precipitation) or is_number(precipitation_probability) }}'
                                           value: >
-                                            {{ (precipitation | round(0) ~ " " ~ weather_units.precipitation) if is_number(precipitation) }}
+                                            {{ (precipitation ~ " " ~ weather_units.precipitation) if is_number(precipitation) }}
                                             {{ "-" if is_number(precipitation) and is_number(precipitation_probability) }}
-                                            {{ (precipitation_probability | round(0) ~ weather_units.precipitation_probability) if is_number(precipitation_probability) }}
+                                            {{ (precipitation_probability ~ weather_units.precipitation_probability) if is_number(precipitation_probability) }}
                                           icon: '{{ nextion.icon.weather.rain }}'
                                         - name: uv_index
                                           visibility: '{{ is_number(uv_index) }}'
                                           value: >
                                             {{ (state_attr(accuweather_sensor_prefix ~ "uv_index" ~ accuweather_sensor_sufix, "level") | default(None) ~ ": ") if weather_type == "AccuWeather" }}
-                                            {{ (uv_index | round(0) ~ weather_units.uv_index) if is_number(uv_index) }}
+                                            {{ (uv_index ~ weather_units.uv_index) if is_number(uv_index) }}
                                           icon: '{{ nextion.icon.weather.protect }}'
                                         - name: wind_speed
                                           visibility: '{{ is_number(wind_speed) }}'
-                                          value: '{{ (wind_speed | round(0) ~ " " ~ weather_units.wind_speed) if is_number(wind_speed) }}'
+                                          value: '{{ (wind_speed ~ " " ~ weather_units.wind_speed) if is_number(wind_speed) }}'
                                           icon: '{{ nextion.icon.weather.wind }}'
                                         - name: pressure
                                           visibility: '{{ is_number(pressure) }}'
-                                          value: '{{ (pressure | round(0) ~ " " ~ weather_units.pressure) if is_number(pressure) }}'
+                                          value: '{{ (pressure ~ " " ~ weather_units.pressure) if is_number(pressure) }}'
                                           icon: '{{ nextion.icon.weather.gauge }}'
 
                                   ##### Display weather PIC when available
@@ -8330,7 +8330,7 @@ action:
                       button_wait: >
                         {{
                           states(nspanelevent)
-                          if nspanelevent is string and states(nspanelevent) not in ["unavailable", "unknown", "", None]
+                          if nspanelevent is string and has_value(nspanelevent)
                           else { "page": "unknown", "component": "unknown", "value": "unknown" }
                         }}
                       last_click_button: '{{ button_pages_buttons | selectattr("page", "defined") | selectattr("page", "eq", nspanel_event.page) | selectattr("component", "defined") | selectattr("component", "eq", nspanel_event.component) | list }}'
@@ -8405,7 +8405,7 @@ action:
                                   notification_answer: >
                                     {{
                                       states(nspanelevent)
-                                      if nspanelevent is string and states(nspanelevent) not in ["unavailable", "unknown", "", None]
+                                      if nspanelevent is string and has_value(nspanelevent)
                                       else { "page": "unknown", "component": "unknown", "value": "unknown" }
                                     }}
                               - choose:
