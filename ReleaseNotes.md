@@ -47,6 +47,7 @@ recommend to have a big warning, and that the user has to take care about e.g.:
 
 ### 2. Support to sensor display precision from Home Assistant
 Now the values shown in your panel will follow the [sensor display precision](https://www.home-assistant.io/blog/2023/03/01/release-20233/#sensor-display-precision) provided by Home Assistant.
+
 => If you have problems with a value exceeding the available space in your panel, please reduce the number of decimals using Home Assistant [sensor display precision](https://www.home-assistant.io/blog/2023/03/01/release-20233/#sensor-display-precision).
 
 ### 3. Filtered device list
@@ -56,6 +57,7 @@ When selecting the NSPanel on the automation, only ESP32 devices will be shown, 
 ### 4. New language selector (#882)
 Starts using the new language selector release with HA 2023.5.0 and based on RFC 5646, which will increase reliability and standardization of the code.
 Althougt this is not visible for users at the first view, it will enable the use of more granualar language selections (like pt-BR vs pt-PT or en-US vs en-UK) if needed in the future.
+
 => If you are an existing users, please remember to select your language again after the update, as the previous selection will be invalid.
 &nbsp;
 
