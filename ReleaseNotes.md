@@ -25,12 +25,14 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 &nbsp;
 ## Breaking changes
 1. New requirement: Home Assistant 2023.5.0 or later
+2. Exisiting users will have o select again the language for the panel, otherwise the automation will throw an error in the log related to the previous language selection.
 
 &nbsp;
 ## Overview of all changes
 1. Alarm control panel
 2. Support to sensor display precision from Home Assistant (#880)
-3. Filtered device list
+3. Filtered device list (#881)
+4. New language selector (#882)
 &nbsp;
 ## Details of all changes
 
@@ -51,7 +53,10 @@ Now the values shown in your panel will follow the [sensor display precision](ht
 When selecting the NSPanel on the automation, only ESP32 devices will be shown, making easier to find your panel.
 ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/0e66bd6b-23c3-4014-8603-958acea48462)
 
-
+### 4. New language selector (#882)
+Starts using the new language selector release with HA 2023.5.0 and based on RFC 5646, which will increase reliability and standardization of the code.
+Althougt this is not visible for users at the first view, it will enable the use of more granualar language selections (like pt-BR vs pt-PT or en-US vs en-UK) if needed in the future.
+=> If you are an existing users, please remember to select your language again after the update, as the previous selection will be invalid.
 &nbsp;
 
 ## Next topics we are currently working on
