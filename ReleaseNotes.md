@@ -25,11 +25,12 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 &nbsp;
 ## Breaking changes
 1. New requirement: Home Assistant 2023.5.0 or later
-2. Support to sensor display precision from Home Assistant
-3. 
+
 &nbsp;
 ## Overview of all changes
 1. Alarm control panel
+2. Support to sensor display precision from Home Assistant (#880)
+3. Filtered device list
 &nbsp;
 ## Details of all changes
 
@@ -45,6 +46,11 @@ recommend to have a big warning, and that the user has to take care about e.g.:
 ### 2. Support to sensor display precision from Home Assistant
 Now the values shown in your panel will follow the [sensor display precision](https://www.home-assistant.io/blog/2023/03/01/release-20233/#sensor-display-precision) provided by Home Assistant.
 => If you have problems with a value exceeding the available space in your panel, please reduce the number of decimals using Home Assistant [sensor display precision](https://www.home-assistant.io/blog/2023/03/01/release-20233/#sensor-display-precision).
+
+### 3. Filtered device list
+When selecting the NSPanel on the automation, only ESP32 devices will be shown, making easier to find your panel.
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/0e66bd6b-23c3-4014-8603-958acea48462)
+
 
 &nbsp;
 
