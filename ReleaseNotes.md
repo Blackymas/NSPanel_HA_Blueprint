@@ -26,6 +26,7 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 ## Breaking changes
 1. New requirement: Home Assistant 2023.5.0 or later
 2. Exisiting users will have o select again the language for the panel, otherwise the automation will throw an error in the log related to the previous language selection.
+3. Removed entity `sensor.xxxxx_settings_entity` and service `esphome.xxxxx_set_settings_entity`
 
 &nbsp;
 ## Overview of all changes
@@ -33,6 +34,8 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 2. Support to sensor display precision from Home Assistant (#880)
 3. Filtered device list (#881)
 4. New language selector (#882)
+5. Removed `settings_entity`
+   
 &nbsp;
 ## Details of all changes
 
@@ -60,6 +63,11 @@ Althougt this is not visible for users at the first view, it will enable the use
 
 => If you are an existing users, please remember to select your language again after the update, as the previous selection will be invalid.
 &nbsp;
+
+### 5. Removed `settings_entity`
+The entity `sensor.xxxxx_settings_entity` was previously used by ESPHome to to transfer information about the selected entity on the settings page to the Blueprint, enabling the transfer of settings from different instances of the blueprint with the use of service `esphome.xxxxx_set_settings_entity`. This mechanism was a bit fragile and not user friendly.
+With this version the information about the entity shown will be part of the `sensor.xxxxx_nspanel_event` and the settings pages will be called with the service `esphome.xxxxx_open_entity_settings_page`.
+Apart of a cleaner device page, this change should be transparent for most users. If you have made automations based on the removed elements, please update it using the new service.
 
 ## Next topics we are currently working on
 See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
