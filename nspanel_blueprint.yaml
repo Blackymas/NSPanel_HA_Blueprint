@@ -3459,7 +3459,6 @@ trigger_variables:
   relay01_entity: 'switch.{{ nspanel_name }}_relay_1'
   relay02_entity: 'switch.{{ nspanel_name }}_relay_2'
   nspaneltemp: 'sensor.{{ nspanel_name }}_temperature'
-  settings_entity: 'sensor.{{ nspanel_name }}_settings_entity'
   reboot_button: 'button.{{ nspanel_name }}_restart'
   switch_sleep_mode: 'switch.{{ nspanel_name }}_sleep_mode'
 
@@ -3526,7 +3525,7 @@ variables:
       notification_show: 'esphome.{{ nspanel_name }}_notification_show'
       notification_clear: 'esphome.{{ nspanel_name }}_notification_clear'
       play_rtttl: 'esphome.{{ nspanel_name }}_play_rtttl'
-      set_settings_entity: 'esphome.{{ nspanel_name }}_set_settings_entity'
+      open_entity_settings_page: 'esphome.{{ nspanel_name }}_open_entity_settings_page'
       hide: 'esphome.{{ nspanel_name }}_send_command_hide'
       show: 'esphome.{{ nspanel_name }}_send_command_show'
       show_all: 'esphome.{{ nspanel_name }}_send_command_show_all'
@@ -3559,12 +3558,6 @@ variables:
         gauge: "\uE299" #E299
       unknown: '{{ all_icons.unknown }}' #"\uE2D5"
     pic:
-      hvac:
-        button:
-          blank: "79"
-          "off": "80"
-          "on": "81"
-          unknown: "79"
       hardware:
         button:
           "off": "77"
@@ -3578,10 +3571,6 @@ variables:
       button:
         "off": "101"
         "on": "102"
-      heating:
-        button:
-          "off": "82"
-          "on": "83"
       weather:
         sunny: '{{ "2" if sun_is_up else "15"}}' #some weather providers returns "sunny" for "clear-night"
         cloudy: "3"
@@ -3615,8 +3604,8 @@ variables:
     settings: "settings"
     boot: "boot"
     screensaver: "screensaver"
-    light: "lightsettings"
-    cover: "coversettings"
+    light: "light"
+    cover: "cover"
     buttonpages:
       - "buttonpage01"
       - "buttonpage02"
@@ -5357,13 +5346,6 @@ variables:
 trigger:
 
   ##### Trigger - General #################################################################################################################
-    ##### settings_entity - Trigger 'settings_entity' #####
-    - platform: event
-      event_type: state_changed
-      event_data:
-        entity_id: '{{ settings_entity }}'
-      id: settings_entity
-
     ##### Reboot - Trigger 'nspanel_boot_init' #####
     - platform: template
       value_template: '{{ is_state(nextion_inited, "on") | default(false) if nextion_inited is string else false }}'
@@ -5990,50 +5972,6 @@ condition:
 action:
   - alias: Main choices
     choose:
-      ##### JUMP TO - settings page lightsettings /coversettings / climate (SETTINGS ENTITY CHANGED) #####
-      - alias: 'Jump to light/cover/climate settings page'
-        conditions:
-          - condition: trigger
-            id: settings_entity
-          - '{{ trigger.event.data.new_state.state not in ["unavailable", "unknown", "", None] }}'
-        sequence:
-          - &variables-settings_entity
-            variables:
-              settings_entity_state: >
-                {{
-                  states(settings_entity)
-                  if settings_entity is string and has_value(settings_entity)
-                  else "unknown"
-                }}
-              settings_entity_dict: >
-                {{
-                  settings_entity_state
-                  if settings_entity_state is mapping
-                  else { "page": "home", "entity": "unknown" }
-                }}
-              settings_entity_domain: >
-                {{
-                  settings_entity_dict.entity.split(".")[0]
-                  if
-                    settings_entity_dict.entity is defined and
-                    settings_entity_dict.entity is string and
-                    settings_entity_dict.entity.split(".") | count > 0
-                  else "unknown"
-                }}
-          - if: '{{ settings_entity_domain in ["light", "cover", "climate"] }}'
-            then:
-              - service: '{{ nextion.command.printf }}'
-                data:
-                  cmd: 'page {{ page[settings_entity_domain] }}'
-                continue_on_error: true
-              - &delay-default
-                delay:
-                  milliseconds: '{{ delay_value }}'
-              - service: '{{ nextion.command.printf }}' # This can be moved to TFT on the 3 settings pages (and why not all pages?) and reduce the load from Blueprint comms
-                data:
-                  cmd: 'dim=home.brightness.val'
-                continue_on_error: true
-
       ##### DATE AND TIME #####
       - alias: 'Date & Time'
         conditions:
@@ -6055,7 +5993,9 @@ action:
                       else ((page_home.general.date.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.date.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.date.label.color_rgb[2] //(2**3))
                     }}
                 continue_on_error: true
-              - *delay-default
+              - &delay-default
+                delay:
+                  milliseconds: '{{ delay_value }}'
               ### DATE Font ###
               - service: '{{ nextion.command.text_printf }}'
                 data:
@@ -6183,11 +6123,6 @@ action:
                       - alias: Home page
                         conditions: '{{ nspanel_event.page == page.home }}'
                         sequence: &refresh_page_home
-                          - service: '{{ nextion.command.set_settings_entity }}'
-                            data:
-                              entity: '{{ nspanel_event }}'
-                            continue_on_error: true
-
                           ##### Weather Icon Home Page #####
                           - *delay-default
                           - &refresh-page_home-weather_pic
@@ -6963,10 +6898,6 @@ action:
                                   component: button08
                           - if: '{{ button_page_index >= 0 and button_page_index <= 3 }}'
                             then:
-                              - service: '{{ nextion.command.set_settings_entity }}'
-                                data:
-                                  entity: '{{ nspanel_event }}'
-                                continue_on_error: true
                               ##### Button Page Label #####
                               - if: '{{ button_pages_labels[button_page_index].label | length > 0 }}'
                                 then:
@@ -7135,252 +7066,129 @@ action:
                               - service: '{{ nextion.command.show_all }}'
                                 continue_on_error: true
 
-                      ## PAGE LIGHTSETTINGS ##
+                      ## PAGE LIGHT ##
                       - alias: Light settings page
                         conditions: '{{ nspanel_event.page == page.light }}'
-                        sequence: &refresh_page_lightsettings
-                          - *variables-settings_entity
-                          - if: '{{ settings_entity_domain == "light" }}'
-                            then:
-                              - service: '{{ nextion.command.text_printf }}'
-                                data:
-                                  component: lightsettings.light_name
-                                  message: >
-                                    {{
-                                      settings_entity_dict.name
-                                      if settings_entity_dict.name is defined and settings_entity_dict.name is string and settings_entity_dict.name | length > 0
-                                      else
-                                        (
-                                          state_attr(settings_entity_dict.entity, "friendly_name")
-                                          if state_attr(settings_entity_dict.entity, "friendly_name") | length > 0
-                                          else
-                                            (
-                                              "Light" ~ (": " ~ settings_entity_dict.component)
-                                              if settings_entity_dict.component is string and settings_entity_dict.component | length > 0
-                                            )
-                                        )
-                                    }}
-                                continue_on_error: true
-                              ##### LIGHT ICON - ON / OFF #####
-                              - *delay-default
-                              - service: '{{ nextion.command.text_printf }}'
-                                data:
-                                  component: lightsettings.icon_state
-                                  message: >
-                                    {{
-                                      all_icons[settings_entity_dict.icon.split(":")[1]] | default(settings_entity_dict.icon if settings_entity_dict.icon is defined and settings_entity_dict.icon is string else nextion.icon.domain.light)
-                                      if settings_entity_dict.icon not in ["unavailable", "unknown", "", None] and settings_entity_dict.icon | length > 0
-                                      else nextion.icon.domain.light
-                                    }}
-                                continue_on_error: true
-                              - *delay-default
-                              - service: '{{ nextion.command.font_color }}'
-                                data:
-                                  component: lightsettings.icon_state
-                                  message: >
-                                    {{
-                                      (
-                                        settings_entity_dict.icon_color_rgb
-                                        if is_number(settings_entity_dict.icon_color_rgb)
-                                        else
-                                          ((settings_entity_dict.icon_color_rgb[0] //(2**3)) *(2**11))+
-                                          ((settings_entity_dict.icon_color_rgb[1] //(2**2)) *(2**5))+
-                                           (settings_entity_dict.icon_color_rgb[2] //(2**3))
-                                      )
-                                      if is_state(settings_entity_dict.entity, "on")
-                                      else nextion.color.grey_light
-                                    }}
-                                continue_on_error: true
-                              ##### LIGHT State #####
-                              - variables:
-                                  curr_brightness: '{{ (state_attr(settings_entity_dict.entity, "brightness") | int(0) * 100 / 255) | round(0) }}'
-                              - *delay-default
-                              - service: '{{ nextion.command.value }}'
-                                data:
-                                  component: lightsettings.lightslider
-                                  message: '{{ curr_brightness }}'
-                                continue_on_error: true
-                              - *delay-default
-                              - service: '{{ nextion.command.text_printf }}'
-                                data:
-                                  component: lightsettings.light_value
-                                  message: '{{ curr_brightness }}%'
-                                continue_on_error: true
-                              - *delay-default
-                              - service: '{{ nextion.command.text_printf }}'
-                                data:
-                                  component: lightsettings.light_value_2
-                                  message: '{{ curr_brightness }}%'
-                                continue_on_error: true
+                        sequence: &refresh_page_light
+                          ##### LIGHT State #####
+                          - variables:
+                              curr_brightness: '{{ (state_attr(nspanel_event.entity, "brightness") | int(0) * 100 / 255) | round(0) }}'
+                          - *delay-default
+                          - service: '{{ nextion.command.value }}'
+                            data:
+                              component: light.lightslider
+                              message: '{{ curr_brightness }}'
+                            continue_on_error: true
+                          - *delay-default
+                          - service: '{{ nextion.command.text_printf }}'
+                            data:
+                              component: light.light_value
+                              message: '{{ curr_brightness }}%'
+                            continue_on_error: true
+                          - *delay-default
+                          - service: '{{ nextion.command.text_printf }}'
+                            data:
+                              component: light.light_value_2
+                              message: '{{ curr_brightness }}%'
+                            continue_on_error: true
 
-                              ##### LIGHT Check Color_Temp Value is available when yes send some current Values #####
-                              - variables:
-                                  curr_color_temp: '{{ state_attr(settings_entity_dict.entity, "color_temp") }}'
-                              - condition: '{{ is_number(curr_color_temp) }}'
-                              - *delay-default
-                              - service: '{{ nextion.command.text_printf }}'
-                                data:
-                                  component: lightsettings.temp_value
-                                  message: '{{ curr_color_temp | round(0) }}'
-                                continue_on_error: true
-                              - *delay-default
-                              - service: '{{ nextion.command.text_printf }}'
-                                data:
-                                  component: lightsettings.temp_value_2
-                                  message: '{{ curr_color_temp | round(0) }}'
-                                continue_on_error: true
-                              - *delay-default
-                              - service: '{{ nextion.command.value }}'
-                                data:
-                                  component: lightsettings.tempslider
-                                  message: '{{ curr_color_temp | round(0) }}'
-                                continue_on_error: true
+                          ##### LIGHT Check Color_Temp Value is available when yes send some current Values #####
+                          - variables:
+                              curr_color_temp: '{{ state_attr(nspanel_event.entity, "color_temp") }}'
+                          - condition: '{{ is_number(curr_color_temp) }}'
+                          - *delay-default
+                          - service: '{{ nextion.command.text_printf }}'
+                            data:
+                              component: light.temp_value
+                              message: '{{ curr_color_temp | round(0) }}'
+                            continue_on_error: true
+                          - *delay-default
+                          - service: '{{ nextion.command.text_printf }}'
+                            data:
+                              component: light.temp_value_2
+                              message: '{{ curr_color_temp | round(0) }}'
+                            continue_on_error: true
+                          - *delay-default
+                          - service: '{{ nextion.command.value }}'
+                            data:
+                              component: light.tempslider
+                              message: '{{ curr_color_temp | round(0) }}'
+                            continue_on_error: true
 
-                      ## PAGE COVERSETTINGS ##
+                      ## PAGE COVER ##
                       - alias: Cover settings page
                         conditions: '{{ nspanel_event.page == page.cover }}'
-                        sequence: &refresh_page_coversettings
-                          ##### COVER - OPEN / CLOSE #####
-                          - *variables-settings_entity
-                          - if: '{{ settings_entity_domain == "cover" }}'
+                        sequence: &refresh_page_cover
+                          ##### COVER State
+                          - service: '{{ nextion.command.value }}'
+                            data:
+                              component: cover.coverslider
+                              message: '{{ (state_attr(nspanel_event.entity, "current_position") | int ) | round(0) }}'
+                            continue_on_error: true
+                          - *delay-default
+                          - service: '{{ nextion.command.text_printf }}'
+                            data:
+                              component: cover.cover_value
+                              message: '{{ (state_attr(nspanel_event.entity, "current_position") | int ) | round(0) }} %'
+                            continue_on_error: true
+
+                          ##### COVER Battery ICON Yes / NO #####
+                          - variables:
+                              battery_level: >
+                                {% if state_attr(nspanel_event.entity, "battery") | default("unavailable") not in ["unavailable", "unknown", "", None] %}
+                                  {{ state_attr(nspanel_event.entity, "battery") | default("unavailable") }}
+                                {% elif expand(device_entities(device_id(nspanel_event.entity)))
+                                        | selectattr("attributes.device_class", "defined")
+                                        | selectattr("attributes.device_class", "eq", "battery")
+                                        | map(attribute="state")
+                                        | map("float")
+                                        | list
+                                        | count > 0 %}
+                                  {{
+                                    expand(device_entities(device_id(nspanel_event.entity)))
+                                    | selectattr("attributes.device_class", "defined")
+                                    | selectattr("attributes.device_class", "eq", "battery")
+                                    | map(attribute="state") | map("float")
+                                    | list
+                                    | first
+                                    | round(0)
+                                  }}
+                                {% elif has_value(nspanel_event.entity | replace("cover.","sensor.") ~ "_battery") %}
+                                  {{ states(nspanel_event.entity | replace("cover.","sensor.") ~ "_battery", rounded=true) | default("unavailable") }}
+                                {% elif has_value(nspanel_event.entity | replace("cover.","sensor.") | replace("cover", "battery")) %}
+                                  {{ states(nspanel_event.entity | replace("cover.","sensor.") | replace("cover", "battery"), rounded=true) | default("unavailable") }}
+                                {% else %} unavailable
+                                {% endif %}
+                          - if: '{{ is_number(battery_level) }}'
                             then:
                               - *delay-default
                               - service: '{{ nextion.command.text_printf }}'
                                 data:
-                                  component: coversettings.icon_state
-                                  message: >
-                                    {{
-                                      all_icons[settings_entity_dict.icon.split(":")[1]] | default(settings_entity_dict.icon if settings_entity_dict.icon is defined and settings_entity_dict.icon is string else nextion.icon.domain.cover)
-                                      if settings_entity_dict.icon not in ["unavailable", "unknown", "", None] and settings_entity_dict.icon | length > 0
-                                      else nextion.icon.domain.cover
-                                    }}
+                                  component: cover.battery_value
+                                  message: '{{ battery_level }} %'
                                 continue_on_error: true
+                              ### ICON Battery Font Color ###
                               - *delay-default
                               - service: '{{ nextion.command.font_color }}'
                                 data:
-                                  component: coversettings.icon_state
-                                  message: >
-                                    {{
-                                      (
-                                        settings_entity_dict.icon_color_rgb
-                                        if is_number(settings_entity_dict.icon_color_rgb)
-                                        else
-                                          ((settings_entity_dict.icon_color_rgb[0] //(2**3)) *(2**11))+
-                                          ((settings_entity_dict.icon_color_rgb[1] //(2**2)) *(2**5))+
-                                           (settings_entity_dict.icon_color_rgb[2] //(2**3))
-                                      )
-                                      if states(settings_entity_dict.entity) in ["open", "opening"]
-                                      else nextion.color.grey_light
-                                    }}
+                                  component: cover.battery_icon
+                                  message: '{{ nextion.color.grey_super_light }}'
                                 continue_on_error: true
+                              ### ICON Battery Font ###
                               - *delay-default
                               - service: '{{ nextion.command.text_printf }}'
                                 data:
-                                  component: coversettings.cover_name
-                                  message: >
-                                    {{
-                                      settings_entity_dict.name
-                                      if
-                                        settings_entity_dict.name is defined
-                                        and settings_entity_dict.name is string
-                                        and settings_entity_dict.name | length > 0
-                                      else
-                                        (
-                                          state_attr(settings_entity_dict.entity, "friendly_name")
-                                          if state_attr(settings_entity_dict.entity, "friendly_name") | length > 0
-                                          else settings_entity_dict.entity
-                                        )
-                                    }}
+                                  component: cover.battery_icon
+                                  message: '{{ all_icons["battery-medium"] }}'
                                 continue_on_error: true
-
-                              ##### COVER State
-                              - service: '{{ nextion.command.value }}'
-                                data:
-                                  component: coversettings.coverslider
-                                  message: '{{ (state_attr(settings_entity_dict.entity, "current_position") | int ) | round(0) }}'
-                                continue_on_error: true
-                              - *delay-default
-                              - service: '{{ nextion.command.text_printf }}'
-                                data:
-                                  component: coversettings.cover_value
-                                  message: '{{ (state_attr(settings_entity_dict.entity, "current_position") | int ) | round(0) }} %'
-                                continue_on_error: true
-
-                              ##### COVER Battery ICON Yes / NO #####
-                              - variables:
-                                  battery_level: >
-                                    {% if state_attr(settings_entity_dict.entity, "battery") | default("unavailable") not in ["unavailable", "unknown", "", None] %}
-                                      {{ state_attr(settings_entity_dict.entity, "battery") | default("unavailable") }}
-                                    {% elif expand(device_entities(device_id(settings_entity_dict.entity)))
-                                            | selectattr("attributes.device_class", "defined")
-                                            | selectattr("attributes.device_class", "eq", "battery")
-                                            | map(attribute="state")
-                                            | map("float")
-                                            | list
-                                            | count > 0 %}
-                                      {{
-                                        expand(device_entities(device_id(settings_entity_dict.entity)))
-                                        | selectattr("attributes.device_class", "defined")
-                                        | selectattr("attributes.device_class", "eq", "battery")
-                                        | map(attribute="state") | map("float")
-                                        | list
-                                        | first
-                                        | round(0)
-                                      }}
-                                    {% elif has_value(settings_entity_dict.entity | replace("cover.","sensor.") ~ "_battery") %}
-                                      {{ states(settings_entity_dict.entity | replace("cover.","sensor.") ~ "_battery", rounded=true) | default("unavailable") }}
-                                    {% elif has_value(settings_entity_dict.entity | replace("cover.","sensor.") | replace("cover", "battery")) %}
-                                      {{ states(settings_entity_dict.entity | replace("cover.","sensor.") | replace("cover", "battery"), rounded=true) | default("unavailable") }}
-                                    {% else %} unavailable
-                                    {% endif %}
-                              - if: '{{ is_number(battery_level) }}'
-                                then:
-                                  - *delay-default
-                                  - service: '{{ nextion.command.text_printf }}'
-                                    data:
-                                      component: coversettings.battery_value
-                                      message: '{{ battery_level }} %'
-                                    continue_on_error: true
-                                  ### ICON Battery Font Color ###
-                                  - *delay-default
-                                  - service: '{{ nextion.command.font_color }}'
-                                    data:
-                                      component: coversettings.battery_icon
-                                      message: '{{ nextion.color.grey_super_light }}'
-                                    continue_on_error: true
-                                  ### ICON Battery Font ###
-                                  - *delay-default
-                                  - service: '{{ nextion.command.text_printf }}'
-                                    data:
-                                      component: coversettings.battery_icon
-                                      message: '{{ all_icons["battery-medium"] }}'
-                                    continue_on_error: true
 
                       ## PAGE CLIMATE ##
                       - alias: Climate page
                         conditions: '{{ nspanel_event.page == page.climate }}'
                         sequence: &refresh_page_climate
-                          - *variables-settings_entity
                           - &variables-climate_entity
                             variables:
-                              settings_entity_dict: >
-                                {% if settings_entity_dict.entity is not defined and settings_entity_dict.page == page.home and settings_entity_dict.component == 'climate' %}
-                                  {
-                                    'page': '{{ settings_entity_dict.page }}',
-                                    'entity': '{{ climate }}',
-                                    'name': >
-                                      {{
-                                        state_attr(climate, "friendly_name") | default(mui[language].no_name)
-                                        if
-                                          climate is string and
-                                          state_attr(climate, "friendly_name") is string and
-                                          state_attr(climate, "friendly_name") | length > 0
-                                        else climate
-                                      }}
-                                  }
-                                {% else %}{{ settings_entity_dict }}
-                                {% endif %}
-                              climate_entity: '{{ settings_entity_dict.entity if settings_entity_dict.entity is defined }}'
+                              climate_entity: '{{ nspanel_event.entity if nspanel_event.entity is defined }}'
                               settings_entity_domain: >
                                 {{
                                   climate_entity.split(".")[0]
@@ -7394,13 +7202,6 @@ action:
 
                           - if: '{{ settings_entity_domain == "climate" }}'
                             then:
-                              ##### Page title #####
-                              - service: '{{ nextion.command.text_printf }}'
-                                data:
-                                  component: climate.climate_label
-                                  message: '{{ settings_entity_dict.name }}'
-                                continue_on_error: true
-
                               ##### Values #####
                               - &variables-climate_page
                                 variables:
@@ -7574,9 +7375,9 @@ action:
                                           data:
                                             component: '{{ repeat.item.component }}'
                                           continue_on_error: true
-                            else:
+                            #else:
                               ##### Return to Home page in case is not a climate entity #####
-                              - *jump_page_home
+                              #- *jump_page_home
 
                       ## ENTITY PAGES 01 - 04 ##
                       - alias: Entity pages
@@ -8089,67 +7890,46 @@ action:
                               message: '{{ qrcode_value }}'
                             continue_on_error: true
 
-                      ## PAGE SETTINGS ##
-                      #- alias: Settings page
-                      #  conditions: '{{ nspanel_event.page == page.settings }}'
-                      #  sequence:
-
-                      ## PAGE BOOT ##
-                      #- alias: Boot page
-                      #  conditions: '{{ nspanel_event.page == page.boot }}'
-                      #  sequence:
-
-                      ## PAGE SCREENSAVER ##
-                      #- alias: Screensaver page
-                      #  conditions: '{{ nspanel_event.page == page.screensaver }}'
-                      #  sequence:
-
-              - alias: Page close # general
-                conditions: '{{ nspanel_event.component == "close" and nspanel_event.value == "release" }}'
+              - alias: light settings # rgb_color, brightness, color_temp
+                conditions:
+                  - '{{ nspanel_event.page == page.light }}'
+                  - '{{ nspanel_event.component in ["rgb_color", "brightness_pct", "color_temp"] }}'
+                  - '{{ nspanel_event.entity is defined and nspanel_event.entity is string and nspanel_event.entity | length > 0 }}'
                 sequence:
-                  - *variables-settings_entity
-                  - service: '{{ nextion.command.printf }}'
-                    data:
-                      cmd: 'page {{ settings_entity_dict.page if settings_entity_dict.page is defined else page.home }}'
-                    continue_on_error: true
-
-              - alias: lightsetting # rgb_color, brightness, color_temp
-                conditions: '{{ nspanel_event.component in ["rgb_color", "brightness_pct", "color_temp"] }}'
-                sequence:
-                  - *variables-settings_entity
-                  - condition: '{{ settings_entity_dict.entity is defined and settings_entity_dict.entity is string }}'
                   - service: light.turn_on
                     data:
-                      entity_id: '{{ settings_entity_dict.entity }}'
+                      entity_id: '{{ nspanel_event.entity }}'
                       '{{ nspanel_event.component }}': '{{ nspanel_event.value }}'
                     continue_on_error: true
 
               - alias: coversetting position
-                conditions: '{{ nspanel_event.component == "cover_position" }}'
+                conditions:
+                  - '{{ nspanel_event.component == "cover_position" }}'
+                  - '{{ nspanel_event.entity is defined and nspanel_event.entity is string and nspanel_event.entity | length > 0 }}'
                 sequence:
-                  - *variables-settings_entity
                   - service: 'cover.set_cover_position'
                     data:
-                      entity_id: '{{ settings_entity_dict.entity }}'
+                      entity_id: '{{ nspanel_event.entity }}'
                       position: '{{ nspanel_event.value }}'
                     continue_on_error: true
 
               - alias: coversetting open close stop
-                conditions: '{{ nspanel_event.component in ["open_cover", "close_cover", "stop_cover"] }}'
+                conditions:
+                  - '{{ nspanel_event.component in ["open_cover", "close_cover", "stop_cover"] }}'
+                  - '{{ nspanel_event.entity is defined and nspanel_event.entity is string and nspanel_event.entity | length > 0 }}'
                 sequence:
-                  - *variables-settings_entity
                   - service: 'cover.{{ nspanel_event.component }}'
                     data:
-                      entity_id: '{{ settings_entity_dict.entity }}'
+                      entity_id: '{{ nspanel_event.entity }}'
                     continue_on_error: true
 
               - alias: climate climateslider
                 conditions:
-                  - '{{ nspanel_event.page in [page.climate, "climatesettings"] }}'
+                  - '{{ nspanel_event.page == page.climate }}'
                   - '{{ nspanel_event.component == "climate_position" }}'
+                  - '{{ nspanel_event.entity is defined and nspanel_event.entity is string and nspanel_event.entity | length > 0 }}'
                 sequence:
-                  - *variables-settings_entity
-                  - if: '{{ settings_entity_dict.entity is string and states(settings_entity_dict.entity) != "off" }}'
+                  - if: '{{ not is_state(nspanel_event.entity, "off") }}'
                     then:
                       - variables:
                           new_setpoint: '{{ nspanel_event.value | int(-999) }}'
@@ -8157,7 +7937,7 @@ action:
                         then:
                           - service: climate.set_temperature
                             data:
-                              entity_id: '{{ settings_entity_dict.entity }}'
+                              entity_id: '{{ nspanel_event.entity }}'
                               temperature: '{{ new_setpoint / 10 }}'
                             continue_on_error: true
 
@@ -8166,10 +7946,9 @@ action:
                   - '{{ nspanel_event.page == page.climate }}'
                   - '{{ nspanel_event.component in ["button01", "button02", "button03", "button04", "button05", "button06", "button07"] }}'
                   - '{{ nspanel_event.value == "release" }}'
+                  - '{{ nspanel_event.entity is defined and nspanel_event.entity is string and nspanel_event.entity | length > 0 }}'
                 sequence:
-                  - *variables-settings_entity
                   - *variables-climate_entity
-                  - condition: '{{ settings_entity_domain == "climate" }}'
                   - variables:
                       new_hvac_mode: >
                         {{
@@ -8278,32 +8057,41 @@ action:
                         }}
                       last_click_button: '{{ button_pages_buttons | selectattr("page", "defined") | selectattr("page", "eq", nspanel_event.page) | selectattr("component", "defined") | selectattr("component", "eq", nspanel_event.component) | list }}'
                   - condition: '{{ last_click_button | count >= 0 and button_wait.page == nspanel_event.page }}'
-                  - if: '{{ not wait.completed }}'
+                  - variables:
+                      last_click_button: '{{ last_click_button[0] }}'
+                      entity_domain: >
+                        {{
+                          last_click_button.entity.split(".")[0] | default("unknown")
+                          if
+                            last_click_button.entity is string and
+                            last_click_button.entity | length > 0 and
+                            last_click_button.entity.split(".") | count > 0
+                          else "unknown"
+                        }}
+                  - if: '{{ (not wait.completed and entity_domain in ["cover", "light"]) or entity_domain == "climate" }}'
                     then: # Long press
-                      - service: '{{ nextion.command.set_settings_entity }}'
+                      - service: '{{ nextion.command.open_entity_settings_page }}'
                         data:
-                          entity: '{{ last_click_button[0] }}'
+                          page: '{{ entity_domain }}'
+                          page_label: '{{ last_click_button.name if last_click_button.name is string and last_click_button.name | length > 0 else state_attr(last_click_button.entity, "friendly_name") }}'
+                          page_icon: >
+                            {{
+                              all_icons[last_click_button.icon.split(":")[1]] | default(last_click_button.icon if last_click_button.icon is defined and last_click_button.icon is string else nextion.icon.domain[entity_domain])
+                              if last_click_button.icon not in ["unavailable", "unknown", "", None] and last_click_button.icon | length > 0
+                              else nextion.icon.domain[entity_domain]
+                            }}
+                          page_icon_color: >
+                            {{
+                              last_click_button.icon_color_rgb
+                              if is_number(last_click_button.icon_color_rgb)
+                              else ((last_click_button.icon_color_rgb[0] //(2**3)) *(2**11))+((last_click_button.icon_color_rgb[1] //(2**2)) *(2**5))+(last_click_button.icon_color_rgb[2] //(2**3))
+                            }}
+                          entity: '{{ last_click_button.entity }}'
+                          back_page: '{{ nspanel_event.page }}'
                         continue_on_error: true
                     else: # Short press
-                      - variables:
-                          last_click_button: '{{ last_click_button[0] }}'
-                          entity_domain: >
-                            {{
-                              last_click_button.entity.split(".")[0] | default("unknown")
-                              if
-                                last_click_button.entity is string and
-                                last_click_button.entity | length > 0 and
-                                last_click_button.entity.split(".") | count > 0
-                              else "unknown"
-                            }}
-                      - condition: '{{ entity_domain not in ["unknown", "person", "binary_sensor", "sensor"] }}'
-                      - if: '{{ entity_domain == "climate" }}'
+                      - if: '{{ entity_domain not in ["unknown", "person", "binary_sensor", "sensor"] }}'
                         then:
-                          - service: '{{ nextion.command.set_settings_entity }}'
-                            data:
-                              entity: '{{ last_click_button }}'
-                            continue_on_error: true
-                        else:
                           - if: '{{ last_click_button.confirm }}'
                             then:
                               - variables:
@@ -8411,9 +8199,14 @@ action:
                   - '{{ nspanel_event.value == "release" }}'
                   - '{{ climate | length > 0 }} '
                 sequence:
-                  - service: '{{ nextion.command.set_settings_entity }}'
+                  - service: '{{ nextion.command.open_entity_settings_page }}'
                     data:
-                      entity: '{{ dict(nspanel_event.items(), entity=climate, name=state_attr(climate, "friendly_name")) }}'
+                      page: 'climate'
+                      page_label: '{{ state_attr(climate, "friendly_name") }}'
+                      page_icon: ''
+                      page_icon_color: -1 #No color set
+                      entity: '{{ climate }}'
+                      back_page: '{{ page.home }}'
                     continue_on_error: true
 
               - alias: Jump to weather page
@@ -8514,7 +8307,7 @@ action:
               - conditions: '{{ nspanel_event.page in page.entitypages }}'
                 sequence: *refresh-entity_pages
 
-      ##### UPDATE BUTTONS PAGES - button page / lightsettings page / coversettings page  #####
+      ##### UPDATE BUTTONS PAGES - button page / light page / cover page  #####
       - alias: 'Buttons entity updated'
         conditions:
           - condition: trigger
@@ -8579,12 +8372,12 @@ action:
                 conditions:
                   - '{{ nspanel_event.page == page.light }}'
                   - '{{ trigger.entity_id is match "light." }}'
-                sequence: *refresh_page_lightsettings
+                sequence: *refresh_page_light
               - alias: 'Cover settings page'
                 conditions:
                   - '{{ nspanel_event.page == page.cover }}'
                   - '{{ trigger.entity_id is match "cover." }}'
-                sequence: *refresh_page_coversettings
+                sequence: *refresh_page_cover
               - alias: 'Climate page'
                 conditions:
                   - '{{ nspanel_event.page == page.climate }}'
@@ -8658,7 +8451,7 @@ action:
         sequence:
           - variables:
               climate_entity: '{{ trigger.event.data.entity_id }}'
-              hvac_modes: '{{ state_attr(climate_entity, "hvac_modes") if settings_entity_domain == "climate" }}'
+              hvac_modes: '{{ state_attr(climate_entity, "hvac_modes") }}'
           - *climate-update_slider
           - *climate-update_buttons
 
@@ -8731,17 +8524,33 @@ action:
         sequence:
           - variables:
               button_context: '{{ page_home.hardware.buttons.left if trigger.id == "left_button_press" else page_home.hardware.buttons.right }}'
+              button_domain: >
+                {{
+                  button_context.entity.split(".")[0] | default("unknown")
+                  if
+                    button_context.entity is string and
+                    button_context.entity | length > 0 and
+                    button_context.entity.split(".") | count > 0
+                  else "unknown"
+                }}
           - wait_template: '{{ is_state(left_button if trigger.id == "left_button_press" else right_button, "off") }}'
             timeout: !input hold_delay
             continue_on_timeout: true
           - if: '{{ not wait.completed }}'
             then: # Hold
               - choose:
-                  - conditions: '{{ button_context.hold_select == "Default" and button_context.entity | length > 0 }}'
+                  - conditions:
+                    - '{{ button_context.hold_select == "Default" and button_context.entity | length > 0 }}'
+                    - '{{ button_domain in ["climate", "cover", "light"] }}'
                     sequence:
-                      - service: '{{ nextion.command.set_settings_entity }}'
+                      - service: '{{ nextion.command.open_entity_settings_page }}'
                         data:
-                          entity: '{{ button_context }}'
+                          page: '{{ button_domain }}'
+                          page_label: '{{ button_context.name if button_context.name is string and button_context.name | length > 0 else state_attr(button_context.entity, "friendly_name") }}'
+                          page_icon: '{{ nextion.icon.domain[button_domain] }}'
+                          page_icon_color: -1 #No color set
+                          entity: '{{ button_context.entity }}'
+                          back_page: '{{ page.home }}'
                         continue_on_error: true
                   - conditions: '{{ button_context.hold_select == "Custom Action" and trigger.id == "left_button_press" }}'
                     sequence: !input left_button_hold_custom_action
@@ -8750,8 +8559,6 @@ action:
             else: # Single Click
               - condition: template
                 value_template: '{{ button_context.entity | length > 0 }}'
-              - variables:
-                  button_domain: '{{ (button_context.entity.split(".")[0] | default("unknown")) if button_context.entity | length > 0 else "unknown" }}'
               - service: >
                   {% if button_domain in ["light", "switch", "cover", "input_boolean", "automation", "fan"] %}
                     {{ button_domain }}.toggle
