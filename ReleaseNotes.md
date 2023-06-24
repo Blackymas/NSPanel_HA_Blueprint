@@ -25,7 +25,7 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 &nbsp;
 ## Breaking changes
 1. New requirement: Home Assistant 2023.5.0 or later
-2. Exisiting users will have o select again the language for the panel, otherwise the automation will throw an error in the log related to the previous language selection.
+2. Exisiting users will have o select again the language for the panel, otherwise English will be used to display strings.
 3. Removed entity `sensor.xxxxx_settings_entity` and service `esphome.xxxxx_set_settings_entity`
 
 &nbsp;
