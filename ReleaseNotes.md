@@ -36,6 +36,7 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 4. New language selector (#882)
 5. Removed `settings_entity` (#887)
 6. Support for US model on landscape mode (#890)
+7. API status indication on the panel
    
 &nbsp;
 ## Details of all changes
@@ -75,6 +76,15 @@ If you are using a panel model US in landscape mode, you can now use `nspanel_us
 
 => The hardware buttons labels are hidden in this format, as Nextion cannot support rotated text.
 
+### 7. API status indication on the panel
+Now the Wi-Fi icon in the panel (at the right side of the time) will show one of 3 possible states:
+
+![wifi_gray](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/8e462abb-68d7-4ade-b3c1-ef115aa66c2c) The panel is connected to the Wi-Fi and the API is connected to Home Assistant (mdi:wifi)
+
+![api-off_red](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/2486df3b-17ea-4c2c-a3c2-057c565a3173) The panel is connected to the Wi-Fi, but the API is not connected to Home Assistant (mdi:api-off)
+
+![wifi-off_red](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/c8b15d1f-0950-42d7-84d1-fca8610543c0) The panel is **NOT** connected to the Wi-Fi (mdi:wifi-off)
+ 
 ## Next topics we are currently working on
 See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 
