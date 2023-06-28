@@ -36,7 +36,8 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 4. New language selector (#882)
 5. Removed `settings_entity` (#887)
 6. Support for US model on landscape mode (#890)
-7. API status indication on the panel
+7. API status indication on the panel ([#5ff5d35](https://github.com/Blackymas/NSPanel_HA_Blueprint/commit/5ff5d35833be1a1cf9ca0f570662456058980024))
+8. Light settings page will show only the supported features (#896)
    
 &nbsp;
 ## Details of all changes
@@ -70,12 +71,12 @@ Althougt this is not visible for users at the first view, it will enable the use
 The entity `sensor.xxxxx_settings_entity` was previously used by ESPHome to to transfer information about the selected entity on the settings page to the Blueprint, enabling the transfer of settings from different instances of the blueprint with the use of service `esphome.xxxxx_set_settings_entity`. This mechanism was a bit fragile and not user friendly.
 With this version the information about the entity shown will be part of the `sensor.xxxxx_nspanel_event` and the settings pages will be called with the service `esphome.xxxxx_open_entity_settings_page`.
 Apart of a cleaner device page, this change should be transparent for most users. If you have made automations based on the removed elements, please update it using the new service.
-
+&nbsp;
 ### 6. Support for US model on landscape mode
 If you are using a panel model US in landscape mode, you can now use `nspanel_us_land.tft` where the bars related to the hardware buttons will be located at the right, closer to the respective buttons and fixing the offset on the touch screen when using `nspanel_eu.tft` into a US panel.
 
 => The hardware buttons labels are hidden in this format, as Nextion cannot support rotated text.
-
+&nbsp;
 ### 7. API status indication on the panel
 Now the Wi-Fi icon in the panel (at the right side of the time) will show one of 3 possible states:
 
@@ -84,7 +85,11 @@ Now the Wi-Fi icon in the panel (at the right side of the time) will show one of
 ![api-off_red](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/2486df3b-17ea-4c2c-a3c2-057c565a3173) The panel is connected to the Wi-Fi, but the API is not connected to Home Assistant (mdi:api-off)
 
 ![wifi-off_red](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/c8b15d1f-0950-42d7-84d1-fca8610543c0) The panel is **NOT** connected to the Wi-Fi (mdi:wifi-off)
- 
+&nbsp;
+### 8. Light settings page will show only the supported features
+Now when long press a button conneted to a light, the detailed light settings page will open only when the light supports advanced control, and the detailed page will only show the controls supported by the light.
+
+&nbsp;
 ## Next topics we are currently working on
 See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 
