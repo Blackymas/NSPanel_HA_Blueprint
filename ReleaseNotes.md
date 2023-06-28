@@ -37,7 +37,7 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 5. Removed `settings_entity` (#887)
 6. Support for US model on landscape mode (#890)
 7. API status indication on the panel ([#5ff5d35](https://github.com/Blackymas/NSPanel_HA_Blueprint/commit/5ff5d35833be1a1cf9ca0f570662456058980024))
-8. Light settings page will show only the supported features (#896)
+8. Light & cover settings pages will show only the supported features (#896)
    
 &nbsp;
 ## Details of all changes
@@ -86,8 +86,8 @@ Now the Wi-Fi icon in the panel (at the right side of the time) will show one of
 
 ![wifi-off_red](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/c8b15d1f-0950-42d7-84d1-fca8610543c0) The panel is **NOT** connected to the Wi-Fi (mdi:wifi-off)
 &nbsp;
-### 8. Light settings page will show only the supported features
-Now when long press a button conneted to a light, the detailed light settings page will open only when the light supports advanced control, and the detailed page will only show the controls supported by the light.
+### 8. Light & cover settings pages will show only the supported features
+Now when long press a button conneted to a light or a cover, the detailed light settings page will open only when the entity supports advanced control, and the detailed page will only show the controls supported by that entity.
 
 &nbsp;
 ## Next topics we are currently working on
