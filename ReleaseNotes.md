@@ -39,6 +39,7 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 7. API status indication on the panel ([#5ff5d35](https://github.com/Blackymas/NSPanel_HA_Blueprint/commit/5ff5d35833be1a1cf9ca0f570662456058980024))
 8. Light & cover settings pages will show only the supported features (#896)
 9. New "Fan speed page" (#897)
+10. Select wake-up page (#898)
    
 &nbsp;
 ## Details of all changes
@@ -93,7 +94,15 @@ Now when long press a button conneted to a light or a cover, the detailed light 
 ### 9. New "Fan speed page"
 If you have a connected fan supporting speed control, now you wilhave all the speed control settings in your panel. Just add the new fan to one of the buttons pages or to the hardware buttons and a long press on those buttons will pop up the new "Fan speed page":
 ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/4167928e-6822-4db6-a24b-f8a1d52806f5)
+&nbsp;
+### 10. Select wake-up page
+Now you can select the wake-up page on the blueprint settings:
 
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/30b54682-f1ca-43ac-80af-f89459a6ffd7)
+
+This selected page will be shown after a boot (after the boot page) and with a touch in the screen when on screen saver page. After showing this wake-up page, all the previous behavior for closing the page (with a click or after a timeout) will be the same.
+
+&nbsp;
 ## Next topics we are currently working on
 See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 
