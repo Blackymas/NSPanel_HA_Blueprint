@@ -38,6 +38,7 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 6. Support for US model on landscape mode (#890)
 7. API status indication on the panel ([#5ff5d35](https://github.com/Blackymas/NSPanel_HA_Blueprint/commit/5ff5d35833be1a1cf9ca0f570662456058980024))
 8. Light & cover settings pages will show only the supported features (#896)
+9. New "Fan speed page" (#897)
    
 &nbsp;
 ## Details of all changes
@@ -88,8 +89,11 @@ Now the Wi-Fi icon in the panel (at the right side of the time) will show one of
 &nbsp;
 ### 8. Light & cover settings pages will show only the supported features
 Now when long press a button conneted to a light or a cover, the detailed light settings page will open only when the entity supports advanced control, and the detailed page will only show the controls supported by that entity.
-
 &nbsp;
+### 9. New "Fan speed page"
+If you have a connected fan supporting speed control, now you wilhave all the speed control settings in your panel. Just add the new fan to one of the buttons pages or to the hardware buttons and a long press on those buttons will pop up the new "Fan speed page":
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/4167928e-6822-4db6-a24b-f8a1d52806f5)
+
 ## Next topics we are currently working on
 See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 
