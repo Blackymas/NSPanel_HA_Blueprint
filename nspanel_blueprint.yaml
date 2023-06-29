@@ -3508,6 +3508,7 @@ variables:
       grey_dark: '10597' # rgb(40, 44, 40)
       grey_light: '33808' # rgb(128, 128, 128)
       grey_super_light: '52857' # rgb(200, 204, 200)
+      grey_white: '59164' # rgb(225, 225, 225)
       red: '63488' # rgb(248, 0, 0)
       white: '65535' # rgb(255, 255, 255)
       yellow: '65472' # rgb(248, 248, 0)
@@ -3610,6 +3611,7 @@ variables:
     screensaver: "screensaver"
     light: "light"
     cover: "cover"
+    fan: "fan"
     buttonpages:
       - "buttonpage01"
       - "buttonpage02"
@@ -7039,6 +7041,8 @@ action:
                                               {% if not current_entity_state_available %} 0
                                               {% elif item_domain == "light" and current_entity_state == "on" and state_attr(repeat.item.entity, "brightness") != None %}
                                                 {{ (state_attr(repeat.item.entity, "brightness") | int * 100 /255) | round(0) }}%
+                                              {% elif item_domain == "fan" and current_entity_state == "on" and state_attr(repeat.item.entity, "percentage") != None %}
+                                                {{ state_attr(repeat.item.entity, "percentage") | round(0, default=0) }}%
                                               {% elif item_domain == "cover" and current_entity_state in ["open", "opening", "closing"] and state_attr(repeat.item.entity, "current_position") != None %}
                                                 {{ (state_attr(repeat.item.entity, "current_position") | int(100)) | round(0) }}%
                                               {% elif item_domain == "climate" and current_entity_state != "off" and state_attr(repeat.item.entity, 'current_temperature') != None %}
@@ -7277,6 +7281,59 @@ action:
                                   component: cover.battery_icon
                                   message: '{{ all_icons["battery-medium"] }}'
                                 continue_on_error: true
+
+                      ## PAGE FAN ##
+                      - alias: Fan settings page
+                        conditions: '{{ nspanel_event.page == page.fan }}'
+                        sequence: &refresh_page_fan
+                          - variables:
+                              fan:
+                                supported_features: '{{ state_attr(nspanel_event.entity, "supported_features") | int(0) }}'
+                                percentage: >
+                                  {{
+                                    state_attr(nspanel_event.entity, "percentage") | int(0)
+                                    if is_state(nspanel_event.entity, 'on')
+                                    else 0
+                                  }}
+                                steps: >
+                                  {% set percentage_step = state_attr(nspanel_event.entity, "percentage_step") | float(0) %}
+                                  {{
+                                    (100/percentage_step) | round(0) | int(0)
+                                    if percentage_step > 0
+                                    else 0
+                                  }}
+                          - condition: '{{ fan.steps > 0 and fan.supported_features | bitwise_and(1) > 0 }}'
+                          - service: '{{ nextion.command.value }}'
+                            data:
+                              component: fanslider
+                              message: '{{ ((fan.percentage / 100) * fan.steps) | round(0) | int(0) }}'
+                            continue_on_error: true
+                          - *delay-default
+                          - service: '{{ nextion.command.printf }}'
+                            data:
+                              cmd: fanslider.maxval={{ fan.steps }}
+                            continue_on_error: true
+                          - *delay-default
+                          - service: '{{ nextion.command.text_printf }}'
+                            data:
+                              component: fan_value
+                              message: '{{ fan.percentage }}%'
+                            continue_on_error: true
+                          - service: '{{ nextion.command.printf }}'
+                            data:
+                              cmd: button_up.pco={{ nextion.color.grey_white if fan.percentage < 100 else nextion.color.grey_dark }}
+                            continue_on_error: true
+                          - *delay-default
+                          - service: '{{ nextion.command.printf }}'
+                            data:
+                              cmd: button_down.pco={{ nextion.color.grey_white if fan.percentage > 0 else nextion.color.grey_dark }}
+                            continue_on_error: true
+                          - *delay-default
+                          - service: '{{ nextion.command.printf }}'
+                            data:
+                              cmd: button_off.pco={{ nextion.color.grey_white if fan.percentage > 0 else nextion.color.grey_dark }}
+                            continue_on_error: true
+                          - *delay-default
 
                       ## PAGE CLIMATE ##
                       - alias: Climate page
@@ -8093,6 +8150,28 @@ action:
                       '{{ nspanel_event.component }}': '{{ nspanel_event.value }}'
                     continue_on_error: true
 
+              - alias: fan percentage
+                conditions:
+                  - '{{ nspanel_event.page == page.fan }}'
+                  - '{{ nspanel_event.component == "percentage" }}'
+                  - '{{ nspanel_event.entity is defined and nspanel_event.entity is string and nspanel_event.entity | length > 0 }}'
+                sequence:
+                  - if: '{{ nspanel_event.value > 0 }}'
+                    then:
+                      - service: fan.turn_on
+                        data:
+                          percentage: '{{ nspanel_event.value }}'
+                        target:
+                          entity_id: '{{ nspanel_event.entity }}'
+                        continue_on_error: true
+                    else:
+                      - service: fan.turn_off
+                        target:
+                          entity_id: '{{ nspanel_event.entity }}'
+                        continue_on_error: true
+                  - if: '{{ true }}'
+                    then: *refresh_page_fan
+
               - alias: coversetting position
                 conditions:
                   - '{{ nspanel_event.component == "cover_position" }}'
@@ -8259,11 +8338,12 @@ action:
                             last_click_button.entity.split(".") | count > 0
                           else "unknown"
                         }}
-                  - if: '{{ (not wait.completed and entity_domain in ["cover", "light"]) or entity_domain == "climate" }}'
+                  - if: '{{ (not wait.completed and entity_domain in ["cover", "fan", "light"]) or entity_domain == "climate" }}'
                     then: # Long press
                       - if:
-                          - '{{ entity_domain != "light" or state_attr(last_click_button.entity, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
                           - '{{ entity_domain != "cover" or state_attr(last_click_button.entity, "supported_features") | int(0) | bitwise_and(4) > 0 }}'
+                          - '{{ entity_domain != "fan" or state_attr(last_click_button.entity, "supported_features") | int(0) | bitwise_and(1) > 0 }}'
+                          - '{{ entity_domain != "light" or state_attr(last_click_button.entity, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
                         then:
                           - service: '{{ nextion.command.open_entity_settings_page }}'
                             data:
@@ -8737,9 +8817,9 @@ action:
                   - conditions:
                     - '{{ button_context.hold_select == "Default" and button_context.entity | length > 0 }}'
                     - '{{ button_domain in ["climate", "cover", "light"] }}'
-                    - '{{ button_domain != "light" or state_attr(button_context.entity, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
                     - '{{ button_domain != "cover" or state_attr(button_context.entity, "supported_features") | int(0) | bitwise_and(4) > 0 }}'
-
+                    - '{{ button_domain != "fan" or state_attr(button_context.entity, "supported_features") | int(0) | bitwise_and(1) > 0 }}'
+                    - '{{ button_domain != "light" or state_attr(button_context.entity, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
                     sequence:
                       - service: '{{ nextion.command.open_entity_settings_page }}'
                         data:
