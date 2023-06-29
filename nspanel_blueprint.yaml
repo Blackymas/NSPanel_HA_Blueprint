@@ -5341,6 +5341,19 @@ variables:
   ##### ENTITIES #####
   entitypages_enabled: !input 'entitypages_enabled'
 
+  enum:
+    color_mode: # Possible light color modes. - https://github.com/home-assistant/core/blob/dev/homeassistant/components/light/__init__.py
+      unknown: "[<ColorMode.UNKNOWN: 'unknown'>]"
+      onoff: "[<ColorMode.ONOFF: 'onoff'>]"
+      brightness: "[<ColorMode.BRIGHTNESS: 'brightness'>]"
+      color_temp: "[<ColorMode.COLOR_TEMP: 'color_temp'>]"
+      hs: "[<ColorMode.HS: 'hs'>]"
+      xy: "[<ColorMode.XY: 'xy'>]"
+      rgb: "[<ColorMode.RGB: 'rgb'>]"
+      rgbw: "[<ColorMode.RGBW: 'rgbw'>]"
+      rgbww: "[<ColorMode.RGBWW: 'rgbww'>]"
+      white: "[<ColorMode.WHITE: ''>]"
+
 #############################################################
 ##### CLOSE - Variables #####
 #############################################################
@@ -7085,6 +7098,24 @@ action:
                       - alias: Light settings page
                         conditions: '{{ nspanel_event.page == page.light }}'
                         sequence: &refresh_page_light
+                          - variables:
+                              supported_color_modes: '{{ state_attr(nspanel_event.entity, "supported_color_modes") | default("unknown") }}'
+                              color_mode_color: >
+                                {{
+                                  "hs" in supported_color_modes
+                                  or "xy" in supported_color_modes
+                                  or "rgb" in supported_color_modes
+                                  or "rgbw" in supported_color_modes
+                                  or "rgbww" in supported_color_modes
+                                }}
+                              color_mode_color_temp: '{{ "color_temp" in supported_color_modes }}'
+                              #color_mode_brightness: >
+                              #  {{
+                              #    "brightness" in supported_color_modes
+                              #    or "white" in supported_color_modes
+                              #    or color_mode_color
+                              #    or color_mode_color_temp
+                              #  }}
                           ##### LIGHT State #####
                           - variables:
                               curr_brightness: '{{ (state_attr(nspanel_event.entity, "brightness") | int(0) * 100 / 255) | round(0) }}'
@@ -7108,27 +7139,77 @@ action:
                             continue_on_error: true
 
                           ##### LIGHT Check Color_Temp Value is available when yes send some current Values #####
-                          - variables:
-                              curr_color_temp: '{{ state_attr(nspanel_event.entity, "color_temp") }}'
-                          - condition: '{{ is_number(curr_color_temp) }}'
-                          - *delay-default
-                          - service: '{{ nextion.command.text_printf }}'
-                            data:
-                              component: light.temp_value
-                              message: '{{ curr_color_temp | round(0) }}'
-                            continue_on_error: true
-                          - *delay-default
-                          - service: '{{ nextion.command.text_printf }}'
-                            data:
-                              component: light.temp_value_2
-                              message: '{{ curr_color_temp | round(0) }}'
-                            continue_on_error: true
-                          - *delay-default
-                          - service: '{{ nextion.command.value }}'
-                            data:
-                              component: light.tempslider
-                              message: '{{ curr_color_temp | round(0) }}'
-                            continue_on_error: true
+                          - if: '{{ color_mode_color_temp }}'
+                            then:
+                              - variables:
+                                  curr_color_temp: '{{ state_attr(nspanel_event.entity, "color_temp") | int(-1) }}'
+                                  min_mireds: '{{ state_attr(nspanel_event.entity, "min_mireds") | int(153) }}'
+                                  max_mireds: '{{ state_attr(nspanel_event.entity, "max_mireds") | int(500) }}'
+                              - variables:
+                                  curr_color_temp: >
+                                    {{
+                                      curr_color_temp
+                                      if curr_color_temp >= min_mireds and curr_color_temp <= max_mireds
+                                      else ((min_mireds+max_mireds)/2) | int(327)
+                                    }}
+                              - condition: '{{ is_number(curr_color_temp) }}'
+                              - *delay-default
+                              - service: '{{ nextion.command.text_printf }}'
+                                data:
+                                  component: light.temp_value
+                                  message: '{{ curr_color_temp }}'
+                                continue_on_error: true
+                              - *delay-default
+                              - service: '{{ nextion.command.text_printf }}'
+                                data:
+                                  component: light.temp_value_2
+                                  message: '{{ curr_color_temp }}'
+                                continue_on_error: true
+                              - *delay-default
+                              - service: '{{ nextion.command.value }}'
+                                data:
+                                  component: light.tempslider
+                                  message: '{{ curr_color_temp }}'
+                                continue_on_error: true
+                              - *delay-default
+                              - service: '{{ nextion.command.printf }}'
+                                data:
+                                  cmd: tempslider.minval={{ min_mireds }}
+                                continue_on_error: true
+                              - *delay-default
+                              - service: '{{ nextion.command.printf }}'
+                                data:
+                                  cmd: tempslider.maxval={{ max_mireds }}
+                                continue_on_error: true
+                              - *delay-default
+                              - service: '{{ nextion.command.show }}'
+                                data:
+                                  component: temp_button
+                                continue_on_error: true
+                              - *delay-default
+                              - service: '{{ nextion.command.show }}'
+                                data:
+                                  component: temp_value_2
+                                continue_on_error: true
+                              - *delay-default
+                              - service: '{{ nextion.command.show }}'
+                                data:
+                                  component: temp_touch
+                                continue_on_error: true
+
+                          ##### Hide color button when not supported #####
+                          - if: '{{ color_mode_color }}'
+                            then:
+                              - *delay-default
+                              - service: '{{ nextion.command.show }}'
+                                data:
+                                  component: color_button
+                                continue_on_error: true
+                              - *delay-default
+                              - service: '{{ nextion.command.show }}'
+                                data:
+                                  component: color_touch
+                                continue_on_error: true
 
                       ## PAGE COVER ##
                       - alias: Cover settings page
@@ -8180,25 +8261,29 @@ action:
                         }}
                   - if: '{{ (not wait.completed and entity_domain in ["cover", "light"]) or entity_domain == "climate" }}'
                     then: # Long press
-                      - service: '{{ nextion.command.open_entity_settings_page }}'
-                        data:
-                          page: '{{ entity_domain }}'
-                          page_label: '{{ last_click_button.name if last_click_button.name is string and last_click_button.name | length > 0 else state_attr(last_click_button.entity, "friendly_name") }}'
-                          page_icon: >
-                            {{
-                              all_icons[last_click_button.icon.split(":")[1]] | default(last_click_button.icon if last_click_button.icon is defined and last_click_button.icon is string else nextion.icon.domain[entity_domain])
-                              if last_click_button.icon not in ["unavailable", "unknown", "", None] and last_click_button.icon | length > 0
-                              else nextion.icon.domain[entity_domain]
-                            }}
-                          page_icon_color: >
-                            {{
-                              last_click_button.icon_color_rgb
-                              if is_number(last_click_button.icon_color_rgb)
-                              else ((last_click_button.icon_color_rgb[0] //(2**3)) *(2**11))+((last_click_button.icon_color_rgb[1] //(2**2)) *(2**5))+(last_click_button.icon_color_rgb[2] //(2**3))
-                            }}
-                          entity: '{{ last_click_button.entity }}'
-                          back_page: '{{ nspanel_event.page }}'
-                        continue_on_error: true
+                      - if:
+                          - '{{ entity_domain != "light" or state_attr(last_click_button.entity, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
+                          - '{{ entity_domain != "cover" or state_attr(last_click_button.entity, "supported_features") | int(0) | bitwise_and(4) > 0 }}'
+                        then:
+                          - service: '{{ nextion.command.open_entity_settings_page }}'
+                            data:
+                              page: '{{ entity_domain }}'
+                              page_label: '{{ last_click_button.name if last_click_button.name is string and last_click_button.name | length > 0 else state_attr(last_click_button.entity, "friendly_name") }}'
+                              page_icon: >
+                                {{
+                                  all_icons[last_click_button.icon.split(":")[1]] | default(last_click_button.icon if last_click_button.icon is defined and last_click_button.icon is string else nextion.icon.domain[entity_domain])
+                                  if last_click_button.icon not in ["unavailable", "unknown", "", None] and last_click_button.icon | length > 0
+                                  else nextion.icon.domain[entity_domain]
+                                }}
+                              page_icon_color: >
+                                {{
+                                  last_click_button.icon_color_rgb
+                                  if is_number(last_click_button.icon_color_rgb)
+                                  else ((last_click_button.icon_color_rgb[0] //(2**3)) *(2**11))+((last_click_button.icon_color_rgb[1] //(2**2)) *(2**5))+(last_click_button.icon_color_rgb[2] //(2**3))
+                                }}
+                              entity: '{{ last_click_button.entity }}'
+                              back_page: '{{ nspanel_event.page }}'
+                            continue_on_error: true
                     else: # Short press
                       - if: '{{ entity_domain not in ["unknown", "person", "binary_sensor", "sensor"] }}'
                         then:
@@ -8647,11 +8732,14 @@ action:
             timeout: !input hold_delay
             continue_on_timeout: true
           - if: '{{ not wait.completed }}'
-            then: # Hold
+            then: # Hold - Long press
               - choose:
                   - conditions:
                     - '{{ button_context.hold_select == "Default" and button_context.entity | length > 0 }}'
                     - '{{ button_domain in ["climate", "cover", "light"] }}'
+                    - '{{ button_domain != "light" or state_attr(button_context.entity, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
+                    - '{{ button_domain != "cover" or state_attr(button_context.entity, "supported_features") | int(0) | bitwise_and(4) > 0 }}'
+
                     sequence:
                       - service: '{{ nextion.command.open_entity_settings_page }}'
                         data:
