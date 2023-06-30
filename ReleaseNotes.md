@@ -92,7 +92,7 @@ Now the Wi-Fi icon in the panel (at the right side of the time) will show one of
 Now when long press a button conneted to a light or a cover, the detailed light settings page will open only when the entity supports advanced control, and the detailed page will only show the controls supported by that entity.
 &nbsp;
 ### 9. New "Fan speed page"
-If you have a connected fan supporting speed control, now you wilhave all the speed control settings in your panel. Just add the new fan to one of the buttons pages or to the hardware buttons and a long press on those buttons will pop up the new "Fan speed page":
+If you have a connected fan supporting speed control, now you are able to control it's speed from your panel. Just add the new fan to one of the buttons pages or to the hardware buttons and a long press on those buttons will pop up the new "Fan speed page":
 ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/4167928e-6822-4db6-a24b-f8a1d52806f5)
 &nbsp;
 ### 10. Select wake-up page
