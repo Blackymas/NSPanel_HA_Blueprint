@@ -41,7 +41,7 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 8. Light & cover settings pages will show only the supported features (#896)
 9. New "Fan speed page" (#897)
 10. Select wake-up page (#898)
-11. Time engine on ESPHome
+11. Time engine on ESPHome ([#ec99b83](https://github.com/Blackymas/NSPanel_HA_Blueprint/commit/ec99b83817be5b36a94c2da3060d0bd0032e419e))
    
 &nbsp;
 ## Details of all changes
