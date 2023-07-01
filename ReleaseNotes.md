@@ -24,9 +24,10 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 - [(DE) HowTo - Alle wichtigen Dinge die man wissen sollte - Update](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(DE)-HowTo---Alle-wichtigen-Dinge-die-man-wissen-sollte#2-update-blueprint)
 &nbsp;
 ## Breaking changes
-1. New requirement: Home Assistant 2023.5.0 or later
+1. New requirement: Home Assistant 2023.5.0 or later.
 2. Exisiting users will have o select again the language for the panel, otherwise English will be used to display strings.
-3. Removed entity `sensor.xxxxx_settings_entity` and service `esphome.xxxxx_set_settings_entity`
+3. Removed entity `sensor.xxxxx_settings_entity` and service `esphome.xxxxx_set_settings_entity`.
+4. Due to the changes on the time display engine, you might have to select your time format again in the blueprint settings.
 
 &nbsp;
 ## Overview of all changes
@@ -40,6 +41,7 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 8. Light & cover settings pages will show only the supported features (#896)
 9. New "Fan speed page" (#897)
 10. Select wake-up page (#898)
+11. Time engine on ESPHome
    
 &nbsp;
 ## Details of all changes
@@ -103,6 +105,12 @@ Now you can select the wake-up page on the blueprint settings:
 This selected page will be shown after a boot (after the boot page) and with a touch in the screen when on screen saver page. After showing this wake-up page, all the previous behavior for closing the page (with a click or after a timeout) will be the same.
 
 &nbsp;
+### 11. Time engine on ESPHome
+The time displayed in your panel is now managed directly into ESPHome, freeing up resources from the Blueprint and communication between the Home Assistant and your panel, and the time on the display will be update even when your network is down or Home Assistant is restarting.
+
+This is part of an effort to reduce the load into your network and Home Assistant and make your panel more resilient in case of network or Home Assisstant outages.
+&nbsp;
+
 ## Next topics we are currently working on
 See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 

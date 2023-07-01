@@ -25,6 +25,8 @@ substitutions:
   # dns: "10.0.0.138"
   # domain: ".local"
 
+  time_source: "homeassistant" # Either "homeassistant" or "sntp" are supported
+
 ###### USE THIS ONLY FOR YOUR FIRST TFT UPLOAD
 ###### AND IF EXIT-REPARSE BUTTON FAILS
 ###### ONCE IT WORKED, REMOVE THESE LINES
@@ -118,6 +120,47 @@ uart:
   #     delimiter: "\n"
   #   sequence:
   #     - lambda: UARTDebug::log_string(direction, bytes);
+
+### Keeps time display updated
+time:
+  - platform: ${time_source}
+    id: time_provider
+    on_time:
+      - seconds: 0
+        then:
+          - wait_until:
+              binary_sensor.is_on: nextion_init
+          - &refresh_datetime
+            lambda: |-
+              std::string time_format_str = id(mui_time_format);
+              if (time_format_str.find("%p") != std::string::npos)
+              {
+                std::string meridiem_text = id(time_provider).now().strftime("%p");
+                id(disp1).set_component_text_printf("home.meridiem", "%s", meridiem_text.c_str());
+              }
+              else { id(disp1).set_component_text_printf("home.meridiem", " "); }
+              if (time_format_str.find("%-H") != std::string::npos) { time_format_str = time_format_str.replace(time_format_str.find("%-H"), sizeof("%-H")-1, to_string((int)(id(time_provider).now().hour))); }
+              if (time_format_str.find("%-I") != std::string::npos)
+              {
+                if (id(time_provider).now().hour>12)
+                {
+                  time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1, to_string((int)(id(time_provider).now().hour-12)));
+                }
+                else if (id(time_provider).now().hour==0)
+                {
+                  time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1, "12");
+                }
+                else
+                {
+                  time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1, to_string((int)(id(time_provider).now().hour)));
+                }
+              }
+              std::string time_text = id(time_provider).now().strftime(time_format_str);
+              id(disp1).set_component_text_printf("home.time", "%s", time_text.c_str());
+    on_time_sync:
+      then:
+        - logger.log: "Synchronized system clock"
+        - *refresh_datetime
 
 ##### START - BUTTON CONFIGURATION #####
 button:
@@ -467,6 +510,16 @@ api:
               id(disp1).send_command_printf("%s", entxcen.c_str());
             }
 
+    ##### Service for localization of global vars #####
+    - service: set_localization
+      variables:
+        time_format: string
+      then:
+        - lambda: |-
+            ESP_LOGD("set_localization", "time_format: %s", time_format.c_str());
+            id(mui_time_format) = time_format;
+        - *refresh_datetime
+
 ##### START - GLOBALS CONFIGURATION #####
 globals:
 
@@ -487,6 +540,16 @@ globals:
     type: float
     restore_value: true
     initial_value: '0.0'
+
+  ##### Date/time formats #####
+  #- id: mui_date_format
+  #  type: std::string
+  #  restore_value: no
+  #  initial_value: '"%A, %d.%m"'
+  - id: mui_time_format
+    type: std::string
+    restore_value: no
+    initial_value: '"%H:%M"'
 
 ##### START - BINARY SENSOR CONFIGURATION #####
 binary_sensor:
