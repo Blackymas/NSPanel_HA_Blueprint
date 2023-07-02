@@ -28,6 +28,7 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 2. Exisiting users will have o select again the language for the panel, otherwise English will be used to display strings.
 3. Removed entity `sensor.xxxxx_settings_entity` and service `esphome.xxxxx_set_settings_entity`.
 4. Due to the changes on the time display engine, you might have to select your time format again in the blueprint settings.
+5. The network settings was moved to under `networks` on the `wifi` session. If you are using advanced/custom settings for Wi-Fi on ESPHome, you may have to update to follow the new format.
 
 &nbsp;
 ## Overview of all changes
@@ -55,31 +56,36 @@ recommend to have a big warning, and that the user has to take care about e.g.:
 - split internal networks: IOT, Guest, Internal, Management, ...
 - enable api-encryption
 
+&nbsp;
 ### 2. Support to sensor display precision from Home Assistant
 Now the values shown in your panel will follow the [sensor display precision](https://www.home-assistant.io/blog/2023/03/01/release-20233/#sensor-display-precision) provided by Home Assistant.
 
 => If you have problems with a value exceeding the available space in your panel, please reduce the number of decimals using Home Assistant [sensor display precision](https://www.home-assistant.io/blog/2023/03/01/release-20233/#sensor-display-precision).
 
+&nbsp;
 ### 3. Filtered device list
 When selecting the NSPanel on the automation, only ESP32 devices will be shown, making easier to find your panel.
 ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/0e66bd6b-23c3-4014-8603-958acea48462)
 
+&nbsp;
 ### 4. New language selector
 Starts using the new language selector release with HA 2023.5.0 and based on RFC 5646, which will increase reliability and standardization of the code.
 Althougt this is not visible for users at the first view, it will enable the use of more granualar language selections (like pt-BR vs pt-PT or en-US vs en-UK) if needed in the future.
 
 => If you are an existing users, please remember to select your language again after the update, as the previous selection will be invalid.
-&nbsp;
 
+&nbsp;
 ### 5. Removed `settings_entity`
 The entity `sensor.xxxxx_settings_entity` was previously used by ESPHome to to transfer information about the selected entity on the settings page to the Blueprint, enabling the transfer of settings from different instances of the blueprint with the use of service `esphome.xxxxx_set_settings_entity`. This mechanism was a bit fragile and not user friendly.
 With this version the information about the entity shown will be part of the `sensor.xxxxx_nspanel_event` and the settings pages will be called with the service `esphome.xxxxx_open_entity_settings_page`.
 Apart of a cleaner device page, this change should be transparent for most users. If you have made automations based on the removed elements, please update it using the new service.
+
 &nbsp;
 ### 6. Support for US model on landscape mode
 If you are using a panel model US in landscape mode, you can now use `nspanel_us_land.tft` where the bars related to the hardware buttons will be located at the right, closer to the respective buttons and fixing the offset on the touch screen when using `nspanel_eu.tft` into a US panel.
 
 => The hardware buttons labels are hidden in this format, as Nextion cannot support rotated text.
+
 &nbsp;
 ### 7. API status indication on the panel
 Now the Wi-Fi icon in the panel (at the right side of the time) will show one of 3 possible states:
@@ -89,13 +95,16 @@ Now the Wi-Fi icon in the panel (at the right side of the time) will show one of
 ![api-off_red](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/2486df3b-17ea-4c2c-a3c2-057c565a3173) The panel is connected to the Wi-Fi, but the API is not connected to Home Assistant (mdi:api-off)
 
 ![wifi-off_red](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/c8b15d1f-0950-42d7-84d1-fca8610543c0) The panel is **NOT** connected to the Wi-Fi (mdi:wifi-off)
+
 &nbsp;
 ### 8. Light & cover settings pages will show only the supported features
 Now when long press a button conneted to a light or a cover, the detailed light settings page will open only when the entity supports advanced control, and the detailed page will only show the controls supported by that entity.
+
 &nbsp;
 ### 9. New "Fan speed page"
 If you have a connected fan supporting speed control, now you are able to control it's speed from your panel. Just add the new fan to one of the buttons pages or to the hardware buttons and a long press on those buttons will pop up the new "Fan speed page":
 ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/4167928e-6822-4db6-a24b-f8a1d52806f5)
+
 &nbsp;
 ### 10. Select wake-up page
 Now you can select the wake-up page on the blueprint settings:
