@@ -7,6 +7,8 @@
 &nbsp;
 ## General
 
+- Thanks for 600 stars.
+
 ### 
 
 &nbsp;
