@@ -44,7 +44,7 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 9. New "Fan speed page" (#897)
 10. Select wake-up page (#898)
 11. Panel's local control
-12. Embedded thermostat/heater
+12. Embedded thermostat/heater (#917)
 
 &nbsp;
 ## Details of all changes
