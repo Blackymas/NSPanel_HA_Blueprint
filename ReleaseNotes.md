@@ -44,7 +44,8 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 9. New "Fan speed page" (#897)
 10. Select wake-up page (#898)
 11. Panel's local control
-   
+12. Embedded thermostat/heater
+
 &nbsp;
 ## Details of all changes
 
@@ -112,8 +113,17 @@ We are trying to make your panel as autonomous as possible by moving some of the
 With this version, the following engines have been moved to your panel (local control):
 - Time display
 - Physical relay control (when hardware left button is connected to relay 1 or right button to relay 2)
-&nbsp;
+- Embedded thermostat (see bellow)
 
+&nbsp;
+### 12. Embedded thermostat/heater
+Now you can use your panel to control a heater and let your ambient more confortable, and you will be able to control it locally even when your Wi-Fi is out or Home Assistant is unavailable.
+
+===>>> Add documentation before release <<<===
+- How to enable
+- Substitutions
+
+&nbsp;
 ## Next topics we are currently working on
 See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 
