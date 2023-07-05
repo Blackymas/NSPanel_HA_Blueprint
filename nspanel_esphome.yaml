@@ -8,6 +8,7 @@
 
 ##### ADVANCED CONFIGURATION - activate only when you know what you do ##############################
 substitutions:
+  verbose_log: "false"
   baud_rate: "115200" # requires 115200 if tft is installed but can be changed to 9600 if tft upload fails and nextion switches to 9600
   # ## usage of secrets-file ## -> comment in ###### Change ME ######
   # device_name: "nspanel-name" # Wird im Blueprint benötigt!
@@ -404,6 +405,18 @@ api:
         climate_icon: string
         embedded_climate: bool
       then:
+        - lambda: |-
+            if (${verbose_log})
+              {
+                ESP_LOGD("api.service.set_climate", "climateslider.maxval=%i", total_steps);
+                ESP_LOGD("api.service.set_climate", "temp_offset=%f", temp_offset);
+                ESP_LOGD("api.service.set_climate", "temp_step=%f", temp_step);
+                ESP_LOGD("api.service.set_climate", "current_temp=%f", current_temp);
+                ESP_LOGD("api.service.set_climate", "target_temp=%f", target_temp);
+                ESP_LOGD("api.service.set_climate", "target_icon=%s", climate_icon.c_str());
+                ESP_LOGD("api.service.set_climate", "embedded=%i", (embedded_climate) ? 1 : 0);
+              }
+
         - script.execute:
             id: set_climate
             current_temp: !lambda "return current_temp;"
@@ -853,6 +866,14 @@ text_sensor:
             std::string value = doc["value"];
             std::string entity = doc["entity"];
             int embedded = doc["embedded"];
+            if (${verbose_log})
+            {
+              ESP_LOGD("text_sensor.localevent", "domain=%s", domain.c_str());
+              ESP_LOGD("text_sensor.localevent", "key=%s", key.c_str());
+              ESP_LOGD("text_sensor.localevent", "value=%s", value.c_str());
+              ESP_LOGD("text_sensor.localevent", "entity=%s", entity.c_str());
+              ESP_LOGD("text_sensor.localevent", "embedded=%i", embedded);
+            }
             if (domain == "climate" and embedded == 1)
               {
                 bool embedded_thermostat_is_disabled = ${embedded_thermostat_disabled};
@@ -880,7 +901,13 @@ text_sensor:
                       {
                         resp.service = "climate.set_temperature";
                         resp_kv.key = "temperature";
-                        resp_kv.value = to_string(stoi(value) / 10);
+                        resp_kv.value = to_string(stof(value) / 10);
+                        if (${verbose_log})
+                          {
+                            ESP_LOGD("text_sensor.localevent", "resp.service=%s", resp.service.c_str());
+                            ESP_LOGD("text_sensor.localevent", "resp_kv.key=%s", resp_kv.key.c_str());
+                            ESP_LOGD("text_sensor.localevent", "resp_kv.value=%s", resp_kv.value.c_str());
+                          }
                         resp.data.push_back(resp_kv);
                       }
                     else if (key == "hvac_mode")
@@ -1205,15 +1232,25 @@ script:
     parameters:
       current_temp: float
       target_temp: float
-      temp_step: float
-      total_steps: float
-      temp_offset: float
+      temp_step: int
+      total_steps: int
+      temp_offset: int
       climate_icon: string
       embedded_climate: bool
     then:
       - wait_until:
           binary_sensor.is_on: nextion_init
       - lambda: |-
+          if (${verbose_log})
+            {
+              ESP_LOGD("script.set_climate", "climateslider.maxval=%i", total_steps);
+              ESP_LOGD("script.set_climate", "temp_offset=%i", temp_offset);
+              ESP_LOGD("script.set_climate", "temp_step=%i", temp_step);
+              ESP_LOGD("script.set_climate", "current_temp=%f", current_temp);
+              ESP_LOGD("script.set_climate", "target_temp=%f", target_temp);
+              ESP_LOGD("script.set_climate", "target_icon=%s", climate_icon.c_str());
+              ESP_LOGD("script.set_climate", "embedded=%i", (embedded_climate) ? 1 : 0);
+            }
           id(disp1).send_command_printf("climateslider.maxval=%i", total_steps);
           id(disp1).set_component_value("temp_offset", temp_offset);
           id(disp1).set_component_value("temp_step", temp_step);
@@ -1222,7 +1259,8 @@ script:
           id(disp1).show_component("current_icon");
           if (target_temp > -999)
             {
-              float slider_val = round((10*target_temp - temp_offset) / temp_step);
+              float slider_val = round(((10*target_temp) - temp_offset) / temp_step);
+              if (${verbose_log}) ESP_LOGD("script.set_climate", "climateslider=%f", slider_val);
               id(disp1).set_component_value("climateslider", slider_val);
               id(disp1).set_component_text_printf("target_temp", "%.1f°", target_temp);
               id(disp1).set_component_text_printf("target_icon", "%s", climate_icon.c_str());
@@ -1232,7 +1270,7 @@ script:
               id(disp1).show_component("decrease_temp");
               id(disp1).show_component("increase_temp");
             }
-            else
+          else
             {
               id(disp1).hide_component("target_icon");
               id(disp1).hide_component("target_temp");
@@ -1270,6 +1308,7 @@ climate:
         default_target_temperature_low: 21 ${embedded_thermostat_temp_units}
     internal: ${embedded_thermostat_disabled}
     on_state:
+      - logger.log: Climate state changed - Start
       - if:
           condition:
             - lambda: !lambda "return (not ${embedded_thermostat_disabled});"
@@ -1282,19 +1321,20 @@ climate:
               then:
                 - script.execute:
                     id: set_climate
-                    current_temp: !lambda "return int(10*id(thermostat_embedded).current_temperature);"
+                    current_temp: !lambda "return int(round(10*id(thermostat_embedded).current_temperature));"
                     target_temp: !lambda "return id(thermostat_embedded).target_temperature;"
-                    temp_step: !lambda "return int(${embedded_thermostat_visual_target_temperature_step}*10);"
+                    temp_step: !lambda "return int(round(${embedded_thermostat_visual_target_temperature_step}*10));"
                     total_steps: !lambda |-
                       float temp_step = ${embedded_thermostat_visual_target_temperature_step};
                       float temp_offset = ${embedded_thermostat_visual_min_temperature};
                       float temp_max = ${embedded_thermostat_visual_max_temperature};
                       float total_steps = (temp_max-temp_offset)/temp_step;
-                      return int(total_steps);
+                      return int(round(total_steps));
                     slider_val: !lambda |-
                       float temp_step = ${embedded_thermostat_visual_target_temperature_step};
                       float temp_offset = ${embedded_thermostat_visual_min_temperature};
-                      return int((id(thermostat_embedded).current_temperature-temp_offset)/temp_step);
-                    temp_offset: !lambda "return int(${embedded_thermostat_visual_min_temperature}*10);"
+                      return int(round((id(thermostat_embedded).current_temperature-temp_offset)/temp_step));
+                    temp_offset: !lambda "return int(round(${embedded_thermostat_visual_min_temperature}*10));"
                     climate_icon: ""
                     embedded_climate: True
+      - logger.log: Climate state changed - End
