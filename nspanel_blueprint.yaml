@@ -3483,11 +3483,11 @@ trace:
 #############################################################
 
 trigger_variables:
-  nspanel_name_temp: !input 'nspanel_name'
-  nspanel_entities: '{{ device_entities(nspanel_name_temp) }}'
+  nspanel_deviceid: !input 'nspanel_name'
+  nspanel_entities: '{{ device_entities(nspanel_deviceid) }}'
   nspanel_name: >
     {% if nspanel_entities | count > 0 %}{{ (nspanel_entities | selectattr(None, "search", "_nextion_display") | list | first).split(".")[1].split("_nextion_display")[0] }}
-    {% elif nspanel_name_temp is string %}{{ nspanel_name_temp | replace("-","_") | replace(" ","_") | replace("___","_") | replace("__","_") }}
+    {% elif nspanel_deviceid is string %}{{ nspanel_deviceid | replace("-","_") | replace(" ","_") | replace("___","_") | replace("__","_") }}
     {% endif %}
   left_button: 'binary_sensor.{{ nspanel_name }}_left_button'
   right_button: 'binary_sensor.{{ nspanel_name }}_right_button'
@@ -3568,8 +3568,7 @@ variables:
       set_button: 'esphome.{{ nspanel_name }}_set_button'
       set_entity: 'esphome.{{ nspanel_name }}_set_entity'
       set_climate: 'esphome.{{ nspanel_name }}_set_climate'
-      set_localization: 'esphome.{{ nspanel_name }}_set_localization'
-      set_relay_local: 'esphome.{{ nspanel_name }}_set_relay_local'
+      global_settings: 'esphome.{{ nspanel_name }}_global_settings'
     icon:
       domain:
         automation: "\uF6FC" #F6FC
@@ -5315,20 +5314,7 @@ variables:
       date:
         label:
           color_rgb: !input 'date_label_color'
-    hardware:
-      buttons: #### HARDWARE BUTTONS #####
-        left:
-          entity: !input 'left_button_entity'
-          name: !input 'left_button_name'
-          color_rgb: !input 'left_button_color'
-          hold_select: !input 'left_button_hold_select'
-          #custom_action: !input 'left_button_hold_custom_action'
-        right:
-          entity: !input 'right_button_entity'
-          name: !input 'right_button_name'
-          color_rgb: !input 'right_button_color'
-          hold_select: !input 'right_button_hold_select'
-          #custom_action: !input 'right_button_hold_custom_action'
+
   ##### Climate page #####
   page_climate:
     buttons:
@@ -6087,65 +6073,101 @@ action:
           - &global_settings
             if: '{{ true }}'
             then:
-              - &set_relays
-                if: '{{ true }}'
-                then:
-                  - &set_relay_local
-                    service: '{{ nextion.command.set_relay_local }}'
-                    data:
-                      relay1: '{{ page_home.hardware.buttons.left.entity == relay01_entity }}'
-                      relay2: '{{ page_home.hardware.buttons.right.entity == relay02_entity }}'
-                    continue_on_error: true
+              - &variables_hardware
+                variables:
+                  hardware:
+                    buttons:
+                      left:
+                        entity: !input 'left_button_entity'
+                        name: !input 'left_button_name'
+                        color_rgb: !input 'left_button_color'
+                        hold_select: !input 'left_button_hold_select'
+                        #custom_action: !input 'left_button_hold_custom_action'
+                      right:
+                        entity: !input 'right_button_entity'
+                        name: !input 'right_button_name'
+                        color_rgb: !input 'right_button_color'
+                        hold_select: !input 'right_button_hold_select'
+                        #custom_action: !input 'right_button_hold_custom_action'
+                    relays:
+                      relay1:
+                        icon: !input 'relay01_icon' #E3A5
+                        icon_color_rgb: !input 'relay01_icon_color'
+                      relay2:
+                        icon: !input 'relay02_icon' #E3A8
+                        icon_color_rgb: !input 'relay02_icon_color'
 
-                  ###### Set local fallback ######
-                  - service: 'switch.turn_{{ "on" if relay_1_local_fallback else "off" }}'
-                    data:
-                      entity_id: "switch.{{ nspanel_name }}_relay_1_local_fallback"
-                    continue_on_error: true
-                  - service: 'switch.turn_{{ "on" if relay_2_local_fallback else "off" }}'
-                    data:
-                      entity_id: "switch.{{ nspanel_name }}_relay_2_local_fallback"
-                    continue_on_error: true
-              - *delay-default
-
-              - &clear_notification
-                service: '{{ nextion.command.notification_clear }}'
-                data: {}
-                continue_on_error: true
-              - *delay-default
-
-              - &set_localization
-                service: '{{ nextion.command.set_localization }}'
+              - service: '{{ nextion.command.global_settings }}'
                 data:
+                  relay1_local_control: '{{ hardware.buttons.left.entity == relay01_entity }}'
+                  relay1_icon: >
+                    {{
+                      all_icons[hardware.relays.relay1.icon.split(":")[1]] | default("\uE3A5")
+                      if hardware.relays.relay1.icon.split(":") | count > 0
+                      else
+                        (
+                          hardware.relays.relay1.icon
+                          if hardware.relays.relay1.icon is string
+                          else "\uE3A5"
+                        )
+                    }}
+                  relay1_icon_color: >
+                    {{
+                      hardware.relays.relay1.icon_color_rgb
+                      if is_number(hardware.relays.relay1.icon_color_rgb)
+                      else ((hardware.relays.relay1.icon_color_rgb[0] //(2**3)) *(2**11))+((hardware.relays.relay1.icon_color_rgb[1] //(2**2)) *(2**5))+(hardware.relays.relay1.icon_color_rgb[2] //(2**3))
+                    }}
+                  relay2_local_control: '{{ hardware.buttons.right.entity == relay02_entity }}'
+                  relay2_icon: >
+                    {{
+                      all_icons[hardware.relays.relay2.icon.split(":")[1]] | default("\uE3A8")
+                      if hardware.relays.relay2.icon.split(":") | count > 0
+                      else
+                        (
+                          hardware.relays.relay2.icon
+                          if hardware.relays.relay2.icon is string
+                          else "\uE3A8"
+                        )
+                    }}
+                  relay2_icon_color: >
+                    {{
+                      hardware.relays.relay2.icon_color_rgb
+                      if is_number(hardware.relays.relay2.icon_color_rgb)
+                      else ((hardware.relays.relay2.icon_color_rgb[0] //(2**3)) *(2**11))+((hardware.relays.relay2.icon_color_rgb[1] //(2**2)) *(2**5))+(hardware.relays.relay2.icon_color_rgb[2] //(2**3))
+                    }}
+                  date_color: >
+                    {{
+                      page_home.general.date.label.color_rgb
+                      if is_number(page_home.general.date.label.color_rgb)
+                      else ((page_home.general.date.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.date.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.date.label.color_rgb[2] //(2**3))
+                    }}
                   time_format: '{{ time_format }}'
+                  time_color: >
+                    {{
+                      page_home.general.time.label.color_rgb
+                      if is_number(page_home.general.time.label.color_rgb)
+                      else ((page_home.general.time.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.time.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.time.label.color_rgb[2] //(2**3))
+                    }}
+                  embedded_climate: '{{ climate == thermostat_embedded }}'
                 continue_on_error: true
               - *delay-default
 
-              - &home-date_time-font_color
-                if: '{{ true }}'
-                then:
-                  - service: '{{ nextion.command.font_color }}'
-                    data:
-                      component: home.date
-                      message: >
-                        {{
-                          page_home.general.date.label.color_rgb
-                          if is_number(page_home.general.date.label.color_rgb)
-                          else ((page_home.general.date.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.date.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.date.label.color_rgb[2] //(2**3))
-                        }}
-                    continue_on_error: true
-                  - *delay-default
-                  - service: '{{ nextion.command.font_color }}'
-                    data:
-                      component: home.time
-                      message: >
-                        {{
-                          page_home.general.time.label.color_rgb
-                          if is_number(page_home.general.time.label.color_rgb)
-                          else ((page_home.general.time.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.time.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.time.label.color_rgb[2] //(2**3))
-                        }}
-                    continue_on_error: true
+              ###### Set local fallback ######
+              - service: 'switch.turn_{{ "on" if relay_1_local_fallback else "off" }}'
+                data:
+                  entity_id: "switch.{{ nspanel_name }}_relay_1_local_fallback"
+                continue_on_error: true
+              - service: 'switch.turn_{{ "on" if relay_2_local_fallback else "off" }}'
+                data:
+                  entity_id: "switch.{{ nspanel_name }}_relay_2_local_fallback"
+                continue_on_error: true
               - *delay-default
+
+          - &clear_notification
+            service: '{{ nextion.command.notification_clear }}'
+            data: {}
+            continue_on_error: true
+          - *delay-default
 
           ###### NSPanel beep ######
           - delay:
@@ -6316,12 +6338,13 @@ action:
                             continue_on_error: true
 
                   ##### NSPanel Buttons #####
+                  - *variables_hardware
                   - variables:
-                      left_button_state: '{{ states(page_home.hardware.buttons.left.entity) | default("unavailable") if page_home.hardware.buttons.left.entity is string else "unavailable" }}'
-                      right_button_state: '{{ states(page_home.hardware.buttons.right.entity) | default("unavailable") if page_home.hardware.buttons.right.entity is string else "unavailable" }}'
+                      left_button_state: '{{ states(hardware.buttons.left.entity) | default("unavailable") if hardware.buttons.left.entity is string else "unavailable" }}'
+                      right_button_state: '{{ states(hardware.buttons.right.entity) | default("unavailable") if hardware.buttons.right.entity is string else "unavailable" }}'
 
                   ##### NSPanel Left Button Name #####
-                  - if: '{{ page_home.hardware.buttons.left.name | length > 0 }}'
+                  - if: '{{ hardware.buttons.left.name | length > 0 }}'
                     then:
                       ### LABEL Font Color ###
                       - *delay-default
@@ -6330,9 +6353,9 @@ action:
                           component: home.left_bt_text
                           message: >
                             {{
-                              page_home.hardware.buttons.left.color_rgb
-                              if is_number(page_home.hardware.buttons.left.color_rgb)
-                              else ((page_home.hardware.buttons.left.color_rgb[0] //(2**3)) *(2**11))+((page_home.hardware.buttons.left.color_rgb[1] //(2**2)) *(2**5))+(page_home.hardware.buttons.left.color_rgb[2] //(2**3))
+                              hardware.buttons.left.color_rgb
+                              if is_number(hardware.buttons.left.color_rgb)
+                              else ((hardware.buttons.left.color_rgb[0] //(2**3)) *(2**11))+((hardware.buttons.left.color_rgb[1] //(2**2)) *(2**5))+(hardware.buttons.left.color_rgb[2] //(2**3))
                             }}
                         continue_on_error: true
                       ### LABEL Font ###
@@ -6340,7 +6363,7 @@ action:
                       - service: '{{ nextion.command.text_printf }}'
                         data:
                           component: home.left_bt_text
-                          message: '{{ page_home.hardware.buttons.left.name }}'
+                          message: '{{ hardware.buttons.left.name }}'
                         continue_on_error: true
 
                   ##### SET Left Hardware Button PIC on Home Page ####
@@ -6356,7 +6379,7 @@ action:
                         continue_on_error: true
 
                   ##### NSPanel Right Button Name #####
-                  - if: '{{ page_home.hardware.buttons.right.name | length > 0 }}'
+                  - if: '{{ hardware.buttons.right.name | length > 0 }}'
                     then:
                       ### LABEL Font Color ###
                       - *delay-default
@@ -6365,9 +6388,9 @@ action:
                           component: home.right_bt_text
                           message: >
                             {{
-                              page_home.hardware.buttons.right.color_rgb
-                              if is_number(page_home.hardware.buttons.right.color_rgb)
-                              else ((page_home.hardware.buttons.right.color_rgb[0] //(2**3)) *(2**11))+((page_home.hardware.buttons.right.color_rgb[1] //(2**2)) *(2**5))+(page_home.hardware.buttons.right.color_rgb[2] //(2**3))
+                              hardware.buttons.right.color_rgb
+                              if is_number(hardware.buttons.right.color_rgb)
+                              else ((hardware.buttons.right.color_rgb[0] //(2**3)) *(2**11))+((hardware.buttons.right.color_rgb[1] //(2**2)) *(2**5))+(hardware.buttons.right.color_rgb[2] //(2**3))
                             }}
                         continue_on_error: true
                       ### LABEL Font ###
@@ -6375,7 +6398,7 @@ action:
                       - service: '{{ nextion.command.text_printf }}'
                         data:
                           component: home.right_bt_text
-                          message: '{{ page_home.hardware.buttons.right.name }}'
+                          message: '{{ hardware.buttons.right.name }}'
                         continue_on_error: true
 
                   ##### SET Right Hardware Button PIC on Home Page #####
@@ -6397,16 +6420,6 @@ action:
                       hvac_action: '{{ state_attr(climate, "hvac_action") | default("unavailable") if climate is string else "unavailable" }}'
                       climate_action: '{{ hvac_action if hvac_action not in ["unavailable", "unknown", "", None] else climate_state }}'
                       home_page_status_bar:
-                        - entity: '{{ relay01_entity }}'
-                          icon: !input 'relay01_icon' #E3A5
-                          icon_color_rgb: !input 'relay01_icon_color'
-                          page: home
-                          component: icon_top_01
-                        - entity: '{{ relay02_entity }}'
-                          icon: !input 'relay02_icon' #E3A8
-                          icon_color_rgb: !input 'relay02_icon_color'
-                          page: home
-                          component: icon_top_02
                         - entity: '{{ climate }}'
                           icon: >
                             {% if "off" in climate_action %}{{ all_icons.blank }}
@@ -8790,8 +8803,9 @@ action:
               - left_button_press
               - right_button_press
         sequence:
+          - *variables_hardware
           - variables:
-              button_context: '{{ page_home.hardware.buttons.left if trigger.id == "left_button_press" else page_home.hardware.buttons.right }}'
+              button_context: '{{ hardware.buttons.left if trigger.id == "left_button_press" else hardware.buttons.right }}'
               button_domain: >
                 {{
                   button_context.entity.split(".")[0] | default("unknown")
@@ -8829,8 +8843,8 @@ action:
                     sequence: !input right_button_hold_custom_action
             else: # Single Click
               - condition: '{{ button_context.entity | length > 0 }}'
-              - condition: '{{ trigger.id != "left_button_press" or page_home.hardware.buttons.left.entity != relay01_entity }}' ### Prevents blueprint control when locally controlled
-              - condition: '{{ trigger.id != "right_button_press" or page_home.hardware.buttons.right.entity != relay02_entity }}' ### Prevents blueprint control when locally controlled
+              - condition: '{{ trigger.id != "left_button_press" or hardware.buttons.left.entity != relay01_entity }}' ### Prevents blueprint control when locally controlled
+              - condition: '{{ trigger.id != "right_button_press" or hardware.buttons.right.entity != relay02_entity }}' ### Prevents blueprint control when locally controlled
               - service: >
                   {% if button_domain in ["light", "switch", "cover", "input_boolean", "automation", "fan"] %}
                     {{ button_domain }}.toggle

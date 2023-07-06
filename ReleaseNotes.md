@@ -26,7 +26,7 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 - [(DE) HowTo - Alle wichtigen Dinge die man wissen sollte - Update](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(DE)-HowTo---Alle-wichtigen-Dinge-die-man-wissen-sollte#2-update-blueprint)
 &nbsp;
 ## Breaking changes
-1. New requirement: Home Assistant 2023.5.0 or later.
+1. New requirements: Home Assistant and ESPHome v2023.5.0 or later.
 2. Exisiting users will have o select again the language for the panel, otherwise English will be used to display strings.
 3. Removed entity `sensor.xxxxx_settings_entity` and service `esphome.xxxxx_set_settings_entity`.
 4. Due to the changes on the time display engine, you might have to select your time format again in the blueprint settings.

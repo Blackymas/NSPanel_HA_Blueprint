@@ -39,8 +39,7 @@ substitutions:
   # https://esphome.io/components/climate/index.html#base-climate-configuration
   embedded_thermostat_visual_min_temperature: "5"
   embedded_thermostat_visual_max_temperature: "25"
-  embedded_thermostat_visual_target_temperature_step: "0.5"
-  embedded_thermostat_visual_current_temperature_step: "0.1"
+  embedded_thermostat_visual_temperature_step: "0.5"
 
 
 ###### USE THIS ONLY FOR YOUR FIRST TFT UPLOAD
@@ -80,7 +79,7 @@ wifi:
 ##### ESPHOME CONFIGURATION #####
 esphome:
   name: ${device_name}
-  min_version: 2022.10.2
+  min_version: 2023.5.0
 
 ##### TYPE OF ESP BOARD #####
 esp32:
@@ -144,39 +143,13 @@ time:
     on_time:
       - seconds: 0
         then:
-          - wait_until:
-              binary_sensor.is_on: nextion_init
-          - &refresh_datetime
-            lambda: |-
-              std::string time_format_str = id(mui_time_format);
-              if (time_format_str.find("%p") != std::string::npos)
-              {
-                std::string meridiem_text = id(time_provider).now().strftime("%p");
-                id(disp1).set_component_text_printf("home.meridiem", "%s", meridiem_text.c_str());
-              }
-              else { id(disp1).set_component_text_printf("home.meridiem", " "); }
-              if (time_format_str.find("%-H") != std::string::npos) { time_format_str = time_format_str.replace(time_format_str.find("%-H"), sizeof("%-H")-1, to_string((int)(id(time_provider).now().hour))); }
-              if (time_format_str.find("%-I") != std::string::npos)
-              {
-                if (id(time_provider).now().hour>12)
-                {
-                  time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1, to_string((int)(id(time_provider).now().hour-12)));
-                }
-                else if (id(time_provider).now().hour==0)
-                {
-                  time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1, "12");
-                }
-                else
-                {
-                  time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1, to_string((int)(id(time_provider).now().hour)));
-                }
-              }
-              std::string time_text = id(time_provider).now().strftime(time_format_str);
-              id(disp1).set_component_text_printf("home.time", "%s", time_text.c_str());
+          - script.execute:
+              id: refresh_datetime
     on_time_sync:
       then:
         - logger.log: "Synchronized system clock"
-        - *refresh_datetime
+        - script.execute:
+            id: refresh_datetime
 
 ##### START - BUTTON CONFIGURATION #####
 button:
@@ -520,25 +493,61 @@ api:
               id(disp1).send_command_printf("%s", entxcen.c_str());
             }
 
-    ##### Service for localization of global vars #####
-    - service: set_localization
+    ##### Service for transferring global settings from the blueprint to ESPHome #####
+    - service: global_settings
       variables:
+        relay1_local_control: bool
+        relay1_icon: string
+        relay1_icon_color: int
+        relay2_local_control: bool
+        relay2_icon: string
+        relay2_icon_color: int
+        date_color: int
         time_format: string
+        time_color: int
+        embedded_climate: bool
       then:
+        ## Logs
         - lambda: |-
-            ESP_LOGD("set_localization", "time_format: %s", time_format.c_str());
-            id(mui_time_format) = time_format;
-        - *refresh_datetime
+            if (${verbose_log})
+              {
+                ESP_LOGD("global_settings", "relay1_local_control: %i", (relay1_local_control) ? 1 : 0);
+                ESP_LOGD("global_settings", "relay2_local_control: %i", (relay2_local_control) ? 1 : 0);
+                ESP_LOGD("global_settings", "date_color: %i", date_color);
+                ESP_LOGD("global_settings", "time_format: %s", time_format.c_str());
+                ESP_LOGD("global_settings", "time_color: %i", time_color);
+                ESP_LOGD("global_settings", "embedded_climate: %i", (embedded_climate and not (${embedded_thermostat_disabled})) ? 1 : 0);
+              }
 
-    ##### Service for setting relays as locally controlled #####
-    - service: set_relay_local
-      variables:
-        relay1: bool
-        relay2: bool
-      then:
+        ## Relays
         - lambda: |-
-            id(relay1_local).publish_state(relay1);
-            id(relay2_local).publish_state(relay2);
+            id(relay1_local).publish_state(relay1_local_control);
+            id(relay2_local).publish_state(relay2_local_control);
+            id(home_relay1_icon) = relay1_icon.c_str();
+            id(home_relay2_icon) = relay2_icon.c_str();
+            id(home_relay1_icon_color) = relay1_icon_color;
+            id(home_relay2_icon_color) = relay2_icon_color;
+
+        ## Localization
+        - lambda: |-
+            id(mui_time_format) = time_format;
+
+        ## Date/Time colors
+        - lambda: |-
+            id(home_date_color) = date_color;
+            id(home_time_color) = time_color;
+
+        ## Embedded thermostat
+        - lambda: |-
+            id(is_embedded_thermostat) = (embedded_climate and not (${embedded_thermostat_disabled}));
+
+        ## Refresh colors of global components
+        - script.execute:
+            id: refresh_colors
+
+        ## Update home page
+        - script.execute:
+            id: update_page_home
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
@@ -566,10 +575,47 @@ globals:
   #  type: std::string
   #  restore_value: no
   #  initial_value: '"%A, %d.%m"'
+  - id: home_date_color
+    type: int
+    restore_value: true
+    initial_value: '65535'
+
   - id: mui_time_format
     type: std::string
     restore_value: no
     initial_value: '"%H:%M"'
+
+  - id: home_time_color
+    type: int
+    restore_value: true
+    initial_value: '65535'
+
+  ##### Embedded thermostat #####
+  - id: is_embedded_thermostat
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+
+  ##### Relay icons #####
+  - id: home_relay1_icon
+    type: std::string
+    restore_value: false
+    initial_value: ''
+
+  - id: home_relay1_icon_color
+    type: int
+    restore_value: true
+    initial_value: '65535'
+
+  - id: home_relay2_icon
+    type: std::string
+    restore_value: false
+    initial_value: ''
+
+  - id: home_relay2_icon_color
+    type: int
+    restore_value: true
+    initial_value: '65535'
 
 ##### START - BINARY SENSOR CONFIGURATION #####
 binary_sensor:
@@ -593,15 +639,8 @@ binary_sensor:
                         api.connected:
             then:
               - switch.toggle: relay_1
-              - if:
-                  condition:
-                    switch.is_on: relay_1
-                  then:
-                    - lambda: id(disp1).send_command_printf("home.left_bt_pic.pic=78");
-                    - lambda: id(disp1).send_command_printf("home.icon_top_01","\U0000E3A5");
-                  else:
-                    - lambda: id(disp1).send_command_printf("home.left_bt_pic.pic=77");
-                    - lambda: id(disp1).send_command_printf("home.icon_top_01","\U0000FFFF");
+              - script.execute:
+                  id: refresh_relays
 
   ##### RIGHT BUTTON BELOW DISPLAY TO TOGGLE RELAY #####
   - name: ${device_name} Right Button
@@ -622,15 +661,8 @@ binary_sensor:
                         api.connected:
             then:
               - switch.toggle: relay_2
-              - if:
-                  condition:
-                    switch.is_on: relay_2
-                  then:
-                    - lambda: id(disp1).send_command_printf("home.right_bt_pic.pic=78");
-                    - lambda: id(disp1).send_command_printf("home.icon_top_02","\U0000E3A8");
-                  else:
-                    - lambda: id(disp1).send_command_printf("home.right_bt_pic.pic=77");
-                    - lambda: id(disp1).send_command_printf("home.icon_top_02","\U0000FFFF");
+              - script.execute:
+                  id: refresh_relays
 
   ##### Restart NSPanel Button - Setting Page #####
   - name: ${device_name} Restart
@@ -673,28 +705,11 @@ binary_sensor:
   ##### API connection status
   - platform: status
     name: ${device_name} Status
+    id: api_status
     on_state:
       then:
-        - &update_wifi_icon
-          if:
-            condition:
-              wifi.connected:
-            then:
-              - if:
-                  condition:
-                    api.connected:
-                  then:
-                    - lambda: id(disp1).set_component_value("home.api",1);
-                    - lambda: id(disp1).set_component_text_printf("home.wifi_icon", "%s", "\U0000E5A8");
-                    - lambda: id(disp1).set_component_font_color("home.wifi_icon", 33808);
-                  else:
-                    - lambda: id(disp1).set_component_value("home.api",0);
-                    - lambda: id(disp1).set_component_text_printf("home.wifi_icon", "%s", "\U0000F256");
-                    - lambda: id(disp1).set_component_font_color("home.wifi_icon", 63488);
-            else:
-              - lambda: id(disp1).set_component_value("home.api",0);
-              - lambda: id(disp1).set_component_text_printf("home.wifi_icon", "%s", "\U0000E5A9");
-              - lambda: id(disp1).set_component_font_color("home.wifi_icon", 63488);
+        - script.execute:
+            id: refresh_wifi_icon
 
 ##### START - SENSOR CONFIGURATION #####
 sensor:
@@ -709,7 +724,8 @@ sensor:
     platform: wifi_signal
     update_interval: 60s
     on_value:
-      - *update_wifi_icon
+      - script.execute:
+          id: refresh_wifi_icon
 
   ##### INTERNAL TEMPERATURE SENSOR, ADC VALUE #####
   - id: ntc_source
@@ -782,7 +798,8 @@ text_sensor:
   - name: ${device_name} current page
     platform: template
     id: current_page
-    internal: true ##### DEBUG #####
+    internal: false
+    disabled_by_default: true
 
   ##### ESPhome version used to compile the app #####
   - platform: version
@@ -832,16 +849,17 @@ text_sensor:
             std::string value = doc["value"];
             std::string entity = doc["entity"];
             if (component=="currentpage")
-            {
-              ESP_LOGD("nspanelevent", "New page: %s", page.c_str());
-              auto ha_event = new esphome::api::CustomAPIDevice();
-              ha_event->fire_homeassistant_event("esphome.nspanel_pagechange",
-                {
-                  {"page", page},
-                  {"entity", entity}
-                });
-              id(current_page).publish_state(page);
-            }
+              {
+                ESP_LOGD("nspanelevent", "New page: %s", page.c_str());
+                auto ha_event = new esphome::api::CustomAPIDevice();
+                ha_event->fire_homeassistant_event("esphome.nspanel_pagechange",
+                  {
+                    {"page", page},
+                    {"entity", entity}
+                  });
+                id(current_page).publish_state(page);
+                if (page=="home") id(update_page_home).execute();
+              }
 
   ##### NSPanel event - Execute actions from ESPHome #####
   - name: ${device_name} NSPanel local event
@@ -891,7 +909,7 @@ text_sensor:
                   call.perform();
                 }
               }
-            else if (entity != "" and not entity.empty())
+            else if (entity != "" and not entity.empty() and entity != "embedded_climate")
               {
                 HomeassistantServiceResponse resp;
                 HomeassistantServiceMap resp_kv;
@@ -1204,6 +1222,11 @@ display:
         - binary_sensor.template.publish:
             id: nextion_init
             state: true
+        - logger.log: "Nextion start - Prepare home page"
+        - script.execute:
+            id: refresh_colors
+        - lambda: id(home_relay1_icon) = "\uE3A5";
+        - lambda: id(home_relay1_icon) = "\uE3A8";
         - logger.log: "Nextion start - Done!"
     #on_page: # Couldn't make this trigger to work, so used text_sensor nspanelevent and localevent instead
 
@@ -1280,6 +1303,131 @@ script:
             }
           id(disp1).set_component_value("embedded", (embedded_climate) ? 1 : 0);
 
+  - id: refresh_colors ## Refresh colors of global components
+    mode: restart
+    then:
+      - if:
+          condition:
+            - binary_sensor.is_on: nextion_init
+            #- text_sensor.state: # Is home page visible?
+            #    id: current_page
+            #    state: 'home'
+          then:
+            - lambda: |-
+                id(disp1).set_component_font_color("home.date", id(home_date_color));
+                id(disp1).set_component_font_color("home.time", id(home_time_color));
+                id(disp1).set_component_font_color("home.icon_top_01", id(home_relay1_icon_color));
+                id(disp1).set_component_font_color("home.icon_top_02", id(home_relay2_icon_color));
+
+  - id: refresh_datetime
+    mode: restart
+    then:
+      - if:
+          condition:
+            - binary_sensor.is_on: nextion_init
+            #- text_sensor.state: # Is home page visible?
+            #    id: current_page
+            #    state: 'home'
+          then:
+            - lambda: |-
+                std::string time_format_str = id(mui_time_format);
+                if (time_format_str.find("%p") != std::string::npos)
+                {
+                  std::string meridiem_text = id(time_provider).now().strftime("%p");
+                  id(disp1).set_component_text_printf("home.meridiem", "%s", meridiem_text.c_str());
+                }
+                else { id(disp1).set_component_text_printf("home.meridiem", " "); }
+                if (time_format_str.find("%-H") != std::string::npos) { time_format_str = time_format_str.replace(time_format_str.find("%-H"), sizeof("%-H")-1, to_string((int)(id(time_provider).now().hour))); }
+                if (time_format_str.find("%-I") != std::string::npos)
+                {
+                  if (id(time_provider).now().hour>12)
+                  {
+                    time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1, to_string((int)(id(time_provider).now().hour-12)));
+                  }
+                  else if (id(time_provider).now().hour==0)
+                  {
+                    time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1, "12");
+                  }
+                  else
+                  {
+                    time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1, to_string((int)(id(time_provider).now().hour)));
+                  }
+                }
+                std::string time_text = id(time_provider).now().strftime(time_format_str);
+                id(disp1).set_component_text_printf("home.time", "%s", time_text.c_str());
+
+  - id: refresh_relays
+    mode: restart
+    then:
+      - if:
+          condition:
+            - binary_sensor.is_on: nextion_init
+            #- text_sensor.state: # Is home page visible?
+            #    id: current_page
+            #    state: 'home'
+          then:
+            - lambda: |-
+                // Chips - Relays
+                if (id(relay_1).state) id(disp1).set_component_text_printf("icon_top_01", "%s", id(home_relay1_icon).c_str());
+                  else id(disp1).set_component_text_printf("icon_top_01", "\uFFFF");
+                if (id(relay_2).state) id(disp1).set_component_text_printf("icon_top_02", "%s", id(home_relay2_icon).c_str());
+                  else id(disp1).set_component_text_printf("icon_top_02", "\uFFFF");
+                // Hardware buttons - Fallback mode
+                if (id(relay_1).state or (id(relay1_fallback).state and not id(api_status).state)) id(disp1).send_command_printf("home.left_bt_pic.pic=%i", (id(relay_1).state) ? 78 : 77);
+                if (id(relay_2).state or (id(relay2_fallback).state and not id(api_status).state)) id(disp1).send_command_printf("home.right_bt_pic.pic=%i", (id(relay_2).state) ? 78 : 77);
+
+  - id: refresh_wifi_icon
+    mode: restart
+    then:
+      - if:
+          condition:
+            - binary_sensor.is_on: nextion_init
+            #- text_sensor.state: # Is home page visible?
+            #    id: current_page
+            #    state: 'home'
+          then:
+            # Update Wi-Fi icon
+            - if:
+                condition:
+                  wifi.connected:
+                then:
+                  - if:
+                      condition:
+                        api.connected:
+                      then:
+                        - lambda: id(disp1).set_component_value("home.api",1);
+                        - lambda: id(disp1).set_component_text_printf("home.wifi_icon", "%s", "\uE5A8");
+                        - lambda: id(disp1).set_component_font_color("home.wifi_icon", 33808);
+                      else:
+                        - lambda: id(disp1).set_component_value("home.api",0);
+                        - lambda: id(disp1).set_component_text_printf("home.wifi_icon", "%s", "\uF256");
+                        - lambda: id(disp1).set_component_font_color("home.wifi_icon", 63488);
+                else:
+                  - lambda: id(disp1).set_component_value("home.api",0);
+                  - lambda: id(disp1).set_component_text_printf("home.wifi_icon", "%s", "\uE5A9");
+                  - lambda: id(disp1).set_component_font_color("home.wifi_icon", 63488);
+
+  - id: update_page_home
+    mode: restart
+    then:
+      - script.execute:
+          id: refresh_datetime
+      - script.execute:
+          id: refresh_relays
+      - script.execute:
+          id: refresh_wifi_icon
+      - if:
+          condition:
+            - binary_sensor.is_on: nextion_init
+            - text_sensor.state: # Is home page visible?
+                id: current_page
+                state: 'home'
+          then:
+            - lambda: |-
+                // Update home.entity variable
+                if (id(is_embedded_thermostat) and not (${embedded_thermostat_disabled})) id(disp1).set_component_text_printf("entity", "embedded_climate");
+                else id(disp1).set_component_text_printf("entity", "");
+
 climate:
   - platform: thermostat
     name: ${device_name} Thermostat
@@ -1291,7 +1439,7 @@ climate:
     visual:
       min_temperature: ${embedded_thermostat_visual_min_temperature} ${embedded_thermostat_temp_units}
       max_temperature: ${embedded_thermostat_visual_max_temperature} ${embedded_thermostat_temp_units}
-      #temperature_step:
+      temperature_step: ${embedded_thermostat_visual_temperature_step} ${embedded_thermostat_temp_units}
       #  target_temperature: 0.5 #!lambda "return ${embedded_thermostat_visual_target_temperature_step};"
       #  current_temperature: 0.1 #!lambda "return ${embedded_thermostat_visual_current_temperature_step};"
     heat_action:
@@ -1321,19 +1469,19 @@ climate:
               then:
                 - script.execute:
                     id: set_climate
-                    current_temp: !lambda "return int(round(10*id(thermostat_embedded).current_temperature));"
+                    current_temp: !lambda "return id(thermostat_embedded).current_temperature;"
                     target_temp: !lambda "return id(thermostat_embedded).target_temperature;"
-                    temp_step: !lambda "return int(round(${embedded_thermostat_visual_target_temperature_step}*10));"
+                    temp_step: !lambda "return int(round(${embedded_thermostat_visual_temperature_step}*10));"
                     total_steps: !lambda |-
-                      float temp_step = ${embedded_thermostat_visual_target_temperature_step};
+                      float temp_step = ${embedded_thermostat_visual_temperature_step};
                       float temp_offset = ${embedded_thermostat_visual_min_temperature};
                       float temp_max = ${embedded_thermostat_visual_max_temperature};
                       float total_steps = (temp_max-temp_offset)/temp_step;
                       return int(round(total_steps));
                     slider_val: !lambda |-
-                      float temp_step = ${embedded_thermostat_visual_target_temperature_step};
+                      float temp_step = ${embedded_thermostat_visual_temperature_step};
                       float temp_offset = ${embedded_thermostat_visual_min_temperature};
-                      return int(round((id(thermostat_embedded).current_temperature-temp_offset)/temp_step));
+                      return int(round((10*id(thermostat_embedded).target_temperature-temp_offset)/temp_step));
                     temp_offset: !lambda "return int(round(${embedded_thermostat_visual_min_temperature}*10));"
                     climate_icon: ""
                     embedded_climate: True
