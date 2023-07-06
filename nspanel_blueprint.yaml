@@ -3497,7 +3497,7 @@ trigger_variables:
   relay02_entity: 'switch.{{ nspanel_name }}_relay_2'
   nspaneltemp: 'sensor.{{ nspanel_name }}_temperature'
   switch_sleep_mode: 'switch.{{ nspanel_name }}_sleep_mode'
-  thermostat_embedded: 'climate.{{ nspanel_name }}_thermostat_embedded'
+  thermostat_embedded: 'climate.{{ nspanel_name }}_thermostat'
 
   ##### notification Trigger #####
   notification_unread: 'switch.{{ nspanel_name }}_notification_unread'
@@ -5320,32 +5320,32 @@ variables:
     buttons:
       hvac_mode:
         - mode: auto
-          icon: calendar-sync
-          color: green
+          icon: calendar-sync #ee8d
+          color: green #'19818'
           component: button01
         - mode: heat_cool
-          icon: autorenew
-          color: amber
+          icon: autorenew #e069
+          color: amber #'65024'
           component: button02
         - mode: heat
-          icon: fire
-          color: deep-orange
+          icon: fire #e237
+          color: deep-orange #'64164'
           component: button03
         - mode: cool
-          icon: snowflake
-          color: blue
+          icon: snowflake #e716
+          color: blue #'1055'
           component: button04
         - mode: dry
-          icon: water-percent
-          color: orange
+          icon: water-percent #e58d
+          color: orange #'64704'
           component: button05
         - mode: fan_only
-          icon: fan
-          color: cyan
+          icon: fan #e20f
+          color: cyan #'1530'
           component: button06
         - mode: "off"
-          icon: power
-          color: "off"
+          icon: power #e424
+          color: "off" #'35921'
           component: button07
   qrcode_enabled: !input 'qrcode_enabled'
 
@@ -5356,6 +5356,7 @@ variables:
   outdoortemp: !input 'outdoortemp'
   indoortemp: !input 'indoortemp'
   climate: !input 'climate'
+  embedded_climate: '{{ climate == thermostat_embedded }}'
   relay_1_local_fallback: !input 'relay_1_local_fallback'
   relay_2_local_fallback: !input 'relay_2_local_fallback'
 
@@ -6073,6 +6074,10 @@ action:
           - &global_settings
             if: '{{ true }}'
             then:
+              - &variables_wakeup_page
+                variables:
+                  wakeup_page_input: !input wakeup_page
+                  wakeup_page: '{{ wakeup_page_input if is_number(wakeup_page_input) else 0 }}'
               - &variables_hardware
                 variables:
                   hardware:
@@ -6148,7 +6153,8 @@ action:
                       if is_number(page_home.general.time.label.color_rgb)
                       else ((page_home.general.time.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.time.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.time.label.color_rgb[2] //(2**3))
                     }}
-                  embedded_climate: '{{ climate == thermostat_embedded }}'
+                  embedded_climate: '{{ embedded_climate }}'
+                  wakeup_page: '{{ wakeup_page }}'
                 continue_on_error: true
               - *delay-default
 
@@ -6183,17 +6189,13 @@ action:
           - *refresh-datetime
 
           ##### NSPanel boot init finished and jump to Home Page#####
+          - *variables_wakeup_page
+          - *delay-default
           - &jump_wakeup_page
-            if: '{{ true }}'
-            then:
-              - &variables_wakeup_page
-                variables:
-                  wakeup_page: !input wakeup_page
-              - *delay-default
-              - service: '{{ nextion.command.printf }}'
-                data:
-                  cmd: "page {{ wakeup_page if is_number(wakeup_page) else page.home }}"
-                continue_on_error: true
+            service: '{{ nextion.command.printf }}'
+            data:
+              cmd: "page {{ wakeup_page }}"
+            continue_on_error: true
 
       ##### Page changed #####
       - alias: Page changed
@@ -6445,46 +6447,54 @@ action:
                             {% endif %}
                           page: home
                           component: icon_top_03
+                          embedded: '{{ embedded_climate }}'
                         - entity: !input 'chip01'
                           icon: !input 'chip01_icon'
                           icon_color_rgb: !input 'chip01_icon_color'
                           page: home
                           component: icon_top_04
+                          embedded: false
                         - entity: !input 'chip02'
                           icon: !input 'chip02_icon'
                           icon_color_rgb: !input 'chip02_icon_color'
                           page: home
                           component: icon_top_05
+                          embedded: false
                         - entity: !input 'chip03'
                           icon: !input 'chip03_icon'
                           icon_color_rgb: !input 'chip03_icon_color'
                           page: home
                           component: icon_top_06
+                          embedded: false
                         - entity: !input 'chip04'
                           icon: !input 'chip04_icon'
                           icon_color_rgb: !input 'chip04_icon_color'
                           page: home
                           component: icon_top_07
+                          embedded: false
                         - entity: !input 'chip05'
                           icon: !input 'chip05_icon'
                           icon_color_rgb: !input 'chip05_icon_color'
                           page: home
                           component: icon_top_08
+                          embedded: false
                         - entity: !input 'chip06'
                           icon: !input 'chip06_icon'
                           icon_color_rgb: !input 'chip06_icon_color'
                           page: home
                           component: icon_top_09
+                          embedded: false
                         - entity: !input 'chip07'
                           icon: !input 'chip07_icon'
                           icon_color_rgb: !input 'chip07_icon_color'
                           page: home
                           component: icon_top_10
+                          embedded: false
                   - repeat:
                       for_each: '{{ home_page_status_bar }}'
                       sequence:
                         - &display-home_page_status_bar
-                          if: '{{ repeat.item.entity is defined and repeat.item.entity is string and repeat.item.entity | length > 0 }}'
+                          if: '{{ (not repeat.item.embedded) and repeat.item.entity is defined and repeat.item.entity is string and repeat.item.entity | length > 0 }}'
                           then:
                             - variables:
                                 repeat_item_state: '{{ states(repeat.item.entity) | default("unavailable") }}'
@@ -7509,7 +7519,7 @@ action:
                               total_steps: '{{ total_steps }}'
                               temp_offset: '{{ temp_offset }}'
                               climate_icon: '{{ climate_icon }}'
-                              embedded_climate: '{{ climate_entity == thermostat_embedded }}'
+                              embedded_climate: '{{ embedded_climate }}'
                             continue_on_error: true
 
                       ##### Climate buttons #####
@@ -7605,9 +7615,6 @@ action:
                                   data:
                                     component: '{{ repeat.item.component }}'
                                   continue_on_error: true
-                    #else:
-                      ##### Return to Home page in case is not a climate entity #####
-                      #- *jump_wakeup_page
 
               ## ENTITY PAGES 01 - 04 ##
               - alias: Entity pages
@@ -8207,19 +8214,6 @@ action:
                       component: 'qrcode_value'
                       message: '{{ qrcode_value }}'
                     continue_on_error: true
-
-              ## PAGE Screen saver ##
-              - alias: Screen saver page
-                conditions: '{{ nspanel_event.page == page.screensaver }}'
-                sequence:
-                  ##### Set wake-up screen #####
-                  - *variables_wakeup_page
-                  - service: '{{ nextion.command.value }}'
-                    data:
-                      component: orign
-                      message: "{{ wakeup_page | int(0) if is_number(wakeup_page) else 0 }}"
-                    continue_on_error: true
-                  - *delay-default
 
       ##### NSPanel event #####
       - alias: NSPanel Event
