@@ -1,4 +1,4 @@
-# Creating `nspanel_us_land.hmi` from `nspanel_eu.hmi`:
+# Creating `nspanel_us_land.HMI` from `nspanel_eu.HMI`:
 
 ## Program.s:
 Comment out `lcd_dev fffb 0002 0000 0020`
