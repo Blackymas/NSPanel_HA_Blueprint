@@ -119,9 +119,20 @@ With this version, the following engines have been moved to your panel (local co
 ### 12. Embedded thermostat/heater
 Now you can use your panel to control a heater and let your ambient more confortable, and you will be able to control it locally even when your Wi-Fi is out or Home Assistant is unavailable.
 
+in order to have this enable, add the following to your substitutions:
+
+```yaml
+substitutions:
+  embedded_thermostat_disabled: "false"
+  embedded_thermostat_heater_relay: "1" # Select 1 for "Relay 1" or 2 for "Relay 2"
+```
+
+For more advanced settings, please take a look at the full documentation.
+
 ===>>> Add documentation before release <<<===
 - How to enable
 - Substitutions
+- etc
 
 &nbsp;
 ## Next topics we are currently working on
