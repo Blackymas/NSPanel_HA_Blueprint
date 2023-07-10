@@ -139,7 +139,7 @@ For more advanced settings, please take a look at the full documentation.
 See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 
 ## What's Changed
-* 
+* @chpego - Fixes on the blueprint UI (#928)
 
 ## New Contributors
 * 
