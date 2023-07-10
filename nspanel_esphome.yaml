@@ -900,6 +900,7 @@ text_sensor:
             std::string value = doc["value"];
             std::string entity = doc["entity"];
             int embedded = doc["embedded"];
+            std::string service = "";
             if (${verbose_log})
             {
               ESP_LOGD("text_sensor.localevent", "domain=%s", domain.c_str());
@@ -909,7 +910,7 @@ text_sensor:
               ESP_LOGD("text_sensor.localevent", "embedded=%i", embedded);
             }
             id(is_embedded_thermostat_visible) = (domain == "climate" and embedded == 1);
-            if (id(is_embedded_thermostat_visible) and (not ${embedded_thermostat_disabled}))
+            if (id(is_embedded_thermostat_visible))
               {
                 if (${verbose_log}) ESP_LOGD("text_sensor.localevent", "Embedded thermostat is visible");
                 auto call = id(thermostat_embedded).make_call();
@@ -927,68 +928,77 @@ text_sensor:
               }
             else if (entity != "" and not entity.empty() and entity != "embedded_climate")
               {
-                HomeassistantServiceResponse resp;
-                HomeassistantServiceMap resp_kv;
-                if (domain == "climate")
+                if (domain == "alarm_control_panel")
                   {
-                    if (${verbose_log}) ESP_LOGD("text_sensor.localevent", "HA controlled climate");
-                    if (key == "set_temperature")
-                      {
-                        resp.service = "climate.set_temperature";
-                        resp_kv.key = "temperature";
-                        resp_kv.value = to_string(stof(value) / 10);
-                        if (${verbose_log})
-                          {
-                            ESP_LOGD("text_sensor.localevent", "resp.service=%s", resp.service.c_str());
-                            ESP_LOGD("text_sensor.localevent", "resp_kv.key=%s", resp_kv.key.c_str());
-                            ESP_LOGD("text_sensor.localevent", "resp_kv.value=%s", resp_kv.value.c_str());
-                          }
-                        resp.data.push_back(resp_kv);
-                      }
-                    else if (key == "hvac_mode")
-                      {
-                        resp.service = "climate.set_hvac_mode";
-                        resp_kv.key = "hvac_mode";
-                        resp_kv.value = value;
-                        resp.data.push_back(resp_kv);
-                      }
-                  }
-                else if (domain == "cover")
-                  {
-                    if (key == "position")
-                      {
-                        resp.service = "cover.set_cover_position";
-                        resp_kv.key = key;
-                        resp_kv.value = value;
-                        resp.data.push_back(resp_kv);
-                      }
-                    else resp.service = std::string("cover.") + key.c_str();
-                  }
-                else if (domain == "fan")
-                  {
-                    if (key == "stop")
-                      {
-                        resp.service = "fan.turn_off";
-                      }
-                    else
-                      {
-                        resp.service = "fan.turn_on";
-                        resp_kv.key = key;
-                        resp_kv.value = value;
-                        resp.data.push_back(resp_kv);
-                      }
-                  }
-                else if (domain == "light")
-                  {
-                    resp.service = "light.turn_on";
-                    resp_kv.key = key;
+                    if (${verbose_log}) ESP_LOGD("text_sensor.localevent", "ESPHome remote service call - Alarm control panel");
+                    HomeassistantServiceResponse resp;
+                    HomeassistantServiceMap resp_kv;
+                    resp.service = "alarm_control_panel.XXXX"; // DEBUG
+                    resp_kv.key = "entity_id";
+                    resp_kv.value = entity;
+                    resp.data.push_back(resp_kv);
+                    resp_kv.key = "pin";  // DEBUG
                     resp_kv.value = value;
                     resp.data.push_back(resp_kv);
+                    id(api_server).send_homeassistant_service_call(resp);
                   }
-                resp_kv.key = "entity_id";
-                resp_kv.value = entity;
-                resp.data.push_back(resp_kv);
-                id(api_server).send_homeassistant_service_call(resp);
+                else
+                  {
+                    if (${verbose_log}) ESP_LOGD("text_sensor.localevent", "Blueprint controlled service");
+                    auto ha_event = new esphome::api::CustomAPIDevice();
+                    if (domain == "climate")
+                      {
+                        
+                        if (key == "set_temperature")
+                          {
+                            service = "climate.set_temperature";
+                            value = to_string(stof(value) / 10);
+                          }
+                        else if (key == "hvac_mode")
+                          {
+                            service = "climate.set_hvac_mode";
+                          }
+                      }
+                    else if (domain == "cover")
+                      {
+                        if (key == "position")
+                          {
+                            service = "cover.set_cover_position";
+                          }
+                        else
+                        {
+                          service = std::string("cover.") + key.c_str();
+                          key = "";
+                          value = "";
+                        }
+                      }
+                    else if (domain == "fan")
+                      {
+                        if (key == "stop")
+                          {
+                            service = "fan.turn_off";
+                            key = "";
+                            value = "";
+                          }
+                        else
+                          {
+                            service = "fan.turn_on";
+                          }
+                      }
+                    else if (domain == "light")
+                      {
+                        service = "light.turn_on";
+                      }
+                    if (${verbose_log}) ESP_LOGD("text_sensor.localevent", "Service=%s", service.c_str());
+                    if (service != "" and not service.empty())
+                      ha_event->fire_homeassistant_event("esphome.nspanel_service_call",
+                        {
+                          {"service", service},
+                          {"entity", entity},
+                          {"key", key},
+                          {"value", value}
+                        });
+                  }
               }
 
   ##### touchevent sensor, Reset the page timeout #####

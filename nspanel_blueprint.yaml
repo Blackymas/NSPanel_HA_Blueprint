@@ -533,6 +533,25 @@ blueprint:
             default: [128, 128, 128] #33808 Grey light
             selector: *color-selector
 
+    ##### Alarm Control Panel - Page Alarm
+        ##### PLACEHOLDER ######################################################################
+          placeholder17:
+            name: ' '
+            description: '# ✅ ALARM CONTROL PANEL ✅'
+            default: ' '
+            selector: *placeholder-selector
+        ##### PLACEHOLDER ######################################################################
+          alarm:
+            name: Alarm Control Panel to control from Home page - ENTITY (Optional)
+            description: >
+              *ALARM page*
+
+              *If an entity is selected, the **"Alarm page"** is activated and enabled.
+            default: []
+            selector:
+              entity:
+                domain: alarm_control_panel
+
     ##### Climate - Page Climate #####
         ##### PLACEHOLDER ######################################################################
           placeholder04:
@@ -5402,6 +5421,13 @@ trigger:
         device_id: !input 'nspanel_name'
       id: page_changed
 
+    ##### NSPanel service call #####
+    - platform: event
+      event_type: esphome.nspanel_service_call
+      event_data:
+        device_id: !input 'nspanel_name'
+      id: service_call
+
     ##### NSPanel event changed #####
     - platform: event
       event_type: state_changed
@@ -5831,6 +5857,14 @@ trigger:
         entity_id: '{{ relay02_entity }}'
       id: relay02_state
 
+  ##### Trigger - Alarm Control Panel - State change #################################################################################################################
+    ##### Alarm - Trigger 'alarm_state' #####
+    - platform: event
+      event_type: state_changed
+      event_data:
+        entity_id: !input 'alarm'
+      id: alarm_state
+
   ##### Trigger - Climate - State change #################################################################################################################
     ##### Climate - Trigger 'climate_state' #####
     - platform: event
@@ -6197,14 +6231,64 @@ action:
               cmd: "page {{ wakeup_page }}"
             continue_on_error: true
 
+      ##### Service call #####
+      - alias: NSPanel service call
+        conditions:
+          - condition: trigger
+            id: service_call
+          - '{{ trigger.event.data.service is defined and trigger.event.data.service is string and trigger.event.data.service | length > 0 }}'
+          - '{{ trigger.event.data.entity is defined and trigger.event.data.entity is string and trigger.event.data.entity | length > 0 }}'
+        sequence:
+          - alias: DEBUG
+            service: notify.signal_edward
+            data:
+              message: "service_call triggered0: {{ trigger.event.data }}"
+            continue_on_error: true
+          - &variable_nspanel_event
+            variables:
+              nspanel_event: '{{ trigger.event.data }}'
+          - alias: DEBUG
+            service: notify.signal_edward
+            data:
+              message: "service_call triggered1: {{ nspanel_event.key }}"
+            continue_on_error: true
+          - alias: DEBUG
+            service: notify.signal_edward
+            data:
+              message: "service_call triggered2: {{ nspanel_event.key is defined and nspanel_event.key is string and nspanel_event.key | length > 0 }}"
+            continue_on_error: true
+          - if: '{{ nspanel_event.key is defined and nspanel_event.key is string and nspanel_event.key | length > 0 }}'
+            then:
+              - alias: DEBUG
+                service: notify.signal_edward
+                data:
+                  message: >
+                    service: '{{ nspanel_event.service }}'
+
+                    data: { "{{ nspanel_event.key }}": "{{ nspanel_event.value }}" }
+
+                    target:
+
+                      entity_id: '{{ nspanel_event.entity }}'
+                continue_on_error: true
+              - service: '{{ nspanel_event.service }}'
+                data: { "{{ nspanel_event.key }}": "{{ nspanel_event.value }}" }
+                target:
+                  entity_id: '{{ nspanel_event.entity }}'
+                continue_on_error: true
+            else:
+              - service: '{{ nspanel_event.service }}'
+                target:
+                  entity_id: '{{ nspanel_event.entity }}'
+                continue_on_error: true
+
       ##### Page changed #####
       - alias: Page changed
         conditions:
           - condition: trigger
             id: page_changed
         sequence:
-          - variables:
-              nspanel_event: '{{ trigger.event.data }}'
+          - *variable_nspanel_event
           - choose:
               ## PAGE HOME ##
               - alias: Home page
@@ -8728,6 +8812,21 @@ action:
               hvac_modes: '{{ state_attr(climate_entity, "hvac_modes") }}'
           - *climate-update_slider
           - *climate-update_buttons
+
+      ##### Sync Alarm #####
+      - alias: Alarm - Sync
+        conditions:
+          - condition: trigger
+            id: alarm_state
+          - '{{ trigger.event.data.new_state.state not in ["unavailable", "unknown", "", None] }}'
+          - '{{ nspanel_event.page == page.alarm }}'
+        sequence:
+          - variables:
+              alarm_entity: '{{ trigger.event.data.entity_id }}'
+              supported_features: '{{ state_attr(alarm_entity, "supported_features") }}'
+              code_arm_required: '{{ state_attr(alarm_entity, "code_arm_required") }}'
+          - *climate-update_slider #DEBUG
+          - *climate-update_buttons #DEBUG
 
       ########## TRIGGER - HOME PAGE ###########
 
