@@ -9,7 +9,6 @@
 ##### ADVANCED CONFIGURATION - activate only when you know what you do ##############################
 substitutions:
   verbose_log: "false"
-  baud_rate: "115200" # requires 115200 if tft is installed but can be changed to 9600 if tft upload fails and nextion switches to 9600
   # ## usage of secrets-file ## -> comment in ###### Change ME ######
   # device_name: "nspanel-name" # Wird im Blueprint benötigt!
   # wifi_ssid: !secret nspanel_wifi_ssid # add in your esphome secrets file.
@@ -107,7 +106,7 @@ ota:
 ##### LOGGER #####
 logger:
   baud_rate: 0
-  # level: WARN
+  #level: INFO
 
 ##### CONFIGURE INTERNAL BUZZER #####
 output:
@@ -126,7 +125,7 @@ rtttl:
 uart:
   tx_pin: 16
   rx_pin: 17
-  baud_rate: ${baud_rate}
+  baud_rate: 115200
   id: tf_uart
   # debug:
   #   direction: BOTH
@@ -190,8 +189,7 @@ button:
 ##### START - API CONFIGURATION #####
 api:
   id: api_server
-  ##### advanced config - activate to use api_password #####
-  # password: ${api_password}
+
   services:
 
     ##### SERVICE TO UPDATE THE HMI FILE ##############
@@ -265,7 +263,7 @@ api:
       then:
         - wait_until:
             binary_sensor.is_on: nextion_init
-        - lambda: 'id(disp1).show_component("255");'
+        - lambda: id(disp1).show_component("255");
 
     ##### Service to send a command "font color" directly to the display #####
     - service: send_command_font_color
@@ -507,17 +505,24 @@ api:
         time_color: int
         embedded_climate: bool
         wakeup_page: int
+        alarm_state: string
       then:
         ## Logs
         - lambda: |-
             if (${verbose_log})
               {
                 ESP_LOGD("global_settings", "relay1_local_control: %i", (relay1_local_control) ? 1 : 0);
+                ESP_LOGD("global_settings", "relay1_icon: %s", relay1_icon.c_str());
+                ESP_LOGD("global_settings", "relay1_icon_color: %i", relay1_icon_color);
                 ESP_LOGD("global_settings", "relay2_local_control: %i", (relay2_local_control) ? 1 : 0);
+                ESP_LOGD("global_settings", "relay2_icon: %s", relay2_icon.c_str());
+                ESP_LOGD("global_settings", "relay2_icon_color: %i", relay2_icon_color);
                 ESP_LOGD("global_settings", "date_color: %i", date_color);
                 ESP_LOGD("global_settings", "time_format: %s", time_format.c_str());
                 ESP_LOGD("global_settings", "time_color: %i", time_color);
                 ESP_LOGD("global_settings", "embedded_climate: %i", (embedded_climate and not (${embedded_thermostat_disabled})) ? 1 : 0);
+                ESP_LOGD("global_settings", "wakeup_page: %i", wakeup_page);
+                ESP_LOGD("global_settings", "alarm_state: %s", alarm_state.c_str());
               }
 
         ## Relays
@@ -540,6 +545,9 @@ api:
         ## Embedded thermostat
         - lambda: id(is_embedded_thermostat) = (embedded_climate and not (${embedded_thermostat_disabled}));
 
+        ## Alarm button
+        - lambda: id(home_alarm) = (alarm_state != "" and not alarm_state.empty());
+
         ## Wakeup page
         - lambda: id(wakeup_page_id) = wakeup_page;
 
@@ -550,6 +558,35 @@ api:
         ## Update home page
         - script.execute:
             id: update_page_home
+
+    #### Service to populate the alarm settings page #####
+    - service: alarm_settings
+      variables:
+        page_icon: string
+        page_title: string
+        state: string
+        supported_features: int
+        code_format: string
+        entity: string
+      then:
+        - if:
+            condition:
+              - binary_sensor.is_on: nextion_init
+              - text_sensor.state: # Is alarm page visible?
+                  id: current_page
+                  state: 'alarm'
+            then:
+              # Log
+              - lambda: |-
+                  if (${verbose_log})
+                    {
+                      ESP_LOGD("service.alarm_settings", "page_icon: %s", page_icon.c_str());
+                      ESP_LOGD("service.alarm_settings", "page_title: %s", page_title.c_str());
+                      ESP_LOGD("service.alarm_settings", "state: %s", state.c_str());
+                      ESP_LOGD("service.alarm_settings", "supported_features: %i", supported_features);
+                      ESP_LOGD("service.alarm_settings", "code_format: %s", code_format.c_str());
+                      ESP_LOGD("service.alarm_settings", "entity: %s", entity.c_str());
+                    }
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
@@ -629,6 +666,12 @@ globals:
     type: int
     restore_value: true
     initial_value: '0'
+
+  ##### Alarm is set #####
+  - id: home_alarm
+    type: bool
+    restore_value: false
+    initial_value: 'false'
 
 ##### START - BINARY SENSOR CONFIGURATION #####
 binary_sensor:
@@ -716,8 +759,8 @@ binary_sensor:
     icon: mdi:tablet-dashboard
 
   ##### API connection status
-  - platform: status
-    name: ${device_name} Status
+  - name: ${device_name} Status
+    platform: status
     id: api_status
     on_state:
       then:
@@ -937,7 +980,7 @@ text_sensor:
                     resp_kv.key = "entity_id";
                     resp_kv.value = entity;
                     resp.data.push_back(resp_kv);
-                    resp_kv.key = "pin";  // DEBUG
+                    resp_kv.key = "pin"; // DEBUG
                     resp_kv.value = value;
                     resp.data.push_back(resp_kv);
                     id(api_server).send_homeassistant_service_call(resp);
@@ -1026,15 +1069,14 @@ switch:
     platform: template
     id: notification_unread
     entity_category: config
-    restore_state: true
     optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
 
   ##### Notification sound #####
   - name: ${device_name} Notification sound
     platform: template
     id: notification_sound
     entity_category: config
-    restore_state: true
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
 
@@ -1043,7 +1085,7 @@ switch:
     platform: template
     id: confirmation_message
     entity_category: config
-    restore_state: false
+    restore_mode: RESTORE_DEFAULT_OFF
     optimistic: true
 
   ##### PHYSICAL SWITCH 1 #####
@@ -1080,7 +1122,6 @@ switch:
     id: sleep_mode
     entity_category: config
     restore_mode: RESTORE_DEFAULT_OFF
-    restore_state: true
     optimistic: false
     turn_on_action: &sleep_mode-turn_on
       - logger.log: "Sleep mode - Turn on"
@@ -1102,7 +1143,6 @@ switch:
     platform: template
     id: relay1_local
     entity_category: config
-    restore_state: true
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
     internal: true
@@ -1114,7 +1154,6 @@ switch:
     platform: template
     id: relay2_local
     entity_category: config
-    restore_state: true
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
     internal: true
@@ -1128,14 +1167,12 @@ switch:
     platform: template
     id: relay1_fallback
     entity_category: config
-    restore_state: true
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
   - name: ${device_name} Relay 2 Local Fallback
     platform: template
     id: relay2_fallback
     entity_category: config
-    restore_state: true
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
 
@@ -1214,27 +1251,22 @@ display:
     platform: nextion
     uart_id: tf_uart
     tft_url: ${nextion_update_url}
+    on_page: # I couldn't make this trigger to work, so used text_sensor nspanelevent and localevent instead
+      - logger.log: "DEBUG - NEXTION PAGE CHANGED"
     on_setup:
       then:
-        - logger.log: "Nextion start - Jump to page 8"
         - lambda: id(disp1).send_command_printf("page 8");
-        - logger.log: "Nextion start - Publish ESPHome version"
         - lambda: id(disp1).set_component_text_printf("boot.esph_version", "%s", "3.5_dev"); ### esphome-version ###
-        - logger.log: "Nextion start - Wait for Home Assistant API"
         - wait_until:
             api.connected
-        - logger.log: "Nextion start - Publish IP address"
         - lambda: id(disp1).set_component_text_printf("boot.ip_addr", "%s", id(ip_address).state.c_str());
         - delay: 1s
-        - logger.log: "Nextion start - Set display brigntess"
         - number.set:
             id: display_brightness
             value: !lambda 'return id(display_brightness_global);'
-        - logger.log: "Nextion start - Set display dim brightness"
         - number.set:
             id: display_dim_brightness
             value: !lambda 'return id(display_dim_brightness_global);'
-        - logger.log: "Nextion start - Update settings page"
         - lambda: id(disp1).set_component_text_printf("settings.a03", "%i", id(display_brightness_global));
         - lambda: id(disp1).set_component_text_printf("settings.a04", "%i", id(display_dim_brightness_global));
         - lambda: id(disp1).send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
@@ -1245,17 +1277,14 @@ display:
             then: *sleep_mode-turn_off
             else: *sleep_mode-turn_on
         - delay: 1s
-        - logger.log: "Nextion start - Inform Home Assistant display is ready"
         - binary_sensor.template.publish:
             id: nextion_init
             state: true
-        - logger.log: "Nextion start - Prepare home page"
         - script.execute:
             id: refresh_colors
         - lambda: id(home_relay1_icon) = "\uE3A5";
         - lambda: id(home_relay1_icon) = "\uE3A8";
         - logger.log: "Nextion start - Done!"
-    #on_page: # Couldn't make this trigger to work, so used text_sensor nspanelevent and localevent instead
 
 ### Script for page_timer
 script:
@@ -1443,7 +1472,7 @@ script:
                         break;
                       case 3: //CLIMATE_MODE_HEAT
                         id(disp1).set_component_text_printf("home.icon_top_03", "%s", "\uE237");
-                        id(disp1).set_component_font_color("home.icon_top_03", 35921);
+                        id(disp1).set_component_font_color("home.icon_top_03", 64164);
                         break;
                       case 4: //CLIMATE_MODE_FAN_ONLY
                         id(disp1).set_component_text_printf("home.icon_top_03", "%s", "\uE20F");
@@ -1499,15 +1528,15 @@ script:
                       condition:
                         api.connected:
                       then:
-                        - lambda: id(disp1).set_component_value("home.api",1);
+                        - lambda: id(disp1).set_component_value("api",1);
                         - lambda: id(disp1).set_component_text_printf("home.wifi_icon", "%s", "\uE5A8");
                         - lambda: id(disp1).set_component_font_color("home.wifi_icon", 33808);
                       else:
-                        - lambda: id(disp1).set_component_value("home.api",0);
+                        - lambda: id(disp1).set_component_value("api",0);
                         - lambda: id(disp1).set_component_text_printf("home.wifi_icon", "%s", "\uF256");
                         - lambda: id(disp1).set_component_font_color("home.wifi_icon", 63488);
                 else:
-                  - lambda: id(disp1).set_component_value("home.api",0);
+                  - lambda: id(disp1).set_component_value("api",0);
                   - lambda: id(disp1).set_component_text_printf("home.wifi_icon", "%s", "\uE5A9");
                   - lambda: id(disp1).set_component_font_color("home.wifi_icon", 63488);
 
@@ -1533,6 +1562,18 @@ script:
                 // Update home.entity variable
                 if (id(is_embedded_thermostat) and not (${embedded_thermostat_disabled})) id(disp1).set_component_text_printf("home.entity", "embedded_climate");
                 else id(disp1).set_component_text_printf("home.entity", "");
+                // Show alarm button
+                if (id(home_alarm))
+                  {
+                    id(disp1).set_component_text_printf("button07_icon", "\uECCB");
+                    id(disp1).show_component("button07");
+                    id(disp1).show_component("button07_icon");
+                  }
+                else
+                  {
+                    id(disp1).hide_component("button07");
+                    id(disp1).hide_component("button07_icon");
+                  }
 
   - id: update_page_climate
     mode: restart
