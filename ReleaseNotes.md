@@ -149,6 +149,7 @@ See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 
 ## What's Changed
 * @chpego - Fixes on the blueprint UI (#928)
+* @bkbartk - Updated Dutch translations (#974)
 
 ## New Contributors
-* 
+* @bkbartk
