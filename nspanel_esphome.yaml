@@ -28,20 +28,6 @@ substitutions:
 
   time_source: "homeassistant" # Either "homeassistant" or "sntp" are supported
 
-  ### Local thermostat defaults ###
-  # https://esphome.io/components/climate/thermostat.html
-  embedded_thermostat_disabled: "true"
-  embedded_thermostat_temp_units: "°C"
-  embedded_thermostat_heater_relay: "0" # Select 1 for "Relay 1", 2 for "Relay 2" or "0" to a dummy switch/disabled
-  embedded_thermostat_min_heating_off_time: "300"
-  embedded_thermostat_min_heating_run_time: "300"
-  embedded_thermostat_min_idle_time: "30"
-  # https://esphome.io/components/climate/index.html#base-climate-configuration
-  embedded_thermostat_visual_min_temperature: "5"
-  embedded_thermostat_visual_max_temperature: "25"
-  embedded_thermostat_visual_temperature_step: "0.5"
-
-
 ###### USE THIS ONLY FOR YOUR FIRST TFT UPLOAD
 ###### AND IF EXIT-REPARSE BUTTON FAILS
 ###### ONCE IT WORKED, REMOVE THESE LINES
@@ -62,7 +48,8 @@ substitutions:
 ##### WIFI SETUP #####
 wifi:
   networks:
-    - ssid: ${wifi_ssid}
+    - id: wifi_default
+      ssid: ${wifi_ssid}
       password: ${wifi_password}
       hidden: ${wifi_hidden}
   power_save_mode: none
@@ -523,7 +510,7 @@ api:
                 ESP_LOGD("global_settings", "date_color: %i", date_color);
                 ESP_LOGD("global_settings", "time_format: %s", time_format.c_str());
                 ESP_LOGD("global_settings", "time_color: %i", time_color);
-                ESP_LOGD("global_settings", "embedded_climate: %i", (embedded_climate and not (${embedded_thermostat_disabled})) ? 1 : 0);
+                ESP_LOGD("global_settings", "embedded_climate: %i", (embedded_climate) ? 1 : 0);
                 ESP_LOGD("global_settings", "wakeup_page: %i", wakeup_page);
                 ESP_LOGD("global_settings", "alarm_state: %s", alarm_state.c_str());
               }
@@ -546,7 +533,10 @@ api:
             id(home_time_color) = time_color;
 
         ## Embedded thermostat
-        - lambda: id(is_embedded_thermostat) = (embedded_climate and not (${embedded_thermostat_disabled}));
+        - script.execute:
+            id: addon_climate_global_settings
+            embedded_climate: !lambda return embedded_climate;
+        #- lambda: id(is_embedded_thermostat) = embedded_climate;
 
         ## Alarm button
         - lambda: id(home_alarm) = (alarm_state != "" and not alarm_state.empty());
@@ -631,17 +621,6 @@ globals:
     type: int
     restore_value: true
     initial_value: '65535'
-
-  ##### Is embedded thermostat set as main climate entity? #####
-  - id: is_embedded_thermostat
-    type: bool
-    restore_value: true
-    initial_value: 'false'
-  ##### Is embedded thermostat visible on climate page? #####
-  - id: is_embedded_thermostat_visible
-    type: bool
-    restore_value: false
-    initial_value: 'false'
 
   ##### Relay icons #####
   - id: home_relay1_icon
@@ -861,8 +840,8 @@ text_sensor:
     disabled_by_default: true
 
   ##### ESPhome version used to compile the app #####
-  - platform: version
-    name: ${device_name} ESPhome Version
+  - name: ${device_name} ESPhome Version
+    platform: version
     disabled_by_default: true
 
   - platform: wifi_info
@@ -928,7 +907,7 @@ text_sensor:
                     id(disp1).set_component_text_printf("climate.button05_icon", "%s", "\uE58D"); //mdi:water-percent
                     id(disp1).set_component_text_printf("climate.button06_icon", "%s", "\uE20F"); //mdi:fan
                     id(disp1).set_component_text_printf("climate.button07_icon", "%s", "\uE424"); //mdi:power
-                    if (id(is_embedded_thermostat_visible)) id(update_page_climate);
+                    id(addon_climate_update_page_climate);
                   }
                   else if (page=="fan")
                   {
@@ -972,40 +951,10 @@ text_sensor:
               ESP_LOGD("text_sensor.localevent", "entity=%s", entity.c_str());
               ESP_LOGD("text_sensor.localevent", "embedded=%i", embedded);
             }
-            id(is_embedded_thermostat_visible) = (domain == "climate" and embedded == 1);
-            if (id(is_embedded_thermostat_visible))
-              {
-                if (${verbose_log}) ESP_LOGD("text_sensor.localevent", "Embedded thermostat is visible");
-                auto call = id(thermostat_embedded).make_call();
-                if (key == "set_temperature")
-                  {
-                    if (${verbose_log}) ESP_LOGD("text_sensor.localevent", "set_temperature=%f", stof(value) / 10);
-                    call.set_target_temperature(stof(value) / 10);
-                  }
-                else if (key == "hvac_mode")
-                  {
-                    if (${verbose_log}) ESP_LOGD("text_sensor.localevent", "set_mode=%s", value);
-                    call.set_mode(value);
-                  }
-                call.perform();
-              }
+            if (domain == "climate") id(service_call_climate)->execute(entity.c_str(), key.c_str(), value.c_str(), (embedded==1));
+            else if (domain == "alarm_control_panel") id(service_call_alarm_control_panel)->execute(entity.c_str(), value.c_str());
             else if (entity != "" and not entity.empty() and entity != "embedded_climate")
               {
-                if (domain == "alarm_control_panel")
-                  {
-                    if (${verbose_log}) ESP_LOGD("text_sensor.localevent", "ESPHome remote service call - Alarm control panel");
-                    HomeassistantServiceResponse resp;
-                    HomeassistantServiceMap resp_kv;
-                    resp.service = "alarm_control_panel.XXXX"; // DEBUG
-                    resp_kv.key = "entity_id";
-                    resp_kv.value = entity;
-                    resp.data.push_back(resp_kv);
-                    resp_kv.key = "pin"; // DEBUG
-                    resp_kv.value = value;
-                    resp.data.push_back(resp_kv);
-                    id(api_server).send_homeassistant_service_call(resp);
-                  }
-                else
                   {
                     if (${verbose_log}) ESP_LOGD("text_sensor.localevent", "Blueprint controlled service");
                     auto ha_event = new esphome::api::CustomAPIDevice();
@@ -1138,13 +1087,6 @@ switch:
       then:
         - script.execute:
             id: refresh_relays
-  ##### PHYSICAL SWITCH 0 (Dummy) - Usend when embedded climate is disabled #####
-  - name: ${device_name} Relay 0 (dummy)
-    platform: template
-    id: relay_0
-    lambda: !lambda return false;
-    internal: true
-    optimistic: true
 
   ##### DISPLAY ALWAYS ON #####
   - name: ${device_name} Screen Power
@@ -1380,7 +1322,7 @@ script:
                     ESP_LOGD("script.set_climate", "target_icon=%s", climate_icon.c_str());
                     ESP_LOGD("script.set_climate", "embedded=%i", (embedded_climate) ? 1 : 0);
                   }
-                id(is_embedded_thermostat_visible) = embedded_climate;
+                id(addon_climate_set_climate).execute(embedded_climate);
                 id(disp1).send_command_printf("climateslider.maxval=%i", total_steps);
                 id(disp1).set_component_value("temp_offset", temp_offset);
                 id(disp1).set_component_value("temp_step", temp_step);
@@ -1483,74 +1425,6 @@ script:
                 if (id(relay_1).state and (id(relay1_local).state or (id(relay1_fallback).state and not id(api_status).state))) id(disp1).send_command_printf("home.left_bt_pic.pic=%i", (id(relay_1).state) ? 78 : 77);
                 if (id(relay_2).state and (id(relay2_local).state or (id(relay2_fallback).state and not id(api_status).state))) id(disp1).send_command_printf("home.right_bt_pic.pic=%i", (id(relay_2).state) ? 78 : 77);
 
-  - id: refresh_chips_climate
-    mode: restart
-    then:
-      - if:
-          condition:
-            - binary_sensor.is_on: nextion_init
-            - lambda: !lambda 'return (not ${embedded_thermostat_disabled});'
-            - lambda: !lambda 'return id(is_embedded_thermostat);'
-          then:
-            - lambda: |-
-                if (${verbose_log}) ESP_LOGD("script.refresh_chips_climate", "thermostat_embedded.action=%i", int(id(thermostat_embedded).action));
-                switch (int(id(thermostat_embedded).action)) // CLIMATE_ACTION_OFF = 0, CLIMATE_ACTION_COOLING = 2, CLIMATE_ACTION_HEATING = 3, CLIMATE_ACTION_IDLE = 4, CLIMATE_ACTION_DRYING = 5, CLIMATE_ACTION_FAN = 6
-                {
-                  case 0: //CLIMATE_ACTION_OFF
-                    if (${verbose_log}) ESP_LOGD("script.refresh_chips_climate", "thermostat_embedded.mode=%i", int(id(thermostat_embedded).mode));
-                    switch (int(id(thermostat_embedded).mode)) // CLIMATE_MODE_OFF = 0, CLIMATE_MODE_HEAT_COOL = 1, CLIMATE_MODE_COOL = 2, CLIMATE_MODE_HEAT = 3, CLIMATE_MODE_FAN_ONLY = 4, CLIMATE_MODE_DRY = 5, CLIMATE_MODE_AUTO = 6
-                    {
-                      case 0: //CLIMATE_MODE_OFF
-                        id(disp1).set_component_text_printf("home.icon_top_03", "%s", "\uFFFF"); // (E424) Don't show icon when off
-                        id(disp1).set_component_font_color("home.icon_top_03", 35921);
-                        break;
-                      case 1: //CLIMATE_MODE_HEAT_COOL
-                        id(disp1).set_component_text_printf("home.icon_top_03", "%s", "\uE069");
-                        id(disp1).set_component_font_color("home.icon_top_03", 35921);
-                        break;
-                      case 2: //CLIMATE_MODE_COOL
-                        id(disp1).set_component_text_printf("home.icon_top_03", "%s", "\uE716");
-                        id(disp1).set_component_font_color("home.icon_top_03", 35921);
-                        break;
-                      case 3: //CLIMATE_MODE_HEAT
-                        id(disp1).set_component_text_printf("home.icon_top_03", "%s", "\uE237");
-                        id(disp1).set_component_font_color("home.icon_top_03", 64164);
-                        break;
-                      case 4: //CLIMATE_MODE_FAN_ONLY
-                        id(disp1).set_component_text_printf("home.icon_top_03", "%s", "\uE20F");
-                        id(disp1).set_component_font_color("home.icon_top_03", 35921);
-                        break;
-                      case 5: //CLIMATE_MODE_DRY
-                        id(disp1).set_component_text_printf("home.icon_top_03", "%s", "\uE58D");
-                        id(disp1).set_component_font_color("home.icon_top_03", 35921);
-                        break;
-                      case 6: //CLIMATE_MODE_AUTO
-                        id(disp1).set_component_text_printf("home.icon_top_03", "%s", "\uEE8D");
-                        id(disp1).set_component_font_color("home.icon_top_03", 35921);
-                        break;
-                    }
-                  case 2: //CLIMATE_ACTION_COOLING
-                    id(disp1).set_component_text_printf("home.icon_top_03", "%s", "\uE716");
-                    id(disp1).set_component_font_color("home.icon_top_03", 1055);
-                    break;
-                  case 3: //CLIMATE_ACTION_HEATING
-                    id(disp1).set_component_text_printf("home.icon_top_03", "%s", "\uE237");
-                    id(disp1).set_component_font_color("home.icon_top_03", 64164);
-                    break;
-                  case 4: //CLIMATE_ACTION_IDLE
-                    id(disp1).set_component_text_printf("home.icon_top_03", "%s", "\uE50E"); // mdi:thermometer
-                    id(disp1).set_component_font_color("home.icon_top_03", 35921);
-                    break;
-                  case 5: //CLIMATE_ACTION_DRYING
-                    id(disp1).set_component_text_printf("home.icon_top_03", "%s", "\uE58D");
-                    id(disp1).set_component_font_color("home.icon_top_03", 64704);
-                    break;
-                  case 6: //CLIMATE_ACTION_FAN
-                    id(disp1).set_component_text_printf("home.icon_top_03", "%s", "\uE20F");
-                    id(disp1).set_component_font_color("home.icon_top_03", 1530);
-                    break;
-                }
-
   - id: refresh_wifi_icon
     mode: restart
     then:
@@ -1591,8 +1465,6 @@ script:
           id: refresh_relays
       - script.execute:
           id: refresh_wifi_icon
-      - script.execute:
-          id: refresh_chips_climate
       - if:
           condition:
             - binary_sensor.is_on: nextion_init
@@ -1600,10 +1472,9 @@ script:
                 id: current_page
                 state: 'home'
           then:
+            - script.execute:
+                id: addon_climate_update_page_home
             - lambda: |-
-                // Update home.entity variable
-                if (id(is_embedded_thermostat) and not (${embedded_thermostat_disabled})) id(disp1).set_component_text_printf("home.entity", "embedded_climate");
-                else id(disp1).set_component_text_printf("home.entity", "");
                 // Show alarm button
                 if (id(home_alarm))
                   {
@@ -1617,147 +1488,88 @@ script:
                     id(disp1).hide_component("button07_icon");
                   }
 
-  - id: update_page_climate
+  - id: service_call_alarm_control_panel
+    mode: restart
+    parameters:
+      entity: string
+      pin: string
+    then:
+      - lambda: |-
+          if (${verbose_log}) ESP_LOGD("service_call_alarm_control_panel", "ESPHome remote service call");
+          HomeassistantServiceResponse resp;
+          HomeassistantServiceMap resp_kv;
+          resp.service = "alarm_control_panel.XXXX"; // DEBUG
+          resp_kv.key = "entity_id";
+          resp_kv.value = entity.c_str();
+          resp.data.push_back(resp_kv);
+          resp_kv.key = "pin"; // DEBUG
+          resp_kv.value = pin.c_str();
+          resp.data.push_back(resp_kv);
+          id(api_server).send_homeassistant_service_call(resp);
+
+  - id: service_call_climate
+    mode: restart
+    parameters:
+      entity: string
+      key: string
+      value: string
+      embedded: bool
+    then:
+      - lambda: |-
+          if (embedded)
+            id(addon_climate_service_call)->execute(key.c_str(), value.c_str());
+          else if (key == "set_temperature")
+            id(ha_call_service)->execute("climate.set_temperature", "temperature", to_string(stof(value) / 10), entity.c_str());
+          else if (key == "hvac_mode")
+            id(ha_call_service)->execute("climate.set_hvac_mode", key.c_str(), value.c_str(), entity.c_str());
+
+  - id: ha_call_service
+    mode: restart
+    parameters:
+      service: string
+      key: string
+      value: string
+      entity: string
+    then:
+      - lambda: |-
+          if (service != "" and not service.empty())
+            {
+              auto ha_event = new esphome::api::CustomAPIDevice();
+              ha_event->fire_homeassistant_event("esphome.nspanel_service_call",
+                {
+                  {"service", service},
+                  {"entity", entity},
+                  {"key", key},
+                  {"value", value}
+                });
+            }
+
+  #####  ADD-ONS ############################################################
+  ##### Add-on - Climate #####
+  - id: addon_climate_service_call
+    mode: restart
+    parameters:
+      key: string
+      value: string
+    then:
+      # Reserved for Add-on Climate
+  - id: addon_climate_update_page_home
     mode: restart
     then:
-      - if:
-          condition:
-            - binary_sensor.is_on: nextion_init
-            - text_sensor.state: # Is climate page visible?
-                id: current_page
-                state: 'climate'
-            - lambda: !lambda return id(is_embedded_thermostat_visible);
-            - lambda: !lambda 'return (not ${embedded_thermostat_disabled});'
-          then: # Embedded thermostat is visible
-            # Update slider, current temperature & target temperature
-            - script.execute:
-                id: set_climate
-                current_temp: !lambda "return id(thermostat_embedded).current_temperature;"
-                target_temp: !lambda "return id(thermostat_embedded).target_temperature;"
-                temp_step: !lambda "return int(round(${embedded_thermostat_visual_temperature_step}*10));"
-                total_steps: !lambda |-
-                  float temp_step = ${embedded_thermostat_visual_temperature_step};
-                  float temp_offset = ${embedded_thermostat_visual_min_temperature};
-                  float temp_max = ${embedded_thermostat_visual_max_temperature};
-                  float total_steps = (temp_max-temp_offset)/temp_step;
-                  return int(round(total_steps));
-                slider_val: !lambda |-
-                  float temp_step = ${embedded_thermostat_visual_temperature_step};
-                  float temp_offset = ${embedded_thermostat_visual_min_temperature};
-                  return int(round((10*id(thermostat_embedded).target_temperature-temp_offset)/temp_step));
-                temp_offset: !lambda "return int(round(${embedded_thermostat_visual_min_temperature}*10));"
-                climate_icon: ""
-                embedded_climate: True
-
-            # Update target temp icon
-            - lambda: |-
-                if (${verbose_log}) ESP_LOGD("script.update_page_climate", "thermostat_embedded.action=%i", int(id(thermostat_embedded).action));
-                switch (int(id(thermostat_embedded).action)) // CLIMATE_ACTION_OFF = 0, CLIMATE_ACTION_COOLING = 2, CLIMATE_ACTION_HEATING = 3, CLIMATE_ACTION_IDLE = 4, CLIMATE_ACTION_DRYING = 5, CLIMATE_ACTION_FAN = 6
-                {
-                  case 0: //CLIMATE_ACTION_OFF
-                    if (${verbose_log}) ESP_LOGD("script.update_page_climate", "thermostat_embedded.mode=%i", int(id(thermostat_embedded).mode));
-                    switch (int(id(thermostat_embedded).mode)) // CLIMATE_MODE_OFF = 0, CLIMATE_MODE_HEAT_COOL = 1, CLIMATE_MODE_COOL = 2, CLIMATE_MODE_HEAT = 3, CLIMATE_MODE_FAN_ONLY = 4, CLIMATE_MODE_DRY = 5, CLIMATE_MODE_AUTO = 6
-                    {
-                      case 0: //CLIMATE_MODE_OFF
-                        id(disp1).set_component_text_printf("climate.target_icon", "%s", "\uFFFF"); // (E424) Don't show icon when off
-                        id(disp1).set_component_font_color("climate.target_icon", 35921);
-                        break;
-                      case 1: //CLIMATE_MODE_HEAT_COOL
-                        id(disp1).set_component_text_printf("climate.target_icon", "%s", "\uE069");
-                        id(disp1).set_component_font_color("climate.target_icon", 35921);
-                        break;
-                      case 2: //CLIMATE_MODE_COOL
-                        id(disp1).set_component_text_printf("climate.target_icon", "%s", "\uE716");
-                        id(disp1).set_component_font_color("climate.target_icon", 1055);
-                        break;
-                      case 3: //CLIMATE_MODE_HEAT
-                        id(disp1).set_component_text_printf("climate.target_icon", "%s", "\uE237");
-                        id(disp1).set_component_font_color("climate.target_icon", 64164);
-                        break;
-                      case 4: //CLIMATE_MODE_FAN_ONLY
-                        id(disp1).set_component_text_printf("climate.target_icon", "%s", "\uE20F");
-                        id(disp1).set_component_font_color("climate.target_icon", 35921);
-                        break;
-                      case 5: //CLIMATE_MODE_DRY
-                        id(disp1).set_component_text_printf("climate.target_icon", "%s", "\uE58D");
-                        id(disp1).set_component_font_color("climate.target_icon", 64704);
-                        break;
-                      case 6: //CLIMATE_MODE_AUTO
-                        id(disp1).set_component_text_printf("climate.target_icon", "%s", "\uEE8D");
-                        id(disp1).set_component_font_color("climate.target_icon", 35921);
-                        break;
-                    }
-                  case 2: //CLIMATE_ACTION_COOLING
-                    id(disp1).set_component_text_printf("climate.target_icon", "%s", "\uE716");
-                    id(disp1).set_component_font_color("climate.target_icon", 1055);
-                    break;
-                  case 3: //CLIMATE_ACTION_HEATING
-                    id(disp1).set_component_text_printf("climate.target_icon", "%s", "\uE237");
-                    id(disp1).set_component_font_color("climate.target_icon", 64164);
-                    break;
-                  case 4: //CLIMATE_ACTION_IDLE
-                    id(disp1).set_component_text_printf("climate.target_icon", "%s", "\uE50E"); // mdi:thermometer
-                    id(disp1).set_component_font_color("climate.target_icon", 35921);
-                    break;
-                  case 5: //CLIMATE_ACTION_DRYING
-                    id(disp1).set_component_text_printf("climate.target_icon", "%s", "\uE58D");
-                    id(disp1).set_component_font_color("climate.target_icon", 64704);
-                    break;
-                  case 6: //CLIMATE_ACTION_FAN
-                    id(disp1).set_component_text_printf("climate.target_icon", "%s", "\uE20F");
-                    id(disp1).set_component_font_color("climate.target_icon", 1530);
-                    break;
-                }
-
-            # Update buttons bar
-            - lambda: |-
-                if (${verbose_log}) ESP_LOGD("script.update_page_climate", "Updating buttons bar");
-                // Hide not supported hotspots
-                id(disp1).hide_component("climate.button01");
-                id(disp1).hide_component("climate.button02");
-                id(disp1).show_component("climate.button03"); //Heat
-                id(disp1).hide_component("climate.button04");
-                id(disp1).hide_component("climate.button05");
-                id(disp1).hide_component("climate.button06");
-                id(disp1).show_component("climate.button07"); //Off
-                // Set buttons colors
-                id(disp1).set_component_font_color("climate.button01_icon", 10597);
-                id(disp1).set_component_font_color("climate.button02_icon", 10597);
-                id(disp1).set_component_font_color("climate.button03_icon", (id(thermostat_embedded).mode==climate::CLIMATE_MODE_HEAT) ? 64164 : 48631);
-                id(disp1).set_component_font_color("climate.button04_icon", 10597);
-                id(disp1).set_component_font_color("climate.button05_icon", 10597);
-                id(disp1).set_component_font_color("climate.button06_icon", 10597);
-                id(disp1).set_component_font_color("climate.button07_icon", (id(thermostat_embedded).mode==climate::CLIMATE_MODE_OFF) ? 35921 : 48631);
-
-climate:
-  - platform: thermostat
-    name: ${device_name} Thermostat
-    id: thermostat_embedded
-    sensor: temp_nspanel
-    min_heating_off_time: ${embedded_thermostat_min_heating_off_time}s
-    min_heating_run_time: ${embedded_thermostat_min_heating_run_time}s
-    min_idle_time: ${embedded_thermostat_min_idle_time}s
-    visual:
-      min_temperature: ${embedded_thermostat_visual_min_temperature} ${embedded_thermostat_temp_units}
-      max_temperature: ${embedded_thermostat_visual_max_temperature} ${embedded_thermostat_temp_units}
-      temperature_step: ${embedded_thermostat_visual_temperature_step} ${embedded_thermostat_temp_units}
-      #  target_temperature: 0.5 #!lambda "return ${embedded_thermostat_visual_target_temperature_step};"
-      #  current_temperature: 0.1 #!lambda "return ${embedded_thermostat_visual_current_temperature_step};"
-    heat_action:
-      - switch.turn_on: relay_${embedded_thermostat_heater_relay}
-    idle_action:
-      - switch.turn_off: relay_${embedded_thermostat_heater_relay}
-    default_preset: "Off"
-    on_boot_restore_from: memory
-    preset:
-      - name: "Off"
-        default_target_temperature_low: ${embedded_thermostat_visual_min_temperature} ${embedded_thermostat_temp_units}
-        mode: "off"
-      - name: Home
-        default_target_temperature_low: 21 ${embedded_thermostat_temp_units}
-    internal: ${embedded_thermostat_disabled}
-    on_state:
-      - logger.log: Climate state changed - Start
-      - script.execute:
-          id: update_page_climate
-      - logger.log: Climate state changed - End
+      # Reserved for Add-on Climate
+  - id: addon_climate_set_climate
+    mode: restart
+    parameters:
+      embedded_climate: bool
+    then:
+      # Reserved for Add-on Climate
+  - id: addon_climate_global_settings
+    mode: restart
+    parameters:
+      embedded_climate: bool
+    then:
+      # Reserved for Add-on Climate
+  - id: addon_climate_update_page_climate
+    mode: restart
+    then:
+      # Reserved for Add-on Climate
