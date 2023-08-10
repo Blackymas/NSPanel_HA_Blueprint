@@ -11,8 +11,6 @@ First of all, we wanna say a big thanks to all of you who starred this project i
 
 After a long wait since the latest big release, which we used to leave our desks for a while and enjoy some vacations time with our beloved ones, we are proud to introduce the version 4.0, which adds new screens and makes your panel more flexible and robust.
 
-### 
-
 &nbsp;
 ## Updating
 Since in this update lots of input to the blueprint changed, we highly recommend you review your settings and make sure all fields have the correct selection. We did our best to support your legacy settings and avoid breaking your system, but please double check your settings if you see something not working as expected.
