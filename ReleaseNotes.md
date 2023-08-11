@@ -61,13 +61,11 @@ Please refeer to the [documentation](/docs/en/addon_climate.md) to get more deta
 
 &nbsp;
 ### 2. Alarm control panel
-recommend api-encryption: https://esphome.io/components/api.html#configuration-variables
-and, of course warn the user that this is a possible security issue.
-Anyways - this is also done with many other projects, AND it would require that a possible hacker is already inside the internal (or mayby iot) (W)LAN - and at this point....
-recommend to have a big warning, and that the user has to take care about e.g.:
-- secure internal network
-- split internal networks: IOT, Guest, Internal, Management, ...
-- enable api-encryption
+Now you can control an Alarm Control Panel from your NSPanel, which will allow you to set the alarm mode between the standard modes supported by Home Assistant (Home, Away, Night, Vacation or Custom bypass) or disarm the alarm.
+
+<<< ADD SCREENSHOT >>>
+
+For more details, instructions and security considerations, please take a look at the [Alarm Control Panel docs](/docs/en/alarm.md).
 
 &nbsp;
 ### 3. Support to sensor display precision from Home Assistant
