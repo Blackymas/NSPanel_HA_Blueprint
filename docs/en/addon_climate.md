@@ -22,7 +22,10 @@ substitutions:
 
   nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"
   
-  addon_climate_heater_relay: "1"
+  ##### addon-configuration #####
+  ## addon_climate ##
+  addon_climate_heater_relay: "1" # possible values: 1/2
+
   ##### CHANGE ME END #####
 
 
@@ -30,13 +33,9 @@ packages:
   remote_package:
     url: https://github.com/Blackymas/NSPanel_HA_Blueprint
     ref: main
-    files: [nspanel_esphome.yaml]
-    refresh: 300s
-
-  addon_climate:
-    url: https://github.com/Blackymas/NSPanel_HA_Blueprint
-    ref: main
-    files: [nspanel_esphome_addon_climate.yaml]
+    files:
+      - nspanel_esphome.yaml # Core package
+      - nspanel_esphome_addon_climate.yaml # activate for local climate-control
     refresh: 300s	
 ```
 &nbsp;
@@ -70,6 +69,9 @@ substitutions:
 
   nextion_update_url: "http://homeassistant.local:8123/local/nspanel_us.tft"
 
+    
+  ##### addon-configuration #####
+  ## addon_climate ##
   addon_climate_heater_relay: "1" #Use relay 1
   addon_climate_temp_units: "°F" #Temperatures in Fahrenheit
   addon_climate_visual_min_temperature: "40" #Min supported temperature is 40F
@@ -83,13 +85,9 @@ packages:
   remote_package:
     url: https://github.com/Blackymas/NSPanel_HA_Blueprint
     ref: main
-    files: [nspanel_esphome.yaml]
+    files:
+      - nspanel_esphome.yaml # Core package
+      - nspanel_esphome_addon_climate.yaml # activate for local climate-control
     refresh: 300s
-
-  addon_climate:
-    url: https://github.com/Blackymas/NSPanel_HA_Blueprint
-    ref: main
-    files: [nspanel_esphome_addon_climate.yaml]
-    refresh: 300s	
 ```
 

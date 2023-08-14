@@ -25,13 +25,20 @@ substitutions:
   wifi_password: !secret wifi_password
 
   nextion_update_url: "http://homeassistant.local:8123/local/nspanel_us.tft"
+
+  ##### addon-configuration #####
+  ## addon_climate ##
+  # addon_climate_heater_relay: "1" # possible values: 1/2
+
   ##### CHANGE ME END #####
 
 packages:
   remote_package:
     url: https://github.com/Blackymas/NSPanel_HA_Blueprint
     ref: main
-    files: [nspanel_esphome.yaml]
+    files:
+      - nspanel_esphome.yaml
+      #- nspanel_esphome_addon_climate.yaml # activate local climate-control
     refresh: 300s
 
 ##### My customization - Start #####
