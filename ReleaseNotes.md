@@ -67,6 +67,8 @@ Now you can control an Alarm Control Panel from your NSPanel, which will allow y
 
 For more details, instructions and security considerations, please take a look at the [Alarm Control Panel docs](/docs/en/alarm.md).
 
+**Important:** At this moment, this funcionality is available only for alarms without a code or alarms using a numeric code. Alarms with text code are not yet supported.
+
 &nbsp;
 ### 3. Support to sensor display precision from Home Assistant
 Now the values shown in your panel will follow the [sensor display precision](https://www.home-assistant.io/blog/2023/03/01/release-20233/#sensor-display-precision) provided by Home Assistant.

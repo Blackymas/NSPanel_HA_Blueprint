@@ -530,7 +530,6 @@ api:
                       ESP_LOGD("service.alarm_settings", "supported_features: %i", supported_features);
                       ESP_LOGD("service.alarm_settings", "code_format: %s", code_format.c_str());
                       ESP_LOGD("service.alarm_settings", "entity: %s", entity.c_str());
-                      ESP_LOGD("service.alarm_settings", "mui_alarm[1]: %s", mui_alarm[1].c_str());
                     }
 
               - lambda: |- # Alarm page - Header
@@ -540,6 +539,7 @@ api:
                     id(disp1).set_component_text_printf("icon_state", "%s", page_icon.c_str());
                   id(disp1).set_component_text_printf("page_label", "%s", page_title.c_str());
                   id(disp1).set_component_text_printf("code_format", "%s", code_format.c_str());
+                  id(disp1).set_component_text_printf("entity", "%s", entity.c_str());
 
               - lambda: |- # Alarm page - Button's icons
                   id(disp1).set_component_text_printf("bt_home_icon", "\uE689"); //mdi:shield-home
@@ -988,10 +988,33 @@ text_sensor:
               ESP_LOGD("text_sensor.localevent", "embedded=%i", embedded);
             }
             if (domain == "climate") id(service_call_climate)->execute(entity.c_str(), key.c_str(), value.c_str(), (embedded==1));
-            else if (domain == "alarm_control_panel")
+            else if (domain == "alarm")
               {
                 std::string code_format = doc["code_format"];
-                id(service_call_alarm_control_panel)->execute(entity.c_str(), key.c_str(), value.c_str()); // DEBUG - Need to open the pin code page first, code_format.c_str());
+                std::string title = doc["mui"];
+                if (code_format=="number")
+                  {
+                    id(disp1).send_command_printf("page keyb_num");
+                    id(disp1).set_component_value("keyb_num.page_id", 23); //Calling from Alarm page
+                    id(disp1).set_component_text_printf("keyb_num.domain", "%s", domain.c_str());
+                    id(disp1).set_component_text_printf("keyb_num.key", "%s", key.c_str());
+                    id(disp1).set_component_text_printf("keyb_num.value", "%s", value.c_str());
+                    id(disp1).set_component_text_printf("keyb_num.entity", "%s", entity.c_str());
+                    id(disp1).set_component_text_printf("keyb_num.title", "%s", title.c_str());
+                  }
+                else id(service_call_alarm_control_panel)->execute(entity.c_str(), key.c_str(), code_format.c_str(), "");
+              }
+            else if (domain == "keyb_num")
+              {
+                std::string base_domain = doc["base_domain"];
+                if (base_domain == "alarm")
+                {
+                  std::string code_format = doc["code_format"];
+                  std::string pin = doc["pin"];
+                  id(service_call_alarm_control_panel)->execute(entity.c_str(), key.c_str(), code_format.c_str(), pin.c_str());
+                }
+                else if (base_domain == "" or base_domain.empty()) base_domain = "home";
+                id(disp1).send_command_printf("page %s", base_domain.c_str());
               }
             else if (domain == "light") id(ha_call_service)->execute("light.turn_on", key.c_str(), value.c_str(), entity.c_str());
             else if (domain == "cover")
@@ -1496,20 +1519,43 @@ script:
     parameters:
       entity: string
       key: string
+      code_format: string
       pin: string
     then:
       - lambda: |-
-          if (${verbose_log}) ESP_LOGD("service_call_alarm_control_panel", "ESPHome remote service call");
-          HomeassistantServiceResponse resp;
-          HomeassistantServiceMap resp_kv;
-          resp.service = "alarm_control_panel.XXXX"; // DEBUG
-          resp_kv.key = "entity_id";
-          resp_kv.value = entity.c_str();
-          resp.data.push_back(resp_kv);
-          resp_kv.key = "pin"; // DEBUG
-          resp_kv.value = pin.c_str();
-          resp.data.push_back(resp_kv);
-          id(api_server).send_homeassistant_service_call(resp);
+          if (${verbose_log})
+            {
+              ESP_LOGD("service_call_alarm_control_panel", "ESPHome remote service call");
+              ESP_LOGD("service_call_alarm_control_panel", "entity=%s", entity.c_str());
+              ESP_LOGD("service_call_alarm_control_panel", "key=%s", key.c_str());
+              ESP_LOGD("service_call_alarm_control_panel", "code_format=%s", code_format.c_str());
+              ESP_LOGD("service_call_alarm_control_panel", "pin=%s", entity.c_str());
+            }
+          std::string service = "";
+          if (key=="home") service = "alarm_control_panel.alarm_arm_home";
+          else if (key=="away") service = "alarm_control_panel.alarm_arm_away";
+          else if (key=="night") service = "alarm_control_panel.alarm_arm_night";
+          else if (key=="vacation") service = "alarm_control_panel.alarm_arm_vacation";
+          else if (key=="bypass") service = "alarm_control_panel.alarm_arm_custom_bypass";
+          else if (key=="disarm") service = "alarm_control_panel.alarm_disarm";
+          if (${verbose_log}) ESP_LOGD("service_call_alarm_control_panel", "service=%s", service.c_str());
+          if (service != "" and not service.empty())
+            {
+              if (${verbose_log}) ESP_LOGD("service_call_alarm_control_panel", "ESPHome remote service call");
+              HomeassistantServiceResponse resp;
+              HomeassistantServiceMap resp_kv;
+              resp.service = service.c_str();
+              resp_kv.key = "entity_id";
+              resp_kv.value = entity.c_str();
+              resp.data.push_back(resp_kv);
+              if (pin != "" and not pin.empty())
+                {
+                  resp_kv.key = "code";
+                  resp_kv.value = pin.c_str();
+                  resp.data.push_back(resp_kv);
+                }
+              id(api_server).send_homeassistant_service_call(resp);
+            }
 
   - id: service_call_climate
     mode: restart
