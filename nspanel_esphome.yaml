@@ -505,7 +505,7 @@ api:
         ## Alarm button
         - lambda: |-
             if (${verbose_log}) ESP_LOGD("service.global_settings", "Alarm button - Start");
-            id(home_alarm) = (alarm_state != "" and not alarm_state.empty());
+            id(home_alarm_state) = alarm_state;
 
         ## Wakeup page
         - lambda: |-
@@ -527,7 +527,6 @@ api:
     #### Service to populate the alarm settings page #####
     - service: alarm_settings
       variables:
-        page_icon: string
         page_title: string
         state: string
         supported_features: int
@@ -547,7 +546,6 @@ api:
               - lambda: |-
                   if (${verbose_log})
                     {
-                      ESP_LOGD("service.alarm_settings", "page_icon: %s", page_icon.c_str());
                       ESP_LOGD("service.alarm_settings", "page_title: %s", page_title.c_str());
                       ESP_LOGD("service.alarm_settings", "state: %s", state.c_str());
                       ESP_LOGD("service.alarm_settings", "supported_features: %i", supported_features);
@@ -556,11 +554,9 @@ api:
                     }
 
               - lambda: |-
+                  id(home_alarm_state) = state;
                   // Alarm page - Header
-                  if (page_icon == "" or page_icon.empty())
-                    id(disp1).set_component_text_printf("icon_state", "%s", "\uE497"); //mdi:shield
-                  else
-                    id(disp1).set_component_text_printf("icon_state", "%s", page_icon.c_str());
+                  id(update_alarm_icon)->execute("icon_state", state.c_str());
                   id(disp1).set_component_text_printf("page_label", "%s", page_title.c_str());
                   id(disp1).set_component_text_printf("code_format", "%s", code_format.c_str());
                   id(disp1).set_component_text_printf("entity", "%s", entity.c_str());
@@ -706,11 +702,11 @@ globals:
     restore_value: true
     initial_value: '0'
 
-  ##### Alarm is set #####
-  - id: home_alarm
-    type: bool
+  ##### Alarm state #####
+  - id: home_alarm_state
+    type: std::string
     restore_value: false
-    initial_value: 'false'
+    initial_value: ''
 
   ##### Entities pages button #####
   - id: home_entities_pages
@@ -1576,9 +1572,9 @@ script:
 
                 // Show alarm button
                 if (${verbose_log}) ESP_LOGD("script.update_page_home", "Show alarm button");
-                if (id(home_alarm))
+                if (id(home_alarm_state) != "" and not id(home_alarm_state).empty())
                   {
-                    id(disp1).set_component_text_printf("button07_icon", "\uECCB");
+                    id(update_alarm_icon)->execute("button07_icon", id(home_alarm_state));
                     id(disp1).show_component("button07");
                     id(disp1).show_component("button07_icon");
                   }
@@ -1670,6 +1666,82 @@ script:
                   {"value", value}
                 });
             }
+
+  - id: update_alarm_icon
+    mode: restart
+    parameters:
+      component: string
+      state: string
+    then:
+      - logger.log: "script.update_alarm_icon: Starting"
+      - lambda: |-
+          std::string alarm_icon = "\uEECC"; //mdi:shield-alert-outline
+          int alarm_color = 65535;
+          // Standard colors:
+          // blue: '1055' # rgb(0, 128, 248)
+          // grey_dark: '10597' # rgb(40, 44, 40)
+          // grey_light: '33808' # rgb(128, 128, 128)
+          // grey_super_light: '52857' # rgb(200, 204, 200)
+          // grey_white: '59164' # rgb(225, 225, 225)
+          // red: '63488' # rgb(248, 0, 0)
+          // white: '65535' # rgb(255, 255, 255)
+          // yellow: '65472' # rgb(248, 248, 0)
+          // #### Colors from HA Style:
+          // green: '19818' # rgb(76, 175, 80)
+          // orange: '64704' # rgb(255, 152, 0)
+          // cyan: '1530' # rgb(0, 188, 212)
+          // deep-orange: '64164' # rgb(255, 87, 34)
+          // amber: '65024' # rgb(255, 193, 7)
+          // "off": '35921' #8a8a8a
+          // disabled: '48631' # rgb(189, 189, 189)
+          if (state == "disarmed")
+            {
+              alarm_icon = "\uE99B"; //mdi:shield-off-outline
+              alarm_color = 65535;
+            }
+          else if (state == "armed_home")
+            {
+              alarm_icon = "\uECCA"; //mdi:shield-home-outline
+              alarm_color = 19818;
+            }
+          else if (state == "armed_away")
+            {
+              alarm_icon = "\uECCB"; //mdi:shield-lock-outline
+              alarm_color = 19818;
+            }
+          else if (state == "armed_night")
+            {
+              alarm_icon = "\uF828"; //mdi:shield-moon-outline
+              alarm_color = 19818;
+            }
+          else if (state == "armed_vacation")
+            {
+              alarm_icon = "\uECC6"; //mdi:shield-airplane-outline
+              alarm_color = 19818;
+            }
+          else if (state == "armed_custom_bypass")
+            {
+              alarm_icon = "\uE77F"; //mdi:shield-half-full
+              alarm_color = 19818;
+            }
+          else if (state == "pending" or state == "arming")
+            {
+              alarm_icon = "\uE498"; //mdi:shield-outline
+              alarm_color = 65024;
+            }
+          else if (state == "disarming")
+            {
+              alarm_icon = "\uE99B"; //mdi:shield-off-outline
+              alarm_color = 65024;
+            }
+          else if (state == "triggered")
+            {
+              alarm_icon = "\uEECC"; //mdi:shield-alert-outline
+              alarm_color = 63488;
+            }
+          id(disp1).set_component_text_printf(component.c_str(), alarm_icon.c_str());
+          id(disp1).set_component_font_color(component.c_str(), alarm_color);
+      - logger.log: "script.update_alarm_icon: Finished"
 
   #####  ADD-ONS ############################################################
   ##### Add-on - Climate #####
