@@ -122,6 +122,7 @@ wifi:
   networks:
     - id: !extend wifi_default
       hidden: true
+    fast_connect: true
 ```
 
 &nbsp;
