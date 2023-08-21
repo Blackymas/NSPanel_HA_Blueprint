@@ -31,6 +31,9 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 3. Removed entity `sensor.xxxxx_settings_entity` and service `esphome.xxxxx_set_settings_entity`.
 4. Due to the changes on the time display engine, you might have to select your time format again in the blueprint settings.
 5. The network settings was moved to under `networks` on the `wifi` session. If you are using advanced/custom settings for Wi-Fi on ESPHome, you may have to update to follow the new format.
+6. The sensor "Uptime" is deprecated. It was replaced by "Last started" sensor, which makes it more readable to humans on Home Assistant interface. Thanks to @WZYProjects (#986) for the new sensor.<br>
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/282c1ea2-2919-4f40-a413-6fe572a155ce)
+
 
 &nbsp;
 ## Overview of all changes
@@ -57,7 +60,6 @@ We are trying to make your panel more usefull and more robust by changing some o
 The first add-on available is an **[embedded thermostat/heater](/docs/en/addon_climate.md)**, able to control it locally even when your Wi-Fi is out or Home Assistant is unavailable.
 
 Please refeer to the [documentation](/docs/en/addon_climate.md) to get more details on how to enable this add-on.
-
 
 &nbsp;
 ### 2. Alarm control panel
@@ -140,6 +142,8 @@ See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 
 ## What's Changed
 * @chpego - Fixes on the blueprint UI (#928)
+* @WZYProjects - Human readable "Last started" sensor (#986)
 
 ## New Contributors
-* 
+* @chpego
+* @WZYProjects
