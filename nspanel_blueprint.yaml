@@ -3588,6 +3588,8 @@ variables:
       set_entity: 'esphome.{{ nspanel_name }}_set_entity'
       set_climate: 'esphome.{{ nspanel_name }}_set_climate'
       global_settings: 'esphome.{{ nspanel_name }}_global_settings'
+      page_home_settings: 'esphome.{{ nspanel_name }}_page_home_settings'
+      qrcode: 'esphome.{{ nspanel_name }}_qrcode'
       alarm_settings: 'esphome.{{ nspanel_name }}_alarm_settings'
     icon:
       domain:
@@ -5503,10 +5505,10 @@ variables:
         color_rgb:
           "on": !input 'home_button04_icon_color01'
           "off": !input 'home_button04_icon_color02'
-      - icon: !input 'home_button05_icon' #E432
-        color_rgb:
-          "on": !input 'home_button05_icon_color'
-          "off": "" # NOT IN USE
+      #- icon: !input 'home_button05_icon' #E432
+      #  color_rgb:
+      #    "on": !input 'home_button05_icon_color'
+      #    "off": "" # NOT IN USE
       #- icon: !input 'home_button06_icon' #EDCF
       #  color_rgb:
       #    "on": !input 'home_button06_icon_color'
@@ -5564,7 +5566,6 @@ variables:
           icon: power #e424
           color: "off" #'35921'
           component: button07
-  qrcode_enabled: !input 'qrcode_enabled'
 
   ###### SYNC SETTINGS #####
   delay_value: !input 'delay'
@@ -6331,12 +6332,70 @@ action:
                       relay2:
                         icon: !input 'relay02_icon' #E3A8
                         icon_color_rgb: !input 'relay02_icon_color'
-              - &variables_bt_entities
+
+              - &variables-home_buttons
                 variables:
                   bt_entities:
                     enabled: !input 'entitypages_enabled'
                     icon: !input 'home_button06_icon' #EDCF
                     color_rgb: !input 'home_button06_icon_color'
+                  bt_qrcode:
+                    enabled: !input 'qrcode_enabled'
+                    icon: !input 'home_button05_icon' #E432
+                    color_rgb: !input 'home_button05_icon_color'
+                    title: !input 'qrcode_label'
+                    qrcode: !input 'qrcode_value'
+
+              - service: '{{ nextion.command.page_home_settings }}'
+                data:
+                  qrcode: '{{ bt_qrcode.enabled }}'
+                  qrcode_icon: >
+                    {{
+                      all_icons[bt_qrcode.icon.split(":")[1]] | default(bt_qrcode.icon
+                      if bt_qrcode.icon is string
+                      else all_icons["format-list-bulleted-square"])
+                    }}
+                  qrcode_icon_color: >
+                    {{
+                      bt_qrcode.color_rgb
+                      if is_number(bt_qrcode.color_rgb)
+                      else
+                        ((bt_qrcode.color_rgb[0] //(2**3)) *(2**11))+
+                        ((bt_qrcode.color_rgb[1] //(2**2)) *(2**5))+
+                        (bt_qrcode.color_rgb[2] //(2**3))
+                    }}
+                  entities_pages: '{{ bt_entities.enabled }}'
+                  entities_pages_icon: >
+                    {{
+                      all_icons[bt_entities.icon.split(":")[1]] | default(bt_entities.icon
+                      if bt_entities.icon is string
+                      else all_icons["format-list-bulleted-square"])
+                    }}
+                  entities_pages_icon_color: >
+                    {{
+                      bt_entities.color_rgb
+                      if is_number(bt_entities.color_rgb)
+                      else
+                        ((bt_entities.color_rgb[0] //(2**3)) *(2**11))+
+                        ((bt_entities.color_rgb[1] //(2**2)) *(2**5))+
+                        (bt_entities.color_rgb[2] //(2**3))
+                    }}
+                  alarm_state: >
+                    {{
+                      states(alarm) | default("")
+                      if alarm is string and alarm | length > 0
+                      else ""
+                    }}
+                continue_on_error: true
+              - *delay-default
+
+              - service: '{{ nextion.command.qrcode }}'
+                data:
+                  title: '{{ bt_qrcode.title }}'
+                  qrcode: '{{ bt_qrcode.qrcode }}'
+                  show: false
+                continue_on_error: true
+              - *delay-default
 
               - service: '{{ nextion.command.global_settings }}'
                 data:
@@ -6391,28 +6450,6 @@ action:
                     }}
                   embedded_climate: '{{ embedded_climate }}'
                   wakeup_page: '{{ wakeup_page }}'
-                  alarm_state: >
-                    {{
-                      states(alarm) | default("")
-                      if alarm is string and alarm | length > 0
-                      else ""
-                    }}
-                  entities_pages: '{{ bt_entities.enabled }}'
-                  entities_pages_icon: >
-                    {{
-                      all_icons[bt_entities.icon.split(":")[1]] | default(bt_entities.icon
-                      if bt_entities.icon is string
-                      else all_icons["format-list-bulleted-square"])
-                    }}
-                  entities_pages_icon_color: >
-                    {{
-                      bt_entities.color_rgb
-                      if is_number(bt_entities.color_rgb)
-                      else
-                        ((bt_entities.color_rgb[0] //(2**3)) *(2**11))+
-                        ((bt_entities.color_rgb[1] //(2**2)) *(2**5))+
-                        (bt_entities.color_rgb[2] //(2**3))
-                    }}
                 continue_on_error: true
               - *delay-default
 
@@ -6957,43 +6994,6 @@ action:
                         data:
                           component: home.button04_icon
                           message: '{{ set_button04_icon_font }}'
-                        continue_on_error: true
-
-                  ###### QR Code - Icon ######
-                  - *delay-default
-                  - if: '{{ qrcode_enabled == true }}'
-                    then: # Display QR code icon
-                      ### ICON Font Color ###
-                      - service: '{{ nextion.command.font_color }}'
-                        data:
-                          component: home.button05_icon
-                          message: >
-                            {{
-                              page_home.buttons[4].color_rgb.on
-                              if is_number(page_home.buttons[4].color_rgb.on)
-                              else
-                                ((page_home.buttons[4].color_rgb.on[0] //(2**3)) *(2**11))+
-                                ((page_home.buttons[4].color_rgb.on[1] //(2**2)) *(2**5))+
-                                 (page_home.buttons[4].color_rgb.on[2] //(2**3))
-                            }}
-                        continue_on_error: true
-                      ### ICON Font ###
-                      - *delay-default
-                      - service: '{{ nextion.command.text_printf }}'
-                        data:
-                          component: home.button05_icon
-                          message: >
-                            {{
-                              all_icons[page_home.buttons[4].icon.split(":")[1]] | default(page_home.buttons[4].icon
-                              if page_home.buttons[4].icon is string
-                              else all_icons.unknown)
-                            }}
-                        continue_on_error: true
-                    else: # Display blank icon
-                      - service: '{{ nextion.command.text_printf }}'
-                        data:
-                          component: home.button05_icon
-                          message: '{{ all_icons.blank }}'
                         continue_on_error: true
 
               ## BUTTON PAGES 01 - 04 ##
@@ -8451,27 +8451,6 @@ action:
                       message: '{{ states(notification_label) | default(mui[language].unavailable) if notification_label is string else mui[language].unavailable }}'
                     continue_on_error: true
 
-              ## PAGE QR Code ##
-              - alias: QRCode page
-                conditions: '{{ nspanel_event.page == page.qrcode }}'
-                sequence:
-                  - variables:
-                      qrcode_label: !input 'qrcode_label'
-                      qrcode_value: !input 'qrcode_value'
-                  - if: '{{ qrcode_label | length > 0 }}'
-                    then:
-                      - service: '{{ nextion.command.text_printf }}'
-                        data:
-                          component: 'qrcode_label'
-                          message: '{{ qrcode_label }}'
-                        continue_on_error: true
-                      - *delay-default
-                  - service: '{{ nextion.command.text_printf }}'
-                    data:
-                      component: 'qrcode_value'
-                      message: '{{ qrcode_value }}'
-                    continue_on_error: true
-
       ##### NSPanel event #####
       - alias: NSPanel Event
         conditions:
@@ -8735,17 +8714,6 @@ action:
                       page_icon_color: -1 #No color set
                       entity: '{{ climate }}'
                       back_page: '{{ page.home }}'
-                    continue_on_error: true
-
-              - alias: Jump to QR code page
-                conditions:
-                  - '{{ qrcode_enabled == true }}'
-                  - '{{ nspanel_event.page == page.home }}'
-                  - '{{ nspanel_event.component == "button05" }}'
-                sequence:
-                  - service: '{{ nextion.command.printf }}'
-                    data:
-                      cmd: 'page {{ page.qrcode }}'
                     continue_on_error: true
 
               - alias: Jump to notification page

@@ -33,7 +33,7 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 5. The network settings was moved to under `networks` on the `wifi` session. If you are using advanced/custom settings for Wi-Fi on ESPHome, you may have to update to follow the new format.
 6. The sensor "Uptime" is deprecated. It was replaced by "Last started" sensor, which makes it more readable to humans on Home Assistant interface. Thanks to @WZYProjects (#986) for the new sensor.<br>
 ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/282c1ea2-2919-4f40-a413-6fe572a155ce)
-
+7. Service `qr_code` is deprecated. It was replaced by service `qrcode` which can be used for changing the QRcode value even when the QRcode page is not visible (usefull when using dynamic Wi-Fi credentials).
 
 &nbsp;
 ## Overview of all changes
