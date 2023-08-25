@@ -15,22 +15,23 @@ Based on that, we hardly reccoment the use of API encryption for all users contr
 ### Allow the device to make Home Assistant service calls
 First, you have to configure your Home Assistant to allow your panel to make service calls. All other services are called from the Blueprint, however this requires the ESPHome to send an event containing in plain text all the information needed to the service call, which could be a security issue, so all the alarm calls will be driven by the panel to ensure a safer environment.<br>
 To enable this option, go to your ESPHome integrations panel (Settings > Devices and Services > ESPHome) and click "Configure" next to the entry related to your panel:<br>
-<< ADD SCREENSHOT >><br>
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/37bfc622-c0cd-4941-a397-3eeb2ddbe6a2)
+
 Then check the option "Allow the device to make Home Assistant service calls":<br>
-<< ADD SCREENSHOT >><br>
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/9b20a1b6-94ad-4fff-aef2-eb3599db9bf1)
+<br>
 ### Blueprint settings
 Open the automation based on the NSPanel Blueprint and look for a section related to "Alarm Control Panel".<br>
 Select your alarm control panel entity, click "Save", and your are done. :sunglasses:<br>
-<<< ADD SCREENSHOT >>>>
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/859d3f4b-9a05-4694-9e2c-c32ab3a5e22f)
+
 
 &nbsp;
 ## Controlling your alarm from your panel
-When an alarm control panel is set in your Blueprint automation, you will see the alarm icon on your panel's Home page:<br>
-<<< ADD ICON IMAGE >>>><br>
-![Home page](https://user-images.githubusercontent.com/41958506/212768891-9610d800-43c5-454f-a8b6-6b7c43677b5d.png)
+When an alarm control panel is set in your Blueprint automation, you will see the alarm icon on your panel's Home page. This icon will change following the alarm state as described in the table below.
 
 A click on that icon will show the Alarm Control Panel page:<br>
-<<< ADD SCREENSHOT >>>>
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/bc312981-3d5a-42c7-b0b4-203457ff549f)
 
 You can change your alarm settings with a single click on the button related to the new state you want to set your alarm to, or close the page to go back to Home page.
 
