@@ -24,7 +24,7 @@ substitutions:
   
   ##### addon-configuration #####
   ## addon_climate ##
-  addon_climate_heater_relay: "1" # possible values: 1/2
+  heater_relay: "1" # possible values: 1/2
 
   ##### CHANGE ME END #####
 
@@ -35,7 +35,7 @@ packages:
     ref: main
     files:
       - nspanel_esphome.yaml # Core package
-      - nspanel_esphome_addon_climate.yaml # activate for local climate-control
+      - nspanel_esphome_addon_climate_heat.yaml # activate for local climate (heater) control
     refresh: 300s	
 ```
 &nbsp;
@@ -45,14 +45,14 @@ The following keys are available to be used in your `substitutions`:
 
 |Key|Required|Supported values|Default|Description|
 |:-|:-:|:-:|:-:|:-|
-|addon_climate_heater_relay|Mandatory|`1` or `2`|`0` (disabled)|Relay used for conrol the heater. User `1` for "Relay 1" or `2` for "Relay 2".|
-|addon_climate_temp_units|Optional|`°C` or `°F`|`°C`|Temperature unit.|
-|addon_climate_min_heating_off_time|Optional|Positive integer representing the number of seconds|`300`|Minimum duration (in seconds) the heating action must be disengaged before it may be engaged.|
-|addon_climate_min_heating_run_time|Optional|Positive integer representing the number of seconds|`300`|Minimum duration (in seconds) the heating action must be engaged before it may be disengaged.|
-|addon_climate_min_idle_time|Optional|Positive integer representing the number of seconds|`30`|Minimum duration (in seconds) the idle action must be active before calling another climate action.|
-|addon_climate_visual_min_temperature|Optional|Number representing a temperature in the selected unit|`5`|The minimum temperature the climate device can reach. Used to set the range of the frontend gauge.|
-|addon_climate_visual_max_temperature|Optional|Number representing a temperature in the selected unit|`25`|The maximum temperature the climate device can reach. Used to set the range of the frontend gauge.|
-|addon_climate_visual_temperature_step|Optional|Number representing a temperature in the selected unit|`0.5`|The granularity with which the target temperature can be controlled.|
+|heater_relay|Mandatory|`1` or `2`|`0` (disabled)|Relay used for control the heater. User `1` for "Relay 1" or `2` for "Relay 2".|
+|temp_units|Optional|`°C` or `°F`|`°C`|Temperature unit.|
+|min_off_time|Optional|Positive integer representing the number of seconds|`300`|Minimum duration (in seconds) the heating action must be disengaged before it may be engaged.|
+|min_run_time|Optional|Positive integer representing the number of seconds|`300`|Minimum duration (in seconds) the heating action must be engaged before it may be disengaged.|
+|min_idle_time|Optional|Positive integer representing the number of seconds|`30`|Minimum duration (in seconds) the idle action must be active before calling another climate action.|
+|temp_min|Optional|Number representing a temperature in the selected unit|`5`|The minimum temperature the climate device can reach. Used to set the range of the frontend gauge.|
+|temp_max|Optional|Number representing a temperature in the selected unit|`25`|The maximum temperature the climate device can reach. Used to set the range of the frontend gauge.|
+|temp_step|Optional|Number representing a temperature in the selected unit|`0.5`|The granularity with which the target temperature can be controlled.|
 
 - All values must be delimited with `""`
 - For more details on the keys, please take a look at [ESPHome Base Climate Configurations](https://esphome.io/components/climate/index.html#base-climate-configuration) and [ESPHome Climate Thermostat - Additional actions behavior](https://esphome.io/components/climate/thermostat.html#additional-actions-behavior).
@@ -72,11 +72,11 @@ substitutions:
     
   ##### addon-configuration #####
   ## addon_climate ##
-  addon_climate_heater_relay: "1" #Use relay 1
-  addon_climate_temp_units: "°F" #Temperatures in Fahrenheit
-  addon_climate_visual_min_temperature: "40" #Min supported temperature is 40F
-  addon_climate_visual_max_temperature: "80" #Max supported temperature is 80F
-  addon_climate_visual_temperature_step: "1" #Temperature granularity is 1F
+  heater_relay: "1" #Use relay 1
+  temp_units: "°F" #Temperatures in Fahrenheit
+  temp_min: "40" #Min supported temperature is 40°F
+  temp_max: "80" #Max supported temperature is 80°F
+  temp_step: "1" #Temperature granularity is 1°F
     
   ##### CHANGE ME END #####
 
@@ -87,7 +87,7 @@ packages:
     ref: main
     files:
       - nspanel_esphome.yaml # Core package
-      - nspanel_esphome_addon_climate.yaml # activate for local climate-control
+      - nspanel_esphome_addon_climate_heat.yaml # activate for local climate (heater) control
     refresh: 300s
 ```
 
