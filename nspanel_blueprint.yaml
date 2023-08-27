@@ -856,15 +856,6 @@ blueprint:
                 max: 10.0
                 step: 1.0
                 unit_of_measurement: seconds
-          relay_1_local_fallback:
-            name: Activate relay 1 local fallback - TRUE/FALSE (Optional)
-            default: false
-            description: >
-              *SYSTEM settings*
-
-              *activate this to use left button to toggle relay 1 if display is offline*
-            selector:
-              boolean:
           left_button_entity:
             name: Left hardware button - ENTITY (Optional)
             description: >
@@ -926,15 +917,6 @@ blueprint:
               *LABEL color which should be displayed*
             default: [200, 204, 200] #52857 Grey super light
             selector: *color-selector
-          relay_2_local_fallback:
-            name: Activate relay 2 local fallback - TRUE/FALSE (Optional)
-            default: false
-            description: >
-              *SYSTEM settings*
-
-              *activate this to use right button to toggle relay 2 if display is offline* '
-            selector:
-              boolean:
           right_button_entity:
             name: Right hardware button - ENTITY (Optional)
             description: >
@@ -3519,7 +3501,6 @@ variables:
       else "%A, " ~ date_format_temp
     }}
 
-  time_format: !input 'time_format'
   sun_is_up: '{{ is_state("sun.sun", "above_horizon") }}'
 
   notification_sound: 'switch.{{ nspanel_name }}_notification_sound'
@@ -5470,25 +5451,6 @@ variables:
     {% endif %}
   temperature_units: "°"
 
-  ##### Home page #####
-  page_home:
-    general:
-      outdoor_temp:
-        label:
-          color_rgb: !input 'home_outdoor_temp_label_color'
-      indoor_temp:
-        icon:
-          icon: !input 'home_indoor_temp_icon' #E50E
-          color_rgb: !input 'home_indoor_temp_icon_color'
-        label:
-          color_rgb: !input 'home_indoor_temp_label_color'
-      time:
-        label:
-          color_rgb: !input 'time_label_color'
-      date:
-        label:
-          color_rgb: !input 'date_label_color'
-
   ##### Climate page #####
   page_climate:
     buttons:
@@ -5526,13 +5488,9 @@ variables:
   delay_value: !input 'delay'
 
   ##### GENERAL ENTITYS #####
-  outdoortemp: !input 'outdoortemp'
-  indoortemp: !input 'indoortemp'
   climate: !input 'climate'
   embedded_climate: '{{ climate == thermostat_embedded }}'
   alarm: !input 'alarm'
-  relay_1_local_fallback: !input 'relay_1_local_fallback'
-  relay_2_local_fallback: !input 'relay_2_local_fallback'
 
   enum:
     color_mode: # Possible light color modes. - https://github.com/home-assistant/core/blob/dev/homeassistant/components/light/__init__.py
@@ -6301,6 +6259,16 @@ action:
                     title: !input 'qrcode_label'
                     qrcode: !input 'qrcode_value'
 
+              - &variables-date_time
+                variables:
+                  display:
+                    date:
+                      format:
+                      color_rgb: !input 'date_label_color'
+                    time:
+                      format: !input 'time_format'
+                      color_rgb: !input 'time_label_color'
+
               - service: '{{ nextion.command.page_home_settings }}'
                 data:
                   qrcode: '{{ bt_qrcode.enabled }}'
@@ -6392,30 +6360,19 @@ action:
                     }}
                   date_color: >
                     {{
-                      page_home.general.date.label.color_rgb
-                      if is_number(page_home.general.date.label.color_rgb)
-                      else ((page_home.general.date.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.date.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.date.label.color_rgb[2] //(2**3))
+                      display.date.color_rgb
+                      if is_number(display.date.color_rgb)
+                      else ((display.date.color_rgb[0] //(2**3)) *(2**11))+((display.date.color_rgb[1] //(2**2)) *(2**5))+(display.date.color_rgb[2] //(2**3))
                     }}
-                  time_format: '{{ time_format }}'
+                  time_format: '{{ display.time.format }}'
                   time_color: >
                     {{
-                      page_home.general.time.label.color_rgb
-                      if is_number(page_home.general.time.label.color_rgb)
-                      else ((page_home.general.time.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.time.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.time.label.color_rgb[2] //(2**3))
+                      display.time.color_rgb
+                      if is_number(display.time.color_rgb)
+                      else ((display.time.color_rgb[0] //(2**3)) *(2**11))+((display.time.color_rgb[1] //(2**2)) *(2**5))+(display.time.color_rgb[2] //(2**3))
                     }}
                   embedded_climate: '{{ embedded_climate }}'
                   wakeup_page: '{{ wakeup_page }}'
-                continue_on_error: true
-              - *delay-default
-
-              ###### Set local fallback ######
-              - service: 'switch.turn_{{ "on" if relay_1_local_fallback else "off" }}'
-                data:
-                  entity_id: "switch.{{ nspanel_name }}_relay_1_local_fallback"
-                continue_on_error: true
-              - service: 'switch.turn_{{ "on" if relay_2_local_fallback else "off" }}'
-                data:
-                  entity_id: "switch.{{ nspanel_name }}_relay_2_local_fallback"
                 continue_on_error: true
               - *delay-default
 
@@ -6505,10 +6462,11 @@ action:
                     then:
                       ##### NSPanel Outdoor Temp #####
                       - variables:
+                          outdoor_temp_entity: !input 'outdoortemp'
                           outdoor_temp_state: >
                             {{
-                              states(outdoortemp, rounded=true) | default("unavailable")
-                              if outdoortemp is string and outdoortemp is match "sensor." and has_value(outdoortemp)
+                              states(outdoor_temp_entity, rounded=true) | default("unavailable")
+                              if outdoor_temp_entity is string and outdoor_temp_entity is match "sensor." and has_value(outdoor_temp_entity)
                               else "unavailable"
                             }}
                           outdoor_temp: >
@@ -6519,6 +6477,8 @@ action:
                             }}
                       - if: '{{ is_number(outdoor_temp) }}'
                         then:
+                          - variables:
+                              outdoor_temp_color_rgb: !input 'home_outdoor_temp_label_color'
                           ### LABEL Outdoor Temp Font Color ###
                           - *delay-default
                           - service: '{{ nextion.command.font_color }}'
@@ -6526,9 +6486,9 @@ action:
                               component: home.outdoor_temp
                               message: >
                                 {{
-                                  page_home.general.outdoor_temp.label.color_rgb
-                                  if is_number(page_home.general.outdoor_temp.label.color_rgb)
-                                  else ((page_home.general.outdoor_temp.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.outdoor_temp.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.outdoor_temp.label.color_rgb[2] //(2**3))
+                                  outdoor_temp_color_rgb
+                                  if is_number(outdoor_temp_color_rgb)
+                                  else ((outdoor_temp_color_rgb[0] //(2**3)) *(2**11))+((outdoor_temp_color_rgb[1] //(2**2)) *(2**5))+(outdoor_temp_color_rgb[2] //(2**3))
                                 }}
                             continue_on_error: true
                           ### LABEL Outdoor Temp Font ###
@@ -6544,25 +6504,33 @@ action:
                     then:
                       ##### NSPanel Indoor Temp #####
                       - variables:
-                          indoor_temp_state: '{{ states(indoortemp, rounded=true) | default("unavailable") if indoortemp is string and indoortemp is match "sensor." else states(nspaneltemp, rounded=true) }}'
-                          indoor_temp_units: >
-                            {{
-                              state_attr(indoortemp, "unit_of_measurement") | default(temperature_units)
-                              if
-                                indoortemp is string and
-                                indoortemp is match "sensor." and
-                                state_attr(indoortemp, "unit_of_measurement") is string and
-                                state_attr(indoortemp, "unit_of_measurement") | length > 0
-                              else
-                                (
-                                  state_attr(nspaneltemp, "unit_of_measurement") | default(temperature_units)
-                                  if
-                                    state_attr(nspaneltemp, "unit_of_measurement") is string and
-                                    state_attr(nspaneltemp, "unit_of_measurement") | length > 0
-                                  else temperature_units
-                                )
-                            }}
-                      - if: '{{ is_number(indoor_temp_state) }}'
+                          indoor_temp_entity: !input 'indoortemp'
+                          indoor_temp:
+                            state: '{{ states(indoor_temp_entity, rounded=true) | default("unavailable") if indoor_temp_entity is string and indoor_temp_entity is match "sensor." else states(nspaneltemp, rounded=true) }}'
+                            units: >
+                              {{
+                                state_attr(indoor_temp_entity, "unit_of_measurement") | default(temperature_units)
+                                if
+                                  indoor_temp_entity is string and
+                                  indoor_temp_entity is match "sensor." and
+                                  state_attr(indoor_temp_entity, "unit_of_measurement") is string and
+                                  state_attr(indoor_temp_entity, "unit_of_measurement") | length > 0
+                                else
+                                  (
+                                    state_attr(nspaneltemp, "unit_of_measurement") | default(temperature_units)
+                                    if
+                                      state_attr(nspaneltemp, "unit_of_measurement") is string and
+                                      state_attr(nspaneltemp, "unit_of_measurement") | length > 0
+                                    else temperature_units
+                                  )
+                              }}
+                            icon:
+                              icon: !input 'home_indoor_temp_icon' #E50E
+                              color_rgb: !input 'home_indoor_temp_icon_color'
+                            label:
+                              color_rgb: !input 'home_indoor_temp_label_color'
+
+                      - if: '{{ is_number(indoor_temp.state) }}'
                         then:
                           ### ICON Indoor Temp Font Color ###
                           - *delay-default
@@ -6571,9 +6539,9 @@ action:
                               component: home.indoortempicon
                               message: >
                                 {{
-                                  page_home.general.indoor_temp.icon.color_rgb
-                                  if is_number(page_home.general.indoor_temp.icon.color_rgb)
-                                  else ((page_home.general.indoor_temp.icon.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.indoor_temp.icon.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.indoor_temp.icon.color_rgb[2] //(2**3))
+                                  indoor_temp.icon.color_rgb
+                                  if is_number(indoor_temp.icon.color_rgb)
+                                  else ((indoor_temp.icon.color_rgb[0] //(2**3)) *(2**11))+((indoor_temp.icon.color_rgb[1] //(2**2)) *(2**5))+(indoor_temp.icon.color_rgb[2] //(2**3))
                                 }}
                             continue_on_error: true
                           ### ICON Indoor Temp Font ###
@@ -6583,12 +6551,12 @@ action:
                               component: home.indoortempicon
                               message: >
                                 {{
-                                  all_icons[page_home.general.indoor_temp.icon.icon.split(":")[1]] | default(all_icons.unknown)
-                                  if page_home.general.indoor_temp.icon.icon.split(":") | count > 0
+                                  all_icons[indoor_temp.icon.icon.split(":")[1]] | default(all_icons.unknown)
+                                  if indoor_temp.icon.icon.split(":") | count > 0
                                   else
                                     (
-                                      page_home.general.indoor_temp.icon.icon
-                                      if page_home.general.indoor_temp.icon.icon is string
+                                      indoor_temp.icon.icon
+                                      if indoor_temp.icon.icon is string
                                       else all_icons.unknown
                                     )
                                 }}
@@ -6600,9 +6568,9 @@ action:
                               component: home.current_temp
                               message: >
                                 {{
-                                  page_home.general.indoor_temp.label.color_rgb
-                                  if is_number(page_home.general.indoor_temp.label.color_rgb)
-                                  else ((page_home.general.indoor_temp.label.color_rgb[0] //(2**3)) *(2**11))+((page_home.general.indoor_temp.label.color_rgb[1] //(2**2)) *(2**5))+(page_home.general.indoor_temp.label.color_rgb[2] //(2**3))
+                                  indoor_temp.label.color_rgb
+                                  if is_number(indoor_temp.label.color_rgb)
+                                  else ((indoor_temp.label.color_rgb[0] //(2**3)) *(2**11))+((indoor_temp.label.color_rgb[1] //(2**2)) *(2**5))+(indoor_temp.label.color_rgb[2] //(2**3))
                                 }}
                             continue_on_error: true
                           ### LABEL Indoor Temp Font ###
@@ -6610,7 +6578,7 @@ action:
                           - service: '{{ nextion.command.text_printf }}'
                             data:
                               component: home.current_temp
-                              message: '{{ indoor_temp_state | round(1) ~ indoor_temp_units }}'
+                              message: '{{ indoor_temp.state | round(1) ~ indoor_temp.units }}'
                             continue_on_error: true
 
                   ##### NSPanel Buttons #####
