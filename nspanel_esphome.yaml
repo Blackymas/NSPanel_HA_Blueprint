@@ -723,15 +723,47 @@ binary_sensor:
     pin:
       number: 14
       inverted: true
-    on_click:
-      then:
-        - if:
-            condition:
-              - switch.is_on: relay1_local
-            then:
-              - switch.toggle: relay_1
-              - script.execute:
-                  id: refresh_relays
+    on_multi_click:
+      - timing: &double_click-timing
+          - ON for at most 0.8s
+          - OFF for at most 0.8s
+          - ON for at most 0.8s
+          - OFF for at least 0.2s
+        then:
+          - logger.log: "Left button - Double click"
+          - script.execute:
+              id: ha_button
+              page: !lambda return id(current_page).state;
+              component: "hw_bt_left"
+              command: "double_click"
+
+      - timing: &long_click-timing
+          - ON for 0.8s to 2s
+          - OFF for at least 0.5s
+        then:
+          - logger.log: "Left button - Long click"
+          - script.execute:
+              id: ha_button
+              page: !lambda return id(current_page).state;
+              component: "hw_bt_left"
+              command: "long_click"
+
+      - timing: &short_click-timing
+          - ON for at most 0.8s
+          - OFF for at least 0.5s
+        then:
+          - logger.log: "Left button - Short click"
+          - if:
+              condition:
+                - switch.is_on: relay1_local
+              then:
+                - switch.toggle: relay_1
+                - script.execute: refresh_relays
+          - script.execute:
+              id: ha_button
+              page: !lambda return id(current_page).state;
+              component: "hw_bt_left"
+              command: "short_click"
 
   ##### RIGHT BUTTON BELOW DISPLAY TO TOGGLE RELAY #####
   - name: ${device_name} Right Button
@@ -740,15 +772,39 @@ binary_sensor:
     pin:
       number: 27
       inverted: true
-    on_click:
-      then:
-        - if:
-            condition:
-              - switch.is_on: relay2_local
-            then:
-              - switch.toggle: relay_2
-              - script.execute:
-                  id: refresh_relays
+    on_multi_click:
+      - timing: *double_click-timing
+        then:
+          - logger.log: "Right button - Double click"
+          - script.execute:
+              id: ha_button
+              page: !lambda return id(current_page).state;
+              component: "hw_bt_right"
+              command: "double_click"
+
+      - timing: *long_click-timing
+        then:
+          - logger.log: "Right button - Long click"
+          - script.execute:
+              id: ha_button
+              page: !lambda return id(current_page).state;
+              component: "hw_bt_right"
+              command: "long_click"
+
+      - timing: *short_click-timing
+        then:
+          - logger.log: "Right button - Short click"
+          - if:
+              condition:
+                - switch.is_on: relay2_local
+              then:
+                - switch.toggle: relay_2
+                - script.execute: refresh_relays
+          - script.execute:
+              id: ha_button
+              page: !lambda return id(current_page).state;
+              component: "hw_bt_right"
+              command: "short_click"
 
   ##### Restart NSPanel Button - Setting Page #####
   - name: ${device_name} Restart
@@ -939,12 +995,21 @@ text_sensor:
             std::string component = doc["component"];
             std::string value = doc["value"];
             std::string entity = doc["entity"];
+            auto ha_event = new esphome::api::CustomAPIDevice();
+            ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+              {
+                {"type", "generic"},
+                {"page", page},
+                {"component", component},
+                {"value", value},
+                {"entity", entity}
+              });
             if (component=="currentpage")
               {
                 ESP_LOGD("nspanelevent", "New page: %s", page.c_str());
-                auto ha_event = new esphome::api::CustomAPIDevice();
-                ha_event->fire_homeassistant_event("esphome.nspanel_pagechange",
+                ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
                   {
+                    {"type", "page_changed"},
                     {"page", page},
                     {"entity", entity}
                   });
@@ -977,7 +1042,16 @@ text_sensor:
                     id(disp1).set_component_text_printf("keyb_num.benter", "%s", "\uE12B"); //mdi:check
                   }
               }
-            else if (page=="boot" and component=="timeout" and stof(value) >= 5) id(disp1).send_command_printf("page %i", id(wakeup_page_id));
+            else if (page=="boot" and component=="timeout")
+              {
+                ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+                  {
+                    {"type", "boot"},
+                    {"step", "timeout"},
+                    {"value", value}
+                  });
+                if (stof(value) >= 5) id(disp1).send_command_printf("page %i", id(wakeup_page_id));
+              }
 
   ##### NSPanel event - Execute actions from ESPHome - NO push to HA #####
   - name: ${device_name} NSPanel local event
@@ -1281,6 +1355,13 @@ display:
             id: last_started
             state: !lambda 'return id(time_provider).utcnow().timestamp;'
         - lambda: id(disp1).set_component_text_printf("boot.ip_addr", "%s", id(ip_address).state.c_str());
+        - lambda: |-
+            auto ha_event = new esphome::api::CustomAPIDevice();
+            ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+              {
+                {"type", "boot"},
+                {"step", "start"}
+              });
         - delay: 1s
         - number.set:
             id: display_brightness
@@ -1301,6 +1382,13 @@ display:
         - binary_sensor.template.publish:
             id: nextion_init
             state: true
+        - lambda: |-
+            auto ha_event = new esphome::api::CustomAPIDevice();
+            ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+              {
+                {"type", "boot"},
+                {"step", "nextion_init"}
+              });
         #- script.execute:
         #    id: refresh_colors
         - lambda: id(home_relay1_icon) = "\uE3A5";
@@ -1557,14 +1645,32 @@ script:
           if (service != "" and not service.empty())
             {
               auto ha_event = new esphome::api::CustomAPIDevice();
-              ha_event->fire_homeassistant_event("esphome.nspanel_service_call",
+              ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
                 {
+                  {"type", "service_call"},
                   {"service", service},
                   {"entity", entity},
                   {"key", key},
                   {"value", value}
                 });
             }
+
+  - id: ha_button
+    mode: parallel
+    parameters:
+      page: string
+      component: string
+      command: string
+    then:
+      - lambda: |-
+          auto ha_event = new esphome::api::CustomAPIDevice();
+          ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+            {
+              {"type", "button_click"},
+              {"page", page},
+              {"component", component},
+              {"command", command}
+            });
 
   - id: update_alarm_icon
     mode: restart
