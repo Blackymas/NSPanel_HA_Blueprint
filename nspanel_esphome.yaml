@@ -268,9 +268,16 @@ api:
         entity: string
         back_page: string
       then:
-        - wait_until:
-            binary_sensor.is_on: nextion_init
+        #- wait_until:
+        #    binary_sensor.is_on: nextion_init
         - lambda: |-
+            ESP_LOGV("api.service.open_entity_settings_page", "Starting");
+            ESP_LOGV("api.service.open_entity_settings_page", "page: %s", page.c_str());
+            ESP_LOGV("api.service.open_entity_settings_page", "page_label: %s", page_label.c_str());
+            ESP_LOGV("api.service.open_entity_settings_page", "page_icon: %s", page_icon.c_str());
+            ESP_LOGV("api.service.open_entity_settings_page", "page_icon_color: %i", page_icon_color);
+            ESP_LOGV("api.service.open_entity_settings_page", "entity: %s", entity.c_str());
+            ESP_LOGV("api.service.open_entity_settings_page", "back_page: %s", back_page.c_str());
             id(disp1).set_component_text_printf("home.entity", "%s", entity.c_str());
             std::string cmd_page = std::string("page ") + page.c_str();
             id(disp1).send_command_printf(cmd_page.c_str());
@@ -284,6 +291,7 @@ api:
               {
                 id(disp1).set_component_font_color("icon_state", page_icon_color);
               }
+            ESP_LOGV("api.service.open_entity_settings_page", "Finished");
 
     ##### Service to play a rtttl tones #####
     # Example tones : https://codebender.cc/sketch:109888#RTTTL%20Songs.ino
@@ -1006,6 +1014,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
+            ESP_LOGV("text_sensor.nspanelevent", "Starting");
             id(page_timer)->execute(int(id(page_timeout).state));
             DynamicJsonDocument doc(1024);
             deserializeJson(doc, x);
@@ -1013,6 +1022,10 @@ text_sensor:
             std::string component = doc["component"];
             std::string value = doc["value"];
             std::string entity = doc["entity"];
+            ESP_LOGV("text_sensor.nspanelevent", "page: %s", page.c_str());
+            ESP_LOGV("text_sensor.nspanelevent", "component: %s", component.c_str());
+            ESP_LOGV("text_sensor.nspanelevent", "value: %s", value.c_str());
+            ESP_LOGV("text_sensor.nspanelevent", "entity: %s", entity.c_str());
             auto ha_event = new esphome::api::CustomAPIDevice();
             ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
               {
@@ -1024,18 +1037,32 @@ text_sensor:
               });
             if (component=="currentpage")
               {
-                ESP_LOGD("nspanelevent", "New page: %s", page.c_str());
+                ESP_LOGV("text_sensor.nspanelevent", "New page: %s", page.c_str());
+                ESP_LOGV("text_sensor.nspanelevent", "Trigger HA event");
                 ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
                   {
                     {"type", "page_changed"},
                     {"page", page},
                     {"entity", entity}
                   });
+                  ESP_LOGV("text_sensor.nspanelevent", "Call add-ons scripts for new page");
+                id(addon_climate_set_climate).execute(page=="climate" and entity=="embedded_climate");
+                ESP_LOGV("text_sensor.nspanelevent", "Publish current_page sensor");
                 id(current_page).publish_state(page);
-                if (page=="home") id(update_page_home).execute();
-                else if (page=="screensaver") id(disp1).set_component_value("orign", id(wakeup_page_id));
+                ESP_LOGV("text_sensor.nspanelevent", "Construct new page");
+                if (page=="home")
+                  {
+                    ESP_LOGV("text_sensor.nspanelevent", "Construct home page");
+                    id(update_page_home).execute();
+                  }
+                else if (page=="screensaver")
+                  {
+                    ESP_LOGV("text_sensor.nspanelevent", "Construct screensaver page");
+                    id(disp1).set_component_value("orign", id(wakeup_page_id));
+                  }
                 else if (page=="climate")
                   {
+                    ESP_LOGV("text_sensor.nspanelevent", "Construct climate page");
                     id(disp1).set_component_text_printf("climate.button01_icon", "%s", "\uEE8D"); //mdi:calendar-sync
                     id(disp1).set_component_text_printf("climate.button02_icon", "%s", "\uE069"); //mdi:autorenew
                     id(disp1).set_component_text_printf("climate.button03_icon", "%s", "\uE237"); //mdi:fire
@@ -1043,10 +1070,11 @@ text_sensor:
                     id(disp1).set_component_text_printf("climate.button05_icon", "%s", "\uE58D"); //mdi:water-percent
                     id(disp1).set_component_text_printf("climate.button06_icon", "%s", "\uE20F"); //mdi:fan
                     id(disp1).set_component_text_printf("climate.button07_icon", "%s", "\uE424"); //mdi:power
-                    id(addon_climate_update_page_climate);
+                    id(addon_climate_update_page_climate)->execute();
                   }
                 else if (page=="fan")
                   {
+                    ESP_LOGV("text_sensor.nspanelevent", "Construct fan page");
                     id(disp1).set_component_text_printf("fan.button_on", "%s", "\uE20F"); //mdi:fan
                     id(disp1).set_component_text_printf("fan.button_off", "%s", "\uE81C"); //mdi:fan-off
                     id(disp1).set_component_text_printf("fan.button_up", "%s", "\uF46D"); //mdi:fan-chevron-up
@@ -1054,6 +1082,7 @@ text_sensor:
                   }
                 else if (page=="keyb_num")
                   {
+                    ESP_LOGV("text_sensor.nspanelevent", "Construct keyb_num page");
                     id(disp1).set_component_text_printf("keyb_num.bview", "%s", "\uE207"); //mdi:eye
                     id(disp1).set_component_text_printf("keyb_num.bclose", "%s", "\uE158"); //mdi:close-circle
                     id(disp1).set_component_text_printf("keyb_num.bclear", "%s", "\uE641"); //mdi:eraser-variant
@@ -1062,13 +1091,18 @@ text_sensor:
               }
             else if (page=="boot" and component=="timeout")
               {
+                ESP_LOGV("text_sensor.nspanelevent", "Trigger boot timeout event");
                 ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
                   {
                     {"type", "boot"},
                     {"step", "timeout"},
                     {"value", value}
                   });
-                if (stof(value) >= 5) id(disp1).send_command_printf("page %i", id(wakeup_page_id));
+                if (stof(value) >= 5)
+                  {
+                    ESP_LOGV("text_sensor.nspanelevent", "Jump to wakeup page: %i", id(wakeup_page_id));
+                    id(disp1).send_command_printf("page %i", id(wakeup_page_id));
+                  }
               }
 
   ##### NSPanel event - Execute actions from ESPHome - NO push to HA #####
@@ -1444,6 +1478,7 @@ script:
       climate_icon: string
       embedded_climate: bool
     then:
+      - lambda: ESP_LOGV("script.set_climate", "Starting");
       - if:
           condition:
             - binary_sensor.is_on: nextion_init
@@ -1488,6 +1523,7 @@ script:
                     id(disp1).hide_component("increase_temp");
                   }
                 id(disp1).set_component_value("embedded", (embedded_climate) ? 1 : 0);
+      - lambda: ESP_LOGV("script.set_climate", "Finished");
 
   - id: refresh_colors ## Refresh colors of global components
     mode: restart
@@ -1590,6 +1626,14 @@ script:
             - script.execute: refresh_relays
             - script.execute: refresh_wifi_icon
             - script.execute: addon_climate_update_page_home
+      # Show panel's temperature if API is out
+      - if:
+          condition:
+            - not:
+                api.connected:
+          then:
+            - lambda: id(disp1).set_component_text_printf("home.current_temp", "%.1f°", id(temp_nspanel).state);
+
       - lambda: ESP_LOGV("script.update_page_home", "Finished");
 
   - id: service_call_alarm_control_panel
@@ -1790,6 +1834,7 @@ script:
       # Reserved for Add-on Climate
       - lambda: |-
           ESP_LOGV("script.addon_climate_set_climate", "Starting");
+          ESP_LOGV("script.addon_climate_set_climate", "embedded_climate: %i", (embedded_climate) ? 1 : 0);
           ESP_LOGV("script.addon_climate_set_climate", "Finished");
   - id: addon_climate_global_settings
     mode: restart
