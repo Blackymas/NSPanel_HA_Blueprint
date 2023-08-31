@@ -142,13 +142,19 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 - 4 user's selectable values (for water and external temperatures, etc.)
 - All the standard climate controls from Home Assistant (`heat`, `fan`, `cool`, `auto`, `dry`)
 - 2 user's selectable buttons
-- [Can be used for local control (even when Wi-Fi is unavailable) when your panel's relays are used to control your heater](/docs/en/addon_climate.md)
+- [Can be used for local control (even when Wi-Fi is unavailable) when your panel's relays are used to control your cooler/heater](/docs/en/addon_climate.md)
 
 &nbsp;
 ### Fan speed
 - Turn-on and turn-off fan
 - Set speed via slider or buttons
 - jump back to the right button page
+
+&nbsp;
+### Alarm
+- Arm/disarm an alarm (standard modes supported by Home Assistant)
+- Support to numeric pin for arming or disarming
+
 
 &nbsp;
 ### Weather Forecast
