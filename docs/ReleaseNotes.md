@@ -28,15 +28,16 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 &nbsp;
 ## Breaking changes
 1. New requirements: Home Assistant and ESPHome v2023.5.0 or later.
-2. Existing users will have o select again the language for the panel, otherwise English will be used to display strings.
+2. Existing users will have to select again the language for the panel, otherwise English will be used to display strings.
 3. Removed entity `sensor.xxxxx_settings_entity` and service `esphome.xxxxx_set_settings_entity`.
 4. Due to the changes on the time display engine, you might have to select your time format again in the blueprint settings.
-5. The network settings was moved to under `networks` on the `wifi` section. If you are using advanced/custom settings for Wi-Fi on ESPHome, you may have to update to follow the new format.
+5. The network settings was moved to under `networks` on the `wifi` section. If you are using advanced/custom settings for Wi-Fi on ESPHome, you may have to update it in order to follow the new format.
 6. The sensor "Uptime" is deprecated. It was replaced by "API timestamp" and "Device timestamp" sensors, which makes it more readable to humans on Home Assistant interface and shows respectively the last time the API got connected (between the panel and Home Assistant) and the last time the device started. Thanks to @WZYProjects (#986 and #998) for the new sensors.<br>
-7. Service `qr_code` is deprecated. It was replaced by service `qrcode` which can be used for changing the QRcode value even when the QRcode page is not visible (useful when using dynamic Wi-Fi credentials).
+7. Service `esphome.xxxxx_qr_code` is deprecated. It was replaced by service `qrcode` which can be used for changing the QRcode value even when the QRcode page is not visible (useful when using dynamic Wi-Fi credentials).
 8. Removed switches "Relay 1 Local Fallback" and "Relay 2 Local Fallback", together with the relay fallback inputs. Now when you assign your panel's relay to it's respective button the control will be fully local and therefore will have the same behavior as the "fallback" in previous versions.
 9. The "Hardware button long press hold delay" input was removed and the delay (800ms) is now hard coded in ESPHome.
-10. To be deprecated soon:
+10. The service `esphome.xxxxx_wake_up_display` changes its parameters and now uses `reset_timer: bool` to indicate if the timeout timer (to move back to Home page) should be reset.
+11. To be deprecated soon:
     - Old color selection (based in a text input where you typed a number).<br>The icons colors selected before the implementation of the color picker (when it was about typing a number) will be deprecated soon, so if you haven't done this yet, please select the color using the new color selector. Open the Blueprint and if the colors are shown, you are good, otherwise, please select a color.
     - The panel selection based on a text box (where you manually typed the panel name).<br>The new device selection was introduce a few releases ago and is more reliable. The previous selections are still valid, but requires extra processing every time the automation is triggered, so it will be removed.<br>If you can see your device name on the blueprint settings screen, you are good, otherwise, pick your panel from the new drop down list.
     - Sensor "NSPanel Event".<br>This sensor contains a json-like text and is used for ESPHome to send information to the blueprint. This is slowly being replaced by Home Assistant events and will then be removed.<br>The sensor "Current page" is back with the information about the page currently visible in your panel, so please update your automation if you are using the event sensor.
