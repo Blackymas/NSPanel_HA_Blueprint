@@ -151,7 +151,7 @@ See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 
 ## What's Changed
 * @chpego - Fixes on the blueprint UI (#928)
-* @WZYProjects - Human readable "Last started" sensor (#986)
+* @WZYProjects - Human readable "Last started" sensor (#986) and support with customization (#1003)
 
 ## New Contributors
 * @chpego
