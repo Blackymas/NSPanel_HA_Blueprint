@@ -65,7 +65,19 @@ api:
 ```
 &nbsp;
 ### Custom OTA password
-By default, the Wi-Fi password will be used as your OTA password, but you can replace it using this customization:
+By default, the Wi-Fi password will be used as your OTA password, but you can replace it.<br>
+First, you need to change the default password using this code.
+```yaml
+# change OTA password, remove after flashing
+esphome:
+  on_boot:
+    - lambda: |-
+        id(my_ota).set_auth_password("New password");
+ota:
+  password: !secret wifi_password
+  id: my_ota
+```
+After flashing the device, you must remove the code above and replace it with the code below to start using this customization.
 ```yaml
 # Use my global OTA password
 ota:
@@ -73,7 +85,7 @@ ota:
 ```
 &nbsp;
 ### Web server credentials
-By default, the web server credentials are defined by this project as using `admin` as `username` and your Wi-Fi password, but you can replace it using this customization:
+By default, the web server credentials are defined by this project using `admin` as `username` and your `Wi-Fi password` as `password`, but you can replace it using this customization:
 ```yaml
 # Custom web server credentials
 web_server:
@@ -124,7 +136,19 @@ wifi:
       hidden: true
     fast_connect: true
 ```
-
+&nbsp;
+### Connect to multiple networks
+NSPanel will attempt to connect to the one with the highest signal strength or, if you set a priority, it will try to connect to the highest priority. After failing it will connect to the second network.
+```yaml
+# Set dual network
+wifi:
+  networks:
+    - id: !extend wifi_default
+      priority: 10
+    - ssid: !secret wifi_ssid_backup
+      password: !secret wifi_password_backup
+      priority: 0
+```
 &nbsp;
 ### SNTP (time) server
 ESPHome takes it's time from Home Assistant, however you can configure it to use a Network Time Server instead.
