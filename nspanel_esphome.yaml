@@ -234,7 +234,8 @@ api:
     - service: notification_clear
       then:
         - logger.log: "Service: notification_clear"
-        - lambda: |-
+        - &notification_clear
+          lambda: |-
             id(disp1).send_command_printf("is_notification=0");
             id(notification_label).publish_state("");
             id(notification_text).publish_state("");
@@ -397,6 +398,7 @@ api:
     ##### Service for transferring global settings from the blueprint to ESPHome #####
     - service: global_settings
       variables:
+        blueprint_version: string
         relay1_local_control: bool
         relay1_icon: string
         relay1_icon_color: int
@@ -412,6 +414,9 @@ api:
         - lambda: |-
             // Logs - Begin
             ESP_LOGV("service.global_settings", "Starting");
+            ESP_LOGD("service.global_settings", "Blueprint version: %s", blueprint_version.c_str());
+            ESP_LOGD("service.global_settings", "ESPHome version: ${version}");
+            if (blueprint_version != "${version}") ESP_LOGW("service.global_settings", "Blueprint and ESPHome versions mismatch!");
             ESP_LOGV("service.global_settings", "relay1_local_control: %i", (relay1_local_control) ? 1 : 0);
             ESP_LOGV("service.global_settings", "relay1_icon: %s", relay1_icon.c_str());
             ESP_LOGV("service.global_settings", "relay1_icon_color: %i", relay1_icon_color);
@@ -457,8 +462,39 @@ api:
             ESP_LOGV("service.global_settings", "Update home page");
             id(update_page_home).execute();
 
-            // Logs - End
-            ESP_LOGV("service.global_settings", "Finished");
+        - if:
+            condition:
+              - text_sensor.state: # Is boot page visible?
+                  id: current_page
+                  state: 'boot'
+            then:
+              - lambda: |-
+                  ESP_LOGV("service.global_settings", "Boot page is visible");
+                  id(disp1).set_component_text_printf("boot.bluep_version", "%s", blueprint_version.c_str());
+                  ESP_LOGV("service.global_settings", "Wait a bit");
+              - wait_until:
+                  condition:
+                    - not:
+                      - text_sensor.state: # Is boot page visible?
+                          id: current_page
+                          state: 'boot'
+                  timeout: 2s
+              - if:
+                  condition:
+                    - text_sensor.state: # Avoid this being called twice by multiple boot triggers
+                        id: current_page
+                        state: 'boot'
+                  then:
+                    - if:
+                        condition:
+                          switch.is_on: notification_sound
+                        then:
+                          - lambda: ESP_LOGV("service.global_settings", "Play boot sound");
+                          - rtttl.play:
+                              rtttl: 'two short:d=4,o=5,b=100:16e6,16e6'
+                    - lambda: id(disp1).send_command_printf("page %i", id(wakeup_page_id));
+
+        - lambda: ESP_LOGV("service.global_settings", "Finished");
 
     #### Service to populate the page Home #####
     - service: page_home_settings
@@ -1380,18 +1416,16 @@ display:
                 {"step", "start"}
               });
         - delay: 1s
-        - lambda: |-
-            id(display_brightness).publish_state(id(display_brightness_global));
-            id(display_dim_brightness).publish_state(id(display_dim_brightness_global));
-            id(disp1).send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
-            id(disp1).send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
         - if:
             condition:
               switch.is_off: sleep_mode
             then: *sleep_mode-turn_off
             else: *sleep_mode-turn_on
-        - delay: 1s
         - lambda: |-
+            id(display_brightness).publish_state(id(display_brightness_global));
+            id(display_dim_brightness).publish_state(id(display_dim_brightness_global));
+            id(disp1).send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
+            id(disp1).send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
             id(nextion_init).publish_state(true);
             auto ha_event = new esphome::api::CustomAPIDevice();
             ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
@@ -1401,6 +1435,8 @@ display:
               });
             id(home_relay1_icon) = "\uE3A5";
             id(home_relay1_icon) = "\uE3A8";
+        - *notification_clear
+        - switch.turn_off: notification_unread
         - logger.log: "Nextion start - Done!"
 
 ### Script for page_timer
