@@ -56,8 +56,8 @@ temp_units|Optional|`°C` or `°F`|`°C`|Temperature unit.
 min_off_time|Optional|Positive integer representing the number of seconds|`300`|Minimum duration (in seconds) the cooling/heating action must be disengaged before it may be engaged.
 min_run_time|Optional|Positive integer representing the number of seconds|`300`|Minimum duration (in seconds) the cooling/heating action must be engaged before it may be disengaged.
 min_idle_time|Optional|Positive integer representing the number of seconds|`30`|Minimum duration (in seconds) the idle action must be active before calling another climate action.
-temp_min|Optional|Number representing a temperature in the selected unit|`5`|The minimum temperature the climate device can reach. Used to set the range of the frontend gauge.
-temp_max|Optional|Number representing a temperature in the selected unit|`25`|The maximum temperature the climate device can reach. Used to set the range of the frontend gauge.
+temp_min|Optional|Number representing a temperature in the selected unit|`15` for `cool`, `5` for `heat`|The minimum temperature the climate device can reach. Used to set the range of the frontend gauge.
+temp_max|Optional|Number representing a temperature in the selected unit|`45` for `cool`, `25` for `heat`|The maximum temperature the climate device can reach. Used to set the range of the frontend gauge.
 temp_step|Optional|Number representing a temperature in the selected unit|`0.5`|The granularity with which the target temperature can be controlled.
 
 - All values must be delimited with `""`
