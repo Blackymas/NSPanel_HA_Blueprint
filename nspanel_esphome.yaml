@@ -7,6 +7,8 @@
 
 substitutions:
 
+  notification_line_length_limit: "39"
+
   ##### DON'T CHANGE THIS #####
   version: "4.0"
   #############################
@@ -226,14 +228,42 @@ api:
         label: string
         text: string
       then:
-        - logger.log: "Service: notification_show"
         - lambda: |-
+            ESP_LOGV("service.notification_show", "Starting");
+            ESP_LOGV("service.notification_show", "label: %s", label.c_str());
+            ESP_LOGV("service.notification_show", "text: %s", text.c_str());
+            ESP_LOGV("service.notification_show", "text length: %i", text.length());
+
             id(disp1).send_command_printf("is_notification=1");
             id(disp1).send_command_printf("page notification");
             id(disp1).set_component_text_printf("notification.notifi_label", "%s", label.c_str());
-            id(disp1).set_component_text_printf("notification.notifi_text01", "%s", text.c_str());
+
+            int maxChars = ${notification_line_length_limit};
+            int startPos = 0;
+            int endPos = 0;
+            std::string wrappedText = "";
+            while (startPos < text.length()) {
+              while (text[startPos] == ' ' and startPos < text.length()) { startPos++; }
+              int endPos = startPos + maxChars;
+              if (endPos >= text.length()) endPos = text.length();
+              else
+                {
+                  while (endPos > startPos && text[endPos] != ' ') { endPos--; }
+                  if (endPos == startPos) endPos = startPos + maxChars; // Handle case of long word
+                }
+              wrappedText += text.substr(startPos, endPos-startPos);
+              if (endPos < text.length())
+                {
+                  while (text[endPos] == ' ') { endPos--; }
+                  if (endPos >= startPos) wrappedText += "\\r";
+                }
+              startPos = endPos + 1; // Skip the space
+              while (text[startPos] == ' ' and startPos < text.length()) { startPos++; }
+            }
+            ESP_LOGV("service.notification_show", "text (new): %s", wrappedText.c_str());
+            id(disp1).set_component_text_printf("notification.notifi_text01", "%s", wrappedText.c_str());
             id(notification_label).publish_state(label.c_str());
-            id(notification_text).publish_state(text.c_str());
+            id(notification_text).publish_state(wrappedText.c_str());
         - switch.turn_on: notification_unread
         - if:
             condition:
