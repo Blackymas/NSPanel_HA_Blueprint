@@ -10,7 +10,7 @@ substitutions:
   notification_line_length_limit: "39"
 
   ##### DON'T CHANGE THIS #####
-  version: "4.0"
+  version: "4.0dev"
   #############################
 
 ##### WIFI SETUP #####
@@ -238,32 +238,10 @@ api:
             id(disp1).send_command_printf("page notification");
             id(disp1).set_component_text_printf("notification.notifi_label", "%s", label.c_str());
 
-            int maxChars = ${notification_line_length_limit};
-            int startPos = 0;
-            int endPos = 0;
-            std::string wrappedText = "";
-            while (startPos < text.length()) {
-              while (text[startPos] == ' ' and startPos < text.length()) { startPos++; }
-              int endPos = startPos + maxChars;
-              if (endPos >= text.length()) endPos = text.length();
-              else
-                {
-                  while (endPos > startPos && text[endPos] != ' ') { endPos--; }
-                  if (endPos == startPos) endPos = startPos + maxChars; // Handle case of long word
-                }
-              wrappedText += text.substr(startPos, endPos-startPos);
-              if (endPos < text.length())
-                {
-                  while (text[endPos] == ' ') { endPos--; }
-                  if (endPos >= startPos) wrappedText += "\\r";
-                }
-              startPos = endPos + 1; // Skip the space
-              while (text[startPos] == ' ' and startPos < text.length()) { startPos++; }
-            }
-            ESP_LOGV("service.notification_show", "text (new): %s", wrappedText.c_str());
-            id(disp1).set_component_text_printf("notification.notifi_text01", "%s", wrappedText.c_str());
+            id(display_wrapped_text).execute("notification.notifi_text01", text.c_str(), id(display_mode) == 2 ? 23 : 32);
+
             id(notification_label).publish_state(label.c_str());
-            id(notification_text).publish_state(wrappedText.c_str());
+            id(notification_text).publish_state(text.c_str());
         - switch.turn_on: notification_unread
         - if:
             condition:
@@ -460,8 +438,6 @@ api:
             // Logs - Begin
             ESP_LOGV("service.global_settings", "Starting");
             ESP_LOGD("service.global_settings", "Blueprint version: %s", blueprint_version.c_str());
-            ESP_LOGD("service.global_settings", "ESPHome version: ${version}");
-            if (blueprint_version != "${version}") ESP_LOGW("service.global_settings", "Blueprint and ESPHome versions mismatch!");
             ESP_LOGV("service.global_settings", "relay1_local_control: %i", (relay1_local_control) ? 1 : 0);
             ESP_LOGV("service.global_settings", "relay1_icon: %s", relay1_icon.c_str());
             ESP_LOGV("service.global_settings", "relay1_icon_color: %i", relay1_icon_color);
@@ -473,6 +449,10 @@ api:
             ESP_LOGV("service.global_settings", "time_color: %i", time_color);
             ESP_LOGV("service.global_settings", "embedded_climate: %i", (embedded_climate) ? 1 : 0);
             ESP_LOGV("service.global_settings", "wakeup_page: %i", wakeup_page);
+
+            // Blueprint version
+            id(version_blueprint) = blueprint_version;
+            id(check_versions).execute();
 
             // Relays
             id(relay1_local).publish_state(relay1_local_control);
@@ -544,36 +524,46 @@ api:
     #### Service to populate the page Home #####
     - service: page_home_settings
       variables:
+        notification_icon: string
+        notification_icon_color_normal: int[]
+        notification_icon_color_unread: int[]
         qrcode: bool
         qrcode_icon: string
-        qrcode_icon_color: int
+        qrcode_icon_color: int[]
         entities_pages: bool
         entities_pages_icon: string
-        entities_pages_icon_color: int
+        entities_pages_icon_color: int[]
         alarm_state: string
       then:
         - lambda: |-
             // Logs - Begin
             ESP_LOGV("service.page_home_settings", "Starting");
+            ESP_LOGV("service.page_home_settings", "notification_icon: %s", notification_icon.c_str());
             ESP_LOGV("service.page_home_settings", "qrcode: %i", (qrcode) ? 1 : 0);
             ESP_LOGV("service.page_home_settings", "qrcode_icon: %s", qrcode_icon.c_str());
-            ESP_LOGV("service.page_home_settings", "qrcode_icon_color: %i", qrcode_icon_color);
             ESP_LOGV("service.page_home_settings", "entities_pages: %i", (entities_pages) ? 1 : 0);
             ESP_LOGV("service.page_home_settings", "entities_pages_icon: %s", entities_pages_icon.c_str());
-            ESP_LOGV("service.page_home_settings", "entities_pages_icon_color: %i", entities_pages_icon_color);
             ESP_LOGV("service.page_home_settings", "alarm_state: %s", alarm_state.c_str());
+
+            // Notification button
+            ESP_LOGV("service.page_home_settings", "Notification button - Start");
+            id(disp1).send_command_printf("is_notification=%i", (id(notification_text).state.empty() and id(notification_label).state.empty()) ? 0 : 1);
+            id(disp1).set_component_text_printf("home.bt_notific", "%s", notification_icon.c_str());
+            id(set_component_color).execute("home.bt_notific", id(notification_unread).state ? notification_icon_color_unread : notification_icon_color_normal, {});
+            id(home_notify_icon_color_normal) = notification_icon_color_normal;
+            id(home_notify_icon_color_unread) = notification_icon_color_unread;
 
             // QRCode button
             ESP_LOGV("service.page_home_settings", "QRcode button - Start");
             id(disp1).send_command_printf("is_qrcode=%i", (qrcode) ? 1 : 0);
             id(disp1).set_component_text_printf("home.bt_qrcode", "%s", qrcode_icon.c_str());
-            id(disp1).set_component_font_color("home.bt_qrcode", qrcode_icon_color);
+            id(set_component_color).execute("home.bt_qrcode", qrcode_icon_color, {});
 
             // Entities pages button
             ESP_LOGV("service.page_home_settings", "Entities pages button - Start");
             id(disp1).send_command_printf("is_entities=%i", (entities_pages) ? 1 : 0);
             id(disp1).set_component_text_printf("home.bt_entities", "%s", entities_pages_icon.c_str());
-            id(disp1).set_component_font_color("home.bt_entities", entities_pages_icon_color);
+            id(set_component_color).execute("home.bt_entities", entities_pages_icon_color, {});
 
             // Alarm button
             ESP_LOGV("service.page_home_settings", "Alarm button - Start");
@@ -718,6 +708,12 @@ api:
 ##### START - GLOBALS CONFIGURATION #####
 globals:
 
+  ##### Display mode (1 = EU, 2 = US, 3 = US Landscape)
+  - id: display_mode
+    type: int
+    restore_value: true
+    initial_value: '0'
+
   ##### Save Display Brightness for NSPanel reboot #####
   - id: display_brightness_global
     type: int
@@ -777,11 +773,31 @@ globals:
     restore_value: true
     initial_value: '65535'
 
+  - id: home_notify_icon_color_normal
+    type: std::vector<int>
+    restore_value: false
+    #initial_value: '52857'
+
+  - id: home_notify_icon_color_unread
+    type: std::vector<int>
+    restore_value: false
+    #initial_value: '63488'
+
   ##### Wakeup page ID #####
   - id: wakeup_page_id
     type: int
     restore_value: true
     initial_value: '0'
+
+  ##### Versions #####
+  - id: version_blueprint
+    type: std::string
+    restore_value: false
+    initial_value: ''
+  - id: version_tft
+    type: std::string
+    restore_value: false
+    initial_value: ''
 
 ##### START - BINARY SENSOR CONFIGURATION #####
 binary_sensor:
@@ -1144,20 +1160,43 @@ text_sensor:
                     id(disp1).set_component_text_printf("icon_bright", "%s", "\uE0DD"); //mdi:brightness-5
                     id(disp1).set_component_text_printf("icon_dim", "%s", "\uE0DE"); //mdi:brightness-5
                   }
+                else if (page=="notification")
+                  {
+                    if (not id(confirmation_message).state)
+                      {
+                        id(disp1).set_component_text_printf("notification.notifi_label", "%s", id(notification_label).state.c_str());
+                        id(display_wrapped_text).execute("notification.notifi_text01", id(notification_text).state.c_str(), id(display_mode) == 2 ? 23 : 32);
+                      }
+                  }
               }
-            else if (page=="boot" and component=="timeout")
+            if (page=="boot")
               {
-                ESP_LOGV("text_sensor.nspanelevent", "Trigger boot timeout event");
-                ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+                // Detect display mode - Need review
+                std::string display_mode_str = doc["display_mode"];
+                ESP_LOGV("text_sensor.nspanelevent", "display_mode: %s", display_mode_str.c_str());
+                float display_mode_float = stof(display_mode_str);
+                if (display_mode_float > 0) id(display_mode) = int(display_mode_float);
+
+                // Detect TFT version
+                std::string version_tmp = doc["version"];
+                id(version_tft) = version_tmp;
+                id(check_versions).execute();
+
+                // Detect timeout
+                if (component=="timeout")
                   {
-                    {"type", "boot"},
-                    {"step", "timeout"},
-                    {"value", value}
-                  });
-                if (stof(value) >= 5)
-                  {
-                    ESP_LOGV("text_sensor.nspanelevent", "Jump to wakeup page: %i", id(wakeup_page_id));
-                    id(disp1).send_command_printf("page %i", id(wakeup_page_id));
+                    ESP_LOGV("text_sensor.nspanelevent", "Trigger boot timeout event");
+                    ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+                      {
+                        {"type", "boot"},
+                        {"step", "timeout"},
+                        {"value", value}
+                      });
+                    if (stof(value) >= 5)
+                      {
+                        ESP_LOGV("text_sensor.nspanelevent", "Jump to wakeup page: %i", id(wakeup_page_id));
+                        id(disp1).send_command_printf("page %i", id(wakeup_page_id));
+                      }
                   }
               }
 
@@ -1259,6 +1298,10 @@ switch:
     entity_category: config
     optimistic: true
     restore_mode: RESTORE_DEFAULT_ON
+    on_turn_on:
+      - lambda: id(set_component_color).execute("home.bt_notific", id(home_notify_icon_color_unread), {});
+    on_turn_off:
+      - lambda: id(set_component_color).execute("home.bt_notific", id(home_notify_icon_color_normal), {});
 
   ##### Notification sound #####
   - name: ${device_name} Notification sound
@@ -1500,10 +1543,7 @@ script:
       - lambda: ESP_LOGV("script.page_timer", "start page-timer delay %i", int(id(page_timeout).state));
       - delay: !lambda return delay *1000;
       - lambda: |-
-          DynamicJsonDocument doc(1024);
-          deserializeJson(doc, id(disp1_nspanel_event).state);
-          std::string page = doc["page"];
-          if (page == "home" or page == "screensaver" or page == "boot" or int(id(page_timeout).state) == 0)
+          if (id(current_page).state == "home" or id(current_page).state == "screensaver" or id(current_page).state == "boot" or int(id(page_timeout).state) == 0)
             ESP_LOGD("script.page_timer", "no page-jump");
           else
             {
@@ -1655,9 +1695,13 @@ script:
                 id: current_page
                 state: 'home'
           then:
-            - script.execute: refresh_datetime
             - script.execute: refresh_relays
             - script.execute: refresh_wifi_icon
+            - lambda: |-
+                ESP_LOGV("script.update_page_home", "is_notification=%i", (id(notification_text).state.empty() and id(notification_label).state.empty()) ? 0 : 1);
+                id(disp1).send_command_printf("is_notification=%i", (id(notification_text).state.empty() and id(notification_label).state.empty()) ? 0 : 1);
+                id(set_component_color).execute("home.bt_notific", id(notification_unread).state ? id(home_notify_icon_color_unread) : id(home_notify_icon_color_normal), {});
+            - script.execute: refresh_datetime
             - script.execute: addon_climate_update_page_home
 
       - lambda: ESP_LOGV("script.update_page_home", "Finished");
@@ -1940,6 +1984,57 @@ script:
           if (bg565 >= 0) id(disp1).set_component_background_color(component.c_str(), bg565);
 
           ESP_LOGV("script.set_component_color", "Finished");
+
+  - id: display_wrapped_text
+    mode: queued
+    parameters:
+      component: string
+      text: string
+      line_length_limit: int
+    then:
+      - lambda: |-
+          int startPos = 0;
+          int endPos = 0;
+          std::string wrappedText = "";
+          while (startPos < text.length()) {
+            while (text[startPos] == ' ' and startPos < text.length()) { startPos++; }
+            int endPos = startPos + line_length_limit;
+            if (endPos >= text.length()) endPos = text.length();
+            else
+              {
+                while (endPos > startPos && text[endPos] != ' ') { endPos--; }
+                if (endPos == startPos) endPos = startPos + line_length_limit; // Handle case of long word
+              }
+            wrappedText += text.substr(startPos, endPos-startPos);
+            if (endPos < text.length())
+              {
+                while (text[endPos] == ' ') { endPos--; }
+                if (endPos >= startPos) wrappedText += "\\r";
+              }
+            startPos = endPos + 1; // Skip the space
+            while (text[startPos] == ' ' and startPos < text.length()) { startPos++; }
+          }
+          ESP_LOGV("script.display_wrapped_text", "text (new): %s", wrappedText.c_str());
+          id(disp1).set_component_text_printf(component.c_str(), "%s", wrappedText.c_str());
+
+  - id: check_versions
+    mode: restart
+    then:
+      - delay: 15s
+      - lambda: |-
+          ESP_LOGD("script.check_versions", "ESPHome version: ${version}");
+          ESP_LOGD("script.check_versions", "TFT version: %s", id(version_tft).c_str());
+          if (id(version_tft) != "${version}") ESP_LOGE("script.check_versions", "TFT version mismatch!");
+          ESP_LOGD("script.check_versions", "Blueprint version: %s", id(version_blueprint).c_str());
+          if (id(version_blueprint) != "${version}") ESP_LOGE("script.check_versions", "Blueprint version mismatch!");
+          auto ha_event = new esphome::api::CustomAPIDevice();
+          ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+            {
+              {"type", "version"},
+              {"tft", id(version_tft).c_str()},
+              {"esphome", "${version}"},
+              {"blueprint", id(version_blueprint).c_str()}
+            });
 
   #####  ADD-ONS ############################################################
   ##### Add-on - Climate #####

@@ -33,7 +33,7 @@ blueprint:
     🎉 Roadmap can be found here: [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
 
 
-    ℹ️ Version: v4.0
+    ℹ️ Version: v4.0dev
 
   source_url: https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/nspanel_blueprint.yaml
   domain: automation
@@ -153,7 +153,6 @@ blueprint:
                     value: '21'
                   - label: 'QR code page'
                     value: '17'
-
 
     ##### WEATHER - Page Home / Weather 01-04 #####
         ##### PLACEHOLDER ######################################################################
@@ -3479,7 +3478,7 @@ trigger_variables:
 
 variables:
   ##### GENERAL #####
-  blueprint_version: '4.0'
+  blueprint_version: '4.0dev'
   date_format_temp: !input 'date_format'
   #Avoid breaking change for existing users with legacy type format
   date_format: >
@@ -6203,22 +6202,6 @@ trigger:
         - unavailable
       id: climate_button09_state
 
-  ##### Trigger - Notifications #################################################################################################################
-
-    ##### Notification Text - Trigger 'notification_text_state' #####
-    - platform: event
-      event_type: state_changed
-      event_data:
-        entity_id: '{{ notification_text }}'
-      id: notification_text_state
-
-    ##### Notification Text - Trigger 'notification_text_state' #####
-    - platform: event
-      event_type: state_changed
-      event_data:
-        entity_id: '{{ notification_unread }}'
-      id: notification_unread_state
-
   ##### Trigger - Hardware buttons #################################################################################################################
 
     ##### Left Button - State 'left_button_state' #####
@@ -6403,6 +6386,10 @@ action:
 
               - &variables-home_buttons
                 variables:
+                  bt_notific:
+                    icon: !input 'home_button04_icon' #E1ED
+                    color_normal: !input 'home_button04_icon_color01'
+                    color_unread: !input 'home_button04_icon_color02'
                   bt_entities:
                     enabled: !input 'entitypages_enabled'
                     icon: !input 'home_button06_icon' #EDCF
@@ -6426,6 +6413,14 @@ action:
 
               - service: '{{ nextion.command.page_home_settings }}'
                 data:
+                  notification_icon: >
+                    {{
+                      all_icons[bt_notific.icon.split(":")[1]] | default(bt_notific.icon
+                      if bt_notific.icon is string
+                      else all_icons["email"])
+                    }}
+                  notification_icon_color_normal: '{{ [ bt_notific.color_normal ] if is_number(bt_notific.color_normal) else bt_notific.color_normal }}'
+                  notification_icon_color_unread: '{{ [ bt_notific.color_unread ] if is_number(bt_notific.color_unread) else bt_notific.color_unread }}'
                   qrcode: '{{ bt_qrcode.enabled }}'
                   qrcode_icon: >
                     {{
@@ -6433,15 +6428,7 @@ action:
                       if bt_qrcode.icon is string
                       else all_icons["format-list-bulleted-square"])
                     }}
-                  qrcode_icon_color: >
-                    {{
-                      bt_qrcode.color_rgb
-                      if is_number(bt_qrcode.color_rgb)
-                      else
-                        ((bt_qrcode.color_rgb[0] //(2**3)) *(2**11))+
-                        ((bt_qrcode.color_rgb[1] //(2**2)) *(2**5))+
-                        (bt_qrcode.color_rgb[2] //(2**3))
-                    }}
+                  qrcode_icon_color: '{{ [ bt_qrcode.color_rgb ] if is_number(bt_qrcode.color_rgb) else bt_qrcode.color_rgb }}'
                   entities_pages: '{{ bt_entities.enabled }}'
                   entities_pages_icon: >
                     {{
@@ -6449,15 +6436,7 @@ action:
                       if bt_entities.icon is string
                       else all_icons["format-list-bulleted-square"])
                     }}
-                  entities_pages_icon_color: >
-                    {{
-                      bt_entities.color_rgb
-                      if is_number(bt_entities.color_rgb)
-                      else
-                        ((bt_entities.color_rgb[0] //(2**3)) *(2**11))+
-                        ((bt_entities.color_rgb[1] //(2**2)) *(2**5))+
-                        (bt_entities.color_rgb[2] //(2**3))
-                    }}
+                  entities_pages_icon_color: '{{ [ bt_entities.color_rgb ] if is_number(bt_entities.color_rgb) else bt_entities.color_rgb }}'
                   alarm_state: >
                     {{
                       states(alarm) | default("")
@@ -6983,60 +6962,6 @@ action:
                                             else repeat_item_state
                                           }}
                                       continue_on_error: true
-
-                          ##### Set notify icon #####
-                          - &refresh-page_home-notifications_icon
-                            if: '{{ true }}'
-                            then:
-                              - variables:
-                                  notification_unread_state: '{{ states(notification_unread) | default("unavailable") if notification_unread is string else "unavailable" }}'
-                              - condition: '{{ notification_unread_state in ["on", "off"] }}'
-                              - variables:
-                                  bt_notific:
-                                    icon: !input 'home_button04_icon' #E1ED
-                                    color_rgb:
-                                      "on": !input 'home_button04_icon_color01'
-                                      "off": !input 'home_button04_icon_color02'
-                                  notification_text_state: '{{ states(notification_text) | default(None) if notification_text is string else None }}'
-                                  set_button04_icon: >
-                                    {{
-                                      all_icons[bt_notific.icon.split(":")[1]] | default(bt_notific.icon if bt_notific.icon is string else all_icons.unknown)
-                                      if notification_unread_state == "on" and notification_text_state | length > 0
-                                      else all_icons.blank
-                                    }}
-                                  set_button04_icon_font: >
-                                    {{
-                                      ( [ bt_notific.color_rgb[notification_unread_state] ] if is_number(bt_notific.color_rgb[notification_unread_state]) else bt_notific.color_rgb[notification_unread_state] )
-                                      if notification_unread_state in ["on", "off"] and notification_text_state | length > 0
-                                      else nextion.color.grey_light
-                                    }}
-                              ##### SET ICON Font - Notify #####
-                              - *delay-default
-                              - service: '{{ nextion.command.text_printf }}'
-                                data:
-                                  component: home.bt_notific
-                                  message: '{{ set_button04_icon }}'
-                                continue_on_error: true
-
-                              ##### SET ICON Font Color - Notify #####
-                              - *delay-default
-                              - service: '{{ nextion.command.set_component_color }}'
-                                data:
-                                  component: home.bt_notific
-                                  foreground: '{{ set_button04_icon_font }}'
-                                  background: []
-                                continue_on_error: true
-
-                              ##### Show/Hide notification button #####
-                              - *delay-default
-                              - service: '{{ nextion.command.printf }}'
-                                data:
-                                  cmd: is_notification={{ 1 if notification_unread_state == "on" and notification_text_state | length > 0 and set_button04_icon != all_icons.blank else 0 }}
-                                continue_on_error: true
-                              #- service: '{{ nextion.command.show if notification_unread_state == "on" and notification_text_state | length > 0 and set_button04_icon != all_icons.blank else nextion.command.hide }}'
-                              #  data:
-                              #    component: home.bt_notific
-                              #  continue_on_error: true
 
                       ## BUTTON PAGES 01 - 04 ##
                       - alias: Button pages
@@ -8480,24 +8405,6 @@ action:
                                   - *delay-default
                             else: *forecast_unavailable
 
-                      ## PAGE NOTIFICATION ##
-                      - alias: Notification page
-                        conditions:
-                          - '{{ nspanel_event.page == page.notification }}'
-                          - '{{ confirmation_message is string and states(confirmation_message) | default("unavailable") != "on" }}'
-                        sequence:
-                          - service: '{{ nextion.command.text_printf }}'
-                            data:
-                              component: notification.notifi_text01
-                              message: '{{ states(notification_text) | default(mui[language].unavailable) if notification_text is string else mui[language].unavailable }}'
-                            continue_on_error: true
-                          - *delay-default
-                          - service: '{{ nextion.command.text_printf }}'
-                            data:
-                              component: notification.notifi_label
-                              message: '{{ states(notification_label) | default(mui[language].unavailable) if notification_label is string else mui[language].unavailable }}'
-                            continue_on_error: true
-
               ##### Button click #####
               - alias: Button click
                 conditions:
@@ -9105,18 +9012,6 @@ action:
                 }}
               sequence:
                 - *display-home_page_status_bar
-
-      #### SHOW BUTTON - notification ####
-      - alias: Show button - Notification
-        conditions:
-          - condition: trigger
-            id:
-              - notification_text_state
-              - notification_unread_state
-          - '{{ page.current == page.home }}'
-          - '{{ trigger.event.data.new_state.state not in ["unavailable", "unknown", "", None] }}'
-        sequence:
-          - *refresh-page_home-notifications_icon
 
       ##### HW BUTTON - state #####
       - alias: Hardware button - State
