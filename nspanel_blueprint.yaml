@@ -187,11 +187,13 @@ blueprint:
 
               *If no outdoor sensor is available, leave the field empty and the value from your selected weather integration will be used automatically*
             default: []
-            selector: &entity_sensor-selector
+            selector: &entity_temp_sensor-selector
               entity:
                 filter:
                   domain:
                     - sensor
+                  device_class:
+                    - temperature
           home_outdoor_temp_label_color:
             name: Outdoor Temperature Sensor - LABEL COLOR (Optional)
             description: >
@@ -208,7 +210,7 @@ blueprint:
 
               *An indoor temperature sensor is not necessary. Leave the field empty if you want to use the temperature sensor of the NSPanel. Additionally a temperature correction for the NSPanel sensor is possible under HA Devices. So everyone can adjust the sensor exactly*
             default: []
-            selector: *entity_sensor-selector
+            selector: *entity_temp_sensor-selector
           home_indoor_temp_icon:
             name: Indoor Temperature Sensor - ICON (Optional)
             description: >
@@ -249,7 +251,11 @@ blueprint:
 
               *Entity which should be displayed*
             default: []
-            selector: *entity_sensor-selector
+            selector: &entity_sensor-selector
+              entity:
+                filter:
+                  domain:
+                    - sensor
           home_value01_icon:
             name: Sensor 01 - ICON (Optional)
             description: >
@@ -3532,7 +3538,7 @@ variables:
       notification_clear: 'esphome.{{ nspanel_name }}_notification_clear'
       #notification_show: 'esphome.{{ nspanel_name }}_notification_show'
       open_entity_settings_page: 'esphome.{{ nspanel_name }}_open_entity_settings_page'
-      page_home_settings: 'esphome.{{ nspanel_name }}_page_home_settings'
+      page_home: 'esphome.{{ nspanel_name }}_page_home'
       page_settings: 'esphome.{{ nspanel_name }}_page_settings'
       #play_rtttl: 'esphome.{{ nspanel_name }}_play_rtttl'
       printf: 'esphome.{{ nspanel_name }}_send_command_printf'
@@ -5669,6 +5675,8 @@ variables:
   ##### GENERAL ENTITYS #####
   climate: !input 'climate'
   embedded_climate: '{{ climate == thermostat_embedded }}'
+  indoor_temperature_sensor: !input 'indoortemp'
+  embedded_indoor_temperature: '{{ indoor_temperature_sensor == nspaneltemp or not (indoor_temperature_sensor is string and indoor_temperature_sensor is match "sensor.")}}'
   alarm: !input 'alarm'
 
   enum:
@@ -6243,13 +6251,6 @@ trigger:
         entity_id: !input 'indoortemp'
       id: indoortemp_state
 
-    ##### NSPAnel Temp Sensor - Trigger 'nspaneltemp_state' #####
-    - platform: event
-      event_type: state_changed
-      event_data:
-        entity_id: '{{ nspaneltemp }}'
-      id: nspaneltemp_state
-
   ##### Trigger - Weather #################################################################################################################
     #### Weather state changed #######
     - platform: event
@@ -6315,6 +6316,13 @@ condition:
               - climate_button08_state
               - climate_button09_state
       - '{{ page.current == page.climate }}'
+  - condition: or
+    conditions:
+      - condition: not
+        conditions:
+          - condition: trigger
+            id: indoortemp_state
+      - '{{ not embedded_indoor_temperature }}'
 
 #############################################################
 ##### START - Action #####
@@ -6411,7 +6419,7 @@ action:
                       format: !input 'time_format'
                       color_rgb: !input 'time_label_color'
 
-              - service: '{{ nextion.command.page_home_settings }}'
+              - service: '{{ nextion.command.page_home }}'
                 data:
                   notification_icon: >
                     {{
@@ -6518,6 +6526,8 @@ action:
                       else ((display.time.color_rgb[0] //(2**3)) *(2**11))+((display.time.color_rgb[1] //(2**2)) *(2**5))+(display.time.color_rgb[2] //(2**3))
                     }}
                   embedded_climate: '{{ embedded_climate }}'
+                  embedded_indoor_temperature: '{{ embedded_indoor_temperature }}'
+                  temperature_unit_is_fahrenheit: '{{ state_attr((nspaneltemp if embedded_indoor_temperature else indoor_temperature_sensor), "unit_of_measurement") | default("") in ["°F", "F"]}}'
                   wakeup_page: '{{ wakeup_page }}'
                 continue_on_error: true
               - *delay-default
@@ -6629,21 +6639,20 @@ action:
                                     continue_on_error: true
 
                           - &refresh-page_home-indoor_temp
-                            if: '{{ true }}'
+                            if: '{{ not embedded_indoor_temperature }}'
                             then:
                               ##### NSPanel Indoor Temp #####
                               - variables:
-                                  indoor_temp_entity: !input 'indoortemp'
                                   indoor_temp:
-                                    state: '{{ states(indoor_temp_entity, rounded=true) | default("unavailable") if indoor_temp_entity is string and indoor_temp_entity is match "sensor." else states(nspaneltemp, rounded=true) }}'
+                                    state: '{{ states(indoor_temperature_sensor, rounded=true) | default("unavailable") if indoor_temperature_sensor is string and indoor_temperature_sensor is match "sensor." else states(nspaneltemp, rounded=true) }}'
                                     units: >
                                       {{
-                                        state_attr(indoor_temp_entity, "unit_of_measurement") | default(temperature_units)
+                                        state_attr(indoor_temperature_sensor, "unit_of_measurement") | default(temperature_units)
                                         if
-                                          indoor_temp_entity is string and
-                                          indoor_temp_entity is match "sensor." and
-                                          state_attr(indoor_temp_entity, "unit_of_measurement") is string and
-                                          state_attr(indoor_temp_entity, "unit_of_measurement") | length > 0
+                                          indoor_temperature_sensor is string and
+                                          indoor_temperature_sensor is match "sensor." and
+                                          state_attr(indoor_temperature_sensor, "unit_of_measurement") is string and
+                                          state_attr(indoor_temperature_sensor, "unit_of_measurement") | length > 0
                                         else
                                           (
                                             state_attr(nspaneltemp, "unit_of_measurement") | default(temperature_units)

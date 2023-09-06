@@ -431,6 +431,8 @@ api:
         time_format: string
         time_color: int
         embedded_climate: bool
+        embedded_indoor_temperature: bool
+        temperature_unit_is_fahrenheit: bool
         wakeup_page: int
       then:
         - lambda: |-
@@ -447,6 +449,8 @@ api:
             ESP_LOGV("service.global_settings", "time_format: %s", time_format.c_str());
             ESP_LOGV("service.global_settings", "time_color: %i", time_color);
             ESP_LOGV("service.global_settings", "embedded_climate: %i", (embedded_climate) ? 1 : 0);
+            ESP_LOGV("service.global_settings", "embedded_indoor_temperature: %i", (embedded_indoor_temperature) ? 1 : 0);
+            ESP_LOGV("service.global_settings", "temperature_unit_is_fahrenheit: %i", (temperature_unit_is_fahrenheit) ? 1 : 0);
             ESP_LOGV("service.global_settings", "wakeup_page: %i", wakeup_page);
 
             // Blueprint version
@@ -470,6 +474,11 @@ api:
 
             // Embedded thermostat
             id(addon_climate_global_settings)->execute(embedded_climate);
+
+            // Indoor temperature
+            id(embedded_indoor_temp) = embedded_indoor_temperature;
+            id(temp_unit_fahrenheit) = temperature_unit_is_fahrenheit;
+            id(display_embedded_temp)->execute();
 
             // Wakeup page
             ESP_LOGV("service.global_settings", "Wakeup page - Start");
@@ -521,7 +530,7 @@ api:
         - lambda: ESP_LOGV("service.global_settings", "Finished");
 
     #### Service to populate the page Home #####
-    - service: page_home_settings
+    - service: page_home
       variables:
         notification_icon: string
         notification_icon_color_normal: int[]
@@ -730,6 +739,17 @@ globals:
     type: float
     restore_value: true
     initial_value: '0.0'
+
+  ##### Temperature unit #####
+  ##### Is embedded sensor used for indoor temperature? #####
+  - id: embedded_indoor_temp
+    type: bool
+    restore_value: true
+    initial_value: 'true'
+  - id: temp_unit_fahrenheit
+    type: bool
+    restore_value: true
+    initial_value: 'false'
 
   ##### Date/time formats #####
   #- id: mui_date_format
@@ -977,14 +997,7 @@ sensor:
     on_value:
       then:
         # Show panel's temperature if API or Wi-Fi are out
-        - if:
-            condition:
-              - not:
-                  - and:
-                      - api.connected:
-                      - wifi.connected:
-            then:
-              - lambda: id(disp1).set_component_text_printf("home.current_temp", "%.1f°", id(temp_nspanel).state);
+        - lambda: id(display_embedded_temp)->execute();
 
   ###### Display Brightness GET VALUE FROM NSPanel SLIDER #####
   - name: ${device_name} brightness Slider
@@ -1498,7 +1511,7 @@ display:
     uart_id: tf_uart
     tft_url: ${nextion_update_url}
     on_page: # I couldn't make this trigger to work, so used text_sensor nspanelevent and localevent instead
-      - logger.log: "NEXTION PAGE CHANGED"
+      - lambda: ESP_LOGW("display.disp1", "NEXTION PAGE CHANGED");
     on_setup:
       then:
         - lambda: |-
@@ -2021,6 +2034,22 @@ script:
           }
           ESP_LOGV("script.display_wrapped_text", "text (new): %s", wrappedText.c_str());
           id(disp1).set_component_text_printf(component.c_str(), "%s", wrappedText.c_str());
+
+  - id: display_embedded_temp
+    mode: restart
+    then:
+      - if:
+          condition:
+            - or:
+                - lambda: return id(embedded_indoor_temp);
+                - not:
+                    - api.connected:
+                - not:
+                    - wifi.connected:
+          then:
+            - lambda: |-
+                if (id(temp_unit_fahrenheit)) id(disp1).set_component_text_printf("home.current_temp", "%.0f°F", ((id(temp_nspanel).state * 9.0 / 5.0) + 32.0)); // °F = (°C × 9/5) + 32
+                else id(disp1).set_component_text_printf("home.current_temp", "%.1f°C", id(temp_nspanel).state);
 
   - id: check_versions
     mode: restart
