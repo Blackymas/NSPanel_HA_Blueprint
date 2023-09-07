@@ -734,12 +734,6 @@ globals:
     restore_value: true
     initial_value: '10'
 
-  ##### Temperature Correction #####
-  - id: temperature_correction_global
-    type: float
-    restore_value: true
-    initial_value: '0.0'
-
   ##### Temperature unit #####
   ##### Is embedded sensor used for indoor temperature? #####
   - id: embedded_indoor_temp
@@ -993,7 +987,7 @@ sensor:
       reference_temperature: 25°C
       reference_resistance: 10kOhm
     filters:
-      - lambda: return x + id(temperature_correction_global);
+      - lambda: return x + id(temperature_correction).state;
     on_value:
       then:
         # Show panel's temperature if API or Wi-Fi are out
@@ -1476,21 +1470,32 @@ number:
             if (id(current_page).state == "settings") id(disp1).set_component_text_printf("dim_text", "%i%%", int(x));
 
   ##### Temperature Correction #####
-  - platform: template
-    name: ${device_name} Temperature Correction
+  - name: ${device_name} Temperature Correction
+    platform: template
     id: temperature_correction
     entity_category: config
     unit_of_measurement: '°C'
+    initial_value: 0
     min_value: -10
     max_value: 10
-    step: 0.5
+    step: 0.1
     restore_value: true
+    internal: false
     optimistic: true
     set_action:
-      then:
-        - globals.set:
-            id: temperature_correction_global
-            value: !lambda 'return x;'
+      - logger.log: Temperature correction changed.
+      - lambda: |-
+          ESP_LOGV("number.temperature_correction", "Temperature correction changed.");
+          float previous_value = id(temperature_correction).state;
+          float delta = x - previous_value;
+          ESP_LOGVV("number.temperature_correction", "Previous correction: %f", previous_value);
+          ESP_LOGVV("number.temperature_correction", "New correction: %f", x);
+          ESP_LOGVV("number.temperature_correction", "delta: %f", delta);
+          ESP_LOGVV("number.temperature_correction", "Previous published temp state: %f", id(temp_nspanel).state);
+          ESP_LOGVV("number.temperature_correction", "Previous published temp raw state: %f", id(temp_nspanel).raw_state);
+          id(temp_nspanel).publish_state(delta + id(temp_nspanel).state);
+          ESP_LOGV("number.temperature_correction", "New published temp state: %f", id(temp_nspanel).state);
+          ESP_LOGVV("number.temperature_correction", "New published temp raw state: %f", id(temp_nspanel).raw_state);
 
   ##### page-timeout #####
   - platform: template
