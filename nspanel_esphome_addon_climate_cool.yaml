@@ -1,0 +1,189 @@
+####################################################################################################
+##### NSPanel ESPHome Add-on for Climate control - Cool                                        #####
+##### Add-on for https://github.com/Blackymas/NSPanel_HA_Blueprint                             #####
+####################################################################################################
+
+substitutions:
+  ### Local thermostat defaults ###
+  # https://esphome.io/components/climate/thermostat.html
+  temp_units: "°C"
+  cooler_relay: "0" # Select 1 for "Relay 1", 2 for "Relay 2" or "0" to a dummy switch/disabled
+  min_off_time: "300"
+  min_run_time: "300"
+  min_idle_time: "30"
+  # https://esphome.io/components/climate/index.html#base-climate-configuration
+  temp_min: "15"
+  temp_max: "45"
+  temp_step: "0.5"
+
+  ##### DO NOT CHANGE THIS #####
+  addon_climate_cool: "true"
+  addon_climate_heat: "false"
+  ##############################
+
+climate:
+  - platform: thermostat
+    name: ${device_name} Thermostat
+    id: thermostat_embedded
+    sensor: temp_nspanel
+    min_cooling_off_time: ${min_off_time}s
+    min_cooling_run_time: ${min_run_time}s
+    min_idle_time: ${min_idle_time}s
+    visual:
+      min_temperature: ${temp_min} ${temp_units}
+      max_temperature: ${temp_max} ${temp_units}
+      temperature_step: ${temp_step} ${temp_units}
+    cool_action:
+      - switch.turn_on: relay_${cooler_relay}
+    idle_action:
+      - switch.turn_off: relay_${cooler_relay}
+    default_preset: "Off"
+    on_boot_restore_from: memory
+    preset:
+      - name: "Off"
+        default_target_temperature_high: ${temp_min} ${temp_units}
+        mode: "off"
+      - name: Home
+        default_target_temperature_high: 21 ${temp_units}
+    internal: false
+    on_state:
+      - logger.log: Climate state changed - Start
+      - script.execute: addon_climate_update_page_climate
+      - script.execute: addon_climate_update_page_home
+      - logger.log: Climate state changed - End
+
+###### All the code bellow this point is shared between addon_climate_cool and addon_climate_heat #####
+
+globals:
+  ##### Is embedded thermostat set as main climate entity? #####
+  - id: is_embedded_thermostat
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  ##### Is embedded thermostat visible on climate page? #####
+  - id: is_addon_climate_visible
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  ##### Embeded climate friendly name #####
+  - id: addon_climate_friendly_name
+    type: std::string
+    restore_value: false
+    initial_value: '"${device_name} Thermostat"'
+
+script:
+  - id: !extend addon_climate_update_page_home
+    mode: restart
+    then:
+      - lambda: |-
+          ESP_LOGV("script.addon_climate_update_page_home", "Starting");
+          // Update home.entity variable
+          ESP_LOGV("script.addon_climate_update_page_home", "Update home.entity variable: %s", (id(is_embedded_thermostat)) ? "embedded_climate" : "");
+          id(disp1).set_component_text_printf("home.entity", (id(is_embedded_thermostat)) ? "embedded_climate" : "");
+          // Update chips
+          if (id(is_embedded_thermostat))
+            {
+              ESP_LOGV("script.addon_climate_update_page_home", "Update chips");
+              id(update_climate_icon).execute("home.icon_top_03", int(id(thermostat_embedded).action), int(id(thermostat_embedded).mode));
+            }
+          ESP_LOGV("script.addon_climate_update_page_home", "Finished");
+
+  - id: !extend addon_climate_service_call
+    then:
+      - lambda: |-
+          ESP_LOGV("script.addon_climate_service_call", "Starting");
+          id(is_addon_climate_visible) = true;
+          auto call = id(thermostat_embedded).make_call();
+          if (key == "set_temperature")
+            {
+              call.set_target_temperature(stof(value) / 10);
+            }
+          else if (key == "hvac_mode")
+            {
+              call.set_mode(value);
+            }
+          call.perform();
+          ESP_LOGV("script.addon_climate_service_call", "Finished");
+
+  - id: !extend addon_climate_set_climate
+    then:
+      - lambda: |-
+          ESP_LOGV("script.addon_climate_set_climate", "Starting");
+          ESP_LOGV("script.addon_climate_set_climate", "embedded_climate: %i", (embedded_climate) ? 1 : 0);
+          id(is_addon_climate_visible) = embedded_climate;
+          ESP_LOGV("script.addon_climate_set_climate", "Finished");
+
+  - id: !extend addon_climate_global_settings
+    then:
+      - lambda: |-
+          ESP_LOGV("script.addon_climate_global_settings", "Starting");
+          ESP_LOGV("script.addon_climate_global_settings", "embedded_climate: %i", (embedded_climate) ? 1 : 0);
+          id(is_embedded_thermostat) = embedded_climate;
+          ESP_LOGV("script.addon_climate_global_settings", "Finished");
+
+  - id: !extend addon_climate_update_page_climate
+    then:
+      - lambda: |-
+          ESP_LOGV("script.addon_climate_update_page_climate", "Starting");
+          ESP_LOGV("script.addon_climate_update_page_climate", "nextion_init: %i", (id(nextion_init)) ? 1 : 0);
+          ESP_LOGV("script.addon_climate_update_page_climate", "current_page: %s", id(current_page).state.c_str());
+          ESP_LOGV("script.addon_climate_update_page_climate", "is_addon_climate_visible: %i", (id(is_addon_climate_visible)) ? 1 : 0);
+          if (id(current_page).state == "climate" and id(is_addon_climate_visible))
+            {
+              id(disp1).set_component_text_printf("page_label", id(addon_climate_friendly_name).c_str());
+              float temp_step = ${temp_step};
+              float temp_offset = ${temp_min};
+              float temp_max = ${temp_max};
+              float total_steps = (temp_max-temp_offset)/temp_step;
+              id(set_climate)->execute
+                (
+                  id(thermostat_embedded).current_temperature, // current_temp
+                  id(thermostat_embedded).target_temperature, // target_temp
+                  int(round(${temp_step}*10)), // temp_step
+                  int(round(total_steps)), // total_steps //int(round((10*id(thermostat_embedded).target_temperature-temp_offset)/temp_step)), // slider_val
+                  int(round(${temp_min}*10)), // temp_offset
+                  "", // climate_icon
+                  true // embedded_climate
+                );
+
+                // Update target temp icon
+                ESP_LOGV("script.addon_climate_update_page_climate", "thermostat_embedded.action=%i", int(id(thermostat_embedded).action));
+                id(update_climate_icon).execute("climate.target_icon", int(id(thermostat_embedded).action), int(id(thermostat_embedded).mode));
+
+                // Update buttons bar
+                ESP_LOGV("script.addon_climate_update_page_climate", "Updating buttons bar");
+                // Hide not supported hotspots
+                id(disp1).hide_component("button01");
+                id(disp1).hide_component("button02");
+                if (${addon_climate_heat}) id(disp1).show_component("button03"); else id(disp1).hide_component("button03"); //Heat
+                if (${addon_climate_cool}) id(disp1).show_component("button04"); else id(disp1).hide_component("button04"); //Cool
+                id(disp1).hide_component("button05");
+                id(disp1).hide_component("button06");
+                id(disp1).show_component("button07"); //Off
+                // Set buttons colors
+                id(disp1).set_component_font_color("climate.button01_icon", 6339);
+                id(disp1).set_component_font_color("climate.button02_icon", 6339);
+                id(disp1).set_component_font_color("climate.button03_icon", (id(thermostat_embedded).mode==climate::CLIMATE_MODE_HEAT) ? 64164 : ((${addon_climate_heat}) ? 48631 : 6339));
+                id(disp1).set_component_font_color("climate.button04_icon", (id(thermostat_embedded).mode==climate::CLIMATE_MODE_COOL) ? 1055 : ((${addon_climate_cool}) ? 48631 : 6339));
+                id(disp1).set_component_font_color("climate.button05_icon", 6339);
+                id(disp1).set_component_font_color("climate.button06_icon", 6339);
+                id(disp1).set_component_font_color("climate.button07_icon", (id(thermostat_embedded).mode==climate::CLIMATE_MODE_OFF) ? 10597 : 35921);
+            }
+          ESP_LOGV("script.addon_climate_update_page_climate", "Finished");
+
+  - id: !extend addon_climate_set_climate_friendly_name
+    then:
+      - lambda: |-
+          ESP_LOGV("script.addon_climate_set_climate_friendly_name", "Starting");
+          ESP_LOGV("script.addon_climate_set_climate_friendly_name", "friendly_name: %s", friendly_name.c_str());
+          id(addon_climate_friendly_name) = friendly_name;
+          ESP_LOGV("script.addon_climate_set_climate_friendly_name", "Finished");
+
+switch:
+  ##### PHYSICAL SWITCH 0 (Dummy) - Used when relay is not set #####
+  - name: ${device_name} Relay 0 (dummy)
+    platform: template
+    id: relay_0
+    lambda: !lambda return false;
+    internal: true
+    optimistic: true
