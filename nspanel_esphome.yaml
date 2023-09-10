@@ -376,7 +376,7 @@ api:
                 id(disp1).send_command_printf("home.dimtimer.en=1");
                 id(disp1).send_command_printf("home.sleeptimer.en=1");
               }
-            else if (id(current_page).state == "screensaver") id(disp1).send_command_printf("page %s", id(wakeup_page_name).state);
+            else if (id(current_page).state == "screensaver") id(disp1).send_command_printf("page %s", id(wakeup_page_name).state.c_str());
             id(disp1).send_command_printf("dim=brightness");
             if (reset_timer) id(page_timer)->execute(int(id(page_timeout).state));
 
@@ -495,7 +495,7 @@ api:
                       - text_sensor.state: # Is boot page visible?
                           id: current_page
                           state: 'boot'
-                  timeout: 2s
+                  timeout: 5s
               - if:
                   condition:
                     - text_sensor.state: # Avoid this being called twice by multiple boot triggers
@@ -509,7 +509,9 @@ api:
                           - lambda: ESP_LOGV("service.global_settings", "Play boot sound");
                           - rtttl.play:
                               rtttl: 'two short:d=4,o=5,b=100:16e6,16e6'
-                    - lambda: id(disp1).send_command_printf("page %s", id(wakeup_page_name).state);
+                    - lambda: |-
+                        ESP_LOGV("service.global_settings", "Jump to wake-up page: %s", id(wakeup_page_name).state.c_str());
+                        id(disp1).send_command_printf("page %s", id(wakeup_page_name).state.c_str());
 
         - lambda: ESP_LOGV("service.global_settings", "Finished");
 
@@ -1176,6 +1178,7 @@ text_sensor:
                     else if (id(wakeup_page_name).state == "entitypage04") wakeup_page_id = 21;
                     else if (id(wakeup_page_name).state == "qrcode") wakeup_page_id = 17;
                     else if (id(wakeup_page_name).state == "alarm") wakeup_page_id = 23;
+                    ESP_LOGV("text_sensor.nspanelevent", "Wake-up page id: %i", wakeup_page_id);
                     id(disp1).set_component_value("orign", wakeup_page_id);
                   }
                 else if (page=="climate")
@@ -1260,7 +1263,7 @@ text_sensor:
         - lambda: |-
             ESP_LOGV("text_sensor.localevent", "Starting");
             id(page_timer)->execute(int(id(page_timeout).state));
-            DynamicJsonDocument doc(256);
+            DynamicJsonDocument doc(1024);
             deserializeJson(doc, x);
             std::string page = doc["page"];
             ESP_LOGV("text_sensor.localevent", "page: %s", page.c_str());
@@ -1297,7 +1300,7 @@ text_sensor:
                 ESP_LOGV("text_sensor.localevent", "Construct new page");
               }
             else if (event=="short_click" or event=="long_click") id(ha_button)->execute(page.c_str(), component.c_str(), event.c_str());
-            else // Generic event
+            else if (page == "light" or page == "climate" or page == "notification")// Generic event
               {
                 ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
                   {
@@ -1358,8 +1361,8 @@ text_sensor:
                       });
                     if (stof(value) >= 5)
                       {
-                        ESP_LOGV("text_sensor.localevent", "Jump to wakeup page: %s", id(wakeup_page_name).state);
-                        id(disp1).send_command_printf("page %s", id(wakeup_page_name).state);
+                        ESP_LOGV("text_sensor.localevent", "Jump to wakeup page: %s", id(wakeup_page_name).state.c_str());
+                        id(disp1).send_command_printf("page %s", id(wakeup_page_name).state.c_str());
                       }
                   }
               }
@@ -1614,16 +1617,16 @@ select:
       - entitypage04
       - qrcode
       - alarm
-    initial_option: 'home'
+    initial_option: home
     optimistic: true
     restore_value: true
     internal: false
     entity_category: config
     icon: mdi:page-next-outline
-    set_action:
-      - logger.log:
-          format: "Wake-up page set: %s"
-          args: ["x.c_str()"]
+    #set_action:
+    #  - logger.log:
+    #      format: "Wake-up page set: %s"
+    #      args: ["x.c_str()"]
 
 ##### START - DISPLAY START CONFIGURATION #####
 display:
