@@ -358,6 +358,7 @@ api:
         btn_icon: string
         btn_label: string
         btn_bri_txt: string
+        btn_confirm: bool
         #entity: string
       then:
         - lambda: |-
@@ -365,6 +366,7 @@ api:
             std::string btnicon = btn_id.c_str() + std::string("icon");
             std::string btntext = btn_id.c_str() + std::string("text");
             std::string btnbri = btn_id.c_str() + std::string("bri");
+            std::string btnconf = btn_id.c_str() + std::string("conf");
             //std::string btnentity = btn_id.c_str() + std::string("entity");
             id(disp1).send_command_printf("%spic.pic=%i", btn_id.c_str(), btn_pic);
             id(set_component_color).execute(btnicon.c_str(), btn_icon_font, btn_bg);
@@ -376,6 +378,7 @@ api:
               id(disp1).set_component_text_printf(btnbri.c_str(), "%s", btn_bri_txt.c_str());
             else
               id(disp1).set_component_text_printf(btnbri.c_str(), " ");
+            id(disp1).set_component_value(btnconf.c_str(), (btn_confirm) ? 1 : 0);
             //id(disp1).set_component_text_printf(btnentity.c_str(), "%s", entity.c_str());
 
     ##### SERVICE TO WAKE UP THE DISPLAY #####
@@ -430,6 +433,7 @@ api:
         embedded_indoor_temperature: bool
         temperature_unit_is_fahrenheit: bool
         wakeup_page: int
+        mui_please_confirm: string
       then:
         - lambda: |-
             // Logs - Begin
@@ -448,6 +452,7 @@ api:
             ESP_LOGV("service.global_settings", "embedded_indoor_temperature: %i", (embedded_indoor_temperature) ? 1 : 0);
             ESP_LOGV("service.global_settings", "temperature_unit_is_fahrenheit: %i", (temperature_unit_is_fahrenheit) ? 1 : 0);
             ESP_LOGV("service.global_settings", "wakeup_page: %i", wakeup_page);
+            ESP_LOGV("service.global_settings", "mui_please_confirm: %s", mui_please_confirm.c_str());
 
             // Blueprint version
             id(version_blueprint) = blueprint_version;
@@ -479,6 +484,10 @@ api:
             // Wakeup page
             ESP_LOGV("service.global_settings", "Wakeup page - Start");
             id(wakeup_page_id) = wakeup_page;
+
+            // Confirm page
+            ESP_LOGV("service.global_settings", "Confirm page - Start");
+            id(display_wrapped_text).execute("confirm.title", mui_please_confirm.c_str(), 15);
 
             // Refresh colors of global components
             ESP_LOGV("service.global_settings", "Refresh colors of global components");
@@ -1068,7 +1077,7 @@ text_sensor:
     nextion_id: disp1
     id: disp1_nspanel_event
     component_name: nspanelevent
-    internal: false
+    internal: true
     filters:
       - lambda: |-
           x = x.c_str();
@@ -1211,27 +1220,22 @@ text_sensor:
             DynamicJsonDocument doc(256);
             deserializeJson(doc, x);
             std::string page = doc["page"];
-            ESP_LOGV("text_sensor.localevent", "page=%s", page.c_str());
+            ESP_LOGV("text_sensor.localevent", "page: %s", page.c_str());
             std::string event = doc["event"];
-            ESP_LOGV("text_sensor.localevent", "event=%s", event.c_str());
+            ESP_LOGV("text_sensor.localevent", "event: %s", event.c_str());
+            std::string component = doc["component"];
+            ESP_LOGV("text_sensor.localevent", "component: %s", component.c_str());
             std::string key = doc["key"];
-            ESP_LOGV("text_sensor.localevent", "key=%s", key.c_str());
+            ESP_LOGV("text_sensor.localevent", "key: %s", key.c_str());
             std::string value = doc["value"];
-            ESP_LOGV("text_sensor.localevent", "value=%s", value.c_str());
+            ESP_LOGV("text_sensor.localevent", "value: %s", value.c_str());
             std::string entity = doc["entity"];
-            ESP_LOGV("text_sensor.localevent", "entity=%s", entity.c_str());
+            ESP_LOGV("text_sensor.localevent", "entity: %s", entity.c_str());
             int embedded = doc["embedded"];
-            ESP_LOGV("text_sensor.localevent", "embedded=%i", embedded);
+            ESP_LOGV("text_sensor.localevent", "embedded: %i", embedded);
             std::string service = "";
             auto ha_event = new esphome::api::CustomAPIDevice();
-            ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-              {
-                {"type", "generic"},
-                {"page", page},
-                {"event", event},
-                {"value", value},
-                {"entity", entity}
-              });
+
             if (event=="pagechanged")
               {
                 ESP_LOGD("text_sensor.localevent", "New page: %s", page.c_str());
@@ -1248,6 +1252,19 @@ text_sensor:
                 id(current_page).publish_state(page);
                 ESP_LOGV("text_sensor.localevent", "Construct new page");
               }
+            else if (event=="short_click" or event=="long_click") id(ha_button)->execute(page.c_str(), component.c_str(), event.c_str());
+            else // Generic event
+              {
+                ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+                  {
+                    {"type", "generic"},
+                    {"page", page},
+                    {"event", event},
+                    {"value", value},
+                    {"entity", entity}
+                  });
+              }
+
             if (page == "climate") id(service_call_climate)->execute(entity.c_str(), key.c_str(), value.c_str(), (embedded==1));
             else if (page == "alarm")
               {
@@ -1852,6 +1869,10 @@ script:
       command: string
     then:
       - lambda: |-
+          ESP_LOGV("script.ha_button", "Starting");
+          ESP_LOGV("script.ha_button", "page: %s", page.c_str());
+          ESP_LOGV("script.ha_button", "component: %s", component.c_str());
+          ESP_LOGV("script.ha_button", "command: %s", command.c_str());
           auto ha_event = new esphome::api::CustomAPIDevice();
           ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
             {
@@ -1860,6 +1881,7 @@ script:
               {"component", component},
               {"command", command}
             });
+          ESP_LOGV("script.ha_button", "Finished");
 
   - id: update_alarm_icon
     mode: restart
