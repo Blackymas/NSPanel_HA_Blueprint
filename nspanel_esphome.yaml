@@ -378,7 +378,7 @@ api:
               }
             else if (id(current_page).state == "screensaver") id(disp1).send_command_printf("page %s", id(wakeup_page_name).state.c_str());
             id(disp1).send_command_printf("dim=brightness");
-            if (reset_timer) id(page_timer)->execute(int(id(page_timeout).state));
+            if (reset_timer) id(page_timer)->execute();
 
     #### Service to set the entities ####
     - service: set_entity
@@ -495,7 +495,7 @@ api:
                       - text_sensor.state: # Is boot page visible?
                           id: current_page
                           state: 'boot'
-                  timeout: 5s
+                  timeout: 2s
               - if:
                   condition:
                     - text_sensor.state: # Avoid this being called twice by multiple boot triggers
@@ -983,7 +983,16 @@ sensor:
     on_value:
       then:
         - lambda: |-
-            id(page_timer)->execute(int(id(page_timeout).state));
+            id(page_timer)->execute();
+
+  ##### Send current brightness info to Home Assistant
+  - name: ${device_name} Brightness
+    id: brightness
+    platform: nextion
+    variable_name: dim
+    #update_interval: 1s
+    internal: false
+    precision: 0
 
   ##### Uptime Sensors #####
   - name: ${device_name} Uptime seconds
@@ -1124,7 +1133,7 @@ text_sensor:
       then:
         - lambda: |-
             ESP_LOGV("text_sensor.nspanelevent", "Starting");
-            id(page_timer)->execute(int(id(page_timeout).state));
+            id(page_timer)->execute();
             DynamicJsonDocument doc(1024);
             deserializeJson(doc, x);
             std::string page = doc["page"];
@@ -1262,7 +1271,7 @@ text_sensor:
       then:
         - lambda: |-
             ESP_LOGV("text_sensor.localevent", "Starting");
-            id(page_timer)->execute(int(id(page_timeout).state));
+            id(page_timer)->execute();
             DynamicJsonDocument doc(1024);
             deserializeJson(doc, x);
             std::string page = doc["page"];
@@ -1300,7 +1309,7 @@ text_sensor:
                 ESP_LOGV("text_sensor.localevent", "Construct new page");
               }
             else if (event=="short_click" or event=="long_click") id(ha_button)->execute(page.c_str(), component.c_str(), event.c_str());
-            else if (page == "light" or page == "climate" or page == "notification")// Generic event
+            else if (page == "light" or page == "climate" or page == "notification" or page == "media_player")// Generic event
               {
                 ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
                   {
@@ -1390,6 +1399,12 @@ text_sensor:
                 id(disp1).send_command_printf("page %s", base_domain.c_str());
               }
             else if (page == "light") id(ha_call_service)->execute("light.turn_on", key.c_str(), value.c_str(), entity.c_str());
+            else if (page == "media_player")
+              {
+                if (key == "volume_mute") id(ha_call_service)->execute("media_player.volume_mute", "is_volume_muted", value.c_str(), entity.c_str());
+                else if (key == "volume_set") id(ha_call_service)->execute("media_player.volume_set", "volume_level", to_string(stof(value) / 100), entity.c_str());
+                else id(ha_call_service)->execute((std::string("media_player.") + key.c_str()), "", "", entity.c_str());
+              }
 
             ESP_LOGV("text_sensor.localevent", "Finished");
 
@@ -1574,12 +1589,24 @@ number:
 
   ##### page-timeout #####
   - platform: template
-    name: ${device_name} Page Timeout
+    name: ${device_name} Page timeout
     id: page_timeout
     entity_category: config
     min_value: 0
     max_value: 60
-    initial_value: 10
+    initial_value: 5
+    step: 1
+    restore_value: true
+    optimistic: true
+
+  ##### dimming-timeout #####
+  - platform: template
+    name: ${device_name} Dimming timeout
+    id: dimming_timeout
+    entity_category: config
+    min_value: 0
+    max_value: 60
+    initial_value: 15
     step: 1
     restore_value: true
     optimistic: true
@@ -1643,10 +1670,14 @@ display:
             then: *sleep_mode-turn_off
             else: *sleep_mode-turn_on
         - lambda: |-
+            // Set dimming values
             id(display_brightness).publish_state(id(display_brightness_global));
             id(display_dim_brightness).publish_state(id(display_dim_brightness_global));
+            id(disp1).send_command_printf("brightness=%i", id(display_brightness_global));
             id(disp1).send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
+            id(disp1).send_command_printf("brightness_dim=%i", id(display_dim_brightness_global));
             id(disp1).send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
+
             id(nextion_init).publish_state(true);
             auto ha_event = new esphome::api::CustomAPIDevice();
             ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
@@ -1664,11 +1695,9 @@ display:
 script:
   - id: page_timer
     mode: restart
-    parameters:
-      delay: int
     then:
-      - lambda: ESP_LOGV("script.page_timer", "start page-timer delay %i", int(id(page_timeout).state));
-      - delay: !lambda return delay *1000;
+      - lambda: ESP_LOGV("script.page_timer", "start page-timer delay %i", delay);
+      - delay: !lambda return int(id(page_timeout).state *1000);
       - lambda: |-
           if (id(current_page).state == "home" or id(current_page).state == "screensaver" or id(current_page).state == "boot" or int(id(page_timeout).state) == 0)
             ESP_LOGD("script.page_timer", "no page-jump");
