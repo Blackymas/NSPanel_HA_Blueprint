@@ -208,7 +208,7 @@ blueprint:
         ##### PLACEHOLDER ######################################################################
           placeholder02:
             name: ' '
-            description: '# ✅ SENSOR HOME PAGE ✅'
+            description: '# ✅ HOME PAGE - SENSORS ✅'
             default: ' '
             selector: *placeholder-selector
         ##### PLACEHOLDER ######################################################################
@@ -316,7 +316,7 @@ blueprint:
         ##### PLACEHOLDER ######################################################################
           placeholder03:
             name: ' '
-            description: '# ✅ CHIPS ✅'
+            description: '# ✅ HOME PAGE - CHIPS ✅'
             default: ' '
             selector: *placeholder-selector
         ##### PLACEHOLDER ######################################################################
@@ -496,6 +496,73 @@ blueprint:
               *Icon color which should be displayed*
             default: [128, 128, 128] #33808 Grey light
             selector: *color-selector
+      ## Custom buttons - Page Home
+        ##### PLACEHOLDER ######################################################################
+          placeholder18:
+            name: ' '
+            description: '# ✅ HOME PAGE - CUSTOM BUTTONS ✅'
+            default: ' '
+            selector: *placeholder-selector
+        ##### PLACEHOLDER ######################################################################
+        ## Page Home - Custom button 01
+          home_custom_button01:
+            name: Custom button 01 - ENTITY (Optional)
+            description: >
+              *HOME page*
+
+              *Entity which should be displayed (ONLY climate | cover | fan | light | media_player)*
+            default: []
+            selector: &home-custom-button-entity-selector
+              entity:
+                filter:
+                  domain:
+                    - climate
+                    - cover
+                    - fan
+                    - light
+                    - media_player
+          home_custom_button01_icon:
+            name: Custom button 01 - ICON (Optional)
+            description: >
+              *HOME page*
+
+              *Icon which should be displayed (Default - an icon matching the entity will be set automatically)*
+            default: []
+            selector: *icon-selector
+        ## Page Home - Custom button 02
+          home_custom_button02:
+            name: Custom button 02 - ENTITY (Optional)
+            description: >
+              *HOME page*
+
+              *Entity which should be displayed (ONLY climate | cover | fan | light | media_player)*
+            default: []
+            selector: *home-custom-button-entity-selector
+          home_custom_button02_icon:
+            name: Custom button 02 - ICON (Optional)
+            description: >
+              *HOME page*
+
+              *Icon which should be displayed (Default - an icon matching the entity will be set automatically)*
+            default: []
+            selector: *icon-selector
+        ## Page Home - Custom button 03
+          home_custom_button03:
+            name: Custom button 03 - ENTITY (Optional)
+            description: >
+              *HOME page*
+
+              *Entity which should be displayed (ONLY climate | cover | fan | light | media_player)*
+            default: []
+            selector: *home-custom-button-entity-selector
+          home_custom_button03_icon:
+            name: Custom button 03 - ICON (Optional)
+            description: >
+              *HOME page*
+
+              *Icon which should be displayed (Default - an icon matching the entity will be set automatically)*
+            default: []
+            selector: *icon-selector
 
     ##### Alarm Control Panel - Page Alarm
         ##### PLACEHOLDER ######################################################################
@@ -6745,6 +6812,54 @@ action:
                                   cmd: home.right_bt_pic.val={{ 1 if right_button_state in ["on", "open", "opened", "opening", "true", true, 1] else 0 }}
                                 continue_on_error: true
 
+                          ###### Custom buttons ######
+                          - &update-home_page-custom_buttons
+                            if: '{{ true }}'
+                            then:
+                              - &variables-home_page-custom_buttons
+                                variables:
+                                  home_page_custom_buttons:
+                                    - entity: !input home_custom_button01
+                                      icon: !input home_custom_button01_icon
+                                      component: button01
+                                    - entity: !input home_custom_button02
+                                      icon: !input home_custom_button02_icon
+                                      component: button02
+                                    - entity: !input home_custom_button03
+                                      icon: !input home_custom_button03_icon
+                                      component: button03
+                              - repeat:
+                                  for_each: '{{ home_page_custom_buttons }}'
+                                  sequence: &display-home_page-custom_buttons
+                                    - if: '{{ repeat.item.entity is defined and repeat.item.entity is string and repeat.item.entity | length > 0 }}'
+                                      then:
+                                        - service: '{{ nextion.command.text_printf }}'
+                                          data:
+                                            component: '{{ repeat.item.component }}'
+                                            message: >
+                                              {% if repeat.item.icon | length > 0 %}
+                                                {{
+                                                  all_icons[repeat.item.icon.split(":")[1]] | default(all_icons.unknown)
+                                                  if repeat.item.icon.split(":") | count > 0
+                                                  else repeat.item.icon
+                                                }}
+                                              {% elif repeat.item.entity and repeat.item.entity.split(".") | count > 1 %}
+                                                {{ nextion.icon.domain[repeat.item.entity.split(".")[0] if repeat.item.entity else "unknown"] }}
+                                              {% else %}{{ nextion.icon.domain.unknown }}
+                                              {% endif %}
+                                          continue_on_error: true
+                                        - *delay-default
+                                        - service: '{{ nextion.command.show }}'
+                                          data:
+                                            component: '{{ repeat.item.component }}'
+                                          continue_on_error: true
+                                      else:
+                                        - service: '{{ nextion.command.hide }}'
+                                          data:
+                                            component: '{{ repeat.item.component }}'
+                                          continue_on_error: true
+                                    - *delay-default
+
                           ###### Climate chip ######
                           - &update-home_page-climate_chip
                             if: '{{ (not embedded_climate) and climate is string and climate is match "climate." }}'
@@ -7619,6 +7734,7 @@ action:
                         sequence: &refresh_page_media_player
                           - variables:
                               media_player_entity: '{{ nspanel_event.entity if nspanel_event is defined and nspanel_event.entity is defined else trigger.entity_id }}'
+                              wait_completed: false
                           - alias: Refresh page in a loop
                             repeat:
                               sequence:
@@ -7629,25 +7745,42 @@ action:
                                   continue_on_error: true
                                 - delay:
                                     milliseconds: 500
+                                - variables:
+                                    media_player:
+                                      state: '{{ states(media_player_entity) }}'
+                                      is_volume_muted: '{{ state_attr(media_player_entity, "is_volume_muted") | default(false) }}'
+                                      friendly_name: '{{ state_attr(media_player_entity, "friendly_name") | default("Media player") }}'
+                                      volume_level: '{{ (state_attr(media_player_entity, "volume_level") | round(2, default=0) * 100) | int(0) }}'
+                                      media_title: '{{ state_attr(media_player_entity, "media_title") }}'
+                                      media_artist: '{{ state_attr(media_player_entity, "media_artist") }}'
+                                      media_duration: '{{ state_attr(media_player_entity, "media_duration") | int(0) }}'
+                                      media_position: '{{ state_attr(media_player_entity, "media_position") | int(0) }}'
+                                      #media_position_updated_at: '{{ state_attr(media_player_entity, "media_position_updated_at") }}'
+                                      supported_features: '{{ state_attr(media_player_entity, "supported_features") | int(0) }}'
                                 - service: '{{ nextion.command.media_player }}'
                                   data:
                                     entity: '{{ media_player_entity }}'
-                                    state: '{{ states(media_player_entity) }}'
-                                    is_volume_muted: '{{ state_attr(media_player_entity, "is_volume_muted") | default(false) }}'
-                                    friendly_name: '{{ state_attr(media_player_entity, "friendly_name") | default("Media player") }}'
-                                    volume_level: '{{ (state_attr(media_player_entity, "volume_level") | round(2, default=0) * 100) | int(0) }}'
-                                    media_title: '{{ state_attr(media_player_entity, "media_title") }}'
-                                    media_artist: '{{ state_attr(media_player_entity, "media_artist") }}'
-                                    media_duration: '{{ state_attr(media_player_entity, "media_duration") | int(0) }}'
-                                    media_position: '{{ state_attr(media_player_entity, "media_position") | int(0) }}'
-                                    #media_position_updated_at: '{{ state_attr(media_player_entity, "media_position_updated_at") }}'
-                                    supported_features: '{{ state_attr(media_player_entity, "supported_features") | int(0) }}'
+                                    state: '{{ media_player.state }}'
+                                    is_volume_muted: '{{ media_player.is_volume_muted }}'
+                                    friendly_name: '{{ media_player.friendly_name }}'
+                                    volume_level: '{{ media_player.volume_level }}'
+                                    media_title: '{{ media_player.media_title if media_player.media_title is string and media_player.media_title not in [null, None, "unknown", "unavailable"] else "" }}'
+                                    media_artist: '{{ media_player.media_artist if media_player.media_artist is string and media_player.media_artist not in [null, None, "unknown", "unavailable"] else "" }}'
+                                    media_duration: '{{ media_player.media_duration }}'
+                                    media_position: '{{ media_player.media_position }}'
+                                    supported_features: '{{ media_player.supported_features }}'
                                   continue_on_error: true
-                                - delay: 10
+                                - wait_template: '{{ states(currentpage) != page.media_player }}'
+                                  timeout:
+                                    seconds: 10
+                                  continue_on_timeout: true
+                                - variables:
+                                    wait_completed: '{{ wait.completed }}'
                               until:
-                                - not:
-                                    - '{{ states(currentpage) == page.media_player }}' # Do not change this to `page.current` as this have to be reloaded every time
-                                    - '{{ nspanel_event.type == "page_changed"}}'
+                                - or:
+                                    - '{{ wait_completed }}'
+                                    - '{{ states(currentpage) != page.media_player }}' # Don't replace this by page.current as this have to be evaluated all the time
+                                    - '{{ nspanel_event.type != "page_changed" }}'
 
                       ## PAGE ALARM ##
                       - alias: Alarm settings page
@@ -8479,7 +8612,7 @@ action:
                                           - service: '{{ nextion.command.open_entity_settings_page }}'
                                             data:
                                               page: '{{ button_domain }}'
-                                              page_label: '{{ (button_context.name | replace("\\r", " ")) if button_context.name is string and button_context.name | length > 0 else state_attr(button_context.entity, "friendly_name") }}'
+                                              page_label: '{{ button_context.name if button_context.name is string and button_context.name | length > 0 else state_attr(button_context.entity, "friendly_name") }}'
                                               page_icon: '{{ nextion.icon.domain[button_domain] }}'
                                               page_icon_color: [-1 ] #No color set
                                               entity: '{{ "embedded_climate" if button_context.entity == thermostat_embedded else button_context.entity }}'
@@ -8556,7 +8689,7 @@ action:
                                 - service: '{{ nextion.command.open_entity_settings_page }}'
                                   data:
                                     page: '{{ entity_domain }}'
-                                    page_label: '{{ (last_click_button.name | replace("\\r", " ")) if last_click_button.name is string and last_click_button.name | length > 0 else state_attr(last_click_button.entity, "friendly_name") }}'
+                                    page_label: '{{ last_click_button.name if last_click_button.name is string and last_click_button.name | length > 0 else state_attr(last_click_button.entity, "friendly_name") }}'
                                     page_icon: >
                                       {{
                                         all_icons[last_click_button.icon.split(":")[1]] | default(last_click_button.icon if last_click_button.icon is defined and last_click_button.icon is string else nextion.icon.domain[entity_domain])
@@ -8637,6 +8770,44 @@ action:
                                 - '{{ entity_domain not in ["unknown", "person", "binary_sensor", "sensor"] }}'
                               sequence:
                                 - *service-button_changed
+                      - alias: Home page custom buttons
+                        conditions:
+                          - '{{ nspanel_event.page == page.home }}'
+                        sequence:
+                          - *variables-home_page-custom_buttons
+                          - variables:
+                              last_click_button: '{{ home_page_custom_buttons | selectattr("component", "defined") | selectattr("component", "eq", nspanel_event.component) | list }}'
+                          - condition: '{{ last_click_button | count >= 0 }}'
+                          - variables:
+                              last_click_button: '{{ last_click_button[0] }}'
+                              entity_domain: >
+                                {{
+                                  last_click_button.entity.split(".")[0] | default("unknown")
+                                  if
+                                    last_click_button.entity is string and
+                                    last_click_button.entity | length > 0 and
+                                    last_click_button.entity.split(".") | count > 0
+                                  else "unknown"
+                                }}
+                          - if:
+                              - '{{ entity_domain != "cover" or state_attr(last_click_button.entity, "supported_features") | int(0) | bitwise_and(4) > 0 }}'
+                              - '{{ entity_domain != "fan" or state_attr(last_click_button.entity, "supported_features") | int(0) | bitwise_and(1) > 0 }}'
+                              - '{{ entity_domain != "light" or state_attr(last_click_button.entity, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
+                            then:
+                              - service: '{{ nextion.command.open_entity_settings_page }}'
+                                data:
+                                  page: '{{ entity_domain }}'
+                                  page_label: '{{ last_click_button.name if last_click_button.name is string and last_click_button.name | length > 0 else state_attr(last_click_button.entity, "friendly_name") }}'
+                                  page_icon: >
+                                    {{
+                                      all_icons[last_click_button.icon.split(":")[1]] | default(last_click_button.icon if last_click_button.icon is defined and last_click_button.icon is string else nextion.icon.domain[entity_domain])
+                                      if last_click_button.icon not in ["unavailable", "unknown", "", None] and last_click_button.icon | length > 0
+                                      else nextion.icon.domain[entity_domain]
+                                    }}
+                                  page_icon_color: [-1 ] #No color set
+                                  entity: '{{ "embedded_climate" if last_click_button.entity == thermostat_embedded else last_click_button.entity }}'
+                                  back_page: '{{ page.home }}'
+                                continue_on_error: true
 
               ##### Versions mismatch #####
               - alias: Versions
