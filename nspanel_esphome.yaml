@@ -457,7 +457,7 @@ api:
             id(home_time_color) = time_color;
 
             // Embedded thermostat
-            id(addon_climate_global_settings)->execute(embedded_climate);
+            id(is_embedded_thermostat) = embedded_climate;
 
             // Indoor temperature
             id(embedded_indoor_temp) = embedded_indoor_temperature;
@@ -707,61 +707,139 @@ api:
       variables:
         entity: string
         state: string
-        page_title: string
-        track: string
-        artist: string
-        bt_on_off: int
-        bt_prev: bool
-        bt_play_pause: int
-        bt_stop: bool
-        bt_next: bool
-        time_current: int
-        time_total: int
-        time_progress: int
-        volume: int
-        bt_mute: int
-        bt_vol_down: bool
-        bt_vol_up: bool
+        is_volume_muted: bool
+        friendly_name: string
+        volume_level: int
+        media_title: string
+        media_artist: string
+        media_duration: int
+        media_position: int
+        supported_features: int
       then:
         - lambda: |-
             ESP_LOGV("service.media_player", "Starting");
             if (id(current_page).state == "media_player")
               {
                 id(disp1).set_component_text_printf("entity", "%s", entity.c_str());
-                id(disp1).set_component_text_printf("page_title", "%s", page_title.c_str());
-                id(display_wrapped_text).execute("track", track.c_str(), id(display_mode) == 2 ? 15 : 23);
-                id(display_wrapped_text).execute("artist", artist.c_str(), id(display_mode) == 2 ? 26 : 40);
-                if (bt_on_off > 0)
+                id(disp1).set_component_text_printf("page_label", "%s", friendly_name.c_str());
+                id(display_wrapped_text).execute("track", media_title.c_str(), id(display_mode) == 2 ? 15 : 27);
+                id(display_wrapped_text).execute("artist", media_artist.c_str(), id(display_mode) == 2 ? 26 : 40);
+                // states:
+                //   OFF: Entity is turned off and is not accepting commands until turned on.
+                //   ON: Entity is turned on, but no details on its state is currently known.
+                //   IDLE: Entity is turned on and accepting commands, but currently not playing any media. Possibly at some idle home screen.
+                //   PLAYING: Entity is currently playing media.
+                //   PAUSED: Entity has an active media and is currently paused
+                //   STANDBY: Entity is in a low power state, accepting commands.
+                //   BUFFERING: Entity is preparing to start playback of some media
+                // feature:
+                //   PAUSE: 1
+                //   SEEK: 2
+                //   VOLUME_SET: 4
+                //   VOLUME_MUTE: 8
+                //   PREVIOUS_TRACK: 16
+                //   NEXT_TRACK: 32
+                //   reserved: 64
+                //   TURN_ON: 128
+                //   TURN_OFF: 256
+                //   PLAY_MEDIA: 512
+                //   VOLUME_STEP: 1024
+                //   SELECT_SOURCE: 2048
+                //   STOP: 4096
+                //   CLEAR_PLAYLIST: 8192
+                //   PLAY: 16384
+                //   SHUFFLE_SET: 32768
+                //   SELECT_SOUND_MODE: 65536
+                //   BROWSE_MEDIA: 131072
+                //   REPEAT_SET: 262144
+                //   GROUPING: 524288
+                //   MEDIA_ANNOUNCE: 1048576
+                //   MEDIA_ENQUEUE: 2097152
+
+                // on/off button
+                if (supported_features & 128 and state == "off") //TURN_ON
                   {
+                    id(set_component_color).execute("bt_on_off", { 65535 }, {} );
                     id(disp1).show_component("bt_on_off");
-                    if (bt_on_off == 1) id(set_component_color).execute("bt_on_off", {255, 0, 0}, {} );
-                    else id(set_component_color).execute("bt_on_off", {0, 255, 0}, {} );
+                  }
+                else if (supported_features & 256 and state != "off") //TURN_OFF
+                  {
+                    id(set_component_color).execute("bt_on_off", { 10597 }, {} );
+                    id(disp1).show_component("bt_on_off");
                   }
                 else id(disp1).hide_component("bt_on_off");
-                if (bt_prev) id(disp1).show_component("bt_prev"); else id(disp1).hide_component("bt_prev");
-                if (bt_play_pause > 0)
+
+                // play/pause button
+                if ((supported_features & 512 or supported_features & 16384) and state != "playing" and state != "off") //PLAY_MEDIA+PLAY
                   {
+                    id(disp1).set_component_text_printf("bt_play_pause", "%s", "\uE409"); // mdi:play
                     id(disp1).show_component("bt_play_pause");
-                    if (bt_play_pause == 1) id(disp1).set_component_text_printf("bt_play_pause", "%s", "\uE409"); // mdi:play
-                    else id(disp1).set_component_text_printf("bt_play_pause", "%s", "\uE3E3"); // mdi:pause
+                  }
+                else if (supported_features & 1 and state == "playing" ) //PAUSE
+                  {
+                    id(disp1).set_component_text_printf("bt_play_pause", "%s", "\uE3E3"); // mdi:pause
+                    id(disp1).show_component("bt_play_pause");
                   }
                 else id(disp1).hide_component("bt_play_pause");
-                if (bt_stop) id(disp1).show_component("bt_stop"); else id(disp1).hide_component("bt_stop");
-                if (bt_next) id(disp1).show_component("bt_next"); else id(disp1).hide_component("bt_next");
-                id(disp1).set_component_text_printf("time_current", "%i", time_current);
-                id(disp1).set_component_text_printf("time_total", "%i", time_total);
-                id(disp1).set_component_value("time_progress", time_progress);
-                id(disp1).set_component_text_printf("vol_text", "%i%", volume);
-                id(disp1).set_component_value("vol_slider", volume);
-                if (bt_mute > 0)
+
+                // bt_prev button - PREVIOUS_TRACK
+                if (supported_features & 16 and state != "off") id(disp1).show_component("bt_prev"); else id(disp1).hide_component("bt_prev");
+                // bt_next button - NEXT_TRACK
+                if (supported_features & 32 and state != "off") id(disp1).show_component("bt_next"); else id(disp1).hide_component("bt_next");
+
+                // Stop button - STOP
+                if (supported_features & 4096 and (state == "playing" or state == "paused")) id(disp1).show_component("bt_stop"); else id(disp1).hide_component("bt_stop");
+
+                // mute/unmute button - VOLUME_MUTE
+                id(disp1).set_component_value("is_muted", (is_volume_muted) ? 1 : 0);
+                if (supported_features & 8 and is_volume_muted) // unmute
                   {
+                    id(disp1).set_component_text_printf("bt_mute", "%s", "\uE57E"); // mdi:volume-low
                     id(disp1).show_component("bt_mute");
-                    if (bt_mute == 1) id(disp1).set_component_text_printf("bt_mute", "%s", "\uE57E"); // mdi:volume-low
-                    else id(disp1).set_component_text_printf("bt_mute", "%s", "\uEE07"); // mdi:volume-variant-off
+                  }
+                else if (supported_features & 8) // mute
+                  {
+                    id(disp1).set_component_text_printf("bt_mute", "%s", "\uEE07"); // mdi:volume-variant-off
+                    id(disp1).show_component("bt_mute");
                   }
                 else id(disp1).hide_component("bt_mute");
-                if (bt_vol_down) id(disp1).show_component("bt_vol_down"); else id(disp1).hide_component("bt_vol_down");
-                if (bt_vol_up) id(disp1).show_component("bt_vol_up"); else id(disp1).hide_component("bt_vol_up");
+
+                // VOLUME_SET
+                if (supported_features & 4)
+                  {
+                    id(disp1).set_component_text_printf("vol_text", "%i%%", volume_level);
+                    id(disp1).set_component_value("vol_slider", volume_level);
+                    id(disp1).show_component("vol_slider");
+                    id(disp1).show_component("bt_vol_down");
+                    id(disp1).show_component("bt_vol_up");
+                    id(disp1).show_component("vol_text");
+                  }
+                else
+                  {
+                    id(disp1).hide_component("vol_slider");
+                    id(disp1).hide_component("bt_vol_down");
+                    id(disp1).hide_component("bt_vol_up");
+                    id(disp1).hide_component("vol_text");
+                  }
+
+                if (media_duration > 0)
+                  {
+                    id(disp1).set_component_text_printf("time_current", "%i", media_position);
+                    id(disp1).set_component_text_printf("time_total", "%i", media_duration);
+                    id(disp1).set_component_value("prg_current", media_position);
+                    id(disp1).set_component_value("prg_total", media_duration);
+                    id(disp1).send_command_printf("prg_timer.en=%i", (state == "playing") ? 1 : 0);
+                    id(disp1).show_component("time_current");
+                    id(disp1).show_component("time_total");
+                    id(disp1).show_component("time_progress");
+                  }
+                else
+                  {
+                    id(disp1).send_command_printf("prg_timer.en=0");
+                    id(disp1).hide_component("time_current");
+                    id(disp1).hide_component("time_total");
+                    id(disp1).hide_component("time_progress");
+                  }
               }
 
 ##### START - GLOBALS CONFIGURATION #####
@@ -772,6 +850,18 @@ globals:
     type: int
     restore_value: true
     initial_value: '0'
+
+  ##### Entity Id of the entity displayed on the detailed pages
+  - id: entity_id
+    type: std::string
+    restore_value: no
+    initial_value: ''
+
+  ##### Is embedded thermostat set as main climate entity? #####
+  - id: is_embedded_thermostat
+    type: bool
+    restore_value: true
+    initial_value: 'false'
 
   ##### Save Display Brightness for NSPanel reboot #####
   - id: display_brightness_global
@@ -1303,7 +1393,7 @@ text_sensor:
                     {"entity", entity}
                   });
                   ESP_LOGV("text_sensor.localevent", "Call add-ons scripts for new page");
-                id(addon_climate_set_climate).execute(page=="climate" and entity=="embedded_climate");
+                id(addon_climate_set_climate).execute(page=="climate" and id(entity_id) == "embedded_climate");
                 ESP_LOGV("text_sensor.localevent", "Publish current_page sensor");
                 id(current_page).publish_state(page);
                 ESP_LOGV("text_sensor.localevent", "Construct new page");
@@ -2197,7 +2287,7 @@ script:
   - id: check_versions
     mode: restart
     then:
-      - delay: 30s
+      - delay: 60s
       - lambda: |-
           ESP_LOGD("script.check_versions", "ESPHome version: ${version}");
           ESP_LOGD("script.check_versions", "TFT version: %s", id(version_tft).c_str());
@@ -2239,15 +2329,6 @@ script:
       - lambda: |-
           ESP_LOGV("script.addon_climate_set_climate", "Check for addon_climate");
           ESP_LOGV("script.addon_climate_set_climate", "embedded_climate: %i", (embedded_climate) ? 1 : 0);
-  - id: addon_climate_global_settings
-    mode: restart
-    parameters:
-      embedded_climate: bool
-    then:
-      # Reserved for Add-on Climate
-      - lambda: |-
-          ESP_LOGV("script.addon_climate_global_settings", "Check for addon_climate");
-          ESP_LOGV("script.addon_climate_global_settings", "embedded_climate: %i", (embedded_climate) ? 1 : 0);
   - id: addon_climate_update_page_climate
     mode: restart
     then:
