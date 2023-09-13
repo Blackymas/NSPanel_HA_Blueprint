@@ -260,23 +260,22 @@ api:
             ESP_LOGV("api.service.open_entity_settings_page", "page_icon_color: %i, %i, %i", page_icon_color[0], page_icon_color[1], page_icon_color[2] );
             ESP_LOGV("api.service.open_entity_settings_page", "entity: %s", entity.c_str());
             ESP_LOGV("api.service.open_entity_settings_page", "back_page: %s", back_page.c_str());
-            std::string cmp_entity = page.c_str() + std::string(".entity");
-            ESP_LOGV("api.service.open_entity_settings_page", "cmp_entity: %s", cmp_entity.c_str());
-            id(disp1).set_component_text_printf(cmp_entity.c_str(), "%s", entity.c_str());
+            id(entity_id) = entity;
             std::string cmd_page = std::string("page ") + page.c_str();
             id(disp1).send_command_printf(cmd_page.c_str());
             id(disp1).set_component_text_printf("page_label", "%s", page_label.c_str());
             id(disp1).set_component_text_printf("back_page", "%s", back_page.c_str());
-            if ((page_icon.c_str() != std::string()) and (page_icon.c_str() != "") and (page != "climate"))
+            if (page == "climate")
               {
-                id(disp1).set_component_text_printf("icon_state", "%s", page_icon.c_str());
+                if (entity == "embedded_climate") id(addon_climate_set_climate_friendly_name).execute(page_label.c_str());
+                id(disp1).set_component_value("embedded", (entity == "embedded_climate") ? 1 : 0);
               }
-            if (page != "climate")
+            else
               {
+                if ((page_icon.c_str() != std::string()) and (page_icon.c_str() != ""))
+                  id(disp1).set_component_text_printf("icon_state", "%s", page_icon.c_str());
                 id(set_component_color).execute("icon_state", page_icon_color, {});
-                //id(disp1).set_component_font_color("icon_state", page_icon_color);
               }
-            if (page == "climate" and entity == "embedded_climate") id(addon_climate_set_climate_friendly_name).execute(page_label.c_str());
             ESP_LOGV("api.service.open_entity_settings_page", "Finished");
 
     ##### Service to play a rtttl tones #####
@@ -619,12 +618,13 @@ api:
             if (id(current_page).state=="alarm")
               { // Update alarm page
                   ESP_LOGV("service.alarm_settings", "Updating alarm page");
+                  id(entity_id) = entity;
+
                   // Alarm page - Header
                   id(update_alarm_icon)->execute("icon_state", state.c_str());
                   id(disp1).set_component_text_printf("page_label", "%s", page_title.c_str());
                   id(disp1).set_component_text_printf("code_format", "%s", code_format.c_str());
                   if (code_arm_required) id(disp1).set_component_text_printf("code_arm_req", "1"); else id(disp1).set_component_text_printf("code_arm_req", "0");
-                  id(disp1).set_component_text_printf("entity", "%s", entity.c_str());
 
                   // Alarm page - Button's icons
                   id(disp1).set_component_text_printf("bt_home_icon", "\uE689"); //mdi:shield-home
@@ -720,9 +720,10 @@ api:
             ESP_LOGV("service.media_player", "Starting");
             if (id(current_page).state == "media_player")
               {
-                id(disp1).set_component_text_printf("entity", "%s", entity.c_str());
+                //id(disp1).set_component_text_printf("entity", "%s", entity.c_str());
+                id(entity_id) = entity;
                 id(disp1).set_component_text_printf("page_label", "%s", friendly_name.c_str());
-                id(display_wrapped_text).execute("track", media_title.c_str(), id(display_mode) == 2 ? 15 : 27);
+                id(display_wrapped_text).execute("track", media_title.c_str(), id(display_mode) == 2 ? 16 : 27);
                 id(display_wrapped_text).execute("artist", media_artist.c_str(), id(display_mode) == 2 ? 26 : 40);
                 // states:
                 //   OFF: Entity is turned off and is not accepting commands until turned on.
@@ -1179,6 +1180,12 @@ text_sensor:
     id: current_page
     internal: false
     disabled_by_default: false
+    on_value:
+      then:
+        - lambda: |-
+            if (x != "climate" and x != "cover" and x != "fan" and x != "light" and x != "media_player" ) id(entity_id) = "";
+            ESP_LOGD("text_sensor.current_page", "New page: %s", x.c_str());
+            if (!id(entity_id).empty()) ESP_LOGD("text_sensor.current_page", "Entity shown: %s", id(entity_id).c_str());
 
   ##### ESPhome version used to compile the app #####
   - name: ${device_name} ESPhome Version
@@ -1227,7 +1234,7 @@ text_sensor:
             std::string page = doc["page"];
             std::string component = doc["component"];
             std::string value = doc["value"];
-            std::string entity = doc["entity"];
+            std::string entity = id(entity_id); //doc["entity"];
             ESP_LOGV("text_sensor.nspanelevent", "page: %s", page.c_str());
             ESP_LOGV("text_sensor.nspanelevent", "component: %s", component.c_str());
             ESP_LOGV("text_sensor.nspanelevent", "value: %s", value.c_str());
@@ -1243,7 +1250,7 @@ text_sensor:
               });
             if (component=="currentpage")
               {
-                ESP_LOGD("text_sensor.nspanelevent", "New page: %s", page.c_str());
+                ESP_LOGV("text_sensor.nspanelevent", "New page: %s", page.c_str());
                 ESP_LOGV("text_sensor.nspanelevent", "Trigger HA event");
                 ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
                   {
@@ -1372,7 +1379,7 @@ text_sensor:
             ESP_LOGV("text_sensor.localevent", "key: %s", key.c_str());
             std::string value = doc["value"];
             ESP_LOGV("text_sensor.localevent", "value: %s", value.c_str());
-            std::string entity = doc["entity"];
+            std::string entity = id(entity_id); //doc["entity"];
             ESP_LOGV("text_sensor.localevent", "entity: %s", entity.c_str());
             int embedded = doc["embedded"];
             ESP_LOGV("text_sensor.localevent", "embedded: %i", embedded);
@@ -1382,7 +1389,7 @@ text_sensor:
             auto ha_event = new esphome::api::CustomAPIDevice();
             if (event=="pagechanged")
               {
-                ESP_LOGD("text_sensor.localevent", "New page: %s", page.c_str());
+                ESP_LOGV("text_sensor.localevent", "New page: %s", page.c_str());
                 ESP_LOGV("text_sensor.localevent", "Trigger HA event");
                 ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
                   {
