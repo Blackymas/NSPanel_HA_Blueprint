@@ -217,7 +217,7 @@ api:
             ESP_LOGV("service.notification_show", "text length: %i", text.length());
 
             id(disp1).send_command_printf("is_notification=1");
-            id(disp1).send_command_printf("page notification");
+            id(disp1).goto_page("notification");
             id(disp1).set_component_text_printf("notification.notifi_label", "%s", label.c_str());
 
             id(display_wrapped_text).execute("notification.notifi_text01", text.c_str(), id(display_mode) == 2 ? 23 : 32);
@@ -297,7 +297,7 @@ api:
         - lambda: |-
             id(disp1).set_component_text_printf("qrcode.qrcode_label", "%s", title.c_str());
             id(disp1).set_component_text_printf("qrcode.qrcode_value", "%s", qrcode.c_str());
-            if (show) id(disp1).send_command_printf("page qrcode");
+            if (show) id(disp1).goto_page("qrcode");
 
     #### Service to set climate state ####
     - service: set_climate
@@ -370,14 +370,10 @@ api:
         reset_timer: bool
       then:
         - lambda: |-
-            if (id(current_page).state == "home")
-              {
-                id(disp1).send_command_printf("home.dimtimer.en=1");
-                id(disp1).send_command_printf("home.sleeptimer.en=1");
-              }
-            else if (id(current_page).state == "screensaver") id(disp1).send_command_printf("page %s", id(wakeup_page_name).state.c_str());
-            id(disp1).send_command_printf("dim=brightness");
-            if (reset_timer) id(page_timer)->execute();
+            if (id(current_page).state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
+            id(timer_sleep)->execute();
+            id(timer_dim)->execute();
+            if (reset_timer) id(timer_page)->execute();
 
     #### Service to set the entities ####
     - service: set_entity
@@ -510,7 +506,7 @@ api:
                               rtttl: 'two short:d=4,o=5,b=100:16e6,16e6'
                     - lambda: |-
                         ESP_LOGV("service.global_settings", "Jump to wake-up page: %s", id(wakeup_page_name).state.c_str());
-                        id(disp1).send_command_printf("page %s", id(wakeup_page_name).state.c_str());
+                        id(disp1).goto_page(id(wakeup_page_name).state.c_str());
 
         - lambda: ESP_LOGV("service.global_settings", "Finished");
 
@@ -570,7 +566,7 @@ api:
     - service: page_settings
       variables:
         reboot: string
-        sleep_mode: string
+        #sleep_mode: string
         brightness: string
         bright: string
         dim: string
@@ -578,12 +574,12 @@ api:
         - lambda: |-
             ESP_LOGV("service.page_settings", "Starting");
             ESP_LOGV("service.page_settings", "reboot: %s", reboot.c_str());
-            ESP_LOGV("service.page_settings", "sleep_mode: %s", sleep_mode.c_str());
+            //ESP_LOGV("service.page_settings", "sleep_mode: %s", sleep_mode.c_str());
             ESP_LOGV("service.page_settings", "brightness: %s", brightness.c_str());
             ESP_LOGV("service.page_settings", "bright: %s", bright.c_str());
             ESP_LOGV("service.page_settings", "dim: %s", dim.c_str());
             if (not reboot.empty()) id(disp1).set_component_text_printf("settings.lbl_reboot", " %s", reboot.c_str());
-            if (not sleep_mode.empty()) id(disp1).set_component_text_printf("settings.lbl_sleep", " %s", sleep_mode.c_str());
+            //if (not sleep_mode.empty()) id(disp1).set_component_text_printf("settings.lbl_sleep", " %s", sleep_mode.c_str());
             id(display_wrapped_text).execute("settings.lbl_brightness", brightness.c_str(), id(display_mode) == 2 ? 25 : 10);
             id(display_wrapped_text).execute("settings.lbl_bright", bright.c_str(), id(display_mode) == 2 ? 25 : 10);
             id(display_wrapped_text).execute("settings.lbl_dim", dim.c_str(), id(display_mode) == 2 ? 25 : 10);
@@ -850,6 +846,12 @@ globals:
     restore_value: true
     initial_value: '0'
 
+  ##### Is dimmed #####
+  - id: is_dim_brightness
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+
   ##### Entity Id of the entity displayed on the detailed pages
   - id: entity_id
     type: std::string
@@ -1032,14 +1034,14 @@ binary_sensor:
       - button.press: restart_nspanel
 
   ##### Sleep mode NSPanel Button #####
-  - name: ${device_name} Sleep mode
-    platform: nextion
-    page_id: 7
-    component_id: 10
-    internal: true
-    on_click:
-      - logger.log: "Sleep mode - Nextion toggle"
-      - switch.toggle: sleep_mode
+  #- name: ${device_name} Sleep mode
+  #  platform: nextion
+  #  page_id: 7
+  #  component_id: 10
+  #  internal: true
+  #  on_click:
+  #    - logger.log: "Sleep mode - Nextion toggle"
+  #    - switch.toggle: sleep_mode
 
   ##### global variable to keep track on whether the Nextion display is ready or not.
   ## Delays initial info from HA to the display #####
@@ -1072,7 +1074,7 @@ sensor:
     on_value:
       then:
         - lambda: |-
-            id(page_timer)->execute();
+            id(timer_reset_all)->execute();
 
   ##### Send current brightness info to Home Assistant
   - name: ${device_name} Brightness
@@ -1228,7 +1230,6 @@ text_sensor:
       then:
         - lambda: |-
             ESP_LOGV("text_sensor.nspanelevent", "Starting");
-            id(page_timer)->execute();
             DynamicJsonDocument doc(1024);
             deserializeJson(doc, x);
             std::string page = doc["page"];
@@ -1252,6 +1253,7 @@ text_sensor:
               {
                 ESP_LOGV("text_sensor.nspanelevent", "New page: %s", page.c_str());
                 ESP_LOGV("text_sensor.nspanelevent", "Trigger HA event");
+                id(timer_page)->execute();
                 ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
                   {
                     {"type", "page_changed"},
@@ -1271,19 +1273,7 @@ text_sensor:
                 else if (page=="screensaver")
                   {
                     ESP_LOGV("text_sensor.nspanelevent", "Construct screensaver page");
-                    int wakeup_page_id = 0;
-                    if (id(wakeup_page_name).state == "buttonpage01") wakeup_page_id = 12;
-                    else if (id(wakeup_page_name).state == "buttonpage02") wakeup_page_id = 13;
-                    else if (id(wakeup_page_name).state == "buttonpage03") wakeup_page_id = 14;
-                    else if (id(wakeup_page_name).state == "buttonpage04") wakeup_page_id = 15;
-                    else if (id(wakeup_page_name).state == "entitypage01") wakeup_page_id = 18;
-                    else if (id(wakeup_page_name).state == "entitypage02") wakeup_page_id = 19;
-                    else if (id(wakeup_page_name).state == "entitypage03") wakeup_page_id = 20;
-                    else if (id(wakeup_page_name).state == "entitypage04") wakeup_page_id = 21;
-                    else if (id(wakeup_page_name).state == "qrcode") wakeup_page_id = 17;
-                    else if (id(wakeup_page_name).state == "alarm") wakeup_page_id = 23;
-                    ESP_LOGV("text_sensor.nspanelevent", "Wake-up page id: %i", wakeup_page_id);
-                    id(disp1).set_component_value("orign", wakeup_page_id);
+                    id(update_page_screensaver).execute();
                   }
                 else if (page=="climate")
                   {
@@ -1330,7 +1320,12 @@ text_sensor:
                 else if (page=="buttonpage02" or page=="entitypage02") id(disp1).set_component_text_printf("page_index", "%s", "\uE765\uE764\uE765\uE765"); // 2/4
                 else if (page=="buttonpage03" or page=="entitypage03") id(disp1).set_component_text_printf("page_index", "%s", "\uE765\uE765\uE764\uE765"); // 3/4
                 else if (page=="buttonpage04" or page=="entitypage04") id(disp1).set_component_text_printf("page_index", "%s", "\uE765\uE765\uE765\uE764"); // 4/4
-                else if (page=="settings") id(disp1).set_component_text_printf("bt_sleep", "%s", (id(sleep_mode).state) ? "\uEA19" : "\uEA18"); //mdi:toggle-switch-outline or mdi:toggle-switch-off-outline
+                else if (page=="settings")
+                  {
+                    //id(disp1).set_component_text_printf("bt_sleep", "%s", (id(sleep_mode).state) ? "\uEA19" : "\uEA18"); //mdi:toggle-switch-outline or mdi:toggle-switch-off-outline
+                    id(disp1).hide_component("lbl_sleep");
+                    id(disp1).hide_component("bt_sleep");
+                  }
                 else if (page=="notification")
                   {
                     id(disp1).set_component_text_printf("notification.notifi_label", "%s", id(notification_label).state.c_str());
@@ -1366,7 +1361,6 @@ text_sensor:
       then:
         - lambda: |-
             ESP_LOGV("text_sensor.localevent", "Starting");
-            id(page_timer)->execute();
             DynamicJsonDocument doc(1024);
             deserializeJson(doc, x);
             std::string page = doc["page"];
@@ -1390,6 +1384,7 @@ text_sensor:
             if (event=="pagechanged")
               {
                 ESP_LOGV("text_sensor.localevent", "New page: %s", page.c_str());
+                id(timer_page)->execute();
                 ESP_LOGV("text_sensor.localevent", "Trigger HA event");
                 ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
                   {
@@ -1424,7 +1419,7 @@ text_sensor:
                 std::string title = doc["mui"];
                 if (code_format=="number" and (key=="disarm" or code_arm_req=="1"))
                   {
-                    id(disp1).send_command_printf("page keyb_num");
+                    id(disp1).goto_page("keyb_num");
                     id(disp1).set_component_value("keyb_num.page_id", 23); //Calling from Alarm page
                     id(disp1).set_component_text_printf("keyb_num.domain", "%s", page.c_str());
                     id(disp1).set_component_text_printf("keyb_num.key", "%s", key.c_str());
@@ -1466,7 +1461,7 @@ text_sensor:
                     if (stof(value) >= 5)
                       {
                         ESP_LOGV("text_sensor.localevent", "Jump to wakeup page: %s", id(wakeup_page_name).state.c_str());
-                        id(disp1).send_command_printf("page %s", id(wakeup_page_name).state.c_str());
+                        id(disp1).goto_page(id(wakeup_page_name).state.c_str());
                       }
                   }
               }
@@ -1491,7 +1486,7 @@ text_sensor:
                   id(service_call_alarm_control_panel)->execute(entity.c_str(), key.c_str(), code_format.c_str(), pin.c_str());
                 }
                 else if (base_domain == "" or base_domain.empty()) base_domain = "home";
-                id(disp1).send_command_printf("page %s", base_domain.c_str());
+                id(disp1).goto_page(base_domain.c_str());
               }
             else if (page == "light") id(ha_call_service)->execute("light.turn_on", key.c_str(), value.c_str(), entity.c_str());
             else if (page == "media_player")
@@ -1569,27 +1564,27 @@ switch:
     internal: true
 
   ##### Switch Display Sleep mode #####
-  - name: ${device_name} Sleep mode
-    platform: template
-    device_class: switch
-    id: sleep_mode
-    entity_category: config
-    restore_mode: RESTORE_DEFAULT_OFF
-    optimistic: false
-    turn_on_action: &sleep_mode-turn_on
-      - lambda: |-
-          ESP_LOGV("switch.sleep_mode", "Turn on");
-          id(disp1).send_command_printf("sleep_mode=1");
-          id(disp1).set_component_value("settings.bt_sleep",1);
-          id(disp1).set_component_text_printf("settings.bt_sleep", "%s", "\uEA19");
-          id(sleep_mode).publish_state(true);
-    turn_off_action: &sleep_mode-turn_off
-      - lambda: |-
-          ESP_LOGV("switch.sleep_mode", "Turn off");
-          id(disp1).send_command_printf("sleep_mode=0");
-          id(disp1).set_component_value("settings.bt_sleep",0);
-          id(disp1).set_component_text_printf("settings.bt_sleep", "%s", "\uEA18");
-          id(sleep_mode).publish_state(false);
+  #- name: ${device_name} Sleep mode
+  #  platform: template
+  #  device_class: switch
+  #  id: sleep_mode
+  #  entity_category: config
+  #  restore_mode: RESTORE_DEFAULT_OFF
+  #  optimistic: false
+  #  turn_on_action: &sleep_mode-turn_on
+  #    - lambda: |-
+  #        ESP_LOGV("switch.sleep_mode", "Turn on");
+  #        id(disp1).send_command_printf("sleep_mode=1");
+  #        id(disp1).set_component_value("settings.bt_sleep",1);
+  #        id(disp1).set_component_text_printf("settings.bt_sleep", "%s", "\uEA19");
+  #        id(sleep_mode).publish_state(true);
+  #  turn_off_action: &sleep_mode-turn_off
+  #    - lambda: |-
+  #        ESP_LOGV("switch.sleep_mode", "Turn off");
+  #        id(disp1).send_command_printf("sleep_mode=0");
+  #        id(disp1).set_component_value("settings.bt_sleep",0);
+  #        id(disp1).set_component_text_printf("settings.bt_sleep", "%s", "\uEA18");
+  #        id(sleep_mode).publish_state(false);
 
   ##### Relay Local control #####
   - name: ${device_name} Relay 1 Local
@@ -1635,15 +1630,8 @@ number:
             id(display_brightness_global) = int(x);
             id(disp1).send_command_printf("brightness=%i", int(x));
             id(disp1).send_command_printf("settings.brightslider.val=%i", int(x));
-            if (id(current_page).state != "screensaver")
-              {
-                id(disp1).set_backlight_brightness(x/100);
-                id(disp1).send_command_printf("home.dimtimer.en=1");
-              }
-            if (id(current_page).state == "settings")
-              {
-                id(disp1).set_component_text_printf("bright_text", "%i%%", int(x));
-              }
+            if (id(current_page).state != "screensaver") id(disp1).set_backlight_brightness(x/100);
+            if (id(current_page).state == "settings") id(disp1).set_component_text_printf("bright_text", "%i%%", int(x));
 
   ##### SCREEN BRIGHTNESS DIMMED DOWN #####
   - platform: template
@@ -1682,29 +1670,46 @@ number:
       - delay: 1s
       - lambda: id(temp_nspanel).publish_state(id(temp_nspanel).raw_state);
 
-  ##### page-timeout #####
-  - platform: template
-    name: ${device_name} Page timeout
-    id: page_timeout
+  ##### Timers settings #####
+  - name: ${device_name} Timeout Page
+    platform: template
+    id: timeout_page
     entity_category: config
     min_value: 0
-    max_value: 60
-    initial_value: 5
+    max_value: 300
+    initial_value: 15
     step: 1
     restore_value: true
     optimistic: true
-
-  ##### dimming-timeout #####
-  #- platform: template
-  #  name: ${device_name} Dimming timeout
-  #  id: dimming_timeout
-  #  entity_category: config
-  #  min_value: 0
-  #  max_value: 60
-  #  initial_value: 15
-  #  step: 1
-  #  restore_value: true
-  #  optimistic: true
+    icon: mdi:timer
+    set_action:
+      - script.execute: timer_page
+  - name: ${device_name} Timeout Dimming
+    platform: template
+    id: timeout_dim
+    entity_category: config
+    min_value: 0
+    max_value: 300
+    initial_value: 30
+    step: 1
+    restore_value: true
+    optimistic: true
+    icon: mdi:timer
+    set_action:
+      - script.execute: timer_dim
+  - name: ${device_name} Timeout Sleep
+    platform: template
+    id: timeout_sleep
+    entity_category: config
+    min_value: 0
+    max_value: 300
+    initial_value: 60
+    step: 1
+    restore_value: true
+    optimistic: true
+    icon: mdi:timer
+    set_action:
+      - script.execute: timer_sleep
 
 select:
   - id: wakeup_page_name
@@ -1728,10 +1733,8 @@ select:
     internal: false
     entity_category: config
     icon: mdi:page-next-outline
-    #set_action:
-    #  - logger.log:
-    #      format: "Wake-up page set: %s"
-    #      args: ["x.c_str()"]
+    set_action:
+      - script.execute: update_page_screensaver
 
 ##### START - DISPLAY START CONFIGURATION #####
 display:
@@ -1745,9 +1748,10 @@ display:
       then:
         - lambda: |-
             ESP_LOGV("display.disp1", "Starting");
-            id(disp1).send_command_printf("page 8");
+            id(disp1).goto_page("boot");
             id(disp1).set_component_text_printf("boot.esph_version", "%s", "${version}"); // ### esphome-version ###
             id(disp1).show_component("bt_reboot");
+            id(timer_reset_all)->execute();
         - wait_until:
             api.connected
         - lambda: |-
@@ -1759,11 +1763,11 @@ display:
                 {"step", "start"}
               });
         - delay: 1s
-        - if:
-            condition:
-              switch.is_off: sleep_mode
-            then: *sleep_mode-turn_off
-            else: *sleep_mode-turn_on
+        #- if:
+        #    condition:
+        #      switch.is_off: sleep_mode
+        #    then: *sleep_mode-turn_off
+        #    else: *sleep_mode-turn_on
         - lambda: |-
             // Set dimming values
             id(display_brightness).publish_state(id(display_brightness_global));
@@ -1772,7 +1776,6 @@ display:
             id(disp1).send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
             id(disp1).send_command_printf("brightness_dim=%i", id(display_dim_brightness_global));
             id(disp1).send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
-
             id(nextion_init).publish_state(true);
             auto ha_event = new esphome::api::CustomAPIDevice();
             ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
@@ -1782,25 +1785,87 @@ display:
               });
             id(home_relay1_icon) = "\uE3A5";
             id(home_relay1_icon) = "\uE3A8";
+            id(timer_reset_all)->execute();
         - *notification_clear
         - switch.turn_off: notification_unread
         - logger.log: "Nextion start - Done!"
 
-### Script for page_timer
+### Script for timer_reset_all
 script:
-  - id: page_timer
+  ###### Timers ######
+  ## Global timer reset - Triggered with a touch on the screen
+
+  - id: timer_reset_all
     mode: restart
     then:
-      - lambda: ESP_LOGV("script.page_timer", "start page-timer delay %i", delay);
-      - delay: !lambda return int(id(page_timeout).state *1000);
+      - logger.log:
+          format: Resetting timers
+          level: VERBOSE
+      - script.execute: timer_page
+      - script.execute: timer_dim
+      - script.execute: timer_sleep
+
+  - id: timer_page # Handle the fallback to home page after a timeout
+    mode: restart
+    then:
       - lambda: |-
-          if (id(current_page).state == "home" or id(current_page).state == "screensaver" or id(current_page).state == "boot" or int(id(page_timeout).state) == 0)
-            ESP_LOGD("script.page_timer", "no page-jump");
-          else
+          ESP_LOGV("script.timer_page", "Reset timer: %is", int(id(timeout_page).state));
+      - if:
+          condition:
+            - lambda: !lambda return (id(timeout_page).state >= 1);
+          then:
+            - delay: !lambda return int(id(timeout_page).state *1000);
+            - lambda: |-
+                ESP_LOGV("script.timer_page", "Timed out on page: %s", id(current_page).state.c_str());
+                if (id(current_page).state != "home" and id(current_page).state != "screensaver" and id(current_page).state != "boot" and id(timeout_page).state >= 1)
+                  {
+                    ESP_LOGD("script.timer_page", "Fallback to page Home");
+                    id(disp1).goto_page("home");
+                  }
+  - id: timer_dim # Handle the brightness dimming after a timeout DEBUG
+    mode: restart
+    then:
+      - lambda: |-
+          ESP_LOGV("script.timer_dim", "Reset timer: %is", int(id(timeout_dim).state));
+          if (id(is_dim_brightness))
             {
-              ESP_LOGD("script.page_timer", "timer->home");
-              id(disp1).send_command_printf("page 0");
+              if (id(current_page).state != "screensaver" and id(current_page).state != "boot")
+                {
+                  ESP_LOGD("script.timer_dim", "Waking up on page: %s", id(current_page).state.c_str());
+                  id(disp1).send_command_printf("wakeup_timer.en=1");
+                }
+              id(is_dim_brightness) = false;
             }
+      - if:
+          condition:
+            - lambda: !lambda return (id(timeout_dim).state >= 1);
+          then:
+            - delay: !lambda return int(id(timeout_dim).state *1000);
+            - lambda: |-
+                if (id(current_page).state != "screensaver" and id(current_page).state != "boot" and id(timeout_dim).state >= 1)
+                  {
+                    ESP_LOGD("script.timer_dim", "Dimming the display to %i%%", id(display_dim_brightness_global));
+                    id(disp1).send_command_printf("dim=%i", id(display_dim_brightness_global));
+                    id(is_dim_brightness) = true;
+                  }
+  - id: timer_sleep # Handle the sleep (go to screensaver page) after a timeout DEBUG
+    mode: restart
+    then:
+      - lambda: |-
+          ESP_LOGV("script.timer_sleep", "Reset timer: %is", int(id(timeout_sleep).state));
+          if (id(current_page).state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
+      - if:
+          condition:
+            - lambda: !lambda return (id(timeout_sleep).state >= 1);
+          then:
+            - delay: !lambda return int(id(timeout_sleep).state *1000);
+            - lambda: |-
+                if (id(current_page).state != "screensaver" and id(current_page).state != "boot" and id(timeout_sleep).state >= 1)
+                  {
+                    ESP_LOGD("script.timer_sleep", "Going to sleep");
+                    id(disp1).goto_page("screensaver");
+                    id(is_dim_brightness) = true;
+                  }
 
   - id: set_climate
     mode: restart
@@ -2047,6 +2112,7 @@ script:
           ESP_LOGV("script.ha_button", "page: %s", page.c_str());
           ESP_LOGV("script.ha_button", "component: %s", component.c_str());
           ESP_LOGV("script.ha_button", "command: %s", command.c_str());
+          id(timer_reset_all)->execute();
           auto ha_event = new esphome::api::CustomAPIDevice();
           ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
             {
@@ -2308,6 +2374,31 @@ script:
               {"blueprint", id(version_blueprint).c_str()}
             });
 
+  - id: update_page_screensaver
+    mode: restart
+    then:
+      - if:
+          condition:
+            text_sensor.state:
+              id: current_page
+              state: screensaver
+          then:
+            - lambda: |-
+                ESP_LOGV("script.update_page_screensaver", "Starting");
+                int wakeup_page_id = 0;
+                if (id(wakeup_page_name).state == "buttonpage01") wakeup_page_id = 12;
+                else if (id(wakeup_page_name).state == "buttonpage02") wakeup_page_id = 13;
+                else if (id(wakeup_page_name).state == "buttonpage03") wakeup_page_id = 14;
+                else if (id(wakeup_page_name).state == "buttonpage04") wakeup_page_id = 15;
+                else if (id(wakeup_page_name).state == "entitypage01") wakeup_page_id = 18;
+                else if (id(wakeup_page_name).state == "entitypage02") wakeup_page_id = 19;
+                else if (id(wakeup_page_name).state == "entitypage03") wakeup_page_id = 20;
+                else if (id(wakeup_page_name).state == "entitypage04") wakeup_page_id = 21;
+                else if (id(wakeup_page_name).state == "qrcode") wakeup_page_id = 17;
+                else if (id(wakeup_page_name).state == "alarm") wakeup_page_id = 23;
+                ESP_LOGV("script.update_page_screensaver", "Wake-up page id: %i", wakeup_page_id);
+                id(disp1).set_component_value("orign", wakeup_page_id);
+    
   #####  ADD-ONS ############################################################
   ##### Add-on - Climate #####
   - id: addon_climate_service_call
