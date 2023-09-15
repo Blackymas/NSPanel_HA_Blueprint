@@ -184,7 +184,7 @@ The commands are still a bit laggy, but we will look for ways to improve this in
 Now you can add up to 3 customize buttons to the Home page. You can select a climate, cover, fan, light or media player and an icon of your preference, which will be shown in the Home page right above the already known icons for QRcode and entities pages.
 By clicking in the icon, the detailed page will be opened with the selected entity. With that, all those icons will have a similar behavior of jumping to another page.
 ![Home page](https://user-images.githubusercontent.com/41958506/212768891-9610d800-43c5-454f-a8b6-6b7c43677b5d.png)
-- To keep consistency with other buttons on this page, only entities supporting advanced settings will be functional on these custom buttons.
+- To keep consistency with other buttons on this page, entities supporting advanced settings will open the settings page with the click. All other entities will toggle or execute, with no visual feedback,
 
 &nbsp;
 ### 17. New controls for dimming and sleeping time
