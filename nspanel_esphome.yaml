@@ -224,6 +224,7 @@ api:
 
             id(notification_label).publish_state(label.c_str());
             id(notification_text).publish_state(text.c_str());
+            id(timer_reset_all).execute();
         - switch.turn_on: notification_unread
         - if:
             condition:
@@ -376,9 +377,13 @@ api:
       then:
         - lambda: |-
             if (id(current_page).state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
-            id(timer_sleep)->execute(int(id(timeout_sleep).state));
-            id(timer_dim)->execute();
-            if (reset_timer) id(timer_page)->execute();
+            if (reset_timer)
+              id(timer_reset_all).execute();
+            else
+              {
+                id(timer_sleep).execute(int(id(timeout_sleep).state));
+                id(timer_dim).execute(int(id(timeout_dim).state));
+              }
 
     #### Service to set the entities ####
     - service: set_entity
@@ -462,7 +467,7 @@ api:
             // Indoor temperature
             id(embedded_indoor_temp) = embedded_indoor_temperature;
             id(temp_unit_fahrenheit) = temperature_unit_is_fahrenheit;
-            id(display_embedded_temp)->execute();
+            id(display_embedded_temp).execute();
 
             // Confirm page
             ESP_LOGV("service.global_settings", "Confirm page - Start");
@@ -510,8 +515,9 @@ api:
                           - rtttl.play:
                               rtttl: 'two short:d=4,o=5,b=100:16e6,16e6'
                     - lambda: |-
-                        ESP_LOGV("service.global_settings", "Jump to wake-up page: %s", id(wakeup_page_name).state.c_str());
+                        ESP_LOGD("service.global_settings", "Jump to wake-up page: %s", id(wakeup_page_name).state.c_str());
                         id(disp1).goto_page(id(wakeup_page_name).state.c_str());
+                        id(timer_reset_all).execute();
 
         - lambda: ESP_LOGV("service.global_settings", "Finished");
 
@@ -562,7 +568,7 @@ api:
             // Alarm button
             ESP_LOGV("service.page_home_settings", "Alarm button - Start");
             id(disp1).send_command_printf("is_alarm=%i", (alarm_state=="" or alarm_state.empty()) ? 0 : 1);
-            id(update_alarm_icon)->execute("home.bt_alarm", alarm_state.c_str());
+            id(update_alarm_icon).execute("home.bt_alarm", alarm_state.c_str());
 
             // Logs - End
             ESP_LOGV("service.page_home_settings", "Finished");
@@ -613,7 +619,7 @@ api:
             // set alarm icon on home page
             ESP_LOGV("service.alarm_settings", "Updating home page icon");
             id(disp1).send_command_printf("is_alarm=%i", (state=="" or state.empty()) ? 0 : 1);
-            id(update_alarm_icon)->execute("home.bt_alarm", state.c_str());
+            id(update_alarm_icon).execute("home.bt_alarm", state.c_str());
 
             // Is page Alarm visible?
             if (id(current_page).state=="alarm")
@@ -622,7 +628,7 @@ api:
                   id(entity_id) = entity;
 
                   // Alarm page - Header
-                  id(update_alarm_icon)->execute("icon_state", state.c_str());
+                  id(update_alarm_icon).execute("icon_state", state.c_str());
                   id(disp1).set_component_text_printf("page_label", "%s", page_title.c_str());
                   id(disp1).set_component_text_printf("code_format", "%s", code_format.c_str());
                   if (code_arm_required) id(disp1).set_component_text_printf("code_arm_req", "1"); else id(disp1).set_component_text_printf("code_arm_req", "0");
@@ -1079,7 +1085,7 @@ sensor:
     on_value:
       then:
         - lambda: |-
-            id(timer_reset_all)->execute();
+            id(timer_reset_all).execute();
 
   ##### Uptime Sensors #####
   - name: ${device_name} Uptime seconds
@@ -1143,7 +1149,7 @@ sensor:
     on_value:
       then:
         # Show panel's temperature if API or Wi-Fi are out
-        - lambda: id(display_embedded_temp)->execute();
+        - lambda: id(display_embedded_temp).execute();
 
   ###### Display Brightness GET VALUE FROM NSPanel SLIDER #####
   - name: ${device_name} brightness Slider
@@ -1257,7 +1263,8 @@ text_sensor:
               {
                 ESP_LOGD("text_sensor.nspanelevent", "New page: %s", page.c_str());
                 ESP_LOGD("text_sensor.nspanelevent", "Trigger HA event");
-                id(timer_page)->execute();
+                if (page != "boot" and page != "home" and page != "screensaver")
+                  id(timer_reset_all).execute();
                 ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
                   {
                     {"type", "page_changed"},
@@ -1289,7 +1296,7 @@ text_sensor:
                     id(disp1).set_component_text_printf("climate.button05_icon", "%s", "\uE58D"); //mdi:water-percent
                     id(disp1).set_component_text_printf("climate.button06_icon", "%s", "\uE20F"); //mdi:fan
                     id(disp1).set_component_text_printf("climate.button07_icon", "%s", "\uE424"); //mdi:power
-                    id(addon_climate_update_page_climate)->execute();
+                    id(addon_climate_update_page_climate).execute();
                   }
                 else if (page=="cover")
                   {
@@ -1388,7 +1395,8 @@ text_sensor:
             if (event=="pagechanged")
               {
                 ESP_LOGD("text_sensor.localevent", "New page: %s", page.c_str());
-                id(timer_page)->execute();
+                if (page != "boot" and page != "home" and page != "screensaver")
+                  id(timer_reset_all).execute();
                 ESP_LOGD("text_sensor.localevent", "Trigger HA event");
                 ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
                   {
@@ -1402,7 +1410,7 @@ text_sensor:
                 id(current_page).publish_state(page);
                 ESP_LOGD("text_sensor.localevent", "Construct new page");
               }
-            else if (event=="short_click" or event=="long_click") id(ha_button)->execute(page.c_str(), component.c_str(), event.c_str());
+            else if (event=="short_click" or event=="long_click") id(ha_button).execute(page.c_str(), component.c_str(), event.c_str());
             else if (event=="click")
               {
                 if (page == "home" and component == "climate") id(entity_id) = (id(is_embedded_thermostat)) ? "embedded_climate" : "";
@@ -1436,7 +1444,7 @@ text_sensor:
                     id(disp1).set_component_text_printf("keyb_num.entity", "%s", entity.c_str());
                     id(disp1).set_component_text_printf("keyb_num.title", "%s", title.c_str());
                   }
-                else id(service_call_alarm_control_panel)->execute(entity.c_str(), key.c_str(), code_format.c_str(), "");
+                else id(service_call_alarm_control_panel).execute(entity.c_str(), key.c_str(), code_format.c_str(), "");
               }
             else if (page=="boot")
               {
@@ -1474,16 +1482,16 @@ text_sensor:
                       }
                   }
               }
-            else if (page == "climate") id(service_call_climate)->execute(entity.c_str(), key.c_str(), value.c_str(), (embedded==1));
+            else if (page == "climate") id(service_call_climate).execute(entity.c_str(), key.c_str(), value.c_str(), (embedded==1));
             else if (page == "cover")
               {
-                if (key == "position") id(ha_call_service)->execute("cover.set_cover_position", key.c_str(), value.c_str(), entity.c_str());
-                else id(ha_call_service)->execute((std::string("cover.") + key.c_str()), "", "", entity.c_str());
+                if (key == "position") id(ha_call_service).execute("cover.set_cover_position", key.c_str(), value.c_str(), entity.c_str());
+                else id(ha_call_service).execute((std::string("cover.") + key.c_str()), "", "", entity.c_str());
               }
             else if (page == "fan")
               {
-                if (key == "stop" or value == "0") id(ha_call_service)->execute("fan.turn_off", "", "", entity.c_str());
-                else id(ha_call_service)->execute("fan.turn_on", key.c_str(), value.c_str(), entity.c_str());
+                if (key == "stop" or value == "0") id(ha_call_service).execute("fan.turn_off", "", "", entity.c_str());
+                else id(ha_call_service).execute("fan.turn_on", key.c_str(), value.c_str(), entity.c_str());
               }
             else if (page == "keyb_num")
               {
@@ -1492,17 +1500,17 @@ text_sensor:
                 {
                   std::string code_format = doc["code_format"];
                   std::string pin = doc["pin"];
-                  id(service_call_alarm_control_panel)->execute(entity.c_str(), key.c_str(), code_format.c_str(), pin.c_str());
+                  id(service_call_alarm_control_panel).execute(entity.c_str(), key.c_str(), code_format.c_str(), pin.c_str());
                 }
                 else if (base_domain == "" or base_domain.empty()) base_domain = "home";
                 id(disp1).goto_page(base_domain.c_str());
               }
-            else if (page == "light") id(ha_call_service)->execute("light.turn_on", key.c_str(), value.c_str(), entity.c_str());
+            else if (page == "light") id(ha_call_service).execute("light.turn_on", key.c_str(), value.c_str(), entity.c_str());
             else if (page == "media_player")
               {
-                if (key == "volume_mute") id(ha_call_service)->execute("media_player.volume_mute", "is_volume_muted", value.c_str(), entity.c_str());
-                else if (key == "volume_set") id(ha_call_service)->execute("media_player.volume_set", "volume_level", to_string(stof(value) / 100), entity.c_str());
-                else if (not key.empty()) id(ha_call_service)->execute((std::string("media_player.") + key.c_str()), "", "", entity.c_str());
+                if (key == "volume_mute") id(ha_call_service).execute("media_player.volume_mute", "is_volume_muted", value.c_str(), entity.c_str());
+                else if (key == "volume_set") id(ha_call_service).execute("media_player.volume_set", "volume_level", to_string(stof(value) / 100), entity.c_str());
+                else if (not key.empty()) id(ha_call_service).execute((std::string("media_player.") + key.c_str()), "", "", entity.c_str());
               }
 
             ESP_LOGV("text_sensor.localevent", "Finished");
@@ -1691,8 +1699,11 @@ number:
     restore_value: true
     optimistic: true
     icon: mdi:timer
+    unit_of_measurement: "s"
     set_action:
-      - script.execute: timer_page
+      - script.execute:
+          id: timer_page
+          timeout: !lambda return int(x);
   - name: ${device_name} Timeout Dimming
     platform: template
     id: timeout_dim
@@ -1704,8 +1715,11 @@ number:
     restore_value: true
     optimistic: true
     icon: mdi:timer
+    unit_of_measurement: "s"
     set_action:
-      - script.execute: timer_dim
+      - script.execute:
+          id: timer_dim
+          timeout: !lambda return int(x);
   - name: ${device_name} Timeout Sleep
     platform: template
     id: timeout_sleep
@@ -1717,6 +1731,7 @@ number:
     restore_value: true
     optimistic: true
     icon: mdi:timer
+    unit_of_measurement: "s"
     set_action:
       - script.execute:
           id: timer_sleep
@@ -1762,7 +1777,7 @@ display:
             id(disp1).goto_page("boot");
             id(disp1).set_component_text_printf("boot.esph_version", "%s", "${version}"); // ### esphome-version ###
             id(disp1).show_component("bt_reboot");
-            id(timer_reset_all)->execute();
+            id(timer_reset_all).execute();
         - wait_until:
             api.connected
         - lambda: |-
@@ -1796,7 +1811,7 @@ display:
               });
             id(home_relay1_icon) = "\uE3A5";
             id(home_relay1_icon) = "\uE3A8";
-            id(timer_reset_all)->execute();
+            id(timer_reset_all).execute();
         - *notification_clear
         - switch.turn_off: notification_unread
         - logger.log: "Nextion start - Done!"
@@ -1810,36 +1825,44 @@ script:
     mode: restart
     then:
       - logger.log:
-          format: Resetting timers
+          format: Reseting timers
           level: VERBOSE
-      - script.execute: timer_page
-      - script.execute: timer_dim
+      - script.execute:
+          id: timer_page
+          timeout: !lambda return int(id(timeout_page).state);
+      - script.execute:
+          id: timer_dim
+          timeout: !lambda return int(id(timeout_dim).state);
       - script.execute:
           id: timer_sleep
           timeout: !lambda return int(id(timeout_sleep).state);
 
   - id: timer_page # Handle the fallback to home page after a timeout
     mode: restart
+    parameters:
+      timeout: int
     then:
       - lambda: |-
-          ESP_LOGV("script.timer_page", "Reset timer: %is", int(id(timeout_page).state));
+          ESP_LOGD("script.timer_page", "Reset timer: %is", timeout);
       - if:
           condition:
-            - lambda: !lambda return (id(timeout_page).state >= 1);
+            - lambda: !lambda return (timeout >= 1);
           then:
-            - delay: !lambda return int(id(timeout_page).state *1000);
+            - delay: !lambda return (timeout *1000);
             - lambda: |-
-                ESP_LOGV("script.timer_page", "Timed out on page: %s", id(current_page).state.c_str());
-                if (id(current_page).state != "home" and id(current_page).state != "screensaver" and id(current_page).state != "boot" and id(timeout_page).state >= 1)
+                ESP_LOGD("script.timer_page", "Timed out on page: %s", id(current_page).state.c_str());
+                if (id(current_page).state != "home" and id(current_page).state != "screensaver" and id(current_page).state != "boot" and timeout >= 1)
                   {
                     ESP_LOGD("script.timer_page", "Fallback to page Home");
                     id(disp1).goto_page("home");
                   }
   - id: timer_dim # Handle the brightness dimming after a timeout
     mode: restart
+    parameters:
+      timeout: int
     then:
       - lambda: |-
-          ESP_LOGV("script.timer_dim", "Reset timer: %is", int(id(timeout_dim).state));
+          ESP_LOGD("script.timer_dim", "Reset timer: %is", timeout);
           if (id(is_dim_brightness))
             {
               if (id(current_page).state != "screensaver" and id(current_page).state != "boot")
@@ -1851,11 +1874,11 @@ script:
             }
       - if:
           condition:
-            - lambda: !lambda return (id(timeout_dim).state >= 1);
+            - lambda: !lambda return (timeout >= 1);
           then:
-            - delay: !lambda return int(id(timeout_dim).state *1000);
+            - delay: !lambda return (timeout *1000);
             - lambda: |-
-                if (id(current_page).state != "screensaver" and id(current_page).state != "boot" and id(timeout_dim).state >= 1)
+                if (id(current_page).state != "screensaver" and id(current_page).state != "boot" and timeout >= 1)
                   {
                     ESP_LOGD("script.timer_dim", "Dimming the display to %i%%", id(display_dim_brightness_global));
                     id(disp1).send_command_printf("dim=%i", id(display_dim_brightness_global));
@@ -2087,11 +2110,11 @@ script:
     then:
       - lambda: |-
           if (embedded)
-            id(addon_climate_service_call)->execute(key.c_str(), value.c_str());
+            id(addon_climate_service_call).execute(key.c_str(), value.c_str());
           else if (key == "set_temperature")
-            id(ha_call_service)->execute("climate.set_temperature", "temperature", to_string(stof(value) / 10), entity.c_str());
+            id(ha_call_service).execute("climate.set_temperature", "temperature", to_string(stof(value) / 10), entity.c_str());
           else if (key == "hvac_mode")
-            id(ha_call_service)->execute("climate.set_hvac_mode", key.c_str(), value.c_str(), entity.c_str());
+            id(ha_call_service).execute("climate.set_hvac_mode", key.c_str(), value.c_str(), entity.c_str());
 
   - id: ha_call_service
     mode: restart
@@ -2127,7 +2150,7 @@ script:
           ESP_LOGV("script.ha_button", "page: %s", page.c_str());
           ESP_LOGV("script.ha_button", "component: %s", component.c_str());
           ESP_LOGV("script.ha_button", "command: %s", command.c_str());
-          id(timer_reset_all)->execute();
+          id(timer_reset_all).execute();
           auto ha_event = new esphome::api::CustomAPIDevice();
           ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
             {
