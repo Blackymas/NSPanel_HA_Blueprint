@@ -376,7 +376,7 @@ api:
       then:
         - lambda: |-
             if (id(current_page).state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
-            id(timer_sleep)->execute();
+            id(timer_sleep)->execute(int(id(timeout_sleep).state));
             id(timer_dim)->execute();
             if (reset_timer) id(timer_page)->execute();
 
@@ -1718,7 +1718,9 @@ number:
     optimistic: true
     icon: mdi:timer
     set_action:
-      - script.execute: timer_sleep
+      - script.execute:
+          id: timer_sleep
+          timeout: !lambda return int(x);
 
 select:
   - id: wakeup_page_name
@@ -1812,7 +1814,9 @@ script:
           level: VERBOSE
       - script.execute: timer_page
       - script.execute: timer_dim
-      - script.execute: timer_sleep
+      - script.execute:
+          id: timer_sleep
+          timeout: !lambda return int(id(timeout_sleep).state);
 
   - id: timer_page # Handle the fallback to home page after a timeout
     mode: restart
@@ -1859,17 +1863,19 @@ script:
                   }
   - id: timer_sleep # Handle the sleep (go to screensaver page) after a timeout
     mode: restart
+    parameters:
+      timeout: int
     then:
       - lambda: |-
-          ESP_LOGV("script.timer_sleep", "Reset timer: %is", int(id(timeout_sleep).state));
+          ESP_LOGD("script.timer_sleep", "Reset timer: %is", timeout);
           if (id(current_page).state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
       - if:
           condition:
-            - lambda: !lambda return (id(timeout_sleep).state >= 1);
+            - lambda: !lambda return (timeout >= 1);
           then:
-            - delay: !lambda return int(id(timeout_sleep).state *1000);
+            - delay: !lambda return (timeout *1000);
             - lambda: |-
-                if (id(current_page).state != "screensaver" and id(current_page).state != "boot" and id(timeout_sleep).state >= 1)
+                if (id(current_page).state != "screensaver" and id(current_page).state != "boot" and timeout >= 1)
                   {
                     ESP_LOGD("script.timer_sleep", "Going to sleep");
                     id(disp1).goto_page("screensaver");
