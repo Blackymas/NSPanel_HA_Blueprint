@@ -3617,8 +3617,10 @@ variables:
       cyan: [1530] #'1530' # rgb(0, 188, 212)
       deep-orange: [64164] #'64164' # rgb(255, 87, 34)
       amber: [65024] #'65024' # rgb(255, 193, 7)
+      "on": [65535] #'65535' # rgb(255, 255, 255)
       "off": [35921] #'35921' #8a8a8a
       disabled: [48631] #'48631' # rgb(189, 189, 189)
+      unknown: [6339] #'6339'
       unavailable: [6339] #'6339'
     command:
       alarm_settings: 'esphome.{{ nspanel_name }}_alarm_settings'
@@ -5793,6 +5795,10 @@ variables:
       rgbw: "[<ColorMode.RGBW: 'rgbw'>]"
       rgbww: "[<ColorMode.RGBWW: 'rgbww'>]"
       white: "[<ColorMode.WHITE: ''>]"
+    states:
+      "on": ["on", "open", "opening", "true", "True", true, True, "playing", "heat", "cold", "dry", "armed_home", "armed_away", "armed_vacation", "armed_custom_bypass"]
+      "off": ["off", "closed", "closing", "false", "False", false, False, "standby", "paused", "idle", "disarmed"]
+      unknown: ["unknown", "unavailable", None, none, ""]
 
 #############################################################
 ##### CLOSE - Variables #####
@@ -6226,6 +6232,27 @@ trigger:
         - unknown
         - unavailable
       id: home_value03_state
+
+  ##### Trigger - Home - Custom buttons - State change #################################################################################################################
+    ##### Custom button 01 - Trigger 'home_custom_buttons' #####
+    - platform: event
+      event_type: state_changed
+      event_data:
+        entity_id: !input 'home_custom_button01'
+      id: home_custom_buttons
+    ##### Custom button 02 - Trigger 'home_custom_buttons' #####
+    - platform: event
+      event_type: state_changed
+      event_data:
+        entity_id: !input 'home_custom_button02'
+      id: home_custom_buttons
+    ##### Custom button 03 - Trigger 'home_custom_buttons' #####
+    - platform: event
+      event_type: state_changed
+      event_data:
+        entity_id: !input 'home_custom_button03'
+      id: home_custom_buttons
+
 
   ##### Trigger - Relays - State change #################################################################################################################
 
@@ -6882,10 +6909,10 @@ action:
                                 continue_on_error: true
 
                           ###### Custom buttons ######
-                          - &update-home_page-custom_buttons
+                          - &update_home_page_custom_buttons
                             if: '{{ true }}'
                             then:
-                              - &variables-home_page-custom_buttons
+                              - &variables_home_page_custom_buttons
                                 variables:
                                   home_page_custom_buttons:
                                     - entity: !input home_custom_button01
@@ -6899,12 +6926,46 @@ action:
                                       component: button03
                               - repeat:
                                   for_each: '{{ home_page_custom_buttons }}'
-                                  sequence: &display-home_page-custom_buttons
-                                    - if: '{{ repeat.item.entity is defined and repeat.item.entity is string and repeat.item.entity | length > 0 }}'
+                                  sequence:
+                                    - &display_home_page_custom_buttons
+                                      if: '{{ repeat.item.entity is defined and repeat.item.entity is string and repeat.item.entity | length > 0 }}'
                                       then:
+                                        - variables:
+                                            entity_domain: '{{ repeat.item.entity.split(".")[0] if repeat.item.entity and repeat.item.entity.split(".") | count > 1 else "unknown" }}'
+                                            entity_state: '{{ states(repeat.item.entity) }}'
+                                            rgb_color: '{{ state_attr(repeat.item.entity, "rgb_color") | default(None) }}'
+                                            brightness: '{{ (state_attr(repeat.item.entity, "brightness") | int(255))/255 }}'
+                                            icon_color: >
+                                              {{
+                                                rgb_color | list
+                                                if rgb_color is sequence
+                                                else
+                                                  (
+                                                    nextion.color.on
+                                                    if entity_state in enum.states.on
+                                                    else nextion.color.off
+                                                  )
+                                              }}
+                                            icon_color_adjusted: >
+                                              {{
+                                                [
+                                                  min(255,icon_color[0] * brightness) | round(0),
+                                                  min(255,icon_color[1] * brightness) | round(0),
+                                                  min(255,icon_color[2] * brightness) | round(0)
+                                                ]
+                                                if icon_color is sequence and icon_color | count == 3
+                                                else icon_color
+                                              }}
+                                        - service: '{{ nextion.command.set_component_color }}'
+                                          data:
+                                            component: 'home.{{ repeat.item.component }}'
+                                            foreground: '{{ icon_color_adjusted }}'
+                                            background: []
+                                          continue_on_error: true
+                                        - *delay-default
                                         - service: '{{ nextion.command.text_printf }}'
                                           data:
-                                            component: '{{ repeat.item.component }}'
+                                            component: 'home.{{ repeat.item.component }}'
                                             message: >
                                               {% if repeat.item.icon | length > 0 %}
                                                 {{
@@ -6913,21 +6974,24 @@ action:
                                                   else repeat.item.icon
                                                 }}
                                               {% elif repeat.item.entity and repeat.item.entity.split(".") | count > 1 %}
-                                                {{ nextion.icon.domain[repeat.item.entity.split(".")[0] if repeat.item.entity else "unknown"] }}
+                                                {{ nextion.icon.domain[entity_domain] }}
                                               {% else %}{{ nextion.icon.domain.unknown }}
                                               {% endif %}
                                           continue_on_error: true
-                                        - *delay-default
-                                        - service: '{{ nextion.command.show }}'
-                                          data:
-                                            component: '{{ repeat.item.component }}'
-                                          continue_on_error: true
+                                        - if: '{{ page.current == page.home }}'
+                                          then:
+                                            - *delay-default
+                                            - service: '{{ nextion.command.show }}'
+                                              data:
+                                                component: '{{ repeat.item.component }}'
+                                              continue_on_error: true
                                       else:
-                                        - service: '{{ nextion.command.hide }}'
-                                          data:
-                                            component: '{{ repeat.item.component }}'
-                                          continue_on_error: true
-                                    - *delay-default
+                                        - if: '{{ page.current == page.home }}'
+                                          then:
+                                            - service: '{{ nextion.command.hide }}'
+                                              data:
+                                                component: '{{ repeat.item.component }}'
+                                              continue_on_error: true
 
                           ###### Climate chip ######
                           - &update-home_page-climate_chip
@@ -8865,7 +8929,7 @@ action:
                         conditions:
                           - '{{ nspanel_event.page == page.home }}'
                         sequence:
-                          - *variables-home_page-custom_buttons
+                          - *variables_home_page_custom_buttons
                           - variables:
                               last_click_button: '{{ home_page_custom_buttons | selectattr("component", "defined") | selectattr("component", "eq", nspanel_event.component) | list }}'
                           - condition: '{{ last_click_button | count >= 0 }}'
@@ -9251,6 +9315,19 @@ action:
         sequence: *refresh-page_alarm
 
       ########## TRIGGER - HOME PAGE ###########
+
+      ##### HOME PAGE - Custom buttons #####
+      - alias: Home page - Custom buttons
+        conditions:
+          - condition: trigger
+            id:
+              - home_custom_buttons
+        sequence:
+          - *variables_home_page_custom_buttons
+          - repeat:
+              for_each: '{{ home_page_custom_buttons | selectattr("entity", "defined") | selectattr("entity", "eq", trigger.event.data.entity_id) | list }}'
+              sequence:
+                - *display_home_page_custom_buttons
 
       ##### HOME PAGE - Values #####
       - alias: Home page - Values
