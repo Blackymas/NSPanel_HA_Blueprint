@@ -9,12 +9,13 @@
 &nbsp;
 ## General
 
-Big news: v4.0 has finally landed! Here’s the scoop:
-🚨 We've added an Alarm control panel – safety first, right?
-🎵 The Media Player control is here for all our tunes and binge-watching needs.
+Big news: v4.0 has finally landed! Here’s the scoop:<br>
+🚨 We've added an Alarm control panel – safety first, right?<br>
+🎵 The Media Player control is here for all our tunes and binge-watching needs.<br>
 🌬️ Dial in your comfort with the new Fan speed and Embedded climate control settings.
+
 Plus, we've beefed up the panel's resilience to those annoying network or server glitches.
-&nbsp;
+
 Give it a spin and let us know your thoughts. Thanks for being on this journey with us!
 
 &nbsp;
@@ -39,10 +40,10 @@ If have used v3.3 or earlier, and then updated to v3.4, there's a chance the ent
 1. New requirements: Home Assistant and ESPHome v2023.5.0 or later.
 1. Existing users will have to select again the language for the panel, otherwise English will be used to display strings.
 1. Removed entity `sensor.xxxxx_settings_entity` and service `esphome.xxxxx_set_settings_entity`.
-1. Removed entity `sensor.xxxxx_settings_entity` related to sensor "NSPanel Event". So no more of those ugly json-like strings polluting the device's page.<br>The sensor "Current page" is back with the information about the page currently visible in your panel, so please update your automation if you are using the event sensor.<br>**Attention!! If you have disabled the entity `sensor.xxxxx_current_page` in a previous version you will be required to manually enable it back after the update.**
+1. Removed entity `sensor.xxxxx_nspanel_event` related to sensor "NSPanel Event". So no more of those ugly json-like strings polluting the device's page.<br>The sensor "Current page" is back with the information about the page currently visible in your panel, so please update your automation if you are using the event sensor.<br>**Attention!! If you have disabled the entity `sensor.xxxxx_current_page` in a previous version you will be required to manually enable it back after the update.**
 1. Due to the changes on the time display engine, you might have to select your time format again in the blueprint settings.
 1. The network settings was moved to under `networks` on the `wifi` section. If you are using advanced/custom settings for Wi-Fi on ESPHome, you may have to update it in order to follow the new format.
-1. The sensor "Uptime" is deprecated. It was replaced by "API timestamp" and "Device timestamp" sensors, which makes it more readable to humans on Home Assistant interface and shows respectively the last time the API got connected (between the panel and Home Assistant) and the last time the device started. Thanks to @WZYProjects (#986 and #998) for the new sensors.<br>
+1. The sensor "Uptime" is deprecated. It was replaced by "API timestamp" and "Device timestamp" sensors, which makes it more readable to humans on Home Assistant interface and shows respectively the last time the API got connected (between the panel and Home Assistant) and the last time the device started. Thanks to @WZYProjects (#986 and #998) for the new sensors.
 1. Service `esphome.xxxxx_qr_code` is deprecated. It was replaced by service `qrcode` which can be used for changing the QRcode value even when the QRcode page is not visible (useful when using dynamic Wi-Fi credentials).
 1. Removed switches "Relay 1 Local Fallback" and "Relay 2 Local Fallback". Now when you assign your panel's relay to it's respective button the control will be fully local and therefore will have the same behavior as the "fallback" in previous versions, and you can still force a fallback in the blueprint settings when you want to have it working locally (to the respective relays) even when the buttons are assigned to other entities.
 1. The "Hardware button long press hold delay" input was removed and the delay (800ms) is now hard coded in ESPHome.
@@ -99,31 +100,35 @@ For more details, instructions and security considerations, please take a look a
 ### 3. Support to sensor display precision from Home Assistant
 Now the values shown in your panel will follow the [sensor display precision](https://www.home-assistant.io/blog/2023/03/01/release-20233/#sensor-display-precision) provided by Home Assistant.
 
-=> If you have problems with a value exceeding the available space in your panel, please reduce the number of decimals using Home Assistant [sensor display precision](https://www.home-assistant.io/blog/2023/03/01/release-20233/#sensor-display-precision).
+- If you have problems with a value exceeding the available space in your panel, please reduce the number of decimals using Home Assistant [sensor display precision](https://www.home-assistant.io/blog/2023/03/01/release-20233/#sensor-display-precision).
 
 &nbsp;
 ### 4. Filtered device list
 When selecting the NSPanel on the automation, only ESP32 devices will be shown, making easier to find your panel.
+
 ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/0e66bd6b-23c3-4014-8603-958acea48462)
 
 &nbsp;
 ### 5. New language selector
 Starts using the new language selector release with HA 2023.5.0 and based on RFC 5646, which will increase reliability and standardization of the code.
+
 Althougt this is not visible for users at the first view, it will enable the use of more granular language selections (like pt-BR vs pt-PT or en-US vs en-UK) if needed in the future.
 
-=> If you are an existing users, please remember to select your language again after the update, as the previous selection will be invalid.
+- If you are an existing users, please remember to select your language again after the update, as the previous selection will be invalid.
 
 &nbsp;
 ### 6. Removed json sensors
 The entities `sensor.xxxxx_settings_entity` and `sensor.xxxxx_nspanel_event`, previously used by ESPHome to to transfer information to the Blueprint, like the selected page, buttons pressed, the selected entity on the settings page, etc., together with the service `esphome.xxxxx_set_settings_entity`. This mechanism was a bit fragile and not very user friendly.
-With this version all that information will be transfered via calls to event `esphome.nspanel_ha_blueprint' and the service `esphome.xxxxx_open_entity_settings_page`.
+
+With this version all that information will be transfered via calls to event `esphome.nspanel_ha_blueprint` and the service `esphome.xxxxx_open_entity_settings_page`.
+
 Apart of a cleaner device page, this change should be transparent for most users. If you have made automation based on the removed elements, please update it using the new service and `sensor.xxxxx_current_page`.
 
 &nbsp;
 ### 7. Support for US model on landscape mode
 If you are using a panel model US in landscape mode, you can now use `nspanel_us_land.tft` where the bars related to the hardware buttons will be located at the right, closer to the respective buttons and fixing the offset on the touch screen when using `nspanel_eu.tft` into a US panel.
 
-=> The hardware buttons labels are hidden in this format, as Nextion cannot support rotated text.
+- The hardware buttons labels are hidden in this format, as Nextion cannot support rotated text.
 
 &nbsp;
 ### 8. API status indication on the panel
@@ -142,11 +147,13 @@ Now when long press a button connected to a light or a cover, the detailed light
 &nbsp;
 ### 10. New "Fan speed page"
 If you have a connected fan supporting speed control, now you are able to control it's speed from your panel. Just add the new fan to one of the buttons pages or to the hardware buttons and a long press on those buttons will pop up the new "Fan speed page":
+
 ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/4167928e-6822-4db6-a24b-f8a1d52806f5)
 
 &nbsp;
 ### 11. Select wake-up page
 Now you can select the wake-up page on the device settings:
+
 ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/2f040e5c-aa78-4067-9c34-f19cb375be04)
 
 This selected page will be shown after a boot (after the boot page) and with a touch in the screen when on screen saver page. After showing this wake-up page, all the previous behavior for closing the page (with a click or after a timeout) will be the same and will fall back to the "Home" page.
@@ -154,6 +161,7 @@ This selected page will be shown after a boot (after the boot page) and with a t
 &nbsp;
 ### 12. Panel's local control
 We are trying to make your panel as autonomous as possible by moving some of the controls from the Blueprint to ESPHome. This will reduce the load in your network and Home Assistant, but also will make a more reliable system capable to do it's core functionality even when the network is unavailable or Home Assistant is restarting.
+
 With this version, the following engines have been moved to your panel (local control):
 - Time display
 - Physical relay control (when hardware left button is connected to relay 1 or right button to relay 2) - Replacing the fallback mode from previous versions.
@@ -162,6 +170,7 @@ With this version, the following engines have been moved to your panel (local co
 &nbsp;
 ### 13. New "Confirm" pop-up
 A new pop-up will replace the previous confirmation page, making clear the difference from notifications.
+
 ![Confirm pop-up](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/db12e6bd-89e4-4f4f-89c6-937486433f68)
 
 &nbsp;
@@ -175,15 +184,23 @@ Now you will see the Settings page in the same language selected to your panel:
 &nbsp;
 ### 15. Media Player control
 You can now tap into basic controls for all your connected media devices right from your panel.
+
 Just add a media player entity to any of the buttons pages. A long press in the button will open the media player control page:
+
 ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/bf8b0a3d-a121-4bdd-81dc-22515405f33f)
-The commands are still a bit laggy, but we will look for ways to improve this in the coming versions.
+
+
+- Just like all other pages, this one relies on information from Home Assistant, and the Media Player entities are a bit slower than other entities to update it's states. We included an engine to pull for a new update in a loop, but as a result of that, the commands can be a bit laggy.
+- Some media player providers aren't capable to send updated information about the progress of the media playing. We create an engine to try to estimate this progress and keep the progress bar updated in the screen, however it is possible that the information gets unsync specially when a track starts while the Media Player is not visible. In this case, it should adjust (again to an estimated value) when the next track starts.
 
 &nbsp;
 ### 16. Custom buttons on Home page
 Now you can add up to 3 customize buttons to the Home page. You can select a climate, cover, fan, light or media player and an icon of your preference, which will be shown in the Home page right above the already known icons for QRcode and entities pages.
+
 By clicking in the icon, the detailed page will be opened with the selected entity. With that, all those icons will have a similar behavior of jumping to another page.
+
 ![Home page](https://user-images.githubusercontent.com/41958506/212768891-9610d800-43c5-454f-a8b6-6b7c43677b5d.png)
+
 - To keep consistency with other buttons on this page, entities supporting advanced settings will open the settings page with the click. All other entities will toggle or execute, with no visual feedback,
 
 &nbsp;
@@ -191,9 +208,11 @@ By clicking in the icon, the detailed page will be opened with the selected enti
 We have changed the way your panel handles the dimming and sleeping.
 #### Sleep flow on v3.4:
 ![Sleep flow on v3.4](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/a4ded9a2-7b83-47e9-aac9-817af4622720)
+
 Apart of some hard-coded times for dimming and sleeping, this flow was inconvenient when the time-out was set to 0, as the panel never go to dimming when left in a page other than Home.
 
-Now you will have full control of the 3 actions and you will be able to play with those parameters as you want or just disabling any of the flows by setting the timeout to 0:
+Now you will have full control of the 3 actions and you will be able to play with those parameters as you want or just disabling any of the flows by setting the timeout to 0.
+
 #### New flows on v4.0:
 ![New flows on v4.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/03bb9a78-b6f9-408d-b17a-e9824d8561d7)
 
