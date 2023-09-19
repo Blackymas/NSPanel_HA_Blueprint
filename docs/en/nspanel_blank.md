@@ -4,11 +4,11 @@ The NSPanel consist in a ESP32 board (the panel itself, controlling the relays, 
 
 This Nextion display have an independent controller which also requires a firmware and its settings (the basic layout), and this is done by an `.tft` file.
 
-When you get your panel from Sonoff, their `tft` file is installed in the Nextion display and using a called "Reparse mode", which makes a bit challenging to replace the `tft` file when using ESPHome and then, we highly recoment you using `nspanel_blank.tft`, which is just a fraction of the size of a regular `tft` and will make the first `tft` replacement much easier.
+When you get your panel from Sonoff, their `tft` file is installed in the Nextion display and using a called "Reparse mode", which makes a bit challenging to replace the `tft` file when using ESPHome and then, we highly recoment you using `nspanel_blank.tft`, which is just a fraction of the size of a regular `tft` and will make the first `tft` replacement much easier. You can find this file under the folder [`custom_configuration`](/custom_configuration).
 
 Once NSPanel's original `tft` is replaced, is much easier to install a new `tft` with ESPHome, so you can go directly to the final file (either `nspanel_eu.tft`, `nspanel_us.tft` or `nspanel_us_land.tft`).
 
-For more datails on how to install the first `tft` file, specially if your panel still displaying the original Sonoff screen, please refeer to the Wiki where you will find the doc ["Common Issues TFT Upload"](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-Common-Issues-TFT-Upload).
+For more datails on how to install the first `tft` file, specially if your panel still displaying the original Sonoff screen, please refeer to the Wiki where you will find the doc ["Common Issues TFT Upload"](/wiki/(EN)-Common-Issues-TFT-Upload).
 
 
 ## How to install a different `tft` file?
