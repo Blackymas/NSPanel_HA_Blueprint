@@ -7,7 +7,9 @@ You can take advantage of [ESPHome Configuration Types](https://esphome.io/guide
 
 Please feel free to add your own customation to this document by creating a PR in the `dev` branch.
 
-***IMPORTANT:** Use customization at your own risk. Custom/advanced systems won't be supported by this project's team.*
+***IMPORTANT:***
+- *Use customization at your own risk. Custom/advanced systems won't be supported by this project's team.*
+- *Please monitor the memory consumption when using customizations. Getting closer to the full memory can drive to errors in the system or prevent your system to support the future updates.*
 
 &nbsp;
 ## Instructions
@@ -165,3 +167,26 @@ time:
       - 0.pool.ntp.org
 ```
 
+&nbsp;
+### Sensor for display awake vs sleeping
+Creates a binary sensor to indicate either when the display is showing some page (`on`) or sleeping (`off`).
+```yaml
+# Is display awake?
+binary_sensor:
+  - name: ${device_name} Display state
+    id: display_state
+    platform: template
+    lambda: |-
+      return (id(current_page).state != "screensaver");
+```
+
+You can easily invert the meaning to have a sensor for display sleeping:
+```yaml
+# Is display sleeping?
+binary_sensor:
+  - name: ${device_name} Display sleeping
+    id: display_sleeping
+    platform: template
+    lambda: |-
+      return (id(current_page).state == "screensaver");
+```
