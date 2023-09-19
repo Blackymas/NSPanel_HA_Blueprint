@@ -47,7 +47,7 @@ The most popular way to switch between the `nspanel_blank.tft` and `nspanel_xx.t
 
 ## What to do after installing `nspanel_blank.tft`?
 
-![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/2bbcb1ce-ae45-43d4-af32-392dbfb19fdc)
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/3b0bb950-4857-4c22-a53a-062d09f315dc)
 
 Once you have sucessfully installed any of the `tft` files from this project, the `nspanel_blank.tft` file shouldn't be necessary anymore and you should be able to always install the final `tft` file.
 
