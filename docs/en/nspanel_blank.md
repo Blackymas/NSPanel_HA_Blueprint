@@ -47,6 +47,8 @@ The most popular way to switch between the `nspanel_blank.tft` and `nspanel_xx.t
 
 ## What to do after installing `nspanel_blank.tft`?
 
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/2bbcb1ce-ae45-43d4-af32-392dbfb19fdc)
+
 Once you have sucessfully installed any of the `tft` files from this project, the `nspanel_blank.tft` file shouldn't be necessary anymore and you should be able to always install the final `tft` file.
 
 Just make sure you flashed your panel with `nextion_update_url` pointing to one of the final files (`nspanel_eu.tft`, `nspanel_us.tft` or `nspanel_us_land.tft`) and click "Upload TFT" in the device's page (Settings > Devices & Services > ESPHome).
