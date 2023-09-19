@@ -37,8 +37,9 @@ packages:
     url: https://github.com/Blackymas/NSPanel_HA_Blueprint
     ref: main
     files:
-      - nspanel_esphome.yaml
-      #- nspanel_esphome_addon_climate.yaml # activate local climate-control
+      - nspanel_esphome.yaml # Core package
+      # - nspanel_esphome_addon_climate_cool.yaml # activate for local climate (cooling) control
+      # - nspanel_esphome_addon_climate_heat.yaml # activate for local climate (heater) control
     refresh: 300s
 
 ##### My customization - Start #####
