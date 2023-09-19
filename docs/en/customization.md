@@ -190,3 +190,30 @@ binary_sensor:
     lambda: |-
       return (id(current_page).state == "screensaver");
 ```
+
+&nbsp;
+### Button to upload `nspanel_blank.tft`
+This can also be used for any other`alternative `tft` file you might want to use frequently:
+
+```yaml
+button:
+  ##### UPDATE TFT BLANK DISPLAY #####
+  - name: ${device_name} Update TFT display (blank)
+    platform: template
+    icon: mdi:file-sync
+    id: tft_update_blank
+    entity_category: config
+    on_press:
+      - logger.log: "Button pressed: Update TFT display (blank)"
+      - binary_sensor.template.publish:
+          id: nextion_init
+          state: false
+      - delay: 16ms
+      - lambda: |-
+          id(disp1)->set_tft_url("${nextion_update_blank_url}");
+          id(disp1).upload_tft();
+```
+You also must add the url for the alternative `tft` in your substitutions, like this:
+```yaml
+  nextion_update_blank_url: "http://homeassistant.local:8123/local/nspanel/dev/nspanel_blank.tft"
+```
