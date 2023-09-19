@@ -227,10 +227,13 @@ See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
   - Human readable "Last started" sensor (#986)
   - Support with customization (#1003)
   - Translation to Spanish (#1023)
+* @el97
+  - Translation to Swedish (#1047)
 * @Doughboy68
   - Tons of tests and feedback during the `dev` phase.
 
 ## New Contributors
 * @chpego
 * @WZYProjects
+* @el97
 * @Doughboy68
