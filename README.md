@@ -14,15 +14,15 @@ And the best thing is, the installation takes only a few minutes.
 
 The goal was to create a version that allows everyone to use the NSpanel fully local without having to deal with programming or reading hours of documentation - *AND YES WE DID IT!!!!* ;)
 
-📕 Full documentation and installation is available here [NSPanel Configuration, Setup and HowTo](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki).
+📕 Full documentation and installation is available here: [NSPanel Configuration, Setup and HowTo](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki).
 
-📌 Step by Step - [Setup and Overview Video´s](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki)
+📌 Step by Step - [Setup Video](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki)
 
-🚀 How to create "Issues" when I have a problem [WIKI HowTo](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki)
+🚀 How to create "Issues" when I have a problem: [WIKI HowTo](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki)
 
-⭐ All Feature Requests can be found here [All Feature Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/new%20feature%20request)
+⭐ All Feature Requests can be found here: [All Feature Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/new%20feature%20request)
 
-🎉 Roadmap Roadmap can be found here [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
+🎉 Roadmap can be found here: [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
 
 💥 Please move pull request to DEV branch and not to main branch - thanks!
 
