@@ -241,4 +241,4 @@ time:
               sleep_duration: 7h
 ```
 
-You can find more ideas around this on #955.
+You can find more ideas around this on [#955](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues/955).
