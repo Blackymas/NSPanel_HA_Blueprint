@@ -7,7 +7,9 @@ You can take advantage of [ESPHome Configuration Types](https://esphome.io/guide
 
 Please feel free to add your own customation to this document by creating a PR in the `dev` branch.
 
-***IMPORTANT:** Use customization at your own risk. Custom/advanced systems won't be supported by this project's team.*
+***IMPORTANT:***
+- *Use customization at your own risk. Custom/advanced systems won't be supported by this project's team.*
+- *Please monitor the memory consumption when using customizations. Getting closer to the full memory can drive to errors in the system or prevent your system to support the future updates.*
 
 &nbsp;
 ## Instructions
@@ -37,8 +39,9 @@ packages:
     url: https://github.com/Blackymas/NSPanel_HA_Blueprint
     ref: main
     files:
-      - nspanel_esphome.yaml
-      #- nspanel_esphome_addon_climate.yaml # activate local climate-control
+      - nspanel_esphome.yaml # Core package
+      # - nspanel_esphome_addon_climate_cool.yaml # activate for local climate (cooling) control
+      # - nspanel_esphome_addon_climate_heat.yaml # activate for local climate (heater) control
     refresh: 300s
 
 ##### My customization - Start #####
@@ -164,3 +167,78 @@ time:
       - 0.pool.ntp.org
 ```
 
+&nbsp;
+### Sensor for display awake vs sleeping
+Creates a binary sensor to indicate either when the display is showing some page (`on`) or sleeping (`off`).
+```yaml
+# Is display awake?
+binary_sensor:
+  - name: ${device_name} Display state
+    id: display_state
+    platform: template
+    lambda: |-
+      return (id(current_page).state != "screensaver");
+```
+
+You can easily invert the meaning to have a sensor for display sleeping:
+```yaml
+# Is display sleeping?
+binary_sensor:
+  - name: ${device_name} Display sleeping
+    id: display_sleeping
+    platform: template
+    lambda: |-
+      return (id(current_page).state == "screensaver");
+```
+
+&nbsp;
+### Button to upload `nspanel_blank.tft`
+This can also be used for any other`alternative `tft` file you might want to use frequently:
+
+```yaml
+button:
+  ##### UPDATE TFT BLANK DISPLAY #####
+  - name: ${device_name} Update TFT display (blank)
+    platform: template
+    icon: mdi:file-sync
+    id: tft_update_blank
+    entity_category: config
+    on_press:
+      - logger.log: "Button pressed: Update TFT display (blank)"
+      - binary_sensor.template.publish:
+          id: nextion_init
+          state: false
+      - delay: 16ms
+      - lambda: |-
+          id(disp1)->set_tft_url("${nextion_update_blank_url}");
+          id(disp1).upload_tft();
+```
+You also must add the url for the alternative `tft` in your substitutions, like this:
+```yaml
+  nextion_update_blank_url: "http://homeassistant.local:8123/local/nspanel/dev/nspanel_blank.tft"
+```
+
+&nbsp;
+### Deep sleep
+In this example, the panel will deep sleep for 7 hours, starting at 23:00:00 every day, for its maximum energy saving.
+
+During this time, nothing will be shown, the screen will be off and therefore no response to touch, and the panel will be disconnected from Wi-Fi, but you can still wake-up the panel by pressing one of the hardware buttons (the left one in this example):
+
+```yaml
+# Define the wake-up button. Use pin 14 for left button or pin 27 for right button
+deep_sleep:
+  wakeup_pin: 14
+  wakeup_pin_mode: INVERT_WAKEUP
+
+time:
+  - id: !extend time_provider
+    on_time:
+      - hours: 23
+        minutes: 0
+        seconds: 0
+        then:
+          - deep_sleep.enter:
+              sleep_duration: 7h
+```
+
+You can find more ideas around this on [#955](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues/955).
