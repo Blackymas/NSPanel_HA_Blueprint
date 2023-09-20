@@ -217,3 +217,28 @@ You also must add the url for the alternative `tft` in your substitutions, like 
 ```yaml
   nextion_update_blank_url: "http://homeassistant.local:8123/local/nspanel/dev/nspanel_blank.tft"
 ```
+
+&nbsp;
+### Deep sleep
+In this example, the panel will deep sleep for 7 hours, starting at 23:00:00 every day, for its maximum energy saving.
+
+During this time, nothing will be shown, the screen will be off and therefore no response to touch, and the panel will be disconnected from Wi-Fi, but you can still wake-up the panel by pressing one of the hardware buttons (the left one in this example):
+
+```yaml
+# Define the wake-up button. Use pin 14 for left button or pin 27 for right button
+deep_sleep:
+  wakeup_pin: 14
+  wakeup_pin_mode: INVERT_WAKEUP
+
+time:
+  - id: !extend time_provider
+    on_time:
+      - hours: 23
+        minutes: 0
+        seconds: 0
+        then:
+          - deep_sleep.enter:
+              sleep_duration: 7h
+```
+
+You can find more ideas around this on #955.
