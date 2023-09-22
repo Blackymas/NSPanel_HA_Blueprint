@@ -193,7 +193,7 @@ binary_sensor:
 
 &nbsp;
 ### Button to upload `nspanel_blank.tft`
-This can also be used for any other`alternative `tft` file you might want to use frequently:
+This can also be used for any other alternative tft file you might want to use frequently:
 
 ```yaml
 button:
@@ -213,7 +213,7 @@ button:
           id(disp1)->set_tft_url("${nextion_update_blank_url}");
           id(disp1).upload_tft();
 ```
-You also must add the url for the alternative `tft` in your substitutions, like this:
+You also must add the url for the alternative tft in your substitutions, like this:
 ```yaml
   nextion_update_blank_url: "http://homeassistant.local:8123/local/nspanel/dev/nspanel_blank.tft"
 ```
