@@ -517,7 +517,7 @@ api:
       then:
         - lambda: |-
             if (not reboot.empty()) id(disp1).set_component_text_printf("settings.lbl_reboot", " %s", reboot.c_str());
-            id(display_wrapped_text).execute("settings.lbl_brightness", brightness.c_str(), id(display_mode) == 2 ? 25 : 10);
+            id(disp1).set_component_text_printf("settings.lbl_brightness", " %s", brightness.c_str());
             id(display_wrapped_text).execute("settings.lbl_bright", bright.c_str(), id(display_mode) == 2 ? 25 : 10);
             id(display_wrapped_text).execute("settings.lbl_dim", dim.c_str(), id(display_mode) == 2 ? 25 : 10);
 
@@ -1538,8 +1538,13 @@ number:
             id(display_brightness_global) = int(x);
             id(disp1).send_command_printf("brightness=%i", int(x));
             id(disp1).send_command_printf("settings.brightslider.val=%i", int(x));
-            if (id(current_page).state != "screensaver") id(disp1).set_backlight_brightness(x/100);
-            if (id(current_page).state == "settings") id(disp1).set_component_text_printf("bright_text", "%i%%", int(x));
+            if (id(current_page).state != "screensaver")
+              {
+                id(disp1).set_backlight_brightness(x/100);
+                id(timer_dim).execute(id(current_page).state.c_str(), int(id(timeout_dim).state));
+                id(timer_sleep).execute(id(current_page).state.c_str(), int(id(timeout_sleep).state));
+                if (id(current_page).state == "settings") id(disp1).set_component_text_printf("bright_text", "%i%%", int(x));
+              }
 
   ##### SCREEN BRIGHTNESS DIMMED DOWN #####
   - name: ${device_name} Display Brightness Dimdown
@@ -1558,7 +1563,12 @@ number:
             id(display_dim_brightness_global) = int(x);
             id(disp1).send_command_printf("brightness_dim=%i", int(x));
             id(disp1).send_command_printf("settings.dimslider.val=%i", int(x));
-            if (id(current_page).state == "settings") id(disp1).set_component_text_printf("dim_text", "%i%%", int(x));
+            if (id(current_page).state != "screensaver" and id(is_dim_brightness))
+              {
+                id(disp1).set_backlight_brightness(x/100);
+                id(timer_sleep).execute(id(current_page).state.c_str(), int(id(timeout_sleep).state));
+                if (id(current_page).state == "settings") id(disp1).set_component_text_printf("dim_text", "%i%%", int(x));
+              }
 
   ##### Temperature Correction #####
   - name: ${device_name} Temperature Correction
@@ -1741,8 +1751,7 @@ script:
       timeout: int
     then:
       - lambda: |-
-          ESP_LOGD("script.timer_dim", "Reset timer: %is", timeout);
-          ESP_LOGD("script.timer_dim", "Is dim? %i", id(is_dim_brightness) ? 1 : 0);
+          ESP_LOGV("script.timer_dim", "Reset timer: %is", timeout);
           if (id(is_dim_brightness))
             {
               if (page != "screensaver" and page != "boot")
