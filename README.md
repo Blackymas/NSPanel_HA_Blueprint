@@ -46,9 +46,8 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 
 
 ![6 Lightsetting 3](https://user-images.githubusercontent.com/41958506/203654179-f7303b02-c886-4890-b976-cb498940a627.png)
-![7 Thermostat](https://user-images.githubusercontent.com/41958506/203654189-4294b634-430f-423c-b170-9f1680f94b0e.png)
 
-(Light color wheel and Thermostat)
+(Light color wheel)
 
 
 ![8 Cover](https://user-images.githubusercontent.com/41958506/203654290-c6ec2f2f-7924-492c-914c-0d96dc3907e0.png)
