@@ -14,15 +14,15 @@ And the best thing is, the installation takes only a few minutes.
 
 The goal was to create a version that allows everyone to use the NSpanel fully local without having to deal with programming or reading hours of documentation - *AND YES WE DID IT!!!!* ;)
 
-📕 Full documentation and installation is available here [NSPanel Configuration, Setup and HowTo](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki).
+📕 Full documentation and installation is available here: [NSPanel Configuration, Setup and HowTo](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki).
 
-📌 Step by Step - [Setup and Overview Video´s](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki)
+📌 Step by Step - [Setup Video](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki)
 
-🚀 How to create "Issues" when I have a problem [WIKI HowTo](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki)
+🚀 How to create "Issues" when I have a problem: [WIKI HowTo](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki)
 
-⭐ All Feature Requests can be found here [All Feature Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/new%20feature%20request)
+⭐ All Feature Requests can be found here: [All Feature Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/new%20feature%20request)
 
-🎉 Roadmap Roadmap can be found here [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
+🎉 Roadmap can be found here: [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
 
 💥 Please move pull request to DEV branch and not to main branch - thanks!
 
@@ -46,9 +46,8 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 
 
 ![6 Lightsetting 3](https://user-images.githubusercontent.com/41958506/203654179-f7303b02-c886-4890-b976-cb498940a627.png)
-![7 Thermostat](https://user-images.githubusercontent.com/41958506/203654189-4294b634-430f-423c-b170-9f1680f94b0e.png)
 
-(Light color wheel and Thermostat)
+(Light color wheel)
 
 
 ![8 Cover](https://user-images.githubusercontent.com/41958506/203654290-c6ec2f2f-7924-492c-914c-0d96dc3907e0.png)
