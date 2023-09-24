@@ -22,6 +22,7 @@ There is compatibility between components with v4.0 and v4.0.1, then your system
 | Prevents media player crashing when called before `media_position_updated_at` is able to provide a value. | Minor | `media_player` | Blueprint |
 | Add instructions to enforce a timezone selection in customizations | Minor | N/A | GitHub page (docs) |
 | Translations to Dutch | Minor | `settings` | Blueprint |
+| Translations to Finish (review) | Minor | All | Blueprint |
 | Removed `display_current_brightness` messages from log | Minor | N/A | ESPHome |
 | Version control to support patches | Minor | N/A | ESPHome |
 | Support for flexible time format | Minor | `home` | Blueprint |
