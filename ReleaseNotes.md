@@ -1,21 +1,9 @@
-## Support this project
-
-### As always, we would like to thank everyone who donated to this project and remind you that every donation helps to support this project - so if you haven't made a donation yet, now would be a good time ;)
-
-[![Paypal](https://user-images.githubusercontent.com/41958506/212499642-b2fd097a-0938-4bfc-b37b-74df64592c58.png)](https://www.paypal.com/donate/?hosted_button_id=S974SWQMB8PB2)
-
-&nbsp;
 ## General
+This patch includes bug fixes only, with no new functionality implemented.
 
+You can see the list of changes below and decided what to update based on how you are affected by the different changes.
 
-&nbsp;
-## Updating
-Since in this update lots of input to the blueprint changed, we highly recommend you review your settings and make sure all fields have the correct selection. We did our best to support your legacy settings and avoid breaking your system, but please double check your settings if you see something not working as expected.
-
-### Files that need to be reloaded:
-1. nspanel_blueprint.yaml - v4.1
-2. nspanel_eu.tft or nspanel_us.tft - v4.1
-3. nspanel_esphome.yaml - v4.1
+There is compatibility between components with v4.0 and v4.0.1, then your system will work with no issues with a mix of those versions, althoug we recommend always updating all the components to the latest version available.
 
 ### Instructions
  _You can find the update procedures following here:_
@@ -24,19 +12,21 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 
 
 &nbsp;
-## Breaking changes
-
-&nbsp;
 ## Overview of all changes
 
-&nbsp;
-## Details of all changes
-
-### 1. 
-
-&nbsp;
-## Next topics we are currently working on
-See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
+| Change | Criticality | Page/area | Components affected |
+| :-- | :--: | :--: | :--: |
+| Incorrect button addressing on long press at buttonpage03 | Critical | `buttonpage03` | TFT (US model only) |
+| Volume button not working | Medium | `media_player` | TFT |
+| Fixes on instructions | Minor | N/A | Blueprint<br>GitHub page (docs) |
+| Prevents media player crashing when called before `media_position_updated_at` is able to provide a value. | Minor | `media_player` | Blueprint |
+| Add instructions to enforce a timezone selection in customizations | Minor | N/A | GitHub page (docs) |
+| Translations to Dutch | Minor | `settings` | Blueprint |
+| Removed `display_current_brightness` messages from log | Minor | N/A | ESPHome |
+| Version control to support patches | Minor | N/A | ESPHome |
+| Support for flexible time format | Minor | `home` | Blueprint |
+| Added date format for Finish | Minor | `home` | Blueprint |
+| Reset sleep timer when brightness settings changes | Minor | All | ESPHome |
 
 ## Special thanks to:
 * @chpego
