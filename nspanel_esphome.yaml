@@ -8,7 +8,7 @@
 substitutions:
 
   ##### DON'T CHANGE THIS #####
-  version: "4.0"
+  version: "4.0.1"
   #############################
 
 ##### WIFI SETUP #####
@@ -517,7 +517,7 @@ api:
       then:
         - lambda: |-
             if (not reboot.empty()) id(disp1).set_component_text_printf("settings.lbl_reboot", " %s", reboot.c_str());
-            id(display_wrapped_text).execute("settings.lbl_brightness", brightness.c_str(), id(display_mode) == 2 ? 25 : 10);
+            id(disp1).set_component_text_printf("settings.lbl_brightness", " %s", brightness.c_str());
             id(display_wrapped_text).execute("settings.lbl_bright", bright.c_str(), id(display_mode) == 2 ? 25 : 10);
             id(display_wrapped_text).execute("settings.lbl_dim", dim.c_str(), id(display_mode) == 2 ? 25 : 10);
 
@@ -682,12 +682,12 @@ api:
                 id(disp1).set_component_value("is_muted", (is_volume_muted) ? 1 : 0);
                 if (supported_features & 8 and is_volume_muted) // unmute
                   {
-                    id(disp1).set_component_text_printf("bt_mute", "%s", "\uE57E"); // mdi:volume-low
+                    id(disp1).set_component_text_printf("bt_mute", "%s", "\uEE07"); // mdi:volume-variant-off
                     id(disp1).show_component("bt_mute");
                   }
                 else if (supported_features & 8) // mute
                   {
-                    id(disp1).set_component_text_printf("bt_mute", "%s", "\uEE07"); // mdi:volume-variant-off
+                    id(disp1).set_component_text_printf("bt_mute", "%s", "\uE57E"); // mdi:volume-low
                     id(disp1).show_component("bt_mute");
                   }
                 else id(disp1).hide_component("bt_mute");
@@ -975,7 +975,6 @@ binary_sensor:
     on_click:
       - button.press: restart_nspanel
 
-  ##### global variable to keep track on whether the Nextion display is ready or not.
   ## Delays initial info from HA to the display #####
   - name: ${device_name} Nextion display
     id: nextion_init
@@ -1072,15 +1071,6 @@ sensor:
         # Show panel's temperature if API or Wi-Fi are out
         - lambda: id(display_embedded_temp).execute();
 
-  - name: ${device_name} Brightness
-    id: display_current_brightness
-    platform: nextion
-    variable_name: dim
-    internal: true
-    icon: mdi:tablet-dashboard
-    unit_of_measurement: '%'
-    accuracy_decimals : 0
-
   ###### Display Brightness GET VALUE FROM NSPanel SLIDER #####
   - name: ${device_name} brightness Slider
     platform: nextion
@@ -1094,7 +1084,6 @@ sensor:
             value: !lambda 'return int(x);'
         - lambda: |-
             id(timer_reset_all).execute("settings");
-            id(display_current_brightness).update();
 
   ###### Display DIM Brightness GET VALUE FROM NSPanel SLIDER #####
   - name: ${device_name} dim brightness slider
@@ -1109,7 +1098,6 @@ sensor:
             value: !lambda 'return int(x);'
         - lambda: |-
             id(timer_reset_all).execute("settings");
-            id(display_current_brightness).update();
 
 ##### START - TEXT SENSOR CONFIGURATION #####
 text_sensor:
@@ -1136,7 +1124,6 @@ text_sensor:
             ESP_LOGD("text_sensor.current_page", "New page: %s", x.c_str());
             if (!id(entity_id).empty()) ESP_LOGD("text_sensor.current_page", "Entity shown: %s", id(entity_id).c_str());
             id(timer_reset_all).execute(x.c_str());
-            id(display_current_brightness).update();
 
   ##### ESPhome version used to compile the app #####
   - name: ${device_name} ESPhome Version
@@ -1535,9 +1522,9 @@ switch:
 number:
 
   ##### SCREEN BRIGHTNESS #####
-  - platform: template
-    name: ${device_name} Display Brightness
+  - name: ${device_name} Display Brightness
     id: display_brightness
+    platform: template
     entity_category: config
     unit_of_measurement: '%'
     min_value: 1
@@ -1551,14 +1538,18 @@ number:
             id(display_brightness_global) = int(x);
             id(disp1).send_command_printf("brightness=%i", int(x));
             id(disp1).send_command_printf("settings.brightslider.val=%i", int(x));
-            if (id(current_page).state != "screensaver") id(disp1).set_backlight_brightness(x/100);
-            if (id(current_page).state == "settings") id(disp1).set_component_text_printf("bright_text", "%i%%", int(x));
-            id(display_current_brightness).update();
+            if (id(current_page).state != "screensaver")
+              {
+                id(disp1).set_backlight_brightness(x/100);
+                id(timer_dim).execute(id(current_page).state.c_str(), int(id(timeout_dim).state));
+                id(timer_sleep).execute(id(current_page).state.c_str(), int(id(timeout_sleep).state));
+                if (id(current_page).state == "settings") id(disp1).set_component_text_printf("bright_text", "%i%%", int(x));
+              }
 
   ##### SCREEN BRIGHTNESS DIMMED DOWN #####
-  - platform: template
-    name: ${device_name} Display Brightness Dimdown
+  - name: ${device_name} Display Brightness Dimdown
     id: display_dim_brightness
+    platform: template
     entity_category: config
     unit_of_measurement: '%'
     min_value: 1
@@ -1572,7 +1563,12 @@ number:
             id(display_dim_brightness_global) = int(x);
             id(disp1).send_command_printf("brightness_dim=%i", int(x));
             id(disp1).send_command_printf("settings.dimslider.val=%i", int(x));
-            if (id(current_page).state == "settings") id(disp1).set_component_text_printf("dim_text", "%i%%", int(x));
+            if (id(current_page).state != "screensaver" and id(is_dim_brightness))
+              {
+                id(disp1).set_backlight_brightness(x/100);
+                id(timer_sleep).execute(id(current_page).state.c_str(), int(id(timeout_sleep).state));
+                if (id(current_page).state == "settings") id(disp1).set_component_text_printf("dim_text", "%i%%", int(x));
+              }
 
   ##### Temperature Correction #####
   - name: ${device_name} Temperature Correction
@@ -1634,8 +1630,11 @@ number:
     icon: mdi:timer
     unit_of_measurement: "s"
     set_action:
-      - lambda: id(timer_sleep).execute(id(current_page).state.c_str(), int(x));
+      - lambda: |-
+          id(timer_dim).execute(id(current_page).state.c_str(), int(id(timeout_dim).state));
+          id(timer_sleep).execute(id(current_page).state.c_str(), int(x));
 
+##### START - SELECT CONFIGURATION #####
 select:
   - id: wakeup_page_name
     name: ${device_name} Wake-up page
@@ -1753,7 +1752,6 @@ script:
     then:
       - lambda: |-
           ESP_LOGV("script.timer_dim", "Reset timer: %is", timeout);
-          id(display_current_brightness).update();
           if (id(is_dim_brightness))
             {
               if (page != "screensaver" and page != "boot")
@@ -1763,21 +1761,18 @@ script:
                 }
               id(is_dim_brightness) = false;
             }
-          id(display_current_brightness).update();
       - if:
           condition:
             - lambda: !lambda return (timeout >= 1);
           then:
             - delay: !lambda return (timeout *1000);
             - lambda: |-
-                id(display_current_brightness).update();
-                if (id(current_page).state != "screensaver" and id(current_page).state != "boot" and timeout >= 1 and id(display_current_brightness).state > id(display_dim_brightness_global))
+                if (id(current_page).state != "screensaver" and id(current_page).state != "boot" and timeout >= 1)
                   {
                     ESP_LOGD("script.timer_dim", "Dimming the display to %i%%", id(display_dim_brightness_global));
                     id(disp1).send_command_printf("dim=%i", id(display_dim_brightness_global));
                     id(is_dim_brightness) = true;
                   }
-                id(display_current_brightness).update();
   - id: timer_sleep # Handle the sleep (go to screensaver page) after a timeout
     mode: restart
     parameters:
@@ -2218,15 +2213,37 @@ script:
     then:
       - wait_until:
           condition:
-            - lambda: !lambda 'return (id(version_tft) == "${version}");'
-            - lambda: !lambda 'return (id(version_blueprint) == "${version}");'
+            - lambda: |-
+                auto compareVersions = [](const char* version1, const char* version2) -> bool
+                  {
+                    int major1 = 0, minor1 = 0;
+                    int major2 = 0, minor2 = 0;
+
+                    sscanf(version1, "%d.%d", &major1, &minor1);
+                    sscanf(version2, "%d.%d", &major2, &minor2);
+
+                    return (major1 == major2) && (minor1 == minor2);
+                  };
+                return (compareVersions("${version}", id(version_tft).c_str()) and compareVersions("${version}", id(version_blueprint).c_str()));
+            #- lambda: !lambda 'return (id(version_tft) == "${version}");'
+            #- lambda: !lambda 'return (id(version_blueprint) == "${version}");'
           timeout: 60s
       - lambda: |-
+          auto compareVersions = [](const char* version1, const char* version2) -> bool
+            {
+                int major1 = 0, minor1 = 0;
+                int major2 = 0, minor2 = 0;
+
+                sscanf(version1, "%d.%d", &major1, &minor1);
+                sscanf(version2, "%d.%d", &major2, &minor2);
+
+                return (major1 == major2) && (minor1 == minor2);
+            };
           ESP_LOGD("script.check_versions", "ESPHome version: ${version}");
           ESP_LOGD("script.check_versions", "TFT version: %s", id(version_tft).c_str());
-          if (id(version_tft) != "${version}") ESP_LOGE("script.check_versions", "TFT version mismatch!");
+          if (not compareVersions("${version}", id(version_tft).c_str())) ESP_LOGE("script.check_versions", "TFT version mismatch!");
           ESP_LOGD("script.check_versions", "Blueprint version: %s", id(version_blueprint).c_str());
-          if (id(version_blueprint) != "${version}") ESP_LOGE("script.check_versions", "Blueprint version mismatch!");
+          if (not compareVersions("${version}", id(version_blueprint).c_str())) ESP_LOGE("script.check_versions", "Blueprint version mismatch!");
           auto ha_event = new esphome::api::CustomAPIDevice();
           ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
             {

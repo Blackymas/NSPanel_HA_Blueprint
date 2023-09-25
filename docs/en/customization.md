@@ -193,7 +193,7 @@ binary_sensor:
 
 &nbsp;
 ### Button to upload `nspanel_blank.tft`
-This can also be used for any other`alternative `tft` file you might want to use frequently:
+This can also be used for any other alternative tft file you might want to use frequently:
 
 ```yaml
 button:
@@ -213,7 +213,7 @@ button:
           id(disp1)->set_tft_url("${nextion_update_blank_url}");
           id(disp1).upload_tft();
 ```
-You also must add the url for the alternative `tft` in your substitutions, like this:
+You also must add the url for the alternative tft in your substitutions, like this:
 ```yaml
   nextion_update_blank_url: "http://homeassistant.local:8123/local/nspanel/dev/nspanel_blank.tft"
 ```
@@ -242,3 +242,16 @@ time:
 ```
 
 You can find more ideas around this on [#955](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues/955).
+
+&nbsp;
+### Enforce time zone
+Until v3.4 (including), the time was coming from Home Assistant with it's timezone, so the Blueprint was sending the info with no transformation, to the panel.
+From v4.0, the time reference still coming from HA (or optionally from a time server), but is calculated in ESPHome, which will try to detect the timezone from the server.
+If your system is not showing the time in the correct timezone, it's probabily ESPHome not succeeding on finding your time zone.
+You can easily force a timezone by adding this to your ESPHome settings:
+
+```yaml
+time:
+  - id:!extend time_provider
+    timezone: "America/Cancun"
+```
