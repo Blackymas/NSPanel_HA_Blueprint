@@ -17,5 +17,6 @@ There is compatibility between components with v4.0, v4.0.1 and v4.0.2, then you
 | Change | Criticality | Page/area | Components affected |
 | :-- | :--: | :--: | :--: |
 | Fix incorrect addressing on short press of button02 at buttonpage03 | Critical | `buttonpage03` | TFT (US model only) |
-| Fix incorrect service call for Media Player on short press at button pages | Medium | `buttonpage01`<br>`buttonpage02`<br>`buttonpage03`<br>`buttonpage04` | Blueprint |
+| Fix incorrect service call for Media Player on short press at button pages | Medium | `buttonpageXX` | Blueprint |
 | Update to customization instructions | Low | N/A | GitHub page (docs) |
+| Use UTC for date selection on weather pages | Low | `weatherXX` | Blueprint |
