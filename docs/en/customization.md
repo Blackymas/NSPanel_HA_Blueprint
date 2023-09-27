@@ -109,11 +109,12 @@ api:
 &nbsp;
 ### Change uart's baud rate
 Use this to change the baud rate on the communication between ESPHome and Nextion display.<br>
-Important: Use only when troubleshooting as your display should be set to always communicate at 115200 bps.
+Important: Use only when troubleshooting as your display should be set to always communicate at 921600 bps.
 ```yaml
-# Set Nextion comm's baud rate to 9600 bps
+# Set Nextion comm's baud rate to 115200 bps
 uart:
-  baud_rate: 9600
+  - id: !extend tf_uart
+    baud_rate: 115200 # Use 115200 if you have a TFT v4.0.2 or less installed, or use 921600 if your installed TFT is v4.1 or greater
 ```
 &nbsp;
 ### Manual IP
