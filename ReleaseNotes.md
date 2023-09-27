@@ -20,3 +20,4 @@ There is compatibility between components with v4.0, v4.0.1 and v4.0.2, then you
 | Fix incorrect service call for Media Player on short press at button pages | Medium | `buttonpageXX` | Blueprint |
 | Update to customization instructions | Low | N/A | GitHub page (docs) |
 | Use UTC for date selection on weather pages | Low | `weatherXX` | Blueprint |
+| Removed unnecessary refresh of relay's chips | Low | `home` | ESPHome |
