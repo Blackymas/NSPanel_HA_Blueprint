@@ -33,7 +33,7 @@ blueprint:
     🎉 Roadmap can be found here: [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
 
 
-    ℹ️ Version: v4.0.1
+    ℹ️ Version: v4.0.2
 
   source_url: https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/nspanel_blueprint.yaml
   domain: automation
@@ -3587,7 +3587,7 @@ trigger_variables:
 
 variables:
   ##### GENERAL #####
-  blueprint_version: '4.0.1'
+  blueprint_version: '4.0.2'
   date_format_temp: !input 'date_format'
   #Avoid breaking change for existing users with legacy type format
   date_format: >
@@ -8463,8 +8463,8 @@ action:
                                   {{
                                     state_attr(weather_entity, "forecast") | default([])
                                     | selectattr("datetime", "defined")
-                                    | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | timestamp_local )
-                                    | selectattr("datetime", "<", (today_at("00:00") + timedelta(days= (page_index+1))) | as_timestamp | timestamp_local )
+                                    | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | timestamp_utc )
+                                    | selectattr("datetime", "<", (today_at("00:00") + timedelta(days= (page_index+1))) | as_timestamp | timestamp_utc )
                                     | list
                                   }}
                                 {% else %}
@@ -8474,7 +8474,7 @@ action:
                                         | selectattr("datetime", "defined")
                                         | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | as_datetime )
                                         | selectattr("datetime", "<", (today_at("00:00") + timedelta(days= (page_index+1))) | as_timestamp | as_datetime )
-                                        | map(attribute="datetime") | list | first | as_timestamp | timestamp_local
+                                        | map(attribute="datetime") | list | first | as_timestamp | timestamp_utc
                                         if state_attr(weather_entity, "forecast") | default([])
                                         | selectattr("datetime", "defined")
                                         | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | as_datetime )
@@ -8559,8 +8559,8 @@ action:
                                     {% elif metnoweather and metnoweather_hourly_forecast %}
                                       {{ metnoweather_hourly_forecast
                                         | selectattr("datetime", "defined")
-                                        | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | timestamp_local )
-                                        | selectattr("datetime", "<", (today_at("00:00") + timedelta(days= (page_index+1))) | as_timestamp | timestamp_local )
+                                        | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | timestamp_utc )
+                                        | selectattr("datetime", "<", (today_at("00:00") + timedelta(days= (page_index+1))) | as_timestamp | timestamp_utc )
                                         | list
                                       }}
                                     {% endif %}
@@ -8745,14 +8745,14 @@ action:
                         sequence:
                           - *variables_hardware
                           - variables:
-                              button_context: '{{ hardware.buttons.left if nspanel_event.component == "hw_bt_left" else hardware.buttons.right }}'
-                              button_domain: >
+                              last_click_button: '{{ hardware.buttons.left if nspanel_event.component == "hw_bt_left" else hardware.buttons.right }}'
+                              entity_domain: >
                                 {{
-                                  button_context.entity.split(".")[0] | default("unknown")
+                                  last_click_button.entity.split(".")[0] | default("unknown")
                                   if
-                                    button_context.entity is string and
-                                    button_context.entity | length > 0 and
-                                    button_context.entity.split(".") | count > 0
+                                    last_click_button.entity is string and
+                                    last_click_button.entity | length > 0 and
+                                    last_click_button.entity.split(".") | count > 0
                                   else "unknown"
                                 }}
                           - choose:
@@ -8763,55 +8763,62 @@ action:
                                   - choose:
                                       - alias: Default
                                         conditions:
-                                        - '{{ button_context.hold_select == "Default" and button_context.entity | length > 0 }}'
-                                        - '{{ button_domain in ["climate", "cover", "light", "fan", "media_player"] }}'
-                                        - '{{ button_domain != "cover" or state_attr(button_context.entity, "supported_features") | int(0) | bitwise_and(4) > 0 }}'
-                                        - '{{ button_domain != "fan" or state_attr(button_context.entity, "supported_features") | int(0) | bitwise_and(1) > 0 }}'
-                                        - '{{ button_domain != "light" or state_attr(button_context.entity, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
+                                        - '{{ last_click_button.hold_select == "Default" and last_click_button.entity | length > 0 }}'
+                                        - '{{ entity_domain in ["climate", "cover", "light", "fan", "media_player"] }}'
+                                        - '{{ entity_domain != "cover" or state_attr(last_click_button.entity, "supported_features") | int(0) | bitwise_and(4) > 0 }}'
+                                        - '{{ entity_domain != "fan" or state_attr(last_click_button.entity, "supported_features") | int(0) | bitwise_and(1) > 0 }}'
+                                        - '{{ entity_domain != "light" or state_attr(last_click_button.entity, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
                                         sequence:
                                           - service: '{{ nextion.command.open_entity_settings_page }}'
                                             data:
-                                              page: '{{ button_domain }}'
-                                              page_label: '{{ button_context.name if button_context.name is string and button_context.name | length > 0 else state_attr(button_context.entity, "friendly_name") }}'
-                                              page_icon: '{{ nextion.icon.domain[button_domain] }}'
+                                              page: '{{ entity_domain }}'
+                                              page_label: '{{ last_click_button.name if last_click_button.name is string and last_click_button.name | length > 0 else state_attr(last_click_button.entity, "friendly_name") }}'
+                                              page_icon: '{{ nextion.icon.domain[entity_domain] }}'
                                               page_icon_color: [-1 ] #No color set
-                                              entity: '{{ "embedded_climate" if button_context.entity == thermostat_embedded else button_context.entity }}'
+                                              entity: '{{ "embedded_climate" if last_click_button.entity == thermostat_embedded else last_click_button.entity }}'
                                               back_page: '{{ page.home }}'
                                             continue_on_error: true
                                       - alias: Custom action - Left
-                                        conditions: '{{ button_context.hold_select == "Custom Action" and nspanel_event.component == "hw_bt_left" }}'
+                                        conditions: '{{ last_click_button.hold_select == "Custom Action" and nspanel_event.component == "hw_bt_left" }}'
                                         sequence: !input left_button_hold_custom_action
                                       - alias: Custom action - Right
-                                        conditions: '{{ button_context.hold_select == "Custom Action" and nspanel_event.component == "hw_bt_right" }}'
+                                        conditions: '{{ last_click_button.hold_select == "Custom Action" and nspanel_event.component == "hw_bt_right" }}'
                                         sequence: !input right_button_hold_custom_action
                               - alias: Short click
                                 conditions:
                                   - '{{ nspanel_event.command == "short_click"}}'
                                 sequence:
-                                  - condition: '{{ button_context.entity | length > 0 }}'
+                                  - condition: '{{ last_click_button.entity | length > 0 }}'
                                   - condition: '{{ nspanel_event.component != "hw_bt_left" or hardware.buttons.left.entity != relay01_entity }}' ### Prevents blueprint control when locally controlled
                                   - condition: '{{ nspanel_event.component != "hw_bt_right" or hardware.buttons.right.entity != relay02_entity }}' ### Prevents blueprint control when locally controlled
-                                  - service: >
-                                      {% if button_domain in ["light", "switch", "cover", "input_boolean", "automation", "fan"] %}
-                                        {{ button_domain }}.toggle
-                                      {% elif button_domain in ["button", "input_button"] %}
-                                        {{ button_domain }}.press
-                                      {% elif button_domain in ["scene", "script"] %}
-                                        {{ button_domain }}.turn_on
-                                      {% elif entity_domain in ["media_player"] %}
-                                        {{ entity_domain }}.media_play_pause
-                                      {% else %}
-                                        homeassistant.update_entity
-                                      {% endif %}
-                                    data:
-                                      entity_id: '{{ button_context.entity }}'
-                                    continue_on_error: true
-                                  - delay:
-                                      milliseconds: '{{ media_player_update_delay }}'
-                                  - service: homeassistant.update_entity
-                                    data:
-                                      entity_id: '{{ button_context.entity }}'
-                                    continue_on_error: true
+                                  - &short_press-service_call
+                                    if: '{{ true }}'
+                                    then:
+                                      - service: >
+                                          {% if entity_domain in ["cover"] and states(last_click_button.entity) in ["opening", "closing"] and state_attr(last_click_button.entity, "supported_features") | int(0) | bitwise_and(4) == 0 %}
+                                            {{ entity_domain }}.stop_cover
+                                          {% elif entity_domain in ["light", "switch", "cover", "input_boolean", "automation", "fan"] %}
+                                            {{ entity_domain }}.toggle
+                                          {% elif entity_domain in ["button", "input_button"] %}
+                                            {{ entity_domain }}.press
+                                          {% elif entity_domain in ["scene", "script"] %}
+                                            {{ entity_domain }}.turn_on
+                                          {% elif entity_domain in ["media_player"] %}
+                                            {{ entity_domain }}.media_play_pause
+                                          {% else %}
+                                            homeassistant.update_entity
+                                          {% endif %}
+                                        data:
+                                          entity_id: '{{ last_click_button.entity }}'
+                                        continue_on_error: true
+                                      - if: '{{ entity_domain in ["media_player"] }}'
+                                        then:
+                                          - delay:
+                                              milliseconds: '{{ media_player_update_delay }}'
+                                          - service: homeassistant.update_entity
+                                            data:
+                                              entity_id: '{{ last_click_button.entity }}'
+                                            continue_on_error: true
 
                       - alias: Buttons pages
                         conditions:
@@ -8859,30 +8866,8 @@ action:
                                 - '{{ nspanel_event.command == "short_click" }}'
                                 - '{{ entity_domain not in ["unknown", "person", "binary_sensor", "sensor"] }}'
                               sequence:
-                                - &service-button_changed
-                                  if: '{{ true }}'
-                                  then:
-                                    - service: >-
-                                        {% if entity_domain in ["light", "switch", "cover", "input_boolean", "automation", "fan"] %}
-                                          {{ entity_domain }}.toggle
-                                        {% elif entity_domain in ["button", "input_button"] %}
-                                          {{ entity_domain }}.press
-                                        {% elif entity_domain in ["scene", "script"] %}
-                                          {{ entity_domain }}.turn_on
-                                        {% elif entity_domain in ["media_player"] %}
-                                          {{ entity_domain }}.media_play_pause
-                                        {% else %}
-                                          homeassistant.update_entity
-                                        {% endif %}
-                                      data:
-                                        entity_id: '{{ last_click_button.entity }}'
-                                      continue_on_error: true
-                                    - delay:
-                                        milliseconds: '{{ media_player_update_delay }}'
-                                    - service: homeassistant.update_entity
-                                      data:
-                                        entity_id: '{{ last_click_button.entity }}'
-                                      continue_on_error: true
+                                - *short_press-service_call
+
                       - alias: Climate page
                         conditions:
                           - '{{ nspanel_event.page == page.climate }}'
@@ -8917,7 +8902,7 @@ action:
                                 - '{{ nspanel_event.command == "short_click" }}'
                                 - '{{ entity_domain not in ["unknown", "person", "binary_sensor", "sensor"] }}'
                               sequence:
-                                - *service-button_changed
+                                - *short_press-service_call
                       - alias: Home page custom buttons
                         conditions:
                           - '{{ nspanel_event.page == page.home }}'
@@ -8958,7 +8943,7 @@ action:
                                   back_page: '{{ page.home }}'
                                 continue_on_error: true
                             else:
-                                - *service-button_changed
+                                - *short_press-service_call
 
               ##### Versions mismatch #####
               - alias: Versions
