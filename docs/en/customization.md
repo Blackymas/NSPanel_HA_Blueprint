@@ -247,6 +247,7 @@ You can find more ideas around this on [#955](https://github.com/Blackymas/NSPan
 ### Enforce time zone
 Until v3.4 (including), the time was coming from Home Assistant with it's timezone, so the Blueprint was sending the info with no transformation, to the panel.
 From v4.0, the time reference still coming from HA (or optionally from a time server), but is calculated in ESPHome, which will try to detect the timezone from the server.
+
 If your system is not showing the time in the correct timezone, it's probabily ESPHome not succeeding on finding your time zone.
 You can easily force a timezone by adding this to your ESPHome settings:
 
@@ -254,4 +255,15 @@ You can easily force a timezone by adding this to your ESPHome settings:
 time:
   - id:!extend time_provider
     timezone: "America/Cancun"
+```
+
+&nbsp;
+### Compiling ESPHome on lower powered machines
+For systems with lower CPU or memory capabilities, like an RPi 3 or systems with less than 2GB of RAM, this could help preventing errors caused by lack of resources when compiling ESPHome firmware.
+
+More datails on the [ESPHome docs](https://esphome.io/changelog/2022.11.0.html#running-esphome-on-lower-powered-machines).
+```yaml
+# Limit the amount of resources used for compiling
+esphome:
+  compile_process_limit: 1
 ```
