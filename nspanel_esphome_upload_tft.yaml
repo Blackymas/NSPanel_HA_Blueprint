@@ -1,0 +1,212 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+#####                                                                                           #####
+##### !! SPECIAL ESP-HOME-Version ONLY for TFT UPLOAD !!                                        #####
+##### This version uses the nextion-integration from sairon, part of LovelaceUI                 #####
+##### https://github.com/sairon/esphome-nspanel-lovelace-ui                                     #####
+#####                                                                                           #####
+##### API is not able to connect with dummy mqtt-config but you can activate the web-server     #####
+##### HW-Buttons can be used to upload full-tft, blank-tft and exit reparse-mode:               #####
+##### - Click LEFT HW-Button: upload full-tft                                                   #####
+##### - Click RIGHT HW-Button: upload blank-tft                                                 #####
+##### - HOLD any HW-Button: EXIT Reparse-mode                                                   #####
+#####                                                                                           #####
+##### Don´t forget to set all substitutions to fit your needs!                                  #####
+##### !!! DO NOT USE https-urls to upload tft´s only use http (without s) !!!                   #####
+#####                                                                                           #####
+#####################################################################################################
+
+substitutions:
+  device_name: "devicename"
+  wifi_ssid: "SSID"
+  wifi_password: "WIFI-PASS"
+  nextion_update_url: "http://1.2.3.4:8123/local/nspanel/nspanel_eu.tft"
+  nextion_update_url_blank: "http://1.2.3.4:8123/local/nspanel/nspanel_blank_921600bps.tft"
+
+##### WIFI SETUP #####
+wifi:
+  networks:
+    - id: wifi_default
+      ssid: ${wifi_ssid}
+      password: ${wifi_password}
+  power_save_mode: none
+  ap:
+    ssid: "${device_name}"
+    password: ${wifi_password}
+
+##### ESPHOME CONFIGURATION #####
+esphome:
+  name: ${device_name}
+  min_version: 2023.5.0
+
+##### TYPE OF ESP BOARD #####
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+##### OTA PASSWORD #####
+ota:
+  id: ota_std
+  password: ${wifi_password}
+  safe_mode: true
+  reboot_timeout: 3min
+  num_attempts: 3
+
+##### LOGGER #####
+logger:
+  id: logger_std
+  logs:
+    mqtt.component: NONE
+    mqtt.client: NONE
+    mqtt.idf: NONE
+    mqtt: NONE
+    esp-idf: WARN
+
+##### UART FOR NEXTION DISPLAY #####
+uart:
+  - id: tf_uart
+    tx_pin: 16
+    rx_pin: 17
+    baud_rate: 921600
+
+external_components:
+  - source:
+      type: git
+      url: https://github.com/sairon/esphome-nspanel-lovelace-ui
+      # Using dev is discouraged, see https://github.com/sairon/esphome-nspanel-lovelace-ui/blob/dev/README.md#usage
+      ref: dev
+    components: [nspanel_lovelace]
+
+nspanel_lovelace:
+  id: nspanel
+
+mqtt:
+  # dummy mqtt - required for nspanel_lovelace
+  broker: 127.0.0.1
+  discovery: false
+
+switch:
+  ##### DISPLAY ALWAYS ON #####
+  - name: ${device_name} Screen Power
+    platform: gpio
+    id: screen_power
+    entity_category: config
+    pin:
+      number: 4
+      inverted: true
+    restore_mode: ALWAYS_ON
+    internal: true
+
+##### START - BUTTON CONFIGURATION #####
+button:
+  ##### REBOOT BUTTON #####
+  - name: ${device_name} Restart
+    platform: restart
+    id: restart_nspanel
+
+  ##### UPDATE TFT DISPLAY #####
+  - name: ${device_name} Update TFT display
+    platform: template
+    icon: mdi:file-sync
+    id: tft_update
+    entity_category: config
+    on_press:
+      - logger.log: "Button pressed: Update TFT display"
+      - delay: 16ms
+      - lambda: |-
+            id(nspanel).upload_tft("${nextion_update_url}");
+  ##### EXIT REPARSE TFT DISPLAY #####
+  - name: ${device_name} Exit reparse
+    platform: template
+    icon: mdi:file-sync
+    id: tft_reparse_off
+    entity_category: config
+    on_press:
+      - logger.log: "Button pressed: Exit reparse"
+      ## looks like inverted
+      # - lambda: |-
+      #     id(nspanel).exit_reparse_mode();
+      - lambda: |-
+          id(nspanel).start_reparse_mode();
+  ##### START REPARSE TFT DISPLAY #####
+  - name: ${device_name} Start reparse
+    platform: template
+    icon: mdi:file-sync
+    id: tft_reparse_on
+    entity_category: config
+    on_press:
+      - logger.log: "Button pressed: Start reparse"
+      ## looks like inverted
+      # - lambda: |-
+      #     id(nspanel).start_reparse_mode();
+      - lambda: |-
+          id(nspanel).exit_reparse_mode();
+
+# ##### START - BINARY SENSOR CONFIGURATION #####
+binary_sensor:
+  ###### LEFT BUTTON BELOW DISPLAY TO upload full TFT #####
+  - name: ${device_name} Left Button
+    platform: gpio
+    id: left_button
+    pin:
+      number: 14
+      inverted: true
+    on_multi_click:
+      - timing:
+          - ON for at least 0.8s
+        then:
+          - logger.log: "Left button - Long click"
+          ## looks like inverted
+          # - lambda: |-
+          #     id(nspanel).exit_reparse_mode();
+          - lambda: |-
+              id(nspanel).start_reparse_mode();
+      - timing:
+          - ON for at most 0.8s
+        then:
+          - logger.log: "Left button - Short click"
+          - lambda: |-
+              id(nspanel).upload_tft("${nextion_update_url}");
+  ##### RIGHT BUTTON BELOW DISPLAY TO upload blank TFT #####
+  - name: ${device_name} Right Button
+    platform: gpio
+    id: right_button
+    pin:
+      number: 27
+      inverted: true
+    on_multi_click:
+      - timing:
+          - ON for at least 0.8s
+        then:
+          - logger.log: "Right button - Long click"
+          ## looks like inverted
+          # - lambda: |-
+          #     id(nspanel).exit_reparse_mode();
+          - lambda: |-
+              id(nspanel).start_reparse_mode();
+      - timing:
+          - ON for at most 0.8s
+        then:
+          - logger.log: "Right button - Short click"
+          - lambda: |-
+              id(nspanel).upload_tft("${nextion_update_url_blank}");
+
+##### API not working with dummy-mqtt !!
+api:
+  id: api_server
+  reboot_timeout: 0s
+  services:
+    ##### SERVICE TO UPDATE THE HMI FILE ##############
+    - service: upload_tft
+      then:
+        - logger.log: "Service: upload_tft"
+        - lambda: |-
+            id(nspanel).upload_tft("${nextion_update_url}");
+    ##### SERVICE TO UPDATE THE TFT FILE from URL #####
+    - service: upload_tft_url
+      variables:
+        url: string
+      then:
+        - lambda: |-
+            id(nspanel).upload_tft(url);
