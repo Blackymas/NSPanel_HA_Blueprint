@@ -32,6 +32,27 @@ wifi:
 esphome:
   name: ${device_name}
   min_version: 2023.5.0
+  on_boot:
+    priority: 200.0
+    then:
+      - logger.log: After boot check-up
+      - wait_until:
+          condition:
+            - lambda: !lambda return id(tf_uart).available() or id(disp1).is_setup();
+            - api.connected:
+          timeout: 15s
+      - delay: 2s
+
+      - lambda: |-
+          if (not id(tf_uart).available() and not id(disp1).is_setup())
+            {
+              ESP_LOGE("on_boot", "No response from Nextion display");
+              ESP_LOGD("on_boot", "Turn off Nextion");
+              id(screen_power).turn_off();
+              delay(1500);
+              ESP_LOGD("script.power_cycle_display", "Turn on Nextion");
+              id(screen_power).turn_on();
+            }
 
 ##### TYPE OF ESP BOARD #####
 esp32:
@@ -2289,13 +2310,28 @@ script:
 
           int content_length_ = 0;
           int tft_size_ = 0;
+          int tranfer_size_ = 0;
 
-          bool power_cycle_display = []()
+          unsigned long starting_timestamp = 0;
+          auto remaining_time = [starting_timestamp, tranfer_size_, content_length_]() -> std::string
             {
+              long remaining_millis = int(round((millis() - starting_timestamp) * content_length_ / (tranfer_size_ - content_length_)));
+              long hours = remaining_millis / (1000 * 60 * 60);
+              long minutes = (remaining_millis / (1000 * 60)) % 60;
+              long seconds = (remaining_millis / 1000) % 60;
+              char resp[9];
+              sprintf(resp, "%02lu:%02lu:%02lu", hours, minutes, seconds);
+              return std::string(resp);
+            };
+
+          auto power_cycle_display = []()
+            {
+              ESP_LOGD("script.upload_tft.power_cycle_display", "Turn off Nextion");
               id(screen_power).turn_off();
               delay(1500);
+              ESP_LOGD("script.upload_tft.power_cycle_display", "Turn on Nextion");
               id(screen_power).turn_on();
-              delay(1500);
+              delay(5000);
               return true;
             };
 
@@ -2370,12 +2406,7 @@ script:
               ESP_LOGD("script.upload_tft.upload_end_", "Restarting Nextion");
               send_nextion_command("rest");
               if (is_updating_) is_updating_ = not retry;
-              if (retry)
-                {
-                  ESP_LOGD("script.upload_tft.upload_end_", "Nextion TFT upload will try again");
-                  send_nextion_command("rest");
-                  delay(1500);
-                }
+              if (retry) ESP_LOGD("script.upload_tft.upload_end_", "Nextion TFT upload will try again");
               return not retry;
             };
 
@@ -2452,8 +2483,9 @@ script:
                 write_len = content_length_ < 4096 ? content_length_ : 4096;
                 id(tf_uart).write_array(&transfer_buffer_[i], write_len);
                 content_length_ -= write_len;
-                ESP_LOGD("script.upload_tft.upload_by_chunks", "Uploaded %0.1f %%, remaining %d Bytes",
-                        100.0 * (tft_size_ - content_length_) / tft_size_, content_length_);
+                ESP_LOGD("script.upload_tft.upload_by_chunks", "Uploaded %0.1f %%, remaining %d bytes",
+                        100.0 * (tft_size_ - content_length_) / tft_size_,
+                        content_length_);
 
                 if (!upload_first_chunk_sent_) {
                   upload_first_chunk_sent_ = true;
@@ -2626,6 +2658,9 @@ script:
               ESP_LOGD("script.upload_tft.upload_tft", "Updating tft from \"%s\" with a file size of %d using %zu chunksize, Heap Size %d",
                       url.c_str(), content_length_, transfer_buffer_size_, ESP.getFreeHeap());
 
+              starting_timestamp = millis();
+              tranfer_size_ = content_length_;
+
               int result = 0;
               while (content_length_ > 0) {
                 result = upload_by_chunks_(&http, url, result);
@@ -2642,21 +2677,21 @@ script:
               return upload_end_(false);
             };
 
-          if (upload_tft(url, id(tf_uart).get_baud_rate())) ESP.restart();
-          power_cycle_display;
-          if (upload_tft(url, 921600)) ESP.restart();
-          power_cycle_display;
-          if (upload_tft(url, 9600)) ESP.restart();
-          power_cycle_display;
+          if (upload_tft(url, id(tf_uart).get_baud_rate())) id(restart_nspanel).press();
+          power_cycle_display();
+          if (upload_tft(url, 921600)) id(restart_nspanel).press();
+          power_cycle_display();
+          if (upload_tft(url, 9600)) id(restart_nspanel).press();
+          power_cycle_display();
           ESP_LOGE("script.upload_tft", "TFT upload failed.");
           ESP_LOGW("script.upload_tft", "Trying Nextion standard upload");
           id(disp1)->set_tft_url(url.c_str());
           id(disp1)->upload_tft();
-          ESP_LOGD("script.upload_tft.upload_end_", "Restarting esphome");
+          ESP_LOGD("script.upload_tft", "Restarting esphome");
           ESP.restart();
+          id(restart_nspanel).press();
 
           ESP_LOGD("script.upload_tft", "Finished!");
-
 
   ##### ADD-ONS ############################################################
   ##### Add-on - Climate #####
