@@ -15,6 +15,7 @@ substitutions:
 
   ##### DON'T CHANGE THIS #####
   version: "4.1dev3"
+  upload_tft_chunk_size_max: "32768"
   #############################
 
 ##### WIFI SETUP #####
@@ -38,11 +39,12 @@ esphome:
       - logger.log: After boot check-up
       - wait_until:
           condition:
-            - lambda: !lambda return id(tf_uart).available() or id(disp1).is_setup();
             - api.connected:
-          timeout: 15s
-      - delay: 2s
-
+          timeout: 60s
+      - wait_until:
+          condition:
+            - lambda: !lambda return id(disp1).is_setup();
+          timeout: 20s
       - lambda: |-
           if (not id(tf_uart).available() and not id(disp1).is_setup())
             {
@@ -1770,7 +1772,7 @@ script:
           ESP_LOGV("script.timer_dim", "Reset timer: %is", timeout);
           if (id(is_dim_brightness))
             {
-              if (page != "screensaver" and page != "boot")
+              if (page != "screensaver" and page != "boot" and page != "blank-screensaver")
                 {
                   ESP_LOGD("script.timer_dim", "Waking up on page: %s", page.c_str());
                   id(disp1).send_command_printf("wakeup_timer.en=1");
@@ -1783,7 +1785,7 @@ script:
           then:
             - delay: !lambda return (timeout *1000);
             - lambda: |-
-                if (id(current_page).state != "screensaver" and id(current_page).state != "boot" and timeout >= 1)
+                if (id(current_page).state != "screensaver" and id(current_page).state != "blank-screensaver" and id(current_page).state != "boot" and timeout >= 1)
                   {
                     ESP_LOGD("script.timer_dim", "Dimming the display to %i%%", id(display_dim_brightness_global));
                     id(disp1).send_command_printf("dim=%i", id(display_dim_brightness_global));
@@ -1805,7 +1807,7 @@ script:
             - lambda: |-
                 if (id(current_page).state != "screensaver" and id(current_page).state != "boot" and timeout >= 1)
                   {
-                    ESP_LOGD("script.timer_sleep", "Going to sleep");
+                    ESP_LOGD("script.timer_sleep", "Going to sleep from page %s", id(current_page).state.c_str());
                     id(disp1).goto_page("screensaver");
                     id(is_dim_brightness) = true;
                   }
@@ -2315,12 +2317,13 @@ script:
           unsigned long starting_timestamp = 0;
           auto remaining_time = [starting_timestamp, tranfer_size_, content_length_]() -> std::string
             {
+              if (content_length_ > tranfer_size_) return "unknown";
               long remaining_millis = int(round((millis() - starting_timestamp) * content_length_ / (tranfer_size_ - content_length_)));
-              long hours = remaining_millis / (1000 * 60 * 60);
-              long minutes = (remaining_millis / (1000 * 60)) % 60;
-              long seconds = (remaining_millis / 1000) % 60;
+              int hours = remaining_millis / (1000 * 60 * 60);
+              int minutes = (remaining_millis / (1000 * 60)) % 60;
+              int seconds = (remaining_millis / 1000) % 60;
               char resp[9];
-              sprintf(resp, "%02lu:%02lu:%02lu", hours, minutes, seconds);
+              sprintf(resp, "%02i:%02i:%02i", hours, minutes, seconds);
               return std::string(resp);
             };
 
@@ -2436,7 +2439,7 @@ script:
 
                 ++tries;
                 if (!begin_status) {
-                  ESP_LOGD("script.upload_tft.upload_by_chunks", "upload_by_chunks_: connection failed");
+                  ESP_LOGD("script.upload_tft.upload_by_chunks", "Connection failed");
                   continue;
                 };
 
@@ -2475,7 +2478,7 @@ script:
                 fetched += c;
               }
               http->end();
-              ESP_LOGD("script.upload_tft.upload_by_chunks", "fetched %d bytes", fetched);
+              ESP_LOGD("script.upload_tft.upload_by_chunks", "Fetched %d bytes", fetched);
 
               // upload fetched segments to the display in 4KB chunks
               for (int i = 0; i < range; i += 4096) {
@@ -2483,9 +2486,10 @@ script:
                 write_len = content_length_ < 4096 ? content_length_ : 4096;
                 id(tf_uart).write_array(&transfer_buffer_[i], write_len);
                 content_length_ -= write_len;
-                ESP_LOGD("script.upload_tft.upload_by_chunks", "Uploaded %0.1f %%, remaining %d bytes",
+                ESP_LOGD("script.upload_tft.upload_by_chunks", "Uploaded %0.1f %%, remaining %d bytes (%s)",
                         100.0 * (tft_size_ - content_length_) / tft_size_,
-                        content_length_);
+                        content_length_,
+                        remaining_time);
 
                 if (!upload_first_chunk_sent_) {
                   upload_first_chunk_sent_ = true;
@@ -2528,7 +2532,7 @@ script:
               }
 
               if (!network::is_connected()) {
-                ESP_LOGD("script.upload_tft.upload_tft", "network is not connected");
+                ESP_LOGD("script.upload_tft.upload_tft", "Network is not connected");
                 return upload_end_(false);
               }
 
@@ -2546,7 +2550,7 @@ script:
 
               if (!begin_status) {
                 is_updating_ = false;
-                ESP_LOGD("script.upload_tft.upload_tft", "connection failed");
+                ESP_LOGD("script.upload_tft.upload_tft", "Connection failed");
                 ExternalRAMAllocator<uint8_t> allocator(ExternalRAMAllocator<uint8_t>::ALLOW_FAILURE);
                 allocator.deallocate(transfer_buffer_, transfer_buffer_size_);
                 return upload_end_(true);
@@ -2614,25 +2618,26 @@ script:
 
               std::string response;
               ESP_LOGD("script.upload_tft.upload_tft", "Waiting for upgrade response");
-              recv_ret_string_(response, 15000, true); // This can take some time to return
+              recv_ret_string_(response, 2000, true); // This can take some time to return
 
               // The Nextion display will, if it's ready to accept data, send a 0x05 byte.
               ESP_LOGD("script.upload_tft.upload_tft", "Upgrade response is [%s]",
                       format_hex_pretty(reinterpret_cast<const uint8_t *>(response.data()), response.size()).c_str());
 
               if (response.find(0x05) != std::string::npos) {
-                ESP_LOGD("script.upload_tft.upload_tft", "preparation for tft update done");
+                ESP_LOGD("script.upload_tft.upload_tft", "Preparation for tft update done");
               } else {
-                ESP_LOGD("script.upload_tft.upload_tft", "preparation for tft update failed %d \"%s\"", response[0], response.c_str());
+                ESP_LOGD("script.upload_tft.upload_tft", "Preparation for tft update failed %d \"%s\"", response[0], response.c_str());
                 return upload_end_(true);
               }
 
               // Nextion wants 4096 bytes at a time. Make chunk_size a multiple of 4096
               uint32_t chunk_size = 8192;
-              if (ESP.getFreeHeap() > 40960) {  // 32K to keep on hand
-                chunk_size = ESP.getFreeHeap() - 32768;
-                chunk_size = chunk_size > 65536 ? 65536 : chunk_size;
-              } else if (ESP.getFreeHeap() < 10240) {
+              if (ESP.getFreeHeap() > 81920) { // Ensure some FreeHeap to other things and limit chunk size
+                chunk_size = ESP.getFreeHeap() - 65536;
+                chunk_size = int(chunk_size / 4096) * 4096;
+                chunk_size = chunk_size > ${upload_tft_chunk_size_max} ? ${upload_tft_chunk_size_max} : chunk_size;
+              } else if (ESP.getFreeHeap() < 32768) {
                 chunk_size = 4096;
               }
 
@@ -2640,7 +2645,7 @@ script:
                 ExternalRAMAllocator<uint8_t> allocator(ExternalRAMAllocator<uint8_t>::ALLOW_FAILURE);
                 ESP_LOGD("script.upload_tft.upload_tft", "Allocating buffer size %d, Heap size is %u", chunk_size, ESP.getFreeHeap());
                 transfer_buffer_ = allocator.allocate(chunk_size);
-                if (transfer_buffer_ == nullptr) {  // Try a smaller size
+                if (transfer_buffer_ == nullptr) { // Try a smaller size
                   ESP_LOGD("script.upload_tft.upload_tft", "Could not allocate buffer size: %d trying 4096 instead", chunk_size);
                   chunk_size = 4096;
                   ESP_LOGD("script.upload_tft.upload_tft", "Allocating %d buffer", chunk_size);
@@ -2679,9 +2684,7 @@ script:
 
           if (upload_tft(url, id(tf_uart).get_baud_rate())) id(restart_nspanel).press();
           power_cycle_display();
-          if (upload_tft(url, 921600)) id(restart_nspanel).press();
-          power_cycle_display();
-          if (upload_tft(url, 9600)) id(restart_nspanel).press();
+          if (upload_tft(url, (id(tf_uart).get_baud_rate() == 115200) ? 921600 : 115200 )) id(restart_nspanel).press();
           power_cycle_display();
           ESP_LOGE("script.upload_tft", "TFT upload failed.");
           ESP_LOGW("script.upload_tft", "Trying Nextion standard upload");
