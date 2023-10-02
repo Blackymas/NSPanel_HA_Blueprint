@@ -1108,15 +1108,17 @@ text_sensor:
   ##### Current page name #####
   - name: ${device_name} Current page
     id: current_page
-    platform: template
-    #platform: nextion
-    #nextion_id: disp1
-    #component_name: currentpage
+    #platform: template
+    platform: nextion
+    nextion_id: disp1
+    component_name: currentpage
+    icon: mdi:tablet-dashboard
     internal: false
     disabled_by_default: false
     on_value:
       then:
         - lambda: |-
+            // Reset globals
             if (x != "climate" and x != "cover" and x != "fan" and x != "light" and x != "media_player" and x != "confirm" and x != "keyb_num") id(entity_id) = "";
             if (x != "media_player")
               {
@@ -1124,9 +1126,107 @@ text_sensor:
                 id(last_media_duration) = -1;
                 id(last_media_position) = -1;
               }
+
+            // Report new page to logs
             ESP_LOGD("text_sensor.current_page", "New page: %s", x.c_str());
             if (!id(entity_id).empty()) ESP_LOGD("text_sensor.current_page", "Entity shown: %s", id(entity_id).c_str());
+
+            // Reset timers
             id(timer_reset_all).execute(x.c_str());
+
+            // Report new page to Home Assistant
+            ESP_LOGV("text_sensor.localevent", "Trigger HA event");
+            ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+              {
+                {"type", "page_changed"},
+                {"page", x.c_str()},
+                {"entity", id(entity_id)}
+              });
+
+            // Report new page to add-ons
+            ESP_LOGV("text_sensor.localevent", "Call add-ons scripts for new page");
+            id(addon_climate_set_climate).execute(page=="climate" and id(entity_id) == "embedded_climate");
+
+            // Construct new page
+            ESP_LOGV("text_sensor.localevent", "Construct new page");
+            if (x=="home")
+              {
+                ESP_LOGV("text_sensor.nspanelevent", "Construct home page");
+                id(update_page_home).execute();
+              }
+            else if (x=="screensaver")
+              {
+                ESP_LOGV("text_sensor.nspanelevent", "Construct screensaver page");
+                id(update_page_screensaver).execute();
+              }
+            else if (x=="climate")
+              {
+                ESP_LOGV("text_sensor.nspanelevent", "Construct climate page");
+                id(disp1).set_component_text_printf("climate.button01_icon", "%s", "\uEE8D"); //mdi:calendar-sync
+                id(disp1).set_component_text_printf("climate.button02_icon", "%s", "\uE069"); //mdi:autorenew
+                id(disp1).set_component_text_printf("climate.button03_icon", "%s", "\uE237"); //mdi:fire
+                id(disp1).set_component_text_printf("climate.button04_icon", "%s", "\uE716"); //mdi:snowflake
+                id(disp1).set_component_text_printf("climate.button05_icon", "%s", "\uE58D"); //mdi:water-percent
+                id(disp1).set_component_text_printf("climate.button06_icon", "%s", "\uE20F"); //mdi:fan
+                id(disp1).set_component_text_printf("climate.button07_icon", "%s", "\uE424"); //mdi:power
+                id(addon_climate_update_page_climate).execute();
+              }
+            else if (x=="cover") // To do: Should be moved to Blueprint
+              {
+                ESP_LOGV("text_sensor.nspanelevent", "Construct cover page");
+                id(disp1).set_component_text_printf("cover.cover_stop", "%s", "\uE666"); //mdi:stop-circle-outline
+                // In the future this will be dynamically contructed based on the device_class
+                id(disp1).set_component_text_printf("cover.cover_open", "%s", "\uF11D"); //mdi:window-shutter-open
+                id(disp1).set_component_text_printf("cover.cover_close", "%s", "\uF11B"); //mdi:window-shutter
+              }
+            else if (x=="fan") // To do: Should be moved to Blueprint
+              {
+                ESP_LOGV("text_sensor.nspanelevent", "Construct fan page");
+                id(disp1).set_component_text_printf("fan.button_on", "%s", "\uE20F"); //mdi:fan
+                id(disp1).set_component_text_printf("fan.button_off", "%s", "\uE81C"); //mdi:fan-off
+                id(disp1).set_component_text_printf("fan.button_up", "%s", "\uF46D"); //mdi:fan-chevron-up
+                id(disp1).set_component_text_printf("fan.button_down", "%s", "\uF46C"); //mdi:fan-chevron-down
+              }
+            else if (x=="keyb_num")
+              {
+                ESP_LOGV("text_sensor.nspanelevent", "Construct keyb_num page");
+                id(disp1).set_component_text_printf("keyb_num.bview", "%s", "\uE207"); //mdi:eye
+                id(disp1).set_component_text_printf("keyb_num.bclose", "%s", "\uE158"); //mdi:close-circle
+                id(disp1).set_component_text_printf("keyb_num.bclear", "%s", "\uE641"); //mdi:eraser-variant
+                id(disp1).set_component_text_printf("keyb_num.benter", "%s", "\uE12B"); //mdi:check
+              }
+            else if (x=="weather01") id(disp1).set_component_text_printf("page_index", "%s", "●○○○○"); // 1/5 // To do: Should be moved to Blueprint
+            else if (x=="weather02") id(disp1).set_component_text_printf("page_index", "%s", "○●○○○"); // 2/5 // To do: Should be moved to Blueprint
+            else if (x=="weather03") id(disp1).set_component_text_printf("page_index", "%s", "○○●○○"); // 3/5 // To do: Should be moved to Blueprint
+            else if (x=="weather04") id(disp1).set_component_text_printf("page_index", "%s", "○○○●○"); // 4/5 // To do: Should be moved to Blueprint
+            else if (x=="weather05") id(disp1).set_component_text_printf("page_index", "%s", "○○○○●"); // 5/5 // To do: Should be moved to Blueprint
+            else if (x=="buttonpage01" or x=="entitypage01") id(disp1).set_component_text_printf("page_index", "%s", "●○○○"); // 1/4 // To do: Should be moved to Blueprint
+            else if (x=="buttonpage02" or x=="entitypage02") id(disp1).set_component_text_printf("page_index", "%s", "○●○○"); // 2/4 // To do: Should be moved to Blueprint
+            else if (x=="buttonpage03" or x=="entitypage03") id(disp1).set_component_text_printf("page_index", "%s", "○○●○"); // 3/4 // To do: Should be moved to Blueprint
+            else if (x=="buttonpage04" or x=="entitypage04") id(disp1).set_component_text_printf("page_index", "%s", "○○○●"); // 4/4 // To do: Should be moved to Blueprint
+            else if (x=="settings") // To do: Add timers on TFT?
+              {
+                //id(disp1).set_component_text_printf("bt_sleep", "%s", (id(sleep_mode).state) ? "\uEA19" : "\uEA18"); //mdi:toggle-switch-outline or mdi:toggle-switch-off-outline
+                id(disp1).hide_component("lbl_sleep");
+                id(disp1).hide_component("bt_sleep");
+              }
+            else if (x=="notification")
+              {
+                id(disp1).set_component_text_printf("notification.notifi_label", "%s", id(notification_label).state.c_str());
+                id(display_wrapped_text).execute("notification.notifi_text01", id(notification_text).state.c_str(), id(display_mode) == 2 ? 23 : 32);
+              }
+            else if (x=="media_player") // To do: Should be moved to Blueprint
+              {
+                ESP_LOGV("text_sensor.nspanelevent", "Construct media_player page");
+                id(disp1).set_component_text_printf("bt_on_off", "%s", "\uE424"); //mdi:power
+                id(disp1).set_component_text_printf("bt_prev", "%s", "\uE4AD"); //mdi:skip-previous
+                id(disp1).set_component_text_printf("bt_next", "%s", "\uE4AC"); //mdi:skip-next
+                id(disp1).set_component_text_printf("bt_play_pause", "%s", "\uE40D"); //mdi:play-pause
+                //id(disp1).set_component_text_printf("bt_stop", "%s", "\uE4DA"); //mdi:stop
+                id(disp1).set_component_text_printf("bt_mute", "%s", "\uE75E"); //mdi:volume-mute
+                id(disp1).set_component_text_printf("bt_vol_down", "%s", "\uE75D"); //mdi:volume-minus
+                id(disp1).set_component_text_printf("bt_vol_up", "%s", "\uE75C"); //mdi:volume-plus
+              }
 
   ##### ESPhome version used to compile the app #####
   - name: ${device_name} ESPhome Version
@@ -1168,7 +1268,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            ESP_LOGV("text_sensor.nspanelevent", "Starting");
+            ESP_LOGE("text_sensor.nspanelevent", "Starting");
             DynamicJsonDocument doc(1024);
             deserializeJson(doc, x);
             std::string page = doc["page"];
@@ -1176,10 +1276,10 @@ text_sensor:
             if (not (component == "currentpage" and (page == "screensaver" or page == "home"))) id(timer_reset_all).execute(page.c_str());
             std::string value = doc["value"];
             std::string entity = id(entity_id); //doc["entity"];
-            ESP_LOGV("text_sensor.nspanelevent", "page: %s", page.c_str());
-            ESP_LOGV("text_sensor.nspanelevent", "component: %s", component.c_str());
-            ESP_LOGV("text_sensor.nspanelevent", "value: %s", value.c_str());
-            ESP_LOGV("text_sensor.nspanelevent", "entity: %s", entity.c_str());
+            ESP_LOGE("text_sensor.nspanelevent", "page: %s", page.c_str());
+            ESP_LOGE("text_sensor.nspanelevent", "component: %s", component.c_str());
+            ESP_LOGE("text_sensor.nspanelevent", "value: %s", value.c_str());
+            ESP_LOGE("text_sensor.nspanelevent", "entity: %s", entity.c_str());
             auto ha_event = new esphome::api::CustomAPIDevice();
             ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
               {
@@ -1189,100 +1289,6 @@ text_sensor:
                 {"value", value},
                 {"entity", entity}
               });
-            if (component=="currentpage")
-              {
-                ESP_LOGV("text_sensor.nspanelevent", "New page: %s", page.c_str());
-                ESP_LOGV("text_sensor.nspanelevent", "Trigger HA event");
-                ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-                  {
-                    {"type", "page_changed"},
-                    {"page", page},
-                    {"entity", entity}
-                  });
-                  ESP_LOGV("text_sensor.nspanelevent", "Call add-ons scripts for new page");
-                id(addon_climate_set_climate).execute(page=="climate" and entity == "embedded_climate");
-                ESP_LOGV("text_sensor.nspanelevent", "Publish current_page sensor");
-                id(current_page).publish_state(page);
-                ESP_LOGV("text_sensor.nspanelevent", "Construct new page");
-                if (page=="home")
-                  {
-                    ESP_LOGV("text_sensor.nspanelevent", "Construct home page");
-                    id(update_page_home).execute();
-                  }
-                else if (page=="screensaver")
-                  {
-                    ESP_LOGV("text_sensor.nspanelevent", "Construct screensaver page");
-                    id(update_page_screensaver).execute();
-                  }
-                else if (page=="climate")
-                  {
-                    ESP_LOGV("text_sensor.nspanelevent", "Construct climate page");
-                    id(disp1).set_component_text_printf("climate.button01_icon", "%s", "\uEE8D"); //mdi:calendar-sync
-                    id(disp1).set_component_text_printf("climate.button02_icon", "%s", "\uE069"); //mdi:autorenew
-                    id(disp1).set_component_text_printf("climate.button03_icon", "%s", "\uE237"); //mdi:fire
-                    id(disp1).set_component_text_printf("climate.button04_icon", "%s", "\uE716"); //mdi:snowflake
-                    id(disp1).set_component_text_printf("climate.button05_icon", "%s", "\uE58D"); //mdi:water-percent
-                    id(disp1).set_component_text_printf("climate.button06_icon", "%s", "\uE20F"); //mdi:fan
-                    id(disp1).set_component_text_printf("climate.button07_icon", "%s", "\uE424"); //mdi:power
-                    id(addon_climate_update_page_climate).execute();
-                  }
-                else if (page=="cover")
-                  {
-                    ESP_LOGV("text_sensor.nspanelevent", "Construct cover page");
-                    id(disp1).set_component_text_printf("cover.cover_stop", "%s", "\uE666"); //mdi:stop-circle-outline
-                    // In the future this will be dynamically contructed based on the device_class
-                    id(disp1).set_component_text_printf("cover.cover_open", "%s", "\uF11D"); //mdi:window-shutter-open
-                    id(disp1).set_component_text_printf("cover.cover_close", "%s", "\uF11B"); //mdi:window-shutter
-                  }
-                else if (page=="fan")
-                  {
-                    ESP_LOGV("text_sensor.nspanelevent", "Construct fan page");
-                    id(disp1).set_component_text_printf("fan.button_on", "%s", "\uE20F"); //mdi:fan
-                    id(disp1).set_component_text_printf("fan.button_off", "%s", "\uE81C"); //mdi:fan-off
-                    id(disp1).set_component_text_printf("fan.button_up", "%s", "\uF46D"); //mdi:fan-chevron-up
-                    id(disp1).set_component_text_printf("fan.button_down", "%s", "\uF46C"); //mdi:fan-chevron-down
-                  }
-                else if (page=="keyb_num")
-                  {
-                    ESP_LOGV("text_sensor.nspanelevent", "Construct keyb_num page");
-                    id(disp1).set_component_text_printf("keyb_num.bview", "%s", "\uE207"); //mdi:eye
-                    id(disp1).set_component_text_printf("keyb_num.bclose", "%s", "\uE158"); //mdi:close-circle
-                    id(disp1).set_component_text_printf("keyb_num.bclear", "%s", "\uE641"); //mdi:eraser-variant
-                    id(disp1).set_component_text_printf("keyb_num.benter", "%s", "\uE12B"); //mdi:check
-                  }
-                else if (page=="weather01") id(disp1).set_component_text_printf("page_index", "%s", "●○○○○"); // 1/5
-                else if (page=="weather02") id(disp1).set_component_text_printf("page_index", "%s", "○●○○○"); // 2/5
-                else if (page=="weather03") id(disp1).set_component_text_printf("page_index", "%s", "○○●○○"); // 3/5
-                else if (page=="weather04") id(disp1).set_component_text_printf("page_index", "%s", "○○○●○"); // 4/5
-                else if (page=="weather05") id(disp1).set_component_text_printf("page_index", "%s", "○○○○●"); // 5/5
-                else if (page=="buttonpage01" or page=="entitypage01") id(disp1).set_component_text_printf("page_index", "%s", "●○○○"); // 1/4
-                else if (page=="buttonpage02" or page=="entitypage02") id(disp1).set_component_text_printf("page_index", "%s", "○●○○"); // 2/4
-                else if (page=="buttonpage03" or page=="entitypage03") id(disp1).set_component_text_printf("page_index", "%s", "○○●○"); // 3/4
-                else if (page=="buttonpage04" or page=="entitypage04") id(disp1).set_component_text_printf("page_index", "%s", "○○○●"); // 4/4
-                else if (page=="settings")
-                  {
-                    //id(disp1).set_component_text_printf("bt_sleep", "%s", (id(sleep_mode).state) ? "\uEA19" : "\uEA18"); //mdi:toggle-switch-outline or mdi:toggle-switch-off-outline
-                    id(disp1).hide_component("lbl_sleep");
-                    id(disp1).hide_component("bt_sleep");
-                  }
-                else if (page=="notification")
-                  {
-                    id(disp1).set_component_text_printf("notification.notifi_label", "%s", id(notification_label).state.c_str());
-                    id(display_wrapped_text).execute("notification.notifi_text01", id(notification_text).state.c_str(), id(display_mode) == 2 ? 23 : 32);
-                  }
-                else if (page=="media_player")
-                  {
-                    ESP_LOGV("text_sensor.nspanelevent", "Construct media_player page");
-                    id(disp1).set_component_text_printf("bt_on_off", "%s", "\uE424"); //mdi:power
-                    id(disp1).set_component_text_printf("bt_prev", "%s", "\uE4AD"); //mdi:skip-previous
-                    id(disp1).set_component_text_printf("bt_next", "%s", "\uE4AC"); //mdi:skip-next
-                    id(disp1).set_component_text_printf("bt_play_pause", "%s", "\uE40D"); //mdi:play-pause
-                    //id(disp1).set_component_text_printf("bt_stop", "%s", "\uE4DA"); //mdi:stop
-                    id(disp1).set_component_text_printf("bt_mute", "%s", "\uE75E"); //mdi:volume-mute
-                    id(disp1).set_component_text_printf("bt_vol_down", "%s", "\uE75D"); //mdi:volume-minus
-                    id(disp1).set_component_text_printf("bt_vol_up", "%s", "\uE75C"); //mdi:volume-plus
-                  }
-              }
 
   ##### NSPanel event - Execute actions from ESPHome - NO push to HA #####
   - name: ${device_name} NSPanel local event
@@ -1303,7 +1309,6 @@ text_sensor:
             deserializeJson(doc, x);
             std::string page = doc["page"];
             std::string event = doc["event"];
-            if (not (event == "pagechanged" and (page == "screensaver" or page == "home"))) id(timer_reset_all).execute(page.c_str());
             std::string component = doc["component"];
             std::string key = doc["key"];
             std::string value = doc["value"];
@@ -1313,23 +1318,7 @@ text_sensor:
 
             // send event to Home Assistant
             auto ha_event = new esphome::api::CustomAPIDevice();
-            if (event=="pagechanged")
-              {
-                ESP_LOGV("text_sensor.localevent", "New page: %s", page.c_str());
-                ESP_LOGV("text_sensor.localevent", "Trigger HA event");
-                ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-                  {
-                    {"type", "page_changed"},
-                    {"page", page},
-                    {"entity", entity}
-                  });
-                  ESP_LOGV("text_sensor.localevent", "Call add-ons scripts for new page");
-                id(addon_climate_set_climate).execute(page=="climate" and id(entity_id) == "embedded_climate");
-                ESP_LOGV("text_sensor.localevent", "Publish current_page sensor");
-                id(current_page).publish_state(page);
-                ESP_LOGV("text_sensor.localevent", "Construct new page");
-              }
-            else if (event=="short_click" or event=="long_click") id(ha_button).execute(page.c_str(), component.c_str(), event.c_str());
+            if (event=="short_click" or event=="long_click") id(ha_button).execute(page.c_str(), component.c_str(), event.c_str());
             else if (event=="click")
               {
                 if (page == "home" and component == "climate")
