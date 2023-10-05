@@ -100,6 +100,18 @@ uart:
     rx_pin: 17
     baud_rate: 115200
 
+##### HTTP REQUEST #####
+# Enables http client  #
+# for upload_tft.      #
+# pr#3256 adds esp-idf #
+########################
+external_components:
+  - source: github://pr#3256
+    components:
+      - http_request
+http_request:
+  id: httpclient
+
 ##### Keeps time display updated #####
 time:
   - id: time_provider
@@ -476,7 +488,7 @@ api:
                 }
               else
                 {
-                  if ((page_icon.c_str() != std::string()) and (page_icon.c_str() != ""))
+                  if ((page_icon != std::string()) and (page_icon != ""))
                     id(disp1).set_component_text_printf("icon_state", "%s", page_icon.c_str());
                   id(set_component_color).execute("icon_state", page_icon_color, {});
                 }
@@ -1617,7 +1629,7 @@ display:
   - id: disp1
     platform: nextion
     uart_id: tf_uart
-    tft_url: ${nextion_update_url}
+    #tft_url: ${nextion_update_url}
     on_page: # I couldn't make this trigger to work, so used text_sensor nspanelevent and localevent instead
       then:
         - lambda: ESP_LOGW("display.disp1.on_page", "NEXTION PAGE CHANGED");
@@ -2244,6 +2256,7 @@ script:
       - lambda: |-
           ESP_LOGD("script.upload_tft", "Starting...");
 
+          #ifdef ARDUINO
           std::vector<uint8_t> buffer_;
 
           bool is_updating_ = false;
@@ -2351,12 +2364,13 @@ script:
               int tries = 1;
               int code;
               bool begin_status;
-              while (tries <= 5) {
+              while (tries <= 10) {
                 begin_status = http->begin(url.c_str());
 
                 ++tries;
                 if (!begin_status) {
                   ESP_LOGD("script.upload_tft.upload_by_chunks", "Connection failed");
+                  delay(1000);
                   continue;
                 };
 
@@ -2366,13 +2380,13 @@ script:
                 if (code == 200 || code == 206) {
                   break;
                 }
-                ESP_LOGW("script.upload_tft.upload_by_chunks", "HTTP Request failed; URL: %s; Error: %s, retries(%d/5)", url.c_str(),
+                ESP_LOGW("script.upload_tft.upload_by_chunks", "HTTP Request failed; URL: %s; Error: %s, retries(%d/10)", url.c_str(),
                         HTTPClient::errorToString(code).c_str(), tries);
                 http->end();
-                delay(500);
+                delay(1000);
               }
 
-              if (tries > 5) {
+              if (tries > 10) {
                 return -1;
               }
 
@@ -2463,7 +2477,6 @@ script:
               http.setTimeout(15000); // Yes 15 seconds.... Helps 8266s along
               http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
               bool begin_status = http.begin(url.c_str());
-
               if (!begin_status) {
                 is_updating_ = false;
                 ESP_LOGD("script.upload_tft.upload_tft", "Connection failed");
@@ -2606,18 +2619,21 @@ script:
           if (id(tf_uart).get_baud_rate() == 115200) new_baud_rate = 921600; else new_baud_rate = 115200;
           ESP_LOGD("script.upload_tft", "Trying again at %i bps", new_baud_rate);
           if (upload_tft(url, new_baud_rate)) id(restart_nspanel).press();
+          #elif defined(ESP_PLATFORM) // esp-idf
+          // ESP-IDF-specific code
+          #endif
+          ESP_LOGE("script.upload_tft", "TFT upload failed.");
           ESP_LOGD("script.upload_tft", "Turn off Nextion");
           id(screen_power).turn_off();
           delay(1500);
-          ESP_LOGD("script.upload_tft", "Turn on Nextion");
-          id(screen_power).turn_on();
-          delay(1500);
-          ESP_LOGE("script.upload_tft", "TFT upload failed.");
-          ESP_LOGW("script.upload_tft", "Trying Nextion standard upload");
-          id(disp1)->set_tft_url(url.c_str());
-          id(disp1)->upload_tft();
+          //ESP_LOGD("script.upload_tft", "Turn on Nextion");
+          //id(screen_power).turn_on();
+          //delay(1500);
+          //ESP_LOGW("script.upload_tft", "Trying Nextion standard upload");
+          //id(disp1)->set_tft_url(url.c_str());
+          //id(disp1)->upload_tft();
           ESP_LOGD("script.upload_tft", "Restarting esphome");
-          ESP.restart();
+          delay(1500);
           id(restart_nspanel).press();
 
           ESP_LOGD("script.upload_tft", "Finished!");
