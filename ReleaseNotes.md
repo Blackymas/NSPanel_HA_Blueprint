@@ -63,7 +63,6 @@ packages:
 ## Overview of all changes
 1. New Upload TFT engine
 2. Smaller TFT file size
-3. Pre-built binary
 
 &nbsp;
 ## Details of all changes
@@ -82,10 +81,6 @@ The TFT files are now 15 to 20% smaller when compared to the previous version. T
 | notification<br>confirm | bt_accept<br>bt_clear |
 | fan | button_up<br>button_down<br>button_on<br>button_off |
 
-### 3. Pre-built binary
-As this project grows, it also grows the needs for resources from your ESPHome compiller, and version 4.0 revealed some cases where we are getting very close to this limit.
-In this release, we're excited to introduce a pre-built binary version of our firmware. Designed for ease of use, this pre-compiled edition eliminates the need for users to manually build the ESPHome part from the source code You can just transfer the firmware to your panel, onboard it to your Home Assistant and Wi-Fi and use it.
-Please refer to [this document](\docs\en\prebuilt.md) for details on how to use this option.
 
 &nbsp;
 ## Next topics we are currently working on
