@@ -33,7 +33,7 @@ blueprint:
     🎉 Roadmap can be found here: [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
 
 
-    ℹ️ Version: v4.0.2
+    ℹ️ Version: v4.1dev3
 
   source_url: https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/nspanel_blueprint.yaml
   domain: automation
@@ -3566,6 +3566,7 @@ trace:
 trigger_variables:
   nspanel_deviceid: !input 'nspanel_name'
   nspanel_entities: '{{ device_entities(nspanel_deviceid) }}'
+  #nspanel_name: '{{ device_attr(nspanel_deviceid, "name") | replace("-","_") | replace(" ","_") | replace("___","_") | replace("___","_") | replace("__","_") | replace("__","_") | lower }}'
   nspanel_name: >
     {% if nspanel_entities | count > 0 %}{{ (nspanel_entities | selectattr(None, "search", "_nextion_display") | list | first).split(".")[1].split("_nextion_display")[0] }}
     {% elif nspanel_deviceid is string %}{{ nspanel_deviceid | replace("-","_") | replace(" ","_") | replace("___","_") | replace("__","_") }}
@@ -3587,7 +3588,7 @@ trigger_variables:
 
 variables:
   ##### GENERAL #####
-  blueprint_version: '4.0.2'
+  blueprint_version: '4.1dev3'
   date_format_temp: !input 'date_format'
   #Avoid breaking change for existing users with legacy type format
   date_format: >
@@ -3628,17 +3629,13 @@ variables:
       unavailable: [6339] #'6339'
     command:
       alarm_settings: 'esphome.{{ nspanel_name }}_alarm_settings'
-      #background_color: 'esphome.{{ nspanel_name }}_send_command_background_color'
-      #font_color: 'esphome.{{ nspanel_name }}_send_command_font_color'
       global_settings: 'esphome.{{ nspanel_name }}_global_settings'
       hide: 'esphome.{{ nspanel_name }}_send_command_hide'
       media_player: 'esphome.{{ nspanel_name }}_media_player'
       notification_clear: 'esphome.{{ nspanel_name }}_notification_clear'
-      #notification_show: 'esphome.{{ nspanel_name }}_notification_show'
       open_entity_settings_page: 'esphome.{{ nspanel_name }}_open_entity_settings_page'
       page_home: 'esphome.{{ nspanel_name }}_page_home'
       page_settings: 'esphome.{{ nspanel_name }}_page_settings'
-      #play_rtttl: 'esphome.{{ nspanel_name }}_play_rtttl'
       printf: 'esphome.{{ nspanel_name }}_send_command_printf'
       qrcode: 'esphome.{{ nspanel_name }}_qrcode'
       set_button: 'esphome.{{ nspanel_name }}_set_button'
@@ -3821,53 +3818,53 @@ variables:
         sat: Sobota
         sun: Neděle
       weekdays_short:
-        mon: Mon
-        tue: Tue
-        wed: Wed
-        thu: Thu
-        fri: Fri
-        sat: Sat
-        sun: Sun
+        mon: Po
+        tue: Út
+        wed: St
+        thu: Čt
+        fri: PÁ
+        sat: So
+        sun: Ne
       months:
-        jan: January
-        feb: February
-        mar: March
-        apr: April
-        may: May
-        jun: June
-        jul: July
-        aug: August
-        sep: September
-        oct: October
-        nov: November
-        dec: December
+        jan: Leden
+        feb: Únor
+        mar: Březen
+        apr: Duben
+        may: Květen
+        jun: Červen
+        jul: Červenec
+        aug: Srpen
+        sep: Září
+        oct: Říjen
+        nov: Listopad
+        dec: Prosinec
       months_short:
-        jan: Jan
-        feb: Feb
-        mar: Mar
-        apr: Apr
-        may: May
-        jun: Jun
-        jul: Jul
-        aug: Aug
-        sep: Sep
-        oct: Oct
-        nov: Nov
-        dec: Dec
+        jan: Led
+        feb: Úno
+        mar: Bře
+        apr: Dub
+        may: Kvě
+        jun: Črn
+        jul: Črc
+        aug: Srp
+        sep: Zář
+        oct: Říj
+        nov: Lis
+        dec: Pro
       relative_day:
         today: Dnes
         tomorrow: Zítra
-        in_2_days: za 2 dny
-        in_3_days: za 3 dny
-        in_4_days: za 4 dny
+        in_2_days: Za dni
+        in_3_days: Za 3 dni
+        in_4_days: Za 4 dni
       climate:
         states:
-          "on": zapnuto
-          "off": vypnuto
-        heat: topení
-      please_confirm: Potvrďte prosím
-      unavailable: Unavailable
-      no_name: No name
+          "on": Zap.
+          "off": Vyp.
+        heat: Topení
+      please_confirm: Prosím potvrďte
+      unavailable: Nedostupné
+      no_name: Bez názvu
       alarm:
         home: home
         away: away
@@ -5827,7 +5824,11 @@ trigger:
       for:
         seconds: 1
       id: nspanel_boot_init
-
+    - platform: template
+      value_template: '{{ is_state(currentpage, "boot") | default(false) if currentpage is string else false }}'
+      for:
+        seconds: 1
+      id: nspanel_boot_init
     ##### Automation reload or HA started
     - platform: event
       event_type: automation_reloaded
@@ -9071,7 +9072,7 @@ action:
               - automation_reloaded
               - ha_started
         sequence:
-          - if: '{{ has_value(currentpage) }}'
+          - if: '{{ states.sensor | selectattr("entity_id", "eq", currentpage) | list | count > 0 }}'
             then:
               - service: persistent_notification.dismiss
                 data:
@@ -9357,7 +9358,6 @@ action:
             id:
               - left_button_state
               - right_button_state
-          - '{{ page.current == page.home }}'
           - '{{ trigger.to_state.state not in ["unavailable", "unknown", "", None] }}'
         sequence:
           ##### SET hardware Button PIC on Home Page ####
@@ -9378,7 +9378,7 @@ action:
         conditions:
           - condition: trigger
             id: outdoortemp_state
-          - '{{ page.current == page.home and is_number(trigger.event.data.new_state.state) }}'
+          - '{{ is_number(trigger.event.data.new_state.state) }}'
         sequence:
           - *refresh-page_home-outdoor_temp
 
@@ -9389,7 +9389,7 @@ action:
             id:
               - indoortemp_state
               - nspaneltemp_state
-          - '{{ page.current == page.home and is_number(trigger.event.data.new_state.state) }}'
+          - '{{ is_number(trigger.event.data.new_state.state) }}'
         sequence:
           - *refresh-page_home-indoor_temp
 

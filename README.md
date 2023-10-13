@@ -170,7 +170,6 @@ The goal was to create a version that allows everyone to use the NSpanel fully l
 &nbsp;
 ### Display Settings
 - Restart NSPanel
-- Sleep mode - Turn off display after given time (seconds)
 - Display brightness slider
 - Display dim brightness slider
 
@@ -186,4 +185,6 @@ Marcfager:  https://github.com/marcfager/nspanel-mf
 lovejoy77: https://github.com/lovejoy777/NSpanel
 
 Hellis81: https://github.com/Hellis81/NS-panel
+
+sairon: https://github.com/sairon/esphome-nspanel-lovelace-ui
 

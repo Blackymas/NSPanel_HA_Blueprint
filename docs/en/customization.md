@@ -267,3 +267,34 @@ More datails on the [ESPHome docs](https://esphome.io/changelog/2022.11.0.html#r
 esphome:
   compile_process_limit: 1
 ```
+
+&nbsp;
+### Sleep & Wake-up buttons
+There are several ways to wake-up or put your panel to sleep, but in this example we tried a simple approach by adding two buttons (you can implement only one of those if you want):
+```yaml
+button:
+  # Adds a button to put the panel to sleep
+  - name: ${device_name} Sleep
+    id: force_sleep
+    platform: template
+    icon: mdi:sleep
+    on_press:
+      then:
+        - logger.log: Button Sleep pressed
+        - lambda: |-
+            if (id(current_page).state != "screensaver") id(disp1).goto_page("screensaver");
+  
+  # Adds a button to wake-up the panel (similar to the existing service)
+  - name: ${device_name} Wake-up
+    id: force_wake_up
+    platform: template
+    icon: mdi:alarm
+    on_press:
+      then:
+        - logger.log: Button Wake-up pressed
+        - lambda: |-
+            if (id(current_page).state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
+            // id(timer_page).execute(id(wakeup_page_name).state.c_str()); // enable this if you want page timeout to be reset
+            id(timer_sleep).execute(id(wakeup_page_name).state.c_str(), int(id(timeout_sleep).state));
+            id(timer_dim).execute(id(wakeup_page_name).state.c_str(), int(id(timeout_dim).state));
+```

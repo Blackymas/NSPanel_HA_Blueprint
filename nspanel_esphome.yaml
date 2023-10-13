@@ -7,8 +7,15 @@
 
 substitutions:
 
+  ################## Defaults ##################
+  # Just in case user forgets to set something #
+  nextion_update_url: "https://github.com/Blackymas/NSPanel_HA_Blueprint/raw/main/nspanel_eu.tft"
+  # nextion_update_blank_url: "https://github.com/Blackymas/NSPanel_HA_Blueprint/raw/main/custom_configuration/nspanel_blank.tft"
+  ##############################################
+
   ##### DON'T CHANGE THIS #####
-  version: "4.0.2"
+  version: "4.1dev3"
+  upload_tft_chunk_size_max: "32768"
   #############################
 
 ##### WIFI SETUP #####
@@ -17,28 +24,48 @@ wifi:
     - id: wifi_default
       ssid: ${wifi_ssid}
       password: ${wifi_password}
-  power_save_mode: none
   ap:
     ssid: "${device_name}"
     password: ${wifi_password}
 
-##### ESPHOME CONFIGURATION #####
-esphome:
-  name: ${device_name}
-  min_version: 2023.5.0
-
-##### TYPE OF ESP BOARD #####
-esp32:
-  board: esp32dev
-
-captive_portal:
-
+##### WEB SERVER SETUP - Required for json parsing and tft upload #####
 web_server:
   id: web_server_std
   port: 80
   auth:
     username: admin
     password: ${wifi_password}
+
+##### ESPHOME CONFIGURATION #####
+esphome:
+  name: ${device_name}
+  min_version: 2023.5.0
+  on_boot:
+    priority: 200.0
+    then:
+      - logger.log: After boot check-up
+      - wait_until:
+          condition:
+            - api.connected:
+          timeout: 60s
+      - wait_until:
+          condition:
+            - lambda: !lambda return id(disp1).is_setup();
+          timeout: 20s
+      - lambda: |-
+          if (not id(tf_uart).available() or not id(disp1).is_setup())
+            {
+              ESP_LOGE("on_boot", "No response from Nextion display");
+              ESP_LOGD("on_boot", "Turn off Nextion");
+              id(screen_power).turn_off();
+              delay(1500);
+              ESP_LOGD("script.power_cycle_display", "Turn on Nextion");
+              id(screen_power).turn_on();
+            }
+
+##### TYPE OF ESP BOARD #####
+esp32:
+  board: esp32dev
 
 ##### OTA PASSWORD #####
 ota:
@@ -67,10 +94,25 @@ output:
 
 ##### UART FOR NEXTION DISPLAY #####
 uart:
-  id: tf_uart
-  tx_pin: 16
-  rx_pin: 17
-  baud_rate: 115200
+  - id: tf_uart
+    tx_pin: 16
+    rx_pin: 17
+    baud_rate: 115200
+
+external_components:
+  - source: github://pr#3256 # adds esp-idf support to http_request
+    components:
+      - http_request
+  - source: github://pr#5484 # adds exit reparse to Nextion library
+    components:
+      - nextion
+
+##### HTTP REQUEST #####
+# Enables http client  #
+# for upload_tft.      #
+########################
+http_request:
+  id: httpclient
 
 ##### Keeps time display updated #####
 time:
@@ -83,8 +125,6 @@ time:
               id: refresh_datetime
     on_time_sync:
       then:
-        - component.update: api_timestamp
-        - component.update: device_timestamp
         - logger.log: "System clock synchronized"
         - script.execute:
             id: refresh_datetime
@@ -108,634 +148,618 @@ button:
           id: nextion_init
           state: false
       - delay: 16ms
-      - lambda: id(disp1).upload_tft();
-
-  ##### EXIT REPARSE TFT DISPLAY #####
-  - name: ${device_name} Exit reparse
-    platform: template
-    icon: mdi:file-sync
-    id: tft_reparse_off
-    entity_category: config
-    on_press:
-      - logger.log: "Button pressed: Exit reparse"
-      - uart.write:
-          id: tf_uart
-          data: "DRAKJHSUYDGBNCJHGJKSHBDN"
-      - uart.write:
-          id: tf_uart
-          data: [0xFF, 0xFF, 0xFF]
+      - lambda: id(upload_tft).execute("${nextion_update_url}");
 
 ##### START - API CONFIGURATION #####
 api:
   id: api_server
   reboot_timeout: 0s
-
   services:
+      #### Service to populate the alarm settings page #####
+      - service: alarm_settings
+        variables:
+          page_title: string
+          state: string
+          supported_features: int
+          code_format: string
+          code_arm_required: bool
+          entity: string
+          mui_alarm: string[] #std::vector<std::string> #std::map
+        then:
+          - lambda: |-
+              // set alarm icon on home page
+              id(disp1).send_command_printf("is_alarm=%i", (state == "" or state.empty()) ? 0 : 1);
+              id(update_alarm_icon).execute("home.bt_alarm", state.c_str());
 
-    ##### SERVICE TO UPDATE THE HMI FILE ##############
-    - service: upload_tft
-      then:
-        - logger.log: "Service: upload_tft"
-        - binary_sensor.template.publish:
-            id: nextion_init
-            state: false
-        - lambda: 'id(disp1)->upload_tft();'
+              // Is page Alarm visible?
+              if (id(current_page).state == "alarm") // To do: This page constructor should be moved to Blueprint
+                { // Update alarm page
+                    id(entity_id) = entity;
 
-    ##### SERVICE TO UPDATE THE TFT FILE from URL #####
-    - service: upload_tft_url
-      variables:
-        url: string
-      then:
-        - logger.log: "Service: upload_tft_url"
-        - binary_sensor.template.publish:
-            id: nextion_init
-            state: false
-        - lambda: 'id(disp1)->set_tft_url(url.c_str());'
-        - lambda: 'id(disp1)->upload_tft();'
+                    // Alarm page - Header
+                    id(update_alarm_icon).execute("icon_state", state.c_str());
+                    id(disp1).set_component_text_printf("page_label", "%s", page_title.c_str());
+                    id(disp1).set_component_text_printf("code_format", "%s", code_format.c_str());
+                    if (code_arm_required) id(disp1).set_component_text_printf("code_arm_req", "1"); else id(disp1).set_component_text_printf("code_arm_req", "0");
 
-    ##### Service to send a command "printf" directly to the display #####
-    - service: send_command_printf
-      variables:
-        cmd: string
-      then:
-        - lambda: 'id(disp1).send_command_printf("%s", cmd.c_str());'
+                    // Alarm page - Button's icons
+                    id(disp1).set_component_text_printf("bt_home_icon", "\uE689"); //mdi:shield-home
+                    id(disp1).set_component_text_printf("bt_away_icon", "\uE99C"); //mdi:shield-lock
+                    id(disp1).set_component_text_printf("bt_night_icon", "\uF827"); //mdi:shield-moon
+                    id(disp1).set_component_text_printf("bt_vacat_icon", "\uE6BA"); //mdi:shield-airplane
+                    id(disp1).set_component_text_printf("bt_bypass_icon", "\uE77F"); //mdi:shield-half-full
+                    id(disp1).set_component_text_printf("bt_disarm_icon", "\uE99D"); //mdi:shield-off
 
-    ##### Service to send a command "text_printf" directly to the display #####
-    - service: send_command_text_printf
-      variables:
-        component: string
-        message: string
-      then:
-        - lambda: 'id(disp1).set_component_text_printf(component.c_str(), "%s", message.c_str());'
+                    // Alarm page - Button's text
+                    id(display_wrapped_text).execute("bt_home_text", mui_alarm[0].c_str(), 10);
+                    id(display_wrapped_text).execute("bt_away_text", mui_alarm[1].c_str(), 10);
+                    id(display_wrapped_text).execute("bt_night_text", mui_alarm[2].c_str(), 10);
+                    id(display_wrapped_text).execute("bt_vacat_text", mui_alarm[3].c_str(), 10);
+                    id(display_wrapped_text).execute("bt_bypass_text", mui_alarm[4].c_str(), 10);
+                    id(display_wrapped_text).execute("bt_disarm_text", mui_alarm[5].c_str(), 10);
 
-    ##### Service to send a command "component_value (Dualstate Button)" directly to the display #####
-    - service: send_command_value
-      variables:
-        component: string
-        message: int
-      then:
-        - lambda: 'id(disp1).set_component_value(component.c_str(), message);'
+                    // Alarm page - Buttons
+                    if (supported_features & 1) // Alarm - Button - Home
+                      {
+                        id(disp1).send_command_printf("bt_home_pic.pic=%i", (state == "armed_home") ? 43 : 42);
+                        id(disp1).set_component_background_color("bt_home_text", (state == "armed_home") ? 19818 : 52857);
+                        id(disp1).set_component_background_color("bt_home_icon", (state == "armed_home") ? 19818 : 52857);
+                        id(disp1).set_component_font_color("bt_home_text", (state == "armed_home") ? 65535 : 0);
+                        id(disp1).set_component_font_color("bt_home_icon", (state == "armed_home") ? 65535 : 0);
+                        if (state == "armed_home") id(disp1).hide_component("bt_home"); else id(disp1).show_component("bt_home");
+                      }
+                    if (supported_features & 2) // Alarm - Button - Away
+                      {
+                        id(disp1).send_command_printf("bt_away_pic.pic=%i", (state == "armed_away") ? 43 : 42);
+                        id(disp1).set_component_background_color("bt_away_text", (state == "armed_away") ? 19818 : 52857);
+                        id(disp1).set_component_background_color("bt_away_icon", (state == "armed_away") ? 19818 : 52857);
+                        id(disp1).set_component_font_color("bt_away_text", (state == "armed_away") ? 65535 : 0);
+                        id(disp1).set_component_font_color("bt_away_icon", (state == "armed_away") ? 65535 : 0);
+                        if (state == "armed_away") id(disp1).hide_component("bt_away"); else id(disp1).show_component("bt_away");
+                      }
+                    if (supported_features & 4) // Alarm - Button - Night
+                      {
+                        id(disp1).send_command_printf("bt_night_pic.pic=%i", (state == "armed_night") ? 43 : 42);
+                        id(disp1).set_component_background_color("bt_night_text", (state == "armed_night") ? 19818 : 52857);
+                        id(disp1).set_component_background_color("bt_night_icon", (state == "armed_night") ? 19818 : 52857);
+                        id(disp1).set_component_font_color("bt_night_text", (state == "armed_night") ? 65535 : 0);
+                        id(disp1).set_component_font_color("bt_night_icon", (state == "armed_night") ? 65535 : 0);
+                        if (state == "armed_night") id(disp1).hide_component("bt_night"); else id(disp1).show_component("bt_night");
+                      }
+                    if (supported_features & 32) // Alarm - Button - Vacation
+                      {
+                        id(disp1).send_command_printf("bt_vacat_pic.pic=%i", (state == "armed_vacation") ? 43 : 42);
+                        id(disp1).set_component_background_color("bt_vacat_text", (state == "armed_vacation") ? 19818 : 52857);
+                        id(disp1).set_component_background_color("bt_vacat_icon", (state == "armed_vacation") ? 19818 : 52857);
+                        id(disp1).set_component_font_color("bt_vacat_text", (state == "armed_vacation") ? 65535 : 0);
+                        id(disp1).set_component_font_color("bt_vacat_icon", (state == "armed_vacation") ? 65535 : 0);
+                        if (state == "armed_vacation") id(disp1).hide_component("bt_vacat"); else id(disp1).show_component("bt_vacat");
+                      }
+                    if (supported_features & 16) // Alarm - Button - Custom bypass
+                      {
+                        id(disp1).send_command_printf("bt_bypass_pic.pic=%i", (state == "armed_bypass") ? 43 : 42);
+                        id(disp1).set_component_background_color("bt_bypass_text", (state == "armed_bypass") ? 19818 : 52857);
+                        id(disp1).set_component_background_color("bt_bypass_icon", (state == "armed_bypass") ? 19818 : 52857);
+                        id(disp1).set_component_font_color("bt_bypass_text", (state == "armed_bypass") ? 65535 : 0);
+                        id(disp1).set_component_font_color("bt_bypass_icon", (state == "armed_bypass") ? 65535 : 0);
+                        if (state == "armed_bypass") id(disp1).hide_component("bt_bypass"); else id(disp1).show_component("bt_bypass");
+                      }
+                    if ( true ) // Alarm - Button - Disarm
+                      {
+                        id(disp1).send_command_printf("bt_disarm_pic.pic=%i", (state == "disarmed") ? 43 : 42);
+                        id(disp1).set_component_background_color("bt_disarm_text", (state == "disarmed") ? 19818 : 52857);
+                        id(disp1).set_component_background_color("bt_disarm_icon", (state == "disarmed") ? 19818 : 52857);
+                        id(disp1).set_component_font_color("bt_disarm_text", (state == "disarmed") ? 65535 : 0);
+                        id(disp1).set_component_font_color("bt_disarm_icon", (state == "disarmed") ? 65535 : 0);
+                        if (state == "disarmed") id(disp1).hide_component("bt_disarm"); else id(disp1).show_component("bt_disarm");
+                      }
+                }
 
-    ##### Service to send a command "hide componente" directly to the display #####
-    - service: send_command_hide ### unused ###
-      variables:
-        component: string
-      then:
-        - lambda: 'id(disp1).hide_component(component.c_str());'
+      ##### Service for transferring global settings from the blueprint to ESPHome #####
+      - service: global_settings
+        variables:
+          blueprint_version: string
+          relay1_local_control: bool
+          relay1_icon: string
+          relay1_icon_color: int
+          relay1_fallback: bool
+          relay2_local_control: bool
+          relay2_icon: string
+          relay2_icon_color: int
+          relay2_fallback: bool
+          date_color: int
+          time_format: string
+          time_color: int
+          embedded_climate: bool
+          embedded_indoor_temperature: bool
+          temperature_unit_is_fahrenheit: bool
+          mui_please_confirm: string
+        then:
+          - lambda: |-
+              // Blueprint version
+              ESP_LOGV("service.global_settings", "Check Blueprint version");
+              id(version_blueprint) = blueprint_version;
+              id(check_versions).execute();
 
-    ##### Service to send a command "show componente" directly to the display #####
-    - service: send_command_show ### unused ###
-      variables:
-        component: string
-      then:
-        - lambda: 'id(disp1).show_component(component.c_str());'
+              // Relays
+              ESP_LOGV("service.global_settings", "Setup relays");
+              id(relay1_local).publish_state(relay1_local_control);
+              id(relay2_local).publish_state(relay2_local_control);
+              id(home_relay1_icon) = relay1_icon.c_str();
+              id(home_relay2_icon) = relay2_icon.c_str();
+              id(home_relay1_icon_color) = relay1_icon_color;
+              id(home_relay2_icon_color) = relay2_icon_color;
+              id(relay_1_fallback) = relay1_fallback;
+              id(relay_2_fallback) = relay2_fallback;
 
-    ##### Service to send a command "show ALL componente" directly to the display #####
-    - service: send_command_show_all ### unused ###
-      then:
-        - lambda: id(disp1).show_component("255");
+              // Localization
+              ESP_LOGV("service.global_settings", "Load localization");
+              id(mui_time_format) = time_format;
 
-    ##### Service to send a command "font color" directly to the display #####
-    - service: set_component_color
-      variables:
-        component: string
-        foreground: int[]
-        background: int[]
-      then:
-        - lambda: id(set_component_color).execute(component, foreground, background);
+              // Date/Time colors
+              ESP_LOGV("service.global_settings", "Load date/time colors");
+              id(home_date_color) = date_color;
+              id(home_time_color) = time_color;
 
-    ##### Service to show a notification-message on the screen #####
-    - service: notification_show
-      variables:
-        label: string
-        text: string
-      then:
-        - lambda: |-
-            ESP_LOGV("service.notification_show", "Starting");
+              // Embedded thermostat
+              ESP_LOGV("service.global_settings", "Load embedded thermostat");
+              id(is_embedded_thermostat) = embedded_climate;
 
-            id(disp1).send_command_printf("is_notification=1");
-            id(disp1).goto_page("notification");
-            id(disp1).set_component_text_printf("notification.notifi_label", "%s", label.c_str());
+              // Indoor temperature
+              ESP_LOGV("service.global_settings", "Set indoor temperature");
+              id(embedded_indoor_temp) = embedded_indoor_temperature;
+              id(temp_unit_fahrenheit) = temperature_unit_is_fahrenheit;
+              id(display_embedded_temp).execute();
 
-            id(display_wrapped_text).execute("notification.notifi_text01", text.c_str(), id(display_mode) == 2 ? 23 : 32);
+              // Confirm page
+              ESP_LOGV("service.global_settings", "Setup confirm page");
+              id(display_wrapped_text).execute("confirm.title", mui_please_confirm.c_str(), 15);
 
-            id(notification_label).publish_state(label.c_str());
-            id(notification_text).publish_state(text.c_str());
-            id(timer_reset_all).execute(id(current_page).state.c_str());
-        - switch.turn_on: notification_unread
-        - if:
-            condition:
-              - switch.is_on: notification_sound
-            then:
-              - rtttl.play: "two short:d=4,o=5,b=100:16e6,16e6"
+              // Refresh colors of global components
+              ESP_LOGV("service.global_settings", "Refresh color of global components");
+              id(disp1).set_component_font_color("home.date", id(home_date_color));
+              id(disp1).set_component_font_color("home.time", id(home_time_color));
+              id(disp1).set_component_font_color("home.icon_top_01", id(home_relay1_icon_color));
+              id(disp1).set_component_font_color("home.icon_top_02", id(home_relay2_icon_color));
 
-    ##### Service to clear the notification #####
-    - service: notification_clear
-      then:
-        - logger.log: "Service: notification_clear"
-        - &notification_clear
-          lambda: |-
-            id(disp1).send_command_printf("is_notification=0");
-            id(notification_label).publish_state("");
-            id(notification_text).publish_state("");
-        - switch.turn_off: notification_unread
+              // Update home page
+              ESP_LOGV("service.global_settings", "Update home page");
+              id(update_page_home).execute();
 
-    ##### Service to open information for settings-page(s)
-    - service: open_entity_settings_page
-      variables:
-        page: string
-        page_label: string
-        page_icon: string
-        page_icon_color: int[]
-        entity: string
-        back_page: string
-      then:
-        - lambda: |-
-            id(entity_id) = entity;
-            std::string cmd_page = std::string("page ") + page.c_str();
-            id(disp1).send_command_printf(cmd_page.c_str());
-            id(disp1).set_component_text_printf("page_label", "%s", page_label.c_str());
-            id(disp1).set_component_text_printf("back_page", "%s", back_page.c_str());
-            if (page == "climate")
-              {
-                if (entity == "embedded_climate") id(addon_climate_set_climate_friendly_name).execute(page_label.c_str());
-                id(disp1).set_component_value("embedded", (entity == "embedded_climate") ? 1 : 0);
-              }
-            else
-              {
-                if ((page_icon.c_str() != std::string()) and (page_icon.c_str() != ""))
-                  id(disp1).set_component_text_printf("icon_state", "%s", page_icon.c_str());
-                id(set_component_color).execute("icon_state", page_icon_color, {});
-              }
+              ESP_LOGV("service.global_settings", "Current page: %s", id(current_page).state.c_str());
 
-    ##### Service to play a rtttl tones #####
-    # Example tones : https://codebender.cc/sketch:109888#RTTTL%20Songs.ino
-    - service: play_rtttl
-      variables:
-        song_str: string
-      then:
-        - rtttl.play:
-            rtttl: !lambda 'return song_str;'
-
-    # Service to show a QR code on the display (ex. for WiFi password)
-    - service: qrcode
-      variables:
-        title: string
-        qrcode: string
-        show: bool
-      then:
-        - lambda: |-
-            id(disp1).set_component_text_printf("qrcode.qrcode_label", "%s", title.c_str());
-            id(disp1).set_component_text_printf("qrcode.qrcode_value", "%s", qrcode.c_str());
-            if (show) id(disp1).goto_page("qrcode");
-
-    #### Service to set climate state ####
-    - service: set_climate
-      variables:
-        current_temp: float
-        target_temp: float
-        temp_step: int
-        total_steps: int
-        temp_offset: int
-        climate_icon: string
-        embedded_climate: bool
-        entity: string
-      then:
-        - lambda: |-
-            if (id(current_page).state == "climate") id(entity_id) = entity;
-
-        - script.execute:
-            id: set_climate
-            current_temp: !lambda "return current_temp;"
-            target_temp: !lambda "return target_temp;"
-            temp_step: !lambda "return temp_step;"
-            total_steps: !lambda "return total_steps;"
-            temp_offset: !lambda "return temp_offset;"
-            climate_icon: !lambda "return climate_icon;"
-            embedded_climate: !lambda "return embedded_climate;"
-
-  #### Service to set the buttons ####
-    - service: set_button
-      variables:
-        btn_id: string
-        btn_pic: int
-        btn_bg: int[]
-        btn_icon_font: int[]
-        btn_txt_font: int[]
-        btn_bri_font: int[]
-        btn_icon: string
-        btn_label: string
-        btn_bri_txt: string
-      then:
-        - lambda: |-
-            std::string btnicon = btn_id.c_str() + std::string("icon");
-            std::string btntext = btn_id.c_str() + std::string("text");
-            std::string btnbri = btn_id.c_str() + std::string("bri");
-            id(disp1).send_command_printf("%spic.pic=%i", btn_id.c_str(), btn_pic);
-            id(set_component_color).execute(btnicon.c_str(), btn_icon_font, btn_bg);
-            id(set_component_color).execute(btntext.c_str(), btn_txt_font, btn_bg);
-            id(set_component_color).execute(btnbri.c_str(), btn_bri_font, btn_bg);
-            id(disp1).set_component_text_printf(btnicon.c_str(), "%s", btn_icon.c_str());
-            id(display_wrapped_text).execute(btntext.c_str(), btn_label.c_str(), 10);
-            if (strcmp(btn_bri_txt.c_str(), "0") != 0)
-              id(disp1).set_component_text_printf(btnbri.c_str(), "%s", btn_bri_txt.c_str());
-            else
-              id(disp1).set_component_text_printf(btnbri.c_str(), " ");
-
-    ##### SERVICE TO WAKE UP THE DISPLAY #####
-    - service: wake_up
-      variables:
-        reset_timer: bool
-      then:
-        - lambda: |-
-            if (id(current_page).state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
-            if (reset_timer)
-              id(timer_reset_all).execute(id(wakeup_page_name).state.c_str());
-            else
-              {
-                id(timer_sleep).execute(id(wakeup_page_name).state.c_str(), int(id(timeout_sleep).state));
-                id(timer_dim).execute(id(wakeup_page_name).state.c_str(), int(id(timeout_dim).state));
-              }
-
-    #### Service to set the entities ####
-    - service: set_entity
-      variables:
-        ent_id: string
-        ent_icon: string
-        ent_label: string
-        ent_value: string
-        ent_value_xcen: string
-      then:
-        - lambda: |-
-            std::string enticon = ent_id.c_str() + std::string("_pic");
-            std::string entlabel = ent_id.c_str() + std::string("_label");
-            std::string entxcen = ent_id.c_str() + std::string(".xcen=") + ent_value_xcen.c_str();
-            id(disp1).set_component_text_printf(enticon.c_str(), "%s", ent_icon.c_str());
-            if (strcmp(ent_icon.c_str(), "0") != 0) id(disp1).set_component_text_printf(enticon.c_str(), "%s", ent_icon.c_str());
-            id(disp1).set_component_text_printf(entlabel.c_str(), "%s", ent_label.c_str());
-            id(disp1).set_component_text_printf(ent_id.c_str(), "%s", ent_value.c_str());
-            if (strcmp(ent_value_xcen.c_str(), "0") != 0) id(disp1).send_command_printf("%s", entxcen.c_str());
-
-    ##### Service for transferring global settings from the blueprint to ESPHome #####
-    - service: global_settings
-      variables:
-        blueprint_version: string
-        relay1_local_control: bool
-        relay1_icon: string
-        relay1_icon_color: int
-        relay1_fallback: bool
-        relay2_local_control: bool
-        relay2_icon: string
-        relay2_icon_color: int
-        relay2_fallback: bool
-        date_color: int
-        time_format: string
-        time_color: int
-        embedded_climate: bool
-        embedded_indoor_temperature: bool
-        temperature_unit_is_fahrenheit: bool
-        mui_please_confirm: string
-      then:
-        - lambda: |-
-            // Blueprint version
-            id(version_blueprint) = blueprint_version;
-            id(check_versions).execute();
-
-            // Relays
-            id(relay1_local).publish_state(relay1_local_control);
-            id(relay2_local).publish_state(relay2_local_control);
-            id(home_relay1_icon) = relay1_icon.c_str();
-            id(home_relay2_icon) = relay2_icon.c_str();
-            id(home_relay1_icon_color) = relay1_icon_color;
-            id(home_relay2_icon_color) = relay2_icon_color;
-            id(relay_1_fallback) = relay1_fallback;
-            id(relay_2_fallback) = relay2_fallback;
-
-            // Localization
-            id(mui_time_format) = time_format;
-
-            // Date/Time colors
-            id(home_date_color) = date_color;
-            id(home_time_color) = time_color;
-
-            // Embedded thermostat
-            id(is_embedded_thermostat) = embedded_climate;
-
-            // Indoor temperature
-            id(embedded_indoor_temp) = embedded_indoor_temperature;
-            id(temp_unit_fahrenheit) = temperature_unit_is_fahrenheit;
-            id(display_embedded_temp).execute();
-
-            // Confirm page
-            id(display_wrapped_text).execute("confirm.title", mui_please_confirm.c_str(), 15);
-
-            // Refresh colors of global components
-            id(disp1).set_component_font_color("home.date", id(home_date_color));
-            id(disp1).set_component_font_color("home.time", id(home_time_color));
-            id(disp1).set_component_font_color("home.icon_top_01", id(home_relay1_icon_color));
-            id(disp1).set_component_font_color("home.icon_top_02", id(home_relay2_icon_color));
-
-            // Update home page
-            id(update_page_home).execute();
-
-        - if:
-            condition:
-              - text_sensor.state: # Is boot page visible?
-                  id: current_page
-                  state: 'boot'
-            then:
-              - lambda: |-
-                  id(disp1).set_component_text_printf("boot.bluep_version", "%s", blueprint_version.c_str());
-              - wait_until:
-                  condition:
-                    - not:
-                      - text_sensor.state: # Is boot page visible?
+          - if:
+              condition:
+                - text_sensor.state: # Is boot page visible?
+                    id: current_page
+                    state: boot
+              then:
+                - lambda: |-
+                    ESP_LOGV("service.global_settings", "Boot page is visible");
+                    id(disp1).set_component_text_printf("boot.bluep_version", "%s", blueprint_version.c_str());
+                - wait_until:
+                    condition:
+                      - not:
+                        - text_sensor.state: # Is boot page visible?
+                            id: current_page
+                            state: 'boot'
+                    timeout: 2s
+                - if:
+                    condition:
+                      - text_sensor.state: # Avoid this being called twice by multiple boot triggers
                           id: current_page
                           state: 'boot'
-                  timeout: 2s
-              - if:
-                  condition:
-                    - text_sensor.state: # Avoid this being called twice by multiple boot triggers
-                        id: current_page
-                        state: 'boot'
-                  then:
-                    - if:
-                        condition:
-                          switch.is_on: notification_sound
-                        then:
-                          - rtttl.play:
-                              rtttl: 'two short:d=4,o=5,b=100:16e6,16e6'
-                    - lambda: |-
-                        ESP_LOGD("service.global_settings", "Jump to wake-up page: %s", id(wakeup_page_name).state.c_str());
-                        id(disp1).goto_page(id(wakeup_page_name).state.c_str());
-                        id(timer_reset_all).execute(id(wakeup_page_name).state.c_str());
+                    then:
+                      - lambda: |-
+                          ESP_LOGV("service.global_settings", "Boot page still visible");
+                      - if:
+                          condition:
+                            switch.is_on: notification_sound
+                          then:
+                            - rtttl.play:
+                                rtttl: 'two short:d=4,o=5,b=100:16e6,16e6'
+                      - lambda: |-
+                          ESP_LOGD("service.global_settings", "Jump to wake-up page: %s", id(wakeup_page_name).state.c_str());
+                          id(disp1).goto_page(id(wakeup_page_name).state.c_str());
+                          id(timer_reset_all).execute(id(wakeup_page_name).state.c_str());
 
-    #### Service to populate the page Home #####
-    - service: page_home
-      variables:
-        notification_icon: string
-        notification_icon_color_normal: int[]
-        notification_icon_color_unread: int[]
-        qrcode: bool
-        qrcode_icon: string
-        qrcode_icon_color: int[]
-        entities_pages: bool
-        entities_pages_icon: string
-        entities_pages_icon_color: int[]
-        alarm_state: string
-      then:
-        - lambda: |-
-            // Notification button
-            id(disp1).send_command_printf("is_notification=%i", (id(notification_text).state.empty() and id(notification_label).state.empty()) ? 0 : 1);
-            id(disp1).set_component_text_printf("home.bt_notific", "%s", notification_icon.c_str());
-            id(set_component_color).execute("home.bt_notific", id(notification_unread).state ? notification_icon_color_unread : notification_icon_color_normal, {});
-            id(home_notify_icon_color_normal) = notification_icon_color_normal;
-            id(home_notify_icon_color_unread) = notification_icon_color_unread;
+      ##### SERVICE TO UPDATE THE HMI FILE ##############
+      - service: upload_tft
+        then:
+          - logger.log: "Service: upload_tft"
+          - binary_sensor.template.publish:
+              id: nextion_init
+              state: false
+          - lambda: 'id(upload_tft).execute("${nextion_update_url}");'
 
-            // QRCode button
-            id(disp1).send_command_printf("is_qrcode=%i", (qrcode) ? 1 : 0);
-            id(disp1).set_component_text_printf("home.bt_qrcode", "%s", qrcode_icon.c_str());
-            id(set_component_color).execute("home.bt_qrcode", qrcode_icon_color, {});
+      ##### SERVICE TO UPDATE THE TFT FILE from URL #####
+      - service: upload_tft_url
+        variables:
+          url: string
+        then:
+          - logger.log: "Service: upload_tft_url"
+          - binary_sensor.template.publish:
+              id: nextion_init
+              state: false
+          - lambda: 'id(upload_tft).execute(url.c_str());'
 
-            // Entities pages button
-            id(disp1).send_command_printf("is_entities=%i", (entities_pages) ? 1 : 0);
-            id(disp1).set_component_text_printf("home.bt_entities", "%s", entities_pages_icon.c_str());
-            id(set_component_color).execute("home.bt_entities", entities_pages_icon_color, {});
+      ##### Service to send a command "printf" directly to the display #####
+      - service: send_command_printf
+        variables:
+          cmd: string
+        then:
+          - lambda: 'id(disp1).send_command_printf("%s", cmd.c_str());'
 
-            // Alarm button
-            id(disp1).send_command_printf("is_alarm=%i", (alarm_state=="" or alarm_state.empty()) ? 0 : 1);
-            id(update_alarm_icon).execute("home.bt_alarm", alarm_state.c_str());
+      ##### Service to send a command "text_printf" directly to the display #####
+      - service: send_command_text_printf
+        variables:
+          component: string
+          message: string
+        then:
+          - lambda: 'id(disp1).set_component_text_printf(component.c_str(), "%s", message.c_str());'
 
-    #### Service to populate the page Settings #####
-    - service: page_settings
-      variables:
-        reboot: string
-        #sleep_mode: string
-        brightness: string
-        bright: string
-        dim: string
-      then:
-        - lambda: |-
-            if (not reboot.empty()) id(disp1).set_component_text_printf("settings.lbl_reboot", " %s", reboot.c_str());
-            id(disp1).set_component_text_printf("settings.lbl_brightness", " %s", brightness.c_str());
-            id(display_wrapped_text).execute("settings.lbl_bright", bright.c_str(), id(display_mode) == 2 ? 25 : 10);
-            id(display_wrapped_text).execute("settings.lbl_dim", dim.c_str(), id(display_mode) == 2 ? 25 : 10);
+      ##### Service to send a command "component_value (Dualstate Button)" directly to the display #####
+      - service: send_command_value
+        variables:
+          component: string
+          message: int
+        then:
+          - lambda: 'id(disp1).set_component_value(component.c_str(), message);'
 
-    #### Service to populate the alarm settings page #####
-    - service: alarm_settings
-      variables:
-        page_title: string
-        state: string
-        supported_features: int
-        code_format: string
-        code_arm_required: bool
-        entity: string
-        mui_alarm: string[] #std::vector<std::string> #std::map
-      then:
-        - lambda: |-
-            // set alarm icon on home page
-            id(disp1).send_command_printf("is_alarm=%i", (state=="" or state.empty()) ? 0 : 1);
-            id(update_alarm_icon).execute("home.bt_alarm", state.c_str());
+      ##### Service to send a command "hide componente" directly to the display #####
+      - service: send_command_hide ### unused ###
+        variables:
+          component: string
+        then:
+          - lambda: 'id(disp1).hide_component(component.c_str());'
 
-            // Is page Alarm visible?
-            if (id(current_page).state=="alarm")
-              { // Update alarm page
+      ##### Service to send a command "show componente" directly to the display #####
+      - service: send_command_show ### unused ###
+        variables:
+          component: string
+        then:
+          - lambda: 'id(disp1).show_component(component.c_str());'
+
+      ##### Service to send a command "show ALL componente" directly to the display #####
+      - service: send_command_show_all ### unused ###
+        then:
+          - lambda: id(disp1).show_component("255");
+
+      ##### Service to send a command "font color" directly to the display #####
+      - service: set_component_color
+        variables:
+          component: string
+          foreground: int[]
+          background: int[]
+        then:
+          - lambda: id(set_component_color).execute(component, foreground, background);
+
+      ##### Service to show a notification-message on the screen #####
+      - service: notification_show
+        variables:
+          label: string
+          text: string
+        then:
+          - lambda: |-
+              ESP_LOGV("service.notification_show", "Starting");
+
+              id(disp1).send_command_printf("is_notification=1");
+              id(disp1).goto_page("notification");
+              id(disp1).set_component_text_printf("notification.notifi_label", "%s", label.c_str());
+
+              id(display_wrapped_text).execute("notification.notifi_text01", text.c_str(), id(display_mode) == 2 ? 23 : 32);
+
+              id(notification_label).publish_state(label.c_str());
+              id(notification_text).publish_state(text.c_str());
+              id(timer_reset_all).execute(id(current_page).state.c_str());
+              id(notification_unread).turn_on();
+              if (id(notification_sound).state) id(buzzer).play("two short:d=4,o=5,b=100:16e6,16e6");
+
+      ##### Service to clear the notification #####
+      - service: notification_clear
+        then:
+          - logger.log: "Service: notification_clear"
+          - &notification_clear
+            lambda: |-
+              id(disp1).send_command_printf("is_notification=0");
+              if (id(current_page).state == "home") id(disp1).hide_component("bt_notific");
+              id(notification_label).publish_state("");
+              id(notification_text).publish_state("");
+              id(notification_unread).turn_off();
+
+      ##### Service to open information for settings-page(s)
+      - service: open_entity_settings_page
+        variables:
+          page: string
+          page_label: string
+          page_icon: string
+          page_icon_color: int[]
+          entity: string
+          back_page: string
+        then:
+          - lambda: |-
+              id(entity_id) = entity;
+              std::string cmd_page = std::string("page ") + page.c_str();
+              id(disp1).send_command_printf(cmd_page.c_str());
+              id(disp1).set_component_text_printf("page_label", "%s", page_label.c_str());
+              id(disp1).set_component_text_printf("back_page", "%s", back_page.c_str());
+              if (page == "climate")
+                {
+                  if (entity == "embedded_climate") id(addon_climate_set_climate_friendly_name).execute(page_label.c_str());
+                  id(disp1).set_component_value("embedded", (entity == "embedded_climate") ? 1 : 0);
+                }
+              else
+                {
+                  if ((page_icon != std::string()) and (page_icon != ""))
+                    id(disp1).set_component_text_printf("icon_state", "%s", page_icon.c_str());
+                  id(set_component_color).execute("icon_state", page_icon_color, {});
+                }
+
+      # Service to show a QR code on the display (ex. for WiFi password)
+      - service: qrcode
+        variables:
+          title: string
+          qrcode: string
+          show: bool
+        then:
+          - lambda: |-
+              id(disp1).set_component_text_printf("qrcode.qrcode_label", "%s", title.c_str());
+              id(disp1).set_component_text_printf("qrcode.qrcode_value", "%s", qrcode.c_str());
+              if (show) id(disp1).goto_page("qrcode");
+
+      #### Service to set climate state ####
+      - service: set_climate
+        variables:
+          current_temp: float
+          target_temp: float
+          temp_step: int
+          total_steps: int
+          temp_offset: int
+          climate_icon: string
+          embedded_climate: bool
+          entity: string
+        then:
+          - lambda: |-
+              if (id(current_page).state == "climate") id(entity_id) = entity;
+
+          - script.execute:
+              id: set_climate
+              current_temp: !lambda "return current_temp;"
+              target_temp: !lambda "return target_temp;"
+              temp_step: !lambda "return temp_step;"
+              total_steps: !lambda "return total_steps;"
+              temp_offset: !lambda "return temp_offset;"
+              climate_icon: !lambda "return climate_icon;"
+              embedded_climate: !lambda "return embedded_climate;"
+
+    #### Service to set the buttons ####
+      - service: set_button
+        variables:
+          btn_id: string
+          btn_pic: int
+          btn_bg: int[]
+          btn_icon_font: int[]
+          btn_txt_font: int[]
+          btn_bri_font: int[]
+          btn_icon: string
+          btn_label: string
+          btn_bri_txt: string
+        then:
+          - lambda: |-
+              std::string btnicon = btn_id.c_str() + std::string("icon");
+              std::string btntext = btn_id.c_str() + std::string("text");
+              std::string btnbri = btn_id.c_str() + std::string("bri");
+              id(disp1).send_command_printf("%spic.pic=%i", btn_id.c_str(), btn_pic);
+              id(set_component_color).execute(btnicon.c_str(), btn_icon_font, btn_bg);
+              id(set_component_color).execute(btntext.c_str(), btn_txt_font, btn_bg);
+              id(set_component_color).execute(btnbri.c_str(), btn_bri_font, btn_bg);
+              id(disp1).set_component_text_printf(btnicon.c_str(), "%s", btn_icon.c_str());
+              id(display_wrapped_text).execute(btntext.c_str(), btn_label.c_str(), 10);
+              if (strcmp(btn_bri_txt.c_str(), "0") != 0)
+                id(disp1).set_component_text_printf(btnbri.c_str(), "%s", btn_bri_txt.c_str());
+              else
+                id(disp1).set_component_text_printf(btnbri.c_str(), " ");
+
+      ##### SERVICE TO WAKE UP THE DISPLAY #####
+      - service: wake_up
+        variables:
+          reset_timer: bool
+        then:
+          - lambda: |-
+              if (id(current_page).state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
+              if (reset_timer)
+                id(timer_reset_all).execute(id(wakeup_page_name).state.c_str());
+              else
+                {
+                  id(timer_sleep).execute(id(wakeup_page_name).state.c_str(), int(id(timeout_sleep).state));
+                  id(timer_dim).execute(id(wakeup_page_name).state.c_str(), int(id(timeout_dim).state));
+                }
+
+      #### Service to set the entities ####
+      - service: set_entity
+        variables:
+          ent_id: string
+          ent_icon: string
+          ent_label: string
+          ent_value: string
+          ent_value_xcen: string
+        then:
+          - lambda: |-
+              std::string enticon = ent_id.c_str() + std::string("_pic");
+              std::string entlabel = ent_id.c_str() + std::string("_label");
+              std::string entxcen = ent_id.c_str() + std::string(".xcen=") + ent_value_xcen.c_str();
+              id(disp1).set_component_text_printf(enticon.c_str(), "%s", ent_icon.c_str());
+              if (strcmp(ent_icon.c_str(), "0") != 0) id(disp1).set_component_text_printf(enticon.c_str(), "%s", ent_icon.c_str());
+              id(disp1).set_component_text_printf(entlabel.c_str(), "%s", ent_label.c_str());
+              id(disp1).set_component_text_printf(ent_id.c_str(), "%s", ent_value.c_str());
+              if (strcmp(ent_value_xcen.c_str(), "0") != 0) id(disp1).send_command_printf("%s", entxcen.c_str());
+
+      #### Service to populate the page Home #####
+      - service: page_home
+        variables:
+          notification_icon: string
+          notification_icon_color_normal: int[]
+          notification_icon_color_unread: int[]
+          qrcode: bool
+          qrcode_icon: string
+          qrcode_icon_color: int[]
+          entities_pages: bool
+          entities_pages_icon: string
+          entities_pages_icon_color: int[]
+          alarm_state: string
+        then:
+          - lambda: |-
+              // Notification button
+              id(disp1).send_command_printf("is_notification=%i", (id(notification_text).state.empty() and id(notification_label).state.empty()) ? 0 : 1);
+              id(disp1).set_component_text_printf("home.bt_notific", "%s", notification_icon.c_str());
+              id(set_component_color).execute("home.bt_notific", id(notification_unread).state ? notification_icon_color_unread : notification_icon_color_normal, {});
+              id(home_notify_icon_color_normal) = notification_icon_color_normal;
+              id(home_notify_icon_color_unread) = notification_icon_color_unread;
+
+              // QRCode button
+              id(disp1).send_command_printf("is_qrcode=%i", (qrcode) ? 1 : 0);
+              id(disp1).set_component_text_printf("home.bt_qrcode", "%s", qrcode_icon.c_str());
+              id(set_component_color).execute("home.bt_qrcode", qrcode_icon_color, {});
+
+              // Entities pages button
+              id(disp1).send_command_printf("is_entities=%i", (entities_pages) ? 1 : 0);
+              id(disp1).set_component_text_printf("home.bt_entities", "%s", entities_pages_icon.c_str());
+              id(set_component_color).execute("home.bt_entities", entities_pages_icon_color, {});
+
+              // Alarm button
+              id(disp1).send_command_printf("is_alarm=%i", (alarm_state == "" or alarm_state.empty()) ? 0 : 1);
+              id(update_alarm_icon).execute("home.bt_alarm", alarm_state.c_str());
+
+      #### Service to populate the page Settings #####
+      - service: page_settings
+        variables:
+          reboot: string
+          #sleep_mode: string
+          brightness: string
+          bright: string
+          dim: string
+        then:
+          - lambda: |-
+              if (not reboot.empty()) id(disp1).set_component_text_printf("settings.lbl_reboot", " %s", reboot.c_str());
+              id(disp1).set_component_text_printf("settings.lbl_brightness", " %s", brightness.c_str());
+              id(display_wrapped_text).execute("settings.lbl_bright", bright.c_str(), id(display_mode) == 2 ? 25 : 10);
+              id(display_wrapped_text).execute("settings.lbl_dim", dim.c_str(), id(display_mode) == 2 ? 25 : 10);
+
+      #### Service to populate the media player page #####
+      - service: media_player
+        variables:
+          entity: string
+          state: string
+          is_volume_muted: bool
+          friendly_name: string
+          volume_level: int
+          media_title: string
+          media_artist: string
+          media_duration: float
+          media_position: float
+          media_position_delta: float
+          supported_features: int
+        then:
+          - lambda: |-
+              if (id(current_page).state == "media_player")
+                {
                   id(entity_id) = entity;
+                  id(disp1).set_component_text_printf("page_label", "%s", friendly_name.c_str());
+                  id(display_wrapped_text).execute("track", media_title.c_str(), id(display_mode) == 2 ? 16 : 27);
+                  id(display_wrapped_text).execute("artist", media_artist.c_str(), id(display_mode) == 2 ? 26 : 40);
 
-                  // Alarm page - Header
-                  id(update_alarm_icon).execute("icon_state", state.c_str());
-                  id(disp1).set_component_text_printf("page_label", "%s", page_title.c_str());
-                  id(disp1).set_component_text_printf("code_format", "%s", code_format.c_str());
-                  if (code_arm_required) id(disp1).set_component_text_printf("code_arm_req", "1"); else id(disp1).set_component_text_printf("code_arm_req", "0");
-
-                  // Alarm page - Button's icons
-                  id(disp1).set_component_text_printf("bt_home_icon", "\uE689"); //mdi:shield-home
-                  id(disp1).set_component_text_printf("bt_away_icon", "\uE99C"); //mdi:shield-lock
-                  id(disp1).set_component_text_printf("bt_night_icon", "\uF827"); //mdi:shield-moon
-                  id(disp1).set_component_text_printf("bt_vacat_icon", "\uE6BA"); //mdi:shield-airplane
-                  id(disp1).set_component_text_printf("bt_bypass_icon", "\uE77F"); //mdi:shield-half-full
-                  id(disp1).set_component_text_printf("bt_disarm_icon", "\uE99D"); //mdi:shield-off
-
-                  // Alarm page - Button's text
-                  id(display_wrapped_text).execute("bt_home_text", mui_alarm[0].c_str(), 10);
-                  id(display_wrapped_text).execute("bt_away_text", mui_alarm[1].c_str(), 10);
-                  id(display_wrapped_text).execute("bt_night_text", mui_alarm[2].c_str(), 10);
-                  id(display_wrapped_text).execute("bt_vacat_text", mui_alarm[3].c_str(), 10);
-                  id(display_wrapped_text).execute("bt_bypass_text", mui_alarm[4].c_str(), 10);
-                  id(display_wrapped_text).execute("bt_disarm_text", mui_alarm[5].c_str(), 10);
-
-                  // Alarm page - Buttons
-                  if (supported_features & 1) // Alarm - Button - Home
+                  // on/off button
+                  if (supported_features & 128 and state == "off") //TURN_ON
                     {
-                      id(disp1).send_command_printf("bt_home_pic.pic=%i", (state=="armed_home") ? 43 : 42);
-                      id(disp1).set_component_background_color("bt_home_text", (state=="armed_home") ? 19818 : 52857);
-                      id(disp1).set_component_background_color("bt_home_icon", (state=="armed_home") ? 19818 : 52857);
-                      id(disp1).set_component_font_color("bt_home_text", (state=="armed_home") ? 65535 : 0);
-                      id(disp1).set_component_font_color("bt_home_icon", (state=="armed_home") ? 65535 : 0);
-                      if (state=="armed_home") id(disp1).hide_component("bt_home"); else id(disp1).show_component("bt_home");
+                      id(set_component_color).execute("bt_on_off", { 65535 }, {} );
+                      id(disp1).show_component("bt_on_off");
                     }
-                  if (supported_features & 2) // Alarm - Button - Away
+                  else if (supported_features & 256 and state != "off") //TURN_OFF
                     {
-                      id(disp1).send_command_printf("bt_away_pic.pic=%i", (state=="armed_away") ? 43 : 42);
-                      id(disp1).set_component_background_color("bt_away_text", (state=="armed_away") ? 19818 : 52857);
-                      id(disp1).set_component_background_color("bt_away_icon", (state=="armed_away") ? 19818 : 52857);
-                      id(disp1).set_component_font_color("bt_away_text", (state=="armed_away") ? 65535 : 0);
-                      id(disp1).set_component_font_color("bt_away_icon", (state=="armed_away") ? 65535 : 0);
-                      if (state=="armed_away") id(disp1).hide_component("bt_away"); else id(disp1).show_component("bt_away");
+                      id(set_component_color).execute("bt_on_off", { 10597 }, {} );
+                      id(disp1).show_component("bt_on_off");
                     }
-                  if (supported_features & 4) // Alarm - Button - Night
+                  else id(disp1).hide_component("bt_on_off");
+
+                  // play/pause button
+                  if ((supported_features & 512 or supported_features & 16384) and state != "playing" and state != "off") //PLAY_MEDIA+PLAY
                     {
-                      id(disp1).send_command_printf("bt_night_pic.pic=%i", (state=="armed_night") ? 43 : 42);
-                      id(disp1).set_component_background_color("bt_night_text", (state=="armed_night") ? 19818 : 52857);
-                      id(disp1).set_component_background_color("bt_night_icon", (state=="armed_night") ? 19818 : 52857);
-                      id(disp1).set_component_font_color("bt_night_text", (state=="armed_night") ? 65535 : 0);
-                      id(disp1).set_component_font_color("bt_night_icon", (state=="armed_night") ? 65535 : 0);
-                      if (state=="armed_night") id(disp1).hide_component("bt_night"); else id(disp1).show_component("bt_night");
+                      id(disp1).set_component_text_printf("bt_play_pause", "%s", "\uE409"); // mdi:play
+                      id(disp1).show_component("bt_play_pause");
                     }
-                  if (supported_features & 32) // Alarm - Button - Vacation
+                  else if (supported_features & 1 and state == "playing" ) //PAUSE
                     {
-                      id(disp1).send_command_printf("bt_vacat_pic.pic=%i", (state=="armed_vacation") ? 43 : 42);
-                      id(disp1).set_component_background_color("bt_vacat_text", (state=="armed_vacation") ? 19818 : 52857);
-                      id(disp1).set_component_background_color("bt_vacat_icon", (state=="armed_vacation") ? 19818 : 52857);
-                      id(disp1).set_component_font_color("bt_vacat_text", (state=="armed_vacation") ? 65535 : 0);
-                      id(disp1).set_component_font_color("bt_vacat_icon", (state=="armed_vacation") ? 65535 : 0);
-                      if (state=="armed_vacation") id(disp1).hide_component("bt_vacat"); else id(disp1).show_component("bt_vacat");
+                      id(disp1).set_component_text_printf("bt_play_pause", "%s", "\uE3E3"); // mdi:pause
+                      id(disp1).show_component("bt_play_pause");
                     }
-                  if (supported_features & 16) // Alarm - Button - Custom bypass
+                  else id(disp1).hide_component("bt_play_pause");
+
+                  // bt_prev button - PREVIOUS_TRACK
+                  if (supported_features & 16 and state != "off") id(disp1).show_component("bt_prev"); else id(disp1).hide_component("bt_prev");
+                  // bt_next button - NEXT_TRACK
+                  if (supported_features & 32 and state != "off") id(disp1).show_component("bt_next"); else id(disp1).hide_component("bt_next");
+
+                  // Stop button - STOP
+                  //if (supported_features & 4096 and (state == "playing" or state == "paused")) id(disp1).show_component("bt_stop"); else id(disp1).hide_component("bt_stop");
+
+                  // mute/unmute button - VOLUME_MUTE
+                  id(disp1).set_component_value("is_muted", (is_volume_muted) ? 1 : 0);
+                  if (supported_features & 8 and is_volume_muted) // unmute
                     {
-                      id(disp1).send_command_printf("bt_bypass_pic.pic=%i", (state=="armed_bypass") ? 43 : 42);
-                      id(disp1).set_component_background_color("bt_bypass_text", (state=="armed_bypass") ? 19818 : 52857);
-                      id(disp1).set_component_background_color("bt_bypass_icon", (state=="armed_bypass") ? 19818 : 52857);
-                      id(disp1).set_component_font_color("bt_bypass_text", (state=="armed_bypass") ? 65535 : 0);
-                      id(disp1).set_component_font_color("bt_bypass_icon", (state=="armed_bypass") ? 65535 : 0);
-                      if (state=="armed_bypass") id(disp1).hide_component("bt_bypass"); else id(disp1).show_component("bt_bypass");
+                      id(disp1).set_component_text_printf("bt_mute", "%s", "\uEE07"); // mdi:volume-variant-off
+                      id(disp1).show_component("bt_mute");
                     }
-                  if ( true ) // Alarm - Button - Disarm
+                  else if (supported_features & 8) // mute
                     {
-                      id(disp1).send_command_printf("bt_disarm_pic.pic=%i", (state=="disarmed") ? 43 : 42);
-                      id(disp1).set_component_background_color("bt_disarm_text", (state=="disarmed") ? 19818 : 52857);
-                      id(disp1).set_component_background_color("bt_disarm_icon", (state=="disarmed") ? 19818 : 52857);
-                      id(disp1).set_component_font_color("bt_disarm_text", (state=="disarmed") ? 65535 : 0);
-                      id(disp1).set_component_font_color("bt_disarm_icon", (state=="disarmed") ? 65535 : 0);
-                      if (state=="disarmed") id(disp1).hide_component("bt_disarm"); else id(disp1).show_component("bt_disarm");
+                      id(disp1).set_component_text_printf("bt_mute", "%s", "\uE57E"); // mdi:volume-low
+                      id(disp1).show_component("bt_mute");
                     }
-              }
+                  else id(disp1).hide_component("bt_mute");
 
-    #### Service to populate the media player page #####
-    - service: media_player
-      variables:
-        entity: string
-        state: string
-        is_volume_muted: bool
-        friendly_name: string
-        volume_level: int
-        media_title: string
-        media_artist: string
-        media_duration: float
-        media_position: float
-        media_position_delta: float
-        supported_features: int
-      then:
-        - lambda: |-
-            if (id(current_page).state == "media_player")
-              {
-                id(entity_id) = entity;
-                id(disp1).set_component_text_printf("page_label", "%s", friendly_name.c_str());
-                id(display_wrapped_text).execute("track", media_title.c_str(), id(display_mode) == 2 ? 16 : 27);
-                id(display_wrapped_text).execute("artist", media_artist.c_str(), id(display_mode) == 2 ? 26 : 40);
+                  // VOLUME_SET
+                  if (supported_features & 4)
+                    {
+                      if (volume_level != id(last_volume_level))
+                        {
+                          id(last_volume_level) = volume_level;
+                          id(disp1).set_component_text_printf("vol_text", "%i%%", volume_level);
+                          id(disp1).set_component_value("vol_slider", volume_level);
+                        }
+                      id(disp1).show_component("vol_slider");
+                      id(disp1).show_component("bt_vol_down");
+                      id(disp1).show_component("bt_vol_up");
+                      id(disp1).show_component("vol_text");
+                    }
+                  else
+                    {
+                      id(disp1).hide_component("vol_slider");
+                      id(disp1).hide_component("bt_vol_down");
+                      id(disp1).hide_component("bt_vol_up");
+                      id(disp1).hide_component("vol_text");
+                    }
 
-                // on/off button
-                if (supported_features & 128 and state == "off") //TURN_ON
-                  {
-                    id(set_component_color).execute("bt_on_off", { 65535 }, {} );
-                    id(disp1).show_component("bt_on_off");
-                  }
-                else if (supported_features & 256 and state != "off") //TURN_OFF
-                  {
-                    id(set_component_color).execute("bt_on_off", { 10597 }, {} );
-                    id(disp1).show_component("bt_on_off");
-                  }
-                else id(disp1).hide_component("bt_on_off");
-
-                // play/pause button
-                if ((supported_features & 512 or supported_features & 16384) and state != "playing" and state != "off") //PLAY_MEDIA+PLAY
-                  {
-                    id(disp1).set_component_text_printf("bt_play_pause", "%s", "\uE409"); // mdi:play
-                    id(disp1).show_component("bt_play_pause");
-                  }
-                else if (supported_features & 1 and state == "playing" ) //PAUSE
-                  {
-                    id(disp1).set_component_text_printf("bt_play_pause", "%s", "\uE3E3"); // mdi:pause
-                    id(disp1).show_component("bt_play_pause");
-                  }
-                else id(disp1).hide_component("bt_play_pause");
-
-                // bt_prev button - PREVIOUS_TRACK
-                if (supported_features & 16 and state != "off") id(disp1).show_component("bt_prev"); else id(disp1).hide_component("bt_prev");
-                // bt_next button - NEXT_TRACK
-                if (supported_features & 32 and state != "off") id(disp1).show_component("bt_next"); else id(disp1).hide_component("bt_next");
-
-                // Stop button - STOP
-                //if (supported_features & 4096 and (state == "playing" or state == "paused")) id(disp1).show_component("bt_stop"); else id(disp1).hide_component("bt_stop");
-
-                // mute/unmute button - VOLUME_MUTE
-                id(disp1).set_component_value("is_muted", (is_volume_muted) ? 1 : 0);
-                if (supported_features & 8 and is_volume_muted) // unmute
-                  {
-                    id(disp1).set_component_text_printf("bt_mute", "%s", "\uEE07"); // mdi:volume-variant-off
-                    id(disp1).show_component("bt_mute");
-                  }
-                else if (supported_features & 8) // mute
-                  {
-                    id(disp1).set_component_text_printf("bt_mute", "%s", "\uE57E"); // mdi:volume-low
-                    id(disp1).show_component("bt_mute");
-                  }
-                else id(disp1).hide_component("bt_mute");
-
-                // VOLUME_SET
-                if (supported_features & 4)
-                  {
-                    if (volume_level != id(last_volume_level))
-                      {
-                        id(last_volume_level) = volume_level;
-                        id(disp1).set_component_text_printf("vol_text", "%i%%", volume_level);
-                        id(disp1).set_component_value("vol_slider", volume_level);
-                      }
-                    id(disp1).show_component("vol_slider");
-                    id(disp1).show_component("bt_vol_down");
-                    id(disp1).show_component("bt_vol_up");
-                    id(disp1).show_component("vol_text");
-                  }
-                else
-                  {
-                    id(disp1).hide_component("vol_slider");
-                    id(disp1).hide_component("bt_vol_down");
-                    id(disp1).hide_component("bt_vol_up");
-                    id(disp1).hide_component("vol_text");
-                  }
-
-                if (media_duration > 0)
-                  {
-                    if (media_duration != id(last_media_duration) or media_position != id(last_media_position))
-                      {
-                        id(last_media_duration) = media_duration;
-                        id(last_media_position) = media_position;
-                        id(disp1).set_component_value("prg_current", int(round(min(media_position + media_position_delta, media_duration))));
-                      }
-                    id(disp1).set_component_value("prg_total", int(round(media_duration)));
-                    id(disp1).send_command_printf("prg_timer.en=%i", (state == "playing") ? 1 : 0);
-                    id(disp1).show_component("time_current");
-                    id(disp1).show_component("time_total");
-                    id(disp1).show_component("time_progress");
-                  }
-                else
-                  {
-                    id(disp1).send_command_printf("prg_timer.en=0");
-                    id(disp1).hide_component("time_current");
-                    id(disp1).hide_component("time_total");
-                    id(disp1).hide_component("time_progress");
-                  }
-              }
+                  if (media_duration > 0)
+                    {
+                      if (media_duration != id(last_media_duration) or media_position != id(last_media_position))
+                        {
+                          id(last_media_duration) = media_duration;
+                          id(last_media_position) = media_position;
+                          id(disp1).set_component_value("prg_current", int(round(min(media_position + media_position_delta, media_duration))));
+                        }
+                      id(disp1).set_component_value("prg_total", int(round(media_duration)));
+                      id(disp1).send_command_printf("prg_timer.en=%i", (state == "playing") ? 1 : 0);
+                      id(disp1).show_component("time_current");
+                      id(disp1).show_component("time_total");
+                      id(disp1).show_component("time_progress");
+                    }
+                  else
+                    {
+                      id(disp1).send_command_printf("prg_timer.en=0");
+                      id(disp1).hide_component("time_current");
+                      id(disp1).hide_component("time_total");
+                      id(disp1).hide_component("time_progress");
+                    }
+                }
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
@@ -891,7 +915,7 @@ binary_sensor:
           - logger.log: "Left button - Long click"
           - script.execute:
               id: ha_button
-              page: !lambda return id(current_page).state;
+              page: !lambda return id(current_page).state.c_str();
               component: "hw_bt_left"
               command: "long_click"
       - timing: &short_click-timing
@@ -913,7 +937,7 @@ binary_sensor:
                 - switch.toggle: relay_1
           - script.execute:
               id: ha_button
-              page: !lambda return id(current_page).state;
+              page: !lambda return id(current_page).state.c_str();
               component: "hw_bt_left"
               command: "short_click"
 
@@ -930,7 +954,7 @@ binary_sensor:
           - logger.log: "Right button - Long click"
           - script.execute:
               id: ha_button
-              page: !lambda return id(current_page).state;
+              page: !lambda return id(current_page).state.c_str();
               component: "hw_bt_right"
               command: "long_click"
       - timing: *short_click-timing
@@ -951,7 +975,7 @@ binary_sensor:
                 - switch.toggle: relay_2
           - script.execute:
               id: ha_button
-              page: !lambda return id(current_page).state;
+              page: !lambda return id(current_page).state.c_str();
               component: "hw_bt_right"
               command: "short_click"
 
@@ -1004,40 +1028,6 @@ sensor:
       then:
         - lambda: |-
             id(timer_reset_all).execute(id(current_page).state.c_str());
-
-  ##### Uptime Sensors #####
-  - name: ${device_name} Uptime seconds
-    id: uptime_sec
-    platform: uptime
-    internal: true
-
-  - name: ${device_name} API uptime
-    id: api_timestamp
-    platform: template
-    lambda: 'return id(time_provider).now().timestamp;'
-    internal: false
-    device_class: timestamp
-    entity_category: diagnostic
-    accuracy_decimals: 0
-    update_interval: never
-
-  - name: ${device_name} Device uptime
-    id: device_timestamp
-    platform: template
-    lambda: 'return (id(time_provider).now().timestamp - id(uptime_sec).state);'
-    internal: false
-    device_class: timestamp
-    entity_category: diagnostic
-    accuracy_decimals: 0
-    update_interval: never
-
-  ##### WIFI Signal stregth
-  - name: ${device_name} RSSI
-    platform: wifi_signal
-    update_interval: 60s
-    on_value:
-      - script.execute:
-          id: refresh_wifi_icon
 
   ##### INTERNAL TEMPERATURE SENSOR, ADC VALUE #####
   - id: ntc_source
@@ -1103,15 +1093,22 @@ text_sensor:
   ##### Current page name #####
   - name: ${device_name} Current page
     id: current_page
-    platform: template
-    #platform: nextion
-    #nextion_id: disp1
-    #component_name: currentpage
+    #platform: template
+    platform: nextion
+    nextion_id: disp1
+    component_name: currentpage
+    icon: mdi:tablet-dashboard
     internal: false
     disabled_by_default: false
+    filters:
+      - lambda: |-
+          x = x.c_str();
+          x.shrink_to_fit();
+          return x;
     on_value:
       then:
         - lambda: |-
+            // Reset globals
             if (x != "climate" and x != "cover" and x != "fan" and x != "light" and x != "media_player" and x != "confirm" and x != "keyb_num") id(entity_id) = "";
             if (x != "media_player")
               {
@@ -1119,26 +1116,108 @@ text_sensor:
                 id(last_media_duration) = -1;
                 id(last_media_position) = -1;
               }
+
+            // Report new page to logs
             ESP_LOGD("text_sensor.current_page", "New page: %s", x.c_str());
             if (!id(entity_id).empty()) ESP_LOGD("text_sensor.current_page", "Entity shown: %s", id(entity_id).c_str());
+
+            // Reset timers
             id(timer_reset_all).execute(x.c_str());
 
-  ##### ESPhome version used to compile the app #####
-  - name: ${device_name} ESPhome Version
-    platform: version
-    disabled_by_default: true
+            // Report new page to Home Assistant
+            ESP_LOGV("text_sensor.localevent", "Trigger HA event");
+            auto ha_event = new esphome::api::CustomAPIDevice();
+            ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+              {
+                {"type", "page_changed"},
+                {"page", x.c_str()},
+                {"entity", id(entity_id)}
+              });
 
-  - platform: wifi_info
-    ip_address:
-      name: ${device_name} IP
-      disabled_by_default: true
-      id: ip_address
-    ssid:
-      name: ${device_name} SSID
-      disabled_by_default: true
-    bssid:
-      name: ${device_name} BSSID
-      disabled_by_default: true
+            // Report new page to add-ons
+            ESP_LOGV("text_sensor.localevent", "Call add-ons scripts for new page");
+            id(addon_climate_set_climate).execute(x == "climate" and id(entity_id) == "embedded_climate");
+
+            // Construct new page
+            ESP_LOGV("text_sensor.localevent", "Construct new page");
+            if (x == "home")
+              {
+                ESP_LOGV("text_sensor.nspanelevent", "Construct home page");
+                id(update_page_home).execute();
+              }
+            else if (x == "screensaver")
+              {
+                ESP_LOGV("text_sensor.nspanelevent", "Construct screensaver page");
+                id(update_page_screensaver).execute();
+              }
+            else if (x == "climate")
+              {
+                ESP_LOGV("text_sensor.nspanelevent", "Construct climate page");
+                id(disp1).set_component_text_printf("climate.button01_icon", "%s", "\uEE8D"); //mdi:calendar-sync
+                id(disp1).set_component_text_printf("climate.button02_icon", "%s", "\uE069"); //mdi:autorenew
+                id(disp1).set_component_text_printf("climate.button03_icon", "%s", "\uE237"); //mdi:fire
+                id(disp1).set_component_text_printf("climate.button04_icon", "%s", "\uE716"); //mdi:snowflake
+                id(disp1).set_component_text_printf("climate.button05_icon", "%s", "\uE58D"); //mdi:water-percent
+                id(disp1).set_component_text_printf("climate.button06_icon", "%s", "\uE20F"); //mdi:fan
+                id(disp1).set_component_text_printf("climate.button07_icon", "%s", "\uE424"); //mdi:power
+                id(addon_climate_update_page_climate).execute();
+              }
+            else if (x == "cover") // To do: Should be moved to Blueprint
+              {
+                ESP_LOGV("text_sensor.nspanelevent", "Construct cover page");
+                id(disp1).set_component_text_printf("cover.cover_stop", "%s", "\uE666"); //mdi:stop-circle-outline
+                // In the future this will be dynamically contructed based on the device_class
+                id(disp1).set_component_text_printf("cover.cover_open", "%s", "\uF11D"); //mdi:window-shutter-open
+                id(disp1).set_component_text_printf("cover.cover_close", "%s", "\uF11B"); //mdi:window-shutter
+              }
+            else if (x == "fan") // To do: Should be moved to Blueprint
+              {
+                ESP_LOGV("text_sensor.nspanelevent", "Construct fan page");
+                id(disp1).set_component_text_printf("fan.button_on", "%s", "\uE20F"); //mdi:fan
+                id(disp1).set_component_text_printf("fan.button_off", "%s", "\uE81C"); //mdi:fan-off
+                id(disp1).set_component_text_printf("fan.button_up", "%s", "\uF46D"); //mdi:fan-chevron-up
+                id(disp1).set_component_text_printf("fan.button_down", "%s", "\uF46C"); //mdi:fan-chevron-down
+              }
+            else if (x == "keyb_num")
+              {
+                ESP_LOGV("text_sensor.nspanelevent", "Construct keyb_num page");
+                id(disp1).set_component_text_printf("keyb_num.bview", "%s", "\uE207"); //mdi:eye
+                id(disp1).set_component_text_printf("keyb_num.bclose", "%s", "\uE158"); //mdi:close-circle
+                id(disp1).set_component_text_printf("keyb_num.bclear", "%s", "\uE641"); //mdi:eraser-variant
+                id(disp1).set_component_text_printf("keyb_num.benter", "%s", "\uE12B"); //mdi:check
+              }
+            else if (x == "weather01") id(disp1).set_component_text_printf("page_index", "%s", "●○○○○"); // 1/5 // To do: Should be moved to Blueprint
+            else if (x == "weather02") id(disp1).set_component_text_printf("page_index", "%s", "○●○○○"); // 2/5 // To do: Should be moved to Blueprint
+            else if (x == "weather03") id(disp1).set_component_text_printf("page_index", "%s", "○○●○○"); // 3/5 // To do: Should be moved to Blueprint
+            else if (x == "weather04") id(disp1).set_component_text_printf("page_index", "%s", "○○○●○"); // 4/5 // To do: Should be moved to Blueprint
+            else if (x == "weather05") id(disp1).set_component_text_printf("page_index", "%s", "○○○○●"); // 5/5 // To do: Should be moved to Blueprint
+            else if (x == "buttonpage01" or x == "entitypage01") id(disp1).set_component_text_printf("page_index", "%s", "●○○○"); // 1/4 // To do: Should be moved to Blueprint
+            else if (x == "buttonpage02" or x == "entitypage02") id(disp1).set_component_text_printf("page_index", "%s", "○●○○"); // 2/4 // To do: Should be moved to Blueprint
+            else if (x == "buttonpage03" or x == "entitypage03") id(disp1).set_component_text_printf("page_index", "%s", "○○●○"); // 3/4 // To do: Should be moved to Blueprint
+            else if (x == "buttonpage04" or x == "entitypage04") id(disp1).set_component_text_printf("page_index", "%s", "○○○●"); // 4/4 // To do: Should be moved to Blueprint
+            else if (x == "settings") // To do: Add timers on TFT?
+              {
+                //id(disp1).set_component_text_printf("bt_sleep", "%s", (id(sleep_mode).state) ? "\uEA19" : "\uEA18"); //mdi:toggle-switch-outline or mdi:toggle-switch-off-outline
+                id(disp1).hide_component("lbl_sleep");
+                id(disp1).hide_component("bt_sleep");
+              }
+            else if (x == "notification")
+              {
+                id(disp1).set_component_text_printf("notification.notifi_label", "%s", id(notification_label).state.c_str());
+                id(display_wrapped_text).execute("notification.notifi_text01", id(notification_text).state.c_str(), id(display_mode) == 2 ? 23 : 32);
+              }
+            else if (x == "media_player") // To do: Should be moved to Blueprint
+              {
+                ESP_LOGV("text_sensor.nspanelevent", "Construct media_player page");
+                id(disp1).set_component_text_printf("bt_on_off", "%s", "\uE424"); //mdi:power
+                id(disp1).set_component_text_printf("bt_prev", "%s", "\uE4AD"); //mdi:skip-previous
+                id(disp1).set_component_text_printf("bt_next", "%s", "\uE4AC"); //mdi:skip-next
+                id(disp1).set_component_text_printf("bt_play_pause", "%s", "\uE40D"); //mdi:play-pause
+                //id(disp1).set_component_text_printf("bt_stop", "%s", "\uE4DA"); //mdi:stop
+                id(disp1).set_component_text_printf("bt_mute", "%s", "\uE75E"); //mdi:volume-mute
+                id(disp1).set_component_text_printf("bt_vol_down", "%s", "\uE75D"); //mdi:volume-minus
+                id(disp1).set_component_text_printf("bt_vol_up", "%s", "\uE75C"); //mdi:volume-plus
+              }
 
   - name: ${device_name} Notification Label
     platform: template
@@ -1163,7 +1242,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            ESP_LOGV("text_sensor.nspanelevent", "Starting");
+            ESP_LOGE("text_sensor.nspanelevent", "Starting");
             DynamicJsonDocument doc(1024);
             deserializeJson(doc, x);
             std::string page = doc["page"];
@@ -1171,10 +1250,10 @@ text_sensor:
             if (not (component == "currentpage" and (page == "screensaver" or page == "home"))) id(timer_reset_all).execute(page.c_str());
             std::string value = doc["value"];
             std::string entity = id(entity_id); //doc["entity"];
-            ESP_LOGV("text_sensor.nspanelevent", "page: %s", page.c_str());
-            ESP_LOGV("text_sensor.nspanelevent", "component: %s", component.c_str());
-            ESP_LOGV("text_sensor.nspanelevent", "value: %s", value.c_str());
-            ESP_LOGV("text_sensor.nspanelevent", "entity: %s", entity.c_str());
+            ESP_LOGE("text_sensor.nspanelevent", "page: %s", page.c_str());
+            ESP_LOGE("text_sensor.nspanelevent", "component: %s", component.c_str());
+            ESP_LOGE("text_sensor.nspanelevent", "value: %s", value.c_str());
+            ESP_LOGE("text_sensor.nspanelevent", "entity: %s", entity.c_str());
             auto ha_event = new esphome::api::CustomAPIDevice();
             ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
               {
@@ -1184,100 +1263,6 @@ text_sensor:
                 {"value", value},
                 {"entity", entity}
               });
-            if (component=="currentpage")
-              {
-                ESP_LOGV("text_sensor.nspanelevent", "New page: %s", page.c_str());
-                ESP_LOGV("text_sensor.nspanelevent", "Trigger HA event");
-                ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-                  {
-                    {"type", "page_changed"},
-                    {"page", page},
-                    {"entity", entity}
-                  });
-                  ESP_LOGV("text_sensor.nspanelevent", "Call add-ons scripts for new page");
-                id(addon_climate_set_climate).execute(page=="climate" and entity == "embedded_climate");
-                ESP_LOGV("text_sensor.nspanelevent", "Publish current_page sensor");
-                id(current_page).publish_state(page);
-                ESP_LOGV("text_sensor.nspanelevent", "Construct new page");
-                if (page=="home")
-                  {
-                    ESP_LOGV("text_sensor.nspanelevent", "Construct home page");
-                    id(update_page_home).execute();
-                  }
-                else if (page=="screensaver")
-                  {
-                    ESP_LOGV("text_sensor.nspanelevent", "Construct screensaver page");
-                    id(update_page_screensaver).execute();
-                  }
-                else if (page=="climate")
-                  {
-                    ESP_LOGV("text_sensor.nspanelevent", "Construct climate page");
-                    id(disp1).set_component_text_printf("climate.button01_icon", "%s", "\uEE8D"); //mdi:calendar-sync
-                    id(disp1).set_component_text_printf("climate.button02_icon", "%s", "\uE069"); //mdi:autorenew
-                    id(disp1).set_component_text_printf("climate.button03_icon", "%s", "\uE237"); //mdi:fire
-                    id(disp1).set_component_text_printf("climate.button04_icon", "%s", "\uE716"); //mdi:snowflake
-                    id(disp1).set_component_text_printf("climate.button05_icon", "%s", "\uE58D"); //mdi:water-percent
-                    id(disp1).set_component_text_printf("climate.button06_icon", "%s", "\uE20F"); //mdi:fan
-                    id(disp1).set_component_text_printf("climate.button07_icon", "%s", "\uE424"); //mdi:power
-                    id(addon_climate_update_page_climate).execute();
-                  }
-                else if (page=="cover")
-                  {
-                    ESP_LOGV("text_sensor.nspanelevent", "Construct cover page");
-                    id(disp1).set_component_text_printf("cover.cover_stop", "%s", "\uE666"); //mdi:stop-circle-outline
-                    // In the future this will be dynamically contructed based on the device_class
-                    id(disp1).set_component_text_printf("cover.cover_open", "%s", "\uF11D"); //mdi:window-shutter-open
-                    id(disp1).set_component_text_printf("cover.cover_close", "%s", "\uF11B"); //mdi:window-shutter
-                  }
-                else if (page=="fan")
-                  {
-                    ESP_LOGV("text_sensor.nspanelevent", "Construct fan page");
-                    id(disp1).set_component_text_printf("fan.button_on", "%s", "\uE20F"); //mdi:fan
-                    id(disp1).set_component_text_printf("fan.button_off", "%s", "\uE81C"); //mdi:fan-off
-                    id(disp1).set_component_text_printf("fan.button_up", "%s", "\uF46D"); //mdi:fan-chevron-up
-                    id(disp1).set_component_text_printf("fan.button_down", "%s", "\uF46C"); //mdi:fan-chevron-down
-                  }
-                else if (page=="keyb_num")
-                  {
-                    ESP_LOGV("text_sensor.nspanelevent", "Construct keyb_num page");
-                    id(disp1).set_component_text_printf("keyb_num.bview", "%s", "\uE207"); //mdi:eye
-                    id(disp1).set_component_text_printf("keyb_num.bclose", "%s", "\uE158"); //mdi:close-circle
-                    id(disp1).set_component_text_printf("keyb_num.bclear", "%s", "\uE641"); //mdi:eraser-variant
-                    id(disp1).set_component_text_printf("keyb_num.benter", "%s", "\uE12B"); //mdi:check
-                  }
-                else if (page=="weather01") id(disp1).set_component_text_printf("page_index", "%s", "\uE764\uE765\uE765\uE765\uE765"); // 1/5
-                else if (page=="weather02") id(disp1).set_component_text_printf("page_index", "%s", "\uE765\uE764\uE765\uE765\uE765"); // 2/5
-                else if (page=="weather03") id(disp1).set_component_text_printf("page_index", "%s", "\uE765\uE765\uE764\uE765\uE765"); // 3/5
-                else if (page=="weather04") id(disp1).set_component_text_printf("page_index", "%s", "\uE765\uE765\uE765\uE764\uE765"); // 4/5
-                else if (page=="weather05") id(disp1).set_component_text_printf("page_index", "%s", "\uE765\uE765\uE765\uE765\uE764"); // 5/5
-                else if (page=="buttonpage01" or page=="entitypage01") id(disp1).set_component_text_printf("page_index", "%s", "\uE764\uE765\uE765\uE765"); // 1/4
-                else if (page=="buttonpage02" or page=="entitypage02") id(disp1).set_component_text_printf("page_index", "%s", "\uE765\uE764\uE765\uE765"); // 2/4
-                else if (page=="buttonpage03" or page=="entitypage03") id(disp1).set_component_text_printf("page_index", "%s", "\uE765\uE765\uE764\uE765"); // 3/4
-                else if (page=="buttonpage04" or page=="entitypage04") id(disp1).set_component_text_printf("page_index", "%s", "\uE765\uE765\uE765\uE764"); // 4/4
-                else if (page=="settings")
-                  {
-                    //id(disp1).set_component_text_printf("bt_sleep", "%s", (id(sleep_mode).state) ? "\uEA19" : "\uEA18"); //mdi:toggle-switch-outline or mdi:toggle-switch-off-outline
-                    id(disp1).hide_component("lbl_sleep");
-                    id(disp1).hide_component("bt_sleep");
-                  }
-                else if (page=="notification")
-                  {
-                    id(disp1).set_component_text_printf("notification.notifi_label", "%s", id(notification_label).state.c_str());
-                    id(display_wrapped_text).execute("notification.notifi_text01", id(notification_text).state.c_str(), id(display_mode) == 2 ? 23 : 32);
-                  }
-                else if (page=="media_player")
-                  {
-                    ESP_LOGV("text_sensor.nspanelevent", "Construct media_player page");
-                    id(disp1).set_component_text_printf("bt_on_off", "%s", "\uE424"); //mdi:power
-                    id(disp1).set_component_text_printf("bt_prev", "%s", "\uE4AD"); //mdi:skip-previous
-                    id(disp1).set_component_text_printf("bt_next", "%s", "\uE4AC"); //mdi:skip-next
-                    id(disp1).set_component_text_printf("bt_play_pause", "%s", "\uE40D"); //mdi:play-pause
-                    //id(disp1).set_component_text_printf("bt_stop", "%s", "\uE4DA"); //mdi:stop
-                    id(disp1).set_component_text_printf("bt_mute", "%s", "\uE75E"); //mdi:volume-mute
-                    id(disp1).set_component_text_printf("bt_vol_down", "%s", "\uE75D"); //mdi:volume-minus
-                    id(disp1).set_component_text_printf("bt_vol_up", "%s", "\uE75C"); //mdi:volume-plus
-                  }
-              }
 
   ##### NSPanel event - Execute actions from ESPHome - NO push to HA #####
   - name: ${device_name} NSPanel local event
@@ -1298,7 +1283,6 @@ text_sensor:
             deserializeJson(doc, x);
             std::string page = doc["page"];
             std::string event = doc["event"];
-            if (not (event == "pagechanged" and (page == "screensaver" or page == "home"))) id(timer_reset_all).execute(page.c_str());
             std::string component = doc["component"];
             std::string key = doc["key"];
             std::string value = doc["value"];
@@ -1308,24 +1292,8 @@ text_sensor:
 
             // send event to Home Assistant
             auto ha_event = new esphome::api::CustomAPIDevice();
-            if (event=="pagechanged")
-              {
-                ESP_LOGV("text_sensor.localevent", "New page: %s", page.c_str());
-                ESP_LOGV("text_sensor.localevent", "Trigger HA event");
-                ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-                  {
-                    {"type", "page_changed"},
-                    {"page", page},
-                    {"entity", entity}
-                  });
-                  ESP_LOGV("text_sensor.localevent", "Call add-ons scripts for new page");
-                id(addon_climate_set_climate).execute(page=="climate" and id(entity_id) == "embedded_climate");
-                ESP_LOGV("text_sensor.localevent", "Publish current_page sensor");
-                id(current_page).publish_state(page);
-                ESP_LOGV("text_sensor.localevent", "Construct new page");
-              }
-            else if (event=="short_click" or event=="long_click") id(ha_button).execute(page.c_str(), component.c_str(), event.c_str());
-            else if (event=="click")
+            if (event == "short_click" or event == "long_click") id(ha_button).execute(page.c_str(), component.c_str(), event.c_str());
+            else if (event == "click")
               {
                 if (page == "home" and component == "climate")
                   {
@@ -1352,7 +1320,7 @@ text_sensor:
                 std::string code_format = doc["code_format"];
                 std::string code_arm_req = doc["code_arm_req"];
                 std::string title = doc["mui"];
-                if (code_format=="number" and (key=="disarm" or code_arm_req=="1"))
+                if (code_format == "number" and (key == "disarm" or code_arm_req == "1"))
                   {
                     id(disp1).goto_page("keyb_num");
                     id(disp1).set_component_value("keyb_num.page_id", 23); //Calling from Alarm page
@@ -1364,13 +1332,13 @@ text_sensor:
                   }
                 else id(service_call_alarm_control_panel).execute(entity.c_str(), key.c_str(), code_format.c_str(), "");
               }
-            else if (page=="boot")
+            else if (page == "boot")
               {
                 // Detect display mode
                 if (doc.containsKey("display_mode"))
                   {
                     std::string display_mode_str = doc["display_mode"];
-                    ESP_LOGD("text_sensor.localevent", "display_mode: %s", display_mode_str.c_str());
+                    ESP_LOGV("text_sensor.localevent", "display_mode: %s", display_mode_str.c_str());
                     float display_mode_float = stof(display_mode_str);
                     if (display_mode_float > 0) id(display_mode) = int(display_mode_float);
                   }
@@ -1384,7 +1352,7 @@ text_sensor:
                 id(check_versions).execute();
 
                 // Detect timeout
-                if (event=="timeout")
+                if (event == "timeout")
                   {
                     ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
                       {
@@ -1634,8 +1602,8 @@ number:
 
 ##### START - SELECT CONFIGURATION #####
 select:
-  - id: wakeup_page_name
-    name: ${device_name} Wake-up page
+  - name: ${device_name} Wake-up page
+    id: wakeup_page_name
     platform: template
     options:
       - home
@@ -1663,20 +1631,27 @@ display:
   - id: disp1
     platform: nextion
     uart_id: tf_uart
-    tft_url: ${nextion_update_url}
+    #tft_url: ${nextion_update_url}
     on_page: # I couldn't make this trigger to work, so used text_sensor nspanelevent and localevent instead
-      - lambda: ESP_LOGW("display.disp1", "NEXTION PAGE CHANGED");
+      then:
+        - lambda: ESP_LOGW("display.disp1.on_page", "NEXTION PAGE CHANGED");
     on_setup:
       then:
         - lambda: |-
+            ESP_LOGV("display.disp1.on_setup", "Nextion starting");
             id(disp1).goto_page("boot");
+            id(disp1).send_command_printf("bkcmd=3");
             id(disp1).set_component_text_printf("boot.esph_version", "%s", "${version}"); // ### esphome-version ###
             id(disp1).show_component("bt_reboot");
             id(timer_reset_all).execute("boot");
+            ESP_LOGV("display.disp1.on_setup", "Wait for API");
         - wait_until:
             api.connected
         - lambda: |-
-            id(disp1).set_component_text_printf("boot.ip_addr", "%s", id(ip_address).state.c_str());
+            ESP_LOGV("display.disp1.on_setup", "Publish IP address");
+            auto ip = network::get_ip_address();
+            id(disp1).set_component_text_printf("boot.ip_addr", "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+            ESP_LOGV("display.disp1.on_setup", "Report to Home Assistant");
             auto ha_event = new esphome::api::CustomAPIDevice();
             ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
               {
@@ -1693,6 +1668,7 @@ display:
             id(disp1).send_command_printf("brightness_dim=%i", id(display_dim_brightness_global));
             id(disp1).send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
             id(nextion_init).publish_state(true);
+            ESP_LOGV("display.disp1.on_setup", "Report to Home Assistant");
             auto ha_event = new esphome::api::CustomAPIDevice();
             ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
               {
@@ -1703,7 +1679,6 @@ display:
             id(home_relay1_icon) = "\uE3A8";
             id(timer_reset_all).execute("boot");
         - *notification_clear
-        - switch.turn_off: notification_unread
         - logger.log: "Nextion start - Done!"
 
 ### Scripts ######
@@ -1736,7 +1711,7 @@ script:
           then:
             - delay: !lambda return (timeout *1000);
             - lambda: |-
-                ESP_LOGD("script.timer_page", "Timed out on page: %s", id(current_page).state.c_str());
+                ESP_LOGV("script.timer_page", "Timed out on page: %s", id(current_page).state.c_str());
                 if (id(current_page).state != "screensaver" and id(current_page).state != "boot" and id(current_page).state != "home" and timeout >= 1)
                   {
                     ESP_LOGD("script.timer_page", "Fallback to page Home");
@@ -1752,7 +1727,7 @@ script:
           ESP_LOGV("script.timer_dim", "Reset timer: %is", timeout);
           if (id(is_dim_brightness))
             {
-              if (page != "screensaver" and page != "boot")
+              if (page != "screensaver" and page != "boot" and page != "blank-screensaver")
                 {
                   ESP_LOGD("script.timer_dim", "Waking up on page: %s", page.c_str());
                   id(disp1).send_command_printf("wakeup_timer.en=1");
@@ -1765,7 +1740,7 @@ script:
           then:
             - delay: !lambda return (timeout *1000);
             - lambda: |-
-                if (id(current_page).state != "screensaver" and id(current_page).state != "boot" and timeout >= 1)
+                if (id(current_page).state != "screensaver" and id(current_page).state != "blank-screensaver" and id(current_page).state != "boot" and timeout >= 1)
                   {
                     ESP_LOGD("script.timer_dim", "Dimming the display to %i%%", id(display_dim_brightness_global));
                     id(disp1).send_command_printf("dim=%i", id(display_dim_brightness_global));
@@ -1781,13 +1756,14 @@ script:
           ESP_LOGV("script.timer_sleep", "Reset timer: %is", timeout);
       - if:
           condition:
-            - lambda: !lambda return (timeout >= 1);
+            - lambda: |-
+                return (timeout >= 1 and id(current_page).state != "screensaver" and id(current_page).state != "boot");
           then:
             - delay: !lambda return (timeout *1000);
             - lambda: |-
                 if (id(current_page).state != "screensaver" and id(current_page).state != "boot" and timeout >= 1)
                   {
-                    ESP_LOGD("script.timer_sleep", "Going to sleep");
+                    ESP_LOGD("script.timer_sleep", "Going to sleep from page %s", id(current_page).state.c_str());
                     id(disp1).goto_page("screensaver");
                     id(is_dim_brightness) = true;
                   }
@@ -1937,12 +1913,12 @@ script:
     then:
       - lambda: |-
           std::string service = "";
-          if (key=="home") service = "alarm_control_panel.alarm_arm_home";
-          else if (key=="away") service = "alarm_control_panel.alarm_arm_away";
-          else if (key=="night") service = "alarm_control_panel.alarm_arm_night";
-          else if (key=="vacation") service = "alarm_control_panel.alarm_arm_vacation";
-          else if (key=="bypass") service = "alarm_control_panel.alarm_arm_custom_bypass";
-          else if (key=="disarm") service = "alarm_control_panel.alarm_disarm";
+          if (key == "home") service = "alarm_control_panel.alarm_arm_home";
+          else if (key == "away") service = "alarm_control_panel.alarm_arm_away";
+          else if (key == "night") service = "alarm_control_panel.alarm_arm_night";
+          else if (key == "vacation") service = "alarm_control_panel.alarm_arm_vacation";
+          else if (key == "bypass") service = "alarm_control_panel.alarm_arm_custom_bypass";
+          else if (key == "disarm") service = "alarm_control_panel.alarm_disarm";
           if (service != "" and not service.empty())
             {
               HomeassistantServiceResponse resp;
@@ -2274,7 +2250,697 @@ script:
                 else if (id(wakeup_page_name).state == "alarm") wakeup_page_id = 23;
                 id(disp1).set_component_value("orign", wakeup_page_id);
 
-  #####  ADD-ONS ############################################################
+  - id: upload_tft
+    mode: single
+    parameters:
+      url: string
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.upload_tft";
+          ESP_LOGD(TAG, "Starting...");
+
+          std::vector<uint8_t> buffer_;
+
+          bool is_updating_ = false;
+
+          uint8_t *transfer_buffer_{nullptr};
+          size_t transfer_buffer_size_;
+          bool upload_first_chunk_sent_ = false;
+
+          int content_length_ = 0;
+          int tft_size_ = 0;
+
+          auto send_nextion_command = [](const std::string &command) -> bool
+            {
+              static const char *const TAG = "script.upload_tft.send_nextion_command";
+              ESP_LOGD(TAG, "Sending: %s", command.c_str());
+              id(tf_uart).write_str(command.c_str());
+              const uint8_t to_send[3] = {0xFF, 0xFF, 0xFF};
+              id(tf_uart).write_array(to_send, sizeof(to_send));
+              return true;
+            };
+
+          auto recv_ret_string_ = [](std::string &response, uint32_t timeout, bool recv_flag) -> uint16_t
+            {
+              static const char *const TAG = "script.upload_tft.recv_ret_string_";
+              uint16_t ret;
+              uint8_t c = 0;
+              uint8_t nr_of_ff_bytes = 0;
+              uint64_t start;
+              bool exit_flag = false;
+              bool ff_flag = false;
+
+              start = millis();
+
+              while ((timeout == 0 && id(tf_uart).available()) || millis() - start <= timeout)
+                {
+                  if (!id(tf_uart).available())
+                    {
+                      App.feed_wdt();
+                      continue;
+                    }
+
+                  id(tf_uart).read_byte(&c);
+                  if (c == 0xFF)
+                    {
+                      nr_of_ff_bytes++;
+                    }
+                  else
+                    {
+                      nr_of_ff_bytes = 0;
+                      ff_flag = false;
+                    }
+
+                  if (nr_of_ff_bytes >= 3)
+                    ff_flag = true;
+
+                  response += (char) c;
+                  if (recv_flag)
+                    {
+                      if (response.find(0x05) != std::string::npos)
+                        {
+                          exit_flag = true;
+                        }
+                    }
+                  App.feed_wdt();
+                  delay(2);
+
+                  if (exit_flag || ff_flag)
+                    {
+                      break;
+                    }
+                }
+
+              if (ff_flag)
+                response = response.substr(0, response.length() - 3); // Remove last 3 0xFF
+
+              ret = response.length();
+              return ret;
+            };
+
+          auto upload_end_ = [&](bool retry) -> bool
+            {
+              static const char *const TAG = "script.upload_tft.upload_end_";
+              ESP_LOGD(TAG, "Restarting Nextion");
+              send_nextion_command("rest");
+              if (is_updating_) is_updating_ = not retry;
+              if (retry) ESP_LOGD(TAG, "Nextion TFT upload will try again");
+              return not retry;
+            };
+
+
+          #ifdef ARDUINO
+
+          auto upload_by_chunks_arduino = [&](HTTPClient *http, const std::string &url, int range_start) -> int
+            {
+              static const char *const TAG = "script.upload_tft.upload_by_chunks_arduino";
+              int range_end;
+
+              if (range_start == 0 && transfer_buffer_size_ > 16384) { // Start small at the first run in case of a big skip
+                range_end = 16384 - 1;
+              } else {
+                range_end = range_start + transfer_buffer_size_ - 1;
+              }
+
+              if (range_end > tft_size_)
+                range_end = tft_size_;
+
+              char range_header[64];
+              sprintf(range_header, "bytes=%d-%d", range_start, range_end);
+
+              ESP_LOGD(TAG, "Requesting range: %s", range_header);
+
+              int tries = 1;
+              int code;
+              bool begin_status;
+              while (tries <= 10) {
+                begin_status = http->begin(url.c_str());
+
+                ++tries;
+                if (!begin_status) {
+                  ESP_LOGD(TAG, "Connection failed");
+                  delay(1000);
+                  continue;
+                };
+
+                http->addHeader("Range", range_header);
+
+                code = http->GET();
+                if (code == 200 || code == 206) {
+                  break;
+                }
+                ESP_LOGW(TAG, "HTTP Request failed; URL: %s; Error: %s, retries(%d/10)", url.c_str(),
+                        HTTPClient::errorToString(code).c_str(), tries);
+                http->end();
+                delay(1000);
+              }
+
+              if (tries > 10) {
+                return -1;
+              }
+
+              std::string recv_string;
+              size_t size;
+              int fetched = 0;
+              int range = range_end - range_start;
+              int write_len;
+
+              // fetch next segment from HTTP stream
+              while (fetched < range) {
+                size = http->getStreamPtr()->available();
+                if (!size) {
+                  App.feed_wdt();
+                  delay(2);
+                  continue;
+                }
+                int c = http->getStreamPtr()->readBytes(
+                    &transfer_buffer_[fetched], ((size > transfer_buffer_size_) ? transfer_buffer_size_ : size));
+                fetched += c;
+              }
+              http->end();
+              ESP_LOGD(TAG, "Fetched %d bytes", fetched);
+
+              // upload fetched segments to the display in 4KB chunks
+              for (int i = 0; i < range; i += 4096) {
+                App.feed_wdt();
+                write_len = content_length_ < 4096 ? content_length_ : 4096;
+                id(tf_uart).write_array(&transfer_buffer_[i], write_len);
+                content_length_ -= write_len;
+                ESP_LOGD(TAG, "Uploaded %0.1f %%, remaining %d bytes",
+                        100.0 * (tft_size_ - content_length_) / tft_size_,
+                        content_length_);
+
+                if (!upload_first_chunk_sent_) {
+                  upload_first_chunk_sent_ = true;
+                  delay(500);
+                }
+
+                recv_ret_string_(recv_string, 5000, true);
+                if (recv_string[0] != 0x05) { // 0x05 == "ok"
+                  ESP_LOGD(TAG, "recv_string [%s]",
+                          format_hex_pretty(reinterpret_cast<const uint8_t *>(recv_string.data()), recv_string.size()).c_str());
+                }
+
+                // handle partial upload request
+                if (recv_string[0] == 0x08 && recv_string.size() == 5) {
+                  uint32_t result = 0;
+                  for (int j = 0; j < 4; ++j) {
+                    result += static_cast<uint8_t>(recv_string[j + 1]) << (8 * j);
+                  }
+                  if (result > 0) {
+                    ESP_LOGD(TAG, "Nextion reported new range %d", result);
+                    content_length_ = tft_size_ - result;
+                    return result;
+                  }
+                }
+
+                recv_string.clear();
+              }
+              return range_end + 1;
+            };
+
+          auto upload_tft_arduino = [&](const std::string &url, unsigned int update_baud_rate_) -> bool
+            {
+              ESP_LOGD("script.upload_tft.upload_tft", "Nextion TFT upload requested");
+              ESP_LOGD("script.upload_tft.upload_tft", "url: %s", url.c_str());
+              ESP_LOGD("script.upload_tft.upload_tft", "baud_rate: %i", update_baud_rate_);
+
+              if (is_updating_) {
+                ESP_LOGD("script.upload_tft.upload_tft", "Currently updating");
+                return upload_end_(false);
+              }
+
+              if (!network::is_connected()) {
+                ESP_LOGD("script.upload_tft.upload_tft", "Network is not connected");
+                return upload_end_(false);
+              }
+
+              ESP_LOGD("script.upload_tft.upload_tft", "Setting Nextion protocol reparse mode to passive");
+              id(disp1).set_protocol_reparse_mode(false);
+
+              is_updating_ = true;
+
+              HTTPClient http;
+              http.setTimeout(15000); // Yes 15 seconds.... Helps 8266s along
+              http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+              bool begin_status = http.begin(url.c_str());
+              if (!begin_status) {
+                is_updating_ = false;
+                ESP_LOGD("script.upload_tft.upload_tft", "Connection failed");
+                ExternalRAMAllocator<uint8_t> allocator(ExternalRAMAllocator<uint8_t>::ALLOW_FAILURE);
+                allocator.deallocate(transfer_buffer_, transfer_buffer_size_);
+                return upload_end_(true);
+              } else {
+                ESP_LOGD("script.upload_tft.upload_tft", "Connected");
+              }
+
+              http.addHeader("Range", "bytes=0-255");
+              const char *header_names[] = {"Content-Range"};
+              http.collectHeaders(header_names, 1);
+              ESP_LOGD("script.upload_tft.upload_tft", "Requesting URL: %s", url.c_str());
+
+              http.setReuse(true);
+              // try up to 5 times. DNS sometimes needs a second try or so
+              int tries = 1;
+              int code = http.GET();
+              delay(100);
+
+              while (code != 200 && code != 206 && tries <= 5) {
+                ESP_LOGW("script.upload_tft.upload_tft", "HTTP Request failed; URL: %s; Error: %s, retrying (%d/5)", url.c_str(),
+                        HTTPClient::errorToString(code).c_str(), tries);
+
+                delay(250);
+                code = http.GET();
+                ++tries;
+              }
+
+              if ((code != 200 && code != 206) || tries > 5) {
+                return upload_end_(true);
+              }
+
+              String content_range_string = http.header("Content-Range");
+              content_range_string.remove(0, 12);
+              content_length_ = content_range_string.toInt();
+              tft_size_ = content_length_;
+              http.end();
+
+              if (content_length_ < 4096) {
+                ESP_LOGE("script.upload_tft.upload_tft", "Failed to get file size");
+                return upload_end_(true);
+              }
+
+              ESP_LOGD("script.upload_tft.upload_tft", "Updating Nextion");
+              // The Nextion will ignore the update command if it is sleeping
+
+              char command[128];
+              // Tells the Nextion the content length of the tft file and baud rate it will be sent at
+              // Once the Nextion accepts the command it will wait until the file is successfully uploaded
+              // If it fails for any reason a power cycle of the display will be needed
+              sprintf(command, "whmi-wris %d,%d,1", content_length_, update_baud_rate_);
+
+              // Clear serial receive buffer
+              uint8_t d;
+              while (id(tf_uart).available()) {
+                id(tf_uart).read_byte(&d);
+              };
+
+              send_nextion_command(command);
+
+              if (update_baud_rate_ != id(tf_uart).get_baud_rate())
+              {
+                id(tf_uart).set_baud_rate(update_baud_rate_);
+                id(tf_uart).setup();
+              }
+
+              std::string response;
+              ESP_LOGD("script.upload_tft.upload_tft", "Waiting for upgrade response");
+              recv_ret_string_(response, 2000, true); // This can take some time to return
+
+              // The Nextion display will, if it's ready to accept data, send a 0x05 byte.
+              ESP_LOGD("script.upload_tft.upload_tft", "Upgrade response is [%s]",
+                      format_hex_pretty(reinterpret_cast<const uint8_t *>(response.data()), response.size()).c_str());
+
+              if (response.find(0x05) != std::string::npos) {
+                ESP_LOGD("script.upload_tft.upload_tft", "Preparation for tft update done");
+              } else {
+                ESP_LOGD("script.upload_tft.upload_tft", "Preparation for tft update failed %d \"%s\"", response[0], response.c_str());
+                return upload_end_(true);
+              }
+
+              // Nextion wants 4096 bytes at a time. Make chunk_size a multiple of 4096
+              uint32_t chunk_size = 8192;
+              if (ESP.getFreeHeap() > 81920) { // Ensure some FreeHeap to other things and limit chunk size
+                chunk_size = ESP.getFreeHeap() - 65536;
+                chunk_size = int(chunk_size / 4096) * 4096;
+                chunk_size = chunk_size > ${upload_tft_chunk_size_max} ? ${upload_tft_chunk_size_max} : chunk_size;
+              } else if (ESP.getFreeHeap() < 32768) {
+                chunk_size = 4096;
+              }
+
+              if (transfer_buffer_ == nullptr) {
+                ExternalRAMAllocator<uint8_t> allocator(ExternalRAMAllocator<uint8_t>::ALLOW_FAILURE);
+                ESP_LOGD("script.upload_tft.upload_tft", "Allocating buffer size %d, Heap size is %u", chunk_size, ESP.getFreeHeap());
+                transfer_buffer_ = allocator.allocate(chunk_size);
+                if (transfer_buffer_ == nullptr) { // Try a smaller size
+                  ESP_LOGD("script.upload_tft.upload_tft", "Could not allocate buffer size: %d trying 4096 instead", chunk_size);
+                  chunk_size = 4096;
+                  ESP_LOGD("script.upload_tft.upload_tft", "Allocating %d buffer", chunk_size);
+                  transfer_buffer_ = allocator.allocate(chunk_size);
+
+                  if (!transfer_buffer_)
+                    {
+                      return upload_end_(true);
+                    }
+                }
+
+                transfer_buffer_size_ = chunk_size;
+              }
+
+              ESP_LOGD("script.upload_tft.upload_tft", "Updating tft from \"%s\" with a file size of %d using %zu chunksize, Heap Size %d",
+                      url.c_str(), content_length_, transfer_buffer_size_, ESP.getFreeHeap());
+
+              int result = 0;
+              while (content_length_ > 0) {
+                result = upload_by_chunks_arduino(&http, url, result);
+                if (result < 0) {
+                  ESP_LOGD("script.upload_tft.upload_tft", "Error updating Nextion!");
+                  return upload_end_(true);
+                }
+                App.feed_wdt();
+                ESP_LOGD("script.upload_tft.upload_tft", "Heap Size %d, Bytes left %d", ESP.getFreeHeap(), content_length_);
+              }
+              is_updating_ = false;
+              ESP_LOGD("script.upload_tft.upload_tft", "Successfully updated Nextion!");
+
+              return upload_end_(false);
+            };
+
+          unsigned int upload_tries = 0;
+          while (upload_tries < 2) {
+            upload_tries++;
+            if (upload_tft_arduino(url, id(tf_uart).get_baud_rate())) id(restart_nspanel).press();
+            ESP_LOGD(TAG, "Turn off Nextion");
+            id(screen_power).turn_off();
+            delay(1500);
+            ESP_LOGD(TAG, "Turn on Nextion");
+            id(screen_power).turn_on();
+            delay(1500);
+          }
+          unsigned int new_baud_rate;
+          if (id(tf_uart).get_baud_rate() == 115200) new_baud_rate = 921600; else new_baud_rate = 115200;
+          ESP_LOGD(TAG, "Trying again at %i bps", new_baud_rate);
+          if (upload_tft_arduino(url, new_baud_rate)) id(restart_nspanel).press();
+          ESP_LOGE(TAG, "TFT upload failed.");
+          ESP_LOGD(TAG, "Turn off Nextion");
+          id(screen_power).turn_off();
+          delay(1500);
+
+          #elif defined(ESP_PLATFORM) // esp-idf
+          // ESP-IDF-specific code
+
+          auto upload_by_chunks_esp_idf = [&](const std::string &url, int range_start) -> int
+            {
+              int range_end;
+
+              if (range_start == 0 && transfer_buffer_size_ > 16384) {
+                  range_end = 16384 - 1;
+              } else {
+                  range_end = range_start + transfer_buffer_size_ - 1;
+              }
+
+              if (range_end > tft_size_)
+                  range_end = tft_size_;
+
+              char range_header[64];
+              sprintf(range_header, "bytes=%d-%d", range_start, range_end);
+              ESP_LOGD(TAG, "Requesting range: %s", range_header);
+
+              esp_http_client_config_t config = {
+                  .url = url.c_str(),
+              };
+              esp_http_client_handle_t client = esp_http_client_init(&config);
+              int tries = 1;
+              int status;
+              
+              while (tries <= 10) {
+                  esp_http_client_set_header(client, "Range", range_header);
+                  status = esp_http_client_perform(client);
+
+                  if (status == ESP_OK && (esp_http_client_get_status_code(client) == 200 || esp_http_client_get_status_code(client) == 206)) {
+                      break;
+                  }
+
+                  ESP_LOGW(TAG, "HTTP Request failed; URL: %s; Error: %d, retries(%d/10)", url.c_str(), status, tries);
+                  tries++;
+                  delay(1000);
+              }
+
+              if (tries > 10) {
+                  esp_http_client_cleanup(client);
+                  return -1;
+              }
+
+              std::string recv_string;
+              size_t size;
+              int fetched = 0;
+              int range = range_end - range_start;
+              int write_len;
+              while (fetched < range) {
+                  int size = esp_http_client_get_content_length(client);
+                  if (!size) {
+                      delay(2); 
+                      continue;
+                  }
+                  int c = esp_http_client_read(client, reinterpret_cast<char*>(&transfer_buffer_[fetched]), size);
+                  fetched += c;
+              }
+
+              ESP_LOGD(TAG, "Fetched %d bytes", fetched);
+              esp_http_client_cleanup(client);
+
+              // upload fetched segments to the display in 4KB chunks
+              for (int i = 0; i < range; i += 4096) {
+                App.feed_wdt();
+                write_len = content_length_ < 4096 ? content_length_ : 4096;
+                id(tf_uart).write_array(&transfer_buffer_[i], write_len);
+                content_length_ -= write_len;
+                ESP_LOGD(TAG, "Uploaded %0.1f %%, remaining %d bytes",
+                        100.0 * (tft_size_ - content_length_) / tft_size_,
+                        content_length_);
+
+                if (!upload_first_chunk_sent_) {
+                  upload_first_chunk_sent_ = true;
+                  delay(500);
+                }
+
+                recv_ret_string_(recv_string, 5000, true);
+                if (recv_string[0] != 0x05) { // 0x05 == "ok"
+                  ESP_LOGD(TAG, "recv_string [%s]",
+                          format_hex_pretty(reinterpret_cast<const uint8_t *>(recv_string.data()), recv_string.size()).c_str());
+                }
+
+                // handle partial upload request
+                if (recv_string[0] == 0x08 && recv_string.size() == 5) {
+                  uint32_t result = 0;
+                  for (int j = 0; j < 4; ++j) {
+                    result += static_cast<uint8_t>(recv_string[j + 1]) << (8 * j);
+                  }
+                  if (result > 0) {
+                    ESP_LOGD(TAG, "Nextion reported new range %d", result);
+                    content_length_ = tft_size_ - result;
+                    return result;
+                  }
+                }
+
+                recv_string.clear();
+              }
+
+              return range_end + 1;
+            };
+
+          auto upload_tft_esp_idf = [&](const std::string &url, unsigned int update_baud_rate_) -> bool
+            {
+              ESP_LOGD("script.upload_tft.upload_tft", "Nextion TFT upload requested");
+              ESP_LOGD("script.upload_tft.upload_tft", "url: %s", url.c_str());
+              ESP_LOGD("script.upload_tft.upload_tft", "baud_rate: %i", update_baud_rate_);
+
+              if (is_updating_) {
+                ESP_LOGD("script.upload_tft.upload_tft", "Currently updating");
+                return upload_end_(false);
+              }
+
+              if (!network::is_connected()) {
+                ESP_LOGD("script.upload_tft.upload_tft", "Network is not connected");
+                return upload_end_(false);
+              }
+
+              ESP_LOGD("script.upload_tft.upload_tft", "Setting Nextion protocol reparse mode to passive");
+              id(disp1).set_protocol_reparse_mode(false);
+
+              is_updating_ = true;
+
+              esp_http_client_config_t config = {
+                .url = url.c_str()
+              };
+              esp_http_client_handle_t http = esp_http_client_init(&config);
+              esp_http_client_set_header(http, "Range", "bytes=0-255");
+              esp_http_client_set_header(http, "User-Agent", "curl/7.68.0");
+
+              int tries = 1;
+              int status = esp_http_client_perform(http);
+              delay(100);
+              while ((status != ESP_OK || (esp_http_client_get_status_code(http) != 200 && esp_http_client_get_status_code(http) != 206)) && tries <= 5) {
+                  ESP_LOGW("script.upload_tft.upload_tft", "HTTP Request failed; URL: %s; Error: %d, retrying (%d/5)", url.c_str(), status, tries);
+                  delay(250);
+                  status = esp_http_client_perform(http);
+                  tries++;
+              }
+
+              if (tries > 5) {
+                  esp_http_client_cleanup(http);
+                  return upload_end_(true);
+              }
+
+              int http_status = esp_http_client_get_status_code(http);
+              ESP_LOGD("script.upload_tft.upload_tft", "HTTP Status Code: %d", http_status);
+
+              char *content_range_cstr = nullptr;
+              char *content_length_cstr = nullptr;
+
+              esp_err_t range_err = esp_http_client_get_header(http, "Content-Range", &content_range_cstr);
+              if (range_err == ESP_OK && content_range_cstr != nullptr) {
+                  ESP_LOGD("script.upload_tft.upload_tft", "Fetched Content-Range header: %s", content_range_cstr);
+                  std::string content_range_string = content_range_cstr;
+                  content_range_string = content_range_string.substr(content_range_string.find("/") + 1);
+                  content_length_ = atoi(content_range_string.c_str());
+                  ESP_LOGD("script.upload_tft.upload_tft", "Using Content-Range header: %s", content_range_cstr);
+                  free(content_range_cstr);
+              } else {
+                  ESP_LOGW("script.upload_tft.upload_tft", "Failed to fetch Content-Range header. Error: %d", range_err);
+              }
+
+              esp_err_t length_err = esp_http_client_get_header(http, "Content-Length", &content_length_cstr);
+              if (length_err == ESP_OK && content_length_cstr != nullptr) {
+                  ESP_LOGD("script.upload_tft.upload_tft", "Fetched Content-Length header: %s", content_length_cstr);
+                  content_length_ = atoi(content_length_cstr);  // Convert to integer
+                  free(content_length_cstr);
+              } else {
+                  ESP_LOGW("script.upload_tft.upload_tft", "Failed to fetch Content-Length header. Error: %d", length_err);
+              }
+
+              ESP_LOGD("script.upload_tft.upload_tft", "Parsed content length: %d", content_length_);
+
+              if (content_length_ < 4096) {
+                  ESP_LOGE("script.upload_tft.upload_tft", "File size check failed. Size: %d", content_length_);
+                  return upload_end_(true);
+              } else {
+                  ESP_LOGD("script.upload_tft.upload_tft", "File size check passed. Proceeding...");
+              }
+
+
+
+              ESP_LOGD("script.upload_tft.upload_tft", "Updating Nextion");
+              // The Nextion will ignore the update command if it is sleeping
+
+              char command[128];
+              // Tells the Nextion the content length of the tft file and baud rate it will be sent at
+              // Once the Nextion accepts the command it will wait until the file is successfully uploaded
+              // If it fails for any reason a power cycle of the display will be needed
+              sprintf(command, "whmi-wris %d,%d,1", content_length_, update_baud_rate_);
+
+              // Clear serial receive buffer
+              uint8_t d;
+              while (id(tf_uart).available()) {
+                id(tf_uart).read_byte(&d);
+              };
+
+              send_nextion_command(command);
+
+              if (update_baud_rate_ != id(tf_uart).get_baud_rate())
+              {
+                id(tf_uart).set_baud_rate(update_baud_rate_);
+                id(tf_uart).setup();
+              }
+
+              std::string response;
+              ESP_LOGD("script.upload_tft.upload_tft", "Waiting for upgrade response");
+              recv_ret_string_(response, 2000, true); // This can take some time to return
+
+              // The Nextion display will, if it's ready to accept data, send a 0x05 byte.
+              ESP_LOGD("script.upload_tft.upload_tft", "Upgrade response is [%s]",
+                      format_hex_pretty(reinterpret_cast<const uint8_t *>(response.data()), response.size()).c_str());
+
+              if (response.find(0x05) != std::string::npos) {
+                ESP_LOGD("script.upload_tft.upload_tft", "Preparation for tft update done");
+              } else {
+                ESP_LOGD("script.upload_tft.upload_tft", "Preparation for tft update failed %d \"%s\"", response[0], response.c_str());
+                return upload_end_(true);
+              }
+
+              // Nextion wants 4096 bytes at a time. Make chunk_size a multiple of 4096
+              uint32_t chunk_size = 8192;
+              if (esp_get_free_heap_size() > 81920) { // Ensure some FreeHeap to other things and limit chunk size
+                chunk_size = esp_get_free_heap_size() - 65536;
+                chunk_size = int(chunk_size / 4096) * 4096;
+                chunk_size = chunk_size > ${upload_tft_chunk_size_max} ? ${upload_tft_chunk_size_max} : chunk_size;
+              } else if (esp_get_free_heap_size() < 32768) {
+                chunk_size = 4096;
+              }
+
+              if (transfer_buffer_ == nullptr) {
+                ExternalRAMAllocator<uint8_t> allocator(ExternalRAMAllocator<uint8_t>::ALLOW_FAILURE);
+                ESP_LOGD("script.upload_tft.upload_tft", "Allocating buffer size %d, Heap size is %u", chunk_size, esp_get_free_heap_size());
+                transfer_buffer_ = allocator.allocate(chunk_size);
+                if (transfer_buffer_ == nullptr) { // Try a smaller size
+                  ESP_LOGD("script.upload_tft.upload_tft", "Could not allocate buffer size: %d trying 4096 instead", chunk_size);
+                  chunk_size = 4096;
+                  ESP_LOGD("script.upload_tft.upload_tft", "Allocating %d buffer", chunk_size);
+                  transfer_buffer_ = allocator.allocate(chunk_size);
+
+                  if (!transfer_buffer_)
+                    {
+                      return upload_end_(true);
+                    }
+                }
+
+                transfer_buffer_size_ = chunk_size;
+              }
+
+              ESP_LOGD("script.upload_tft.upload_tft", "Updating tft from \"%s\" with a file size of %d using %zu chunksize, Heap Size %d",
+                      url.c_str(), content_length_, transfer_buffer_size_, esp_get_free_heap_size());
+
+              int result = 0;
+              while (content_length_ > 0) {
+                result = upload_by_chunks_esp_idf(url, result);
+                if (result < 0) {
+                  ESP_LOGD("script.upload_tft.upload_tft", "Error updating Nextion!");
+                  return upload_end_(true);
+                }
+                App.feed_wdt();
+                ESP_LOGD("script.upload_tft.upload_tft", "Heap Size %d, Bytes left %d", esp_get_free_heap_size(), content_length_);
+              }
+              is_updating_ = false;
+              ESP_LOGD("script.upload_tft.upload_tft", "Successfully updated Nextion!");
+
+              return upload_end_(false);
+
+            };
+
+          unsigned int upload_tries = 0;
+          while (upload_tries < 2) {
+            upload_tries++;
+            if (upload_tft_esp_idf(url, id(tf_uart).get_baud_rate())) id(restart_nspanel).press();
+            ESP_LOGD(TAG, "Turn off Nextion");
+            id(screen_power).turn_off();
+            delay(1500);
+            ESP_LOGD(TAG, "Turn on Nextion");
+            id(screen_power).turn_on();
+            delay(1500);
+          }
+          unsigned int new_baud_rate;
+          if (id(tf_uart).get_baud_rate() == 115200) new_baud_rate = 921600; else new_baud_rate = 115200;
+          ESP_LOGD(TAG, "Trying again at %i bps", new_baud_rate);
+          if (upload_tft_esp_idf(url, new_baud_rate)) id(restart_nspanel).press();
+          ESP_LOGE(TAG, "TFT upload failed.");
+          ESP_LOGD(TAG, "Turn off Nextion");
+          id(screen_power).turn_off();
+          delay(1500);
+
+          #endif
+
+          //ESP_LOGD(TAG, "Turn on Nextion");
+          //id(screen_power).turn_on();
+          //delay(1500);
+          //ESP_LOGW(TAG, "Trying Nextion standard upload");
+          //id(disp1)->set_tft_url(url.c_str());
+          //id(disp1)->upload_tft();
+          ESP_LOGD(TAG, "Restarting esphome");
+          delay(1500);
+          id(restart_nspanel).press();
+
+          ESP_LOGD(TAG, "Finished!");
+
+  ##### ADD-ONS ############################################################
   ##### Add-on - Climate #####
   - id: addon_climate_service_call
     mode: restart
