@@ -2354,9 +2354,7 @@ script:
               return not retry;
             };
 
-
           #ifdef ARDUINO
-
           auto upload_by_chunks_arduino = [&](HTTPClient *http, const std::string &url, int range_start) -> int
             {
               static const char *const TAG = "script.upload_tft.upload_by_chunks_arduino";
@@ -2464,8 +2462,7 @@ script:
               }
               return range_end + 1;
             };
-
-          auto upload_tft_arduino = [&](const std::string &url, unsigned int update_baud_rate_) -> bool
+          auto upload_tft_ = [&](const std::string &url, unsigned int update_baud_rate_) -> bool
             {
               static const char *const TAG = "script.upload_tft.upload_tft_arduino";
               ESP_LOGD(TAG, "Nextion TFT upload requested");
@@ -2621,30 +2618,7 @@ script:
 
               return upload_end_(false);
             };
-
-          unsigned int upload_tries = 0;
-          while (upload_tries < 2) {
-            upload_tries++;
-            if (upload_tft_arduino(url, id(tf_uart).get_baud_rate())) id(restart_nspanel).press();
-            ESP_LOGD(TAG, "Turn off Nextion");
-            id(screen_power).turn_off();
-            delay(1500);
-            ESP_LOGD(TAG, "Turn on Nextion");
-            id(screen_power).turn_on();
-            delay(1500);
-          }
-          unsigned int new_baud_rate;
-          if (id(tf_uart).get_baud_rate() == 115200) new_baud_rate = 921600; else new_baud_rate = 115200;
-          ESP_LOGD(TAG, "Trying again at %i bps", new_baud_rate);
-          if (upload_tft_arduino(url, new_baud_rate)) id(restart_nspanel).press();
-          ESP_LOGE(TAG, "TFT upload failed.");
-          ESP_LOGD(TAG, "Turn off Nextion");
-          id(screen_power).turn_off();
-          delay(1500);
-
           #elif defined(ESP_PLATFORM) // esp-idf
-          // ESP-IDF-specific code
-
           auto upload_by_chunks_esp_idf = [&](const std::string &url, int range_start) -> int
             {
               int range_end;
@@ -2695,7 +2669,7 @@ script:
               while (fetched < range) {
                   int size = esp_http_client_get_content_length(client);
                   if (!size) {
-                      delay(2); 
+                      delay(2);
                       continue;
                   }
                   int c = esp_http_client_read(client, reinterpret_cast<char*>(&transfer_buffer_[fetched]), size);
@@ -2744,8 +2718,7 @@ script:
 
               return range_end + 1;
             };
-
-          auto upload_tft_esp_idf = [&](const std::string &url, unsigned int update_baud_rate_) -> bool
+          auto upload_tft_ = [&](const std::string &url, unsigned int update_baud_rate_) -> bool
             {
               ESP_LOGD(TAG, "Nextion TFT upload requested");
               ESP_LOGD(TAG, "url: %s", url.c_str());
@@ -2824,8 +2797,6 @@ script:
                   ESP_LOGD(TAG, "File size check passed. Proceeding...");
               }
 
-
-
               ESP_LOGD(TAG, "Updating Nextion");
               // The Nextion will ignore the update command if it is sleeping
 
@@ -2884,10 +2855,9 @@ script:
                   ESP_LOGD(TAG, "Allocating %d buffer", chunk_size);
                   transfer_buffer_ = allocator.allocate(chunk_size);
 
-                  if (!transfer_buffer_)
-                    {
+                  if (!transfer_buffer_) {
                       return upload_end_(true);
-                    }
+                  }
                 }
 
                 transfer_buffer_size_ = chunk_size;
@@ -2910,13 +2880,13 @@ script:
               ESP_LOGD(TAG, "Successfully updated Nextion!");
 
               return upload_end_(false);
-
             };
+          #endif
 
           unsigned int upload_tries = 0;
-          while (upload_tries < 2) {
+          while (upload_tries < 5) {
             upload_tries++;
-            if (upload_tft_esp_idf(url, id(tf_uart).get_baud_rate())) id(restart_nspanel).press();
+            if (upload_tft_(url, id(tf_uart).get_baud_rate())) id(restart_nspanel).press();
             ESP_LOGD(TAG, "Turn off Nextion");
             id(screen_power).turn_off();
             delay(1500);
@@ -2925,22 +2895,21 @@ script:
             delay(1500);
           }
           unsigned int new_baud_rate;
-          if (id(tf_uart).get_baud_rate() == 115200) new_baud_rate = 921600; else new_baud_rate = 115200;
+          if (id(tf_uart).get_baud_rate() == 115200) {
+            new_baud_rate = 921600;
+          } else {
+            new_baud_rate = 115200;
+          }
           ESP_LOGD(TAG, "Trying again at %i bps", new_baud_rate);
-          if (upload_tft_esp_idf(url, new_baud_rate)) id(restart_nspanel).press();
+          if (upload_tft_(url, new_baud_rate)) {
+            id(restart_nspanel).press();
+          }
           ESP_LOGE(TAG, "TFT upload failed.");
           ESP_LOGD(TAG, "Turn off Nextion");
           id(screen_power).turn_off();
           delay(1500);
-
-          #endif
-
-          //ESP_LOGD(TAG, "Turn on Nextion");
-          //id(screen_power).turn_on();
-          //delay(1500);
-          //ESP_LOGW(TAG, "Trying Nextion standard upload");
-          //id(disp1)->set_tft_url(url.c_str());
-          //id(disp1)->upload_tft();
+          ESP_LOGD(TAG, "Turn on Nextion");
+          id(screen_power).turn_on();
           ESP_LOGD(TAG, "Restarting esphome");
           delay(1500);
           id(restart_nspanel).press();
