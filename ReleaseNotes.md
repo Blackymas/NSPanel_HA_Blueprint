@@ -87,5 +87,6 @@ The TFT files are now 15 to 20% smaller when compared to the previous version. T
 See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 
 ## Special thanks to:
-
+- @misery - Fixing a typo in the docs (#1176)
 ## New Contributors
+@misery
