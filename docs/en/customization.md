@@ -253,7 +253,7 @@ You can easily force a timezone by adding this to your ESPHome settings:
 
 ```yaml
 time:
-  - id:!extend time_provider
+  - id: !extend time_provider
     timezone: "America/Cancun"
 ```
 
