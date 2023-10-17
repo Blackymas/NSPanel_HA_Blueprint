@@ -1,0 +1,752 @@
+external_components:
+  - source: github://pr#3256 # adds esp-idf support to http_request
+    components:
+      - http_request
+  - source: github://pr#5484 # adds exit reparse to Nextion library
+    components:
+      - nextion
+
+##### HTTP REQUEST #####
+# Enables http client  #
+# for upload_tft.      #
+########################
+http_request:
+  id: httpclient
+
+button:
+  ##### UPDATE TFT DISPLAY #####
+  - name: ${device_name} Update TFT display
+    platform: template
+    icon: mdi:file-sync
+    id: tft_update
+    entity_category: config
+    on_press:
+      - logger.log: "Button pressed: Update TFT display"
+      - binary_sensor.template.publish:
+          id: nextion_init
+          state: false
+      - delay: 16ms
+      - lambda: id(upload_tft).execute("${nextion_update_url}");
+
+api:
+  services:
+      ##### SERVICE TO UPDATE THE HMI FILE ##############
+      - service: upload_tft
+        then:
+          - logger.log: "Service: upload_tft"
+          - binary_sensor.template.publish:
+              id: nextion_init
+              state: false
+          - lambda: 'id(upload_tft).execute("${nextion_update_url}");'
+
+      ##### SERVICE TO UPDATE THE TFT FILE from URL #####
+      - service: upload_tft_url
+        variables:
+          url: string
+        then:
+          - logger.log: "Service: upload_tft_url"
+          - binary_sensor.template.publish:
+              id: nextion_init
+              state: false
+          - lambda: 'id(upload_tft).execute(url.c_str());'
+
+script:
+  - id: upload_tft
+    mode: single
+    parameters:
+      url: string
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.upload_tft";
+          ESP_LOGD(TAG, "Starting...");
+
+          std::vector<uint8_t> buffer_;
+
+          bool is_updating_ = false;
+
+          uint8_t *transfer_buffer_{nullptr};
+          size_t transfer_buffer_size_;
+          bool upload_first_chunk_sent_ = false;
+
+          int content_length_ = 0;
+          int tft_size_ = 0;
+
+          auto send_nextion_command = [](const std::string &command) -> bool
+            {
+              static const char *const TAG = "script.upload_tft.send_nextion_command";
+              ESP_LOGD(TAG, "Sending: %s", command.c_str());
+              id(tf_uart).write_str(command.c_str());
+              const uint8_t to_send[3] = {0xFF, 0xFF, 0xFF};
+              id(tf_uart).write_array(to_send, sizeof(to_send));
+              return true;
+            };
+
+          auto recv_ret_string_ = [](std::string &response, uint32_t timeout, bool recv_flag) -> uint16_t
+            {
+              static const char *const TAG = "script.upload_tft.recv_ret_string_";
+              uint16_t ret;
+              uint8_t c = 0;
+              uint8_t nr_of_ff_bytes = 0;
+              uint64_t start;
+              bool exit_flag = false;
+              bool ff_flag = false;
+
+              start = millis();
+
+              while ((timeout == 0 && id(tf_uart).available()) || millis() - start <= timeout)
+                {
+                  if (!id(tf_uart).available())
+                    {
+                      App.feed_wdt();
+                      continue;
+                    }
+
+                  id(tf_uart).read_byte(&c);
+                  if (c == 0xFF)
+                    {
+                      nr_of_ff_bytes++;
+                    }
+                  else
+                    {
+                      nr_of_ff_bytes = 0;
+                      ff_flag = false;
+                    }
+
+                  if (nr_of_ff_bytes >= 3)
+                    ff_flag = true;
+
+                  response += (char) c;
+                  if (recv_flag)
+                    {
+                      if (response.find(0x05) != std::string::npos)
+                        {
+                          exit_flag = true;
+                        }
+                    }
+                  App.feed_wdt();
+                  delay(2);
+
+                  if (exit_flag || ff_flag)
+                    {
+                      break;
+                    }
+                }
+
+              if (ff_flag)
+                response = response.substr(0, response.length() - 3); // Remove last 3 0xFF
+
+              ret = response.length();
+              return ret;
+            };
+
+          auto upload_end_ = [&](bool completed) -> bool
+            {
+              static const char *const TAG = "script.upload_tft.upload_end_";
+              ESP_LOGD(TAG, "Completed: %i", completed ? 1 : 0);
+              //ESP_LOGD(TAG, "Restarting Nextion");
+              //send_nextion_command("rest");
+              #ifdef ARDUINO
+              delay(1500);
+              #elif defined(ESP_PLATFORM)
+              //vTaskDelay(pdMS_TO_TICKS(1500));
+              #endif
+
+              is_updating_ = false;
+              if (!completed) ESP_LOGD(TAG, "Nextion TFT upload will try again");
+              return completed;
+            };
+
+          #ifdef ARDUINO // arduino # To do: Move to Nextion component on ESPHome
+          auto upload_by_chunks_arduino = [&](HTTPClient *http, const std::string &url, int range_start) -> int
+            {
+              static const char *const TAG = "script.upload_tft.upload_by_chunks_arduino";
+              int range_end;
+
+              if (range_start == 0 && transfer_buffer_size_ > 16384) { // Start small at the first run in case of a big skip
+                range_end = 16384 - 1;
+              } else {
+                range_end = range_start + transfer_buffer_size_ - 1;
+              }
+
+              if (range_end > tft_size_)
+                range_end = tft_size_;
+
+              char range_header[64];
+              sprintf(range_header, "bytes=%d-%d", range_start, range_end);
+
+              ESP_LOGD(TAG, "Requesting range: %s", range_header);
+
+              int tries = 1;
+              int code;
+              bool begin_status;
+              while (tries <= 10) {
+                begin_status = http->begin(url.c_str());
+
+                ++tries;
+                if (!begin_status) {
+                  ESP_LOGD(TAG, "Connection failed");
+                  delay(1000);
+                  continue;
+                };
+
+                http->addHeader("Range", range_header);
+
+                code = http->GET();
+                if (code == 200 || code == 206) {
+                  break;
+                }
+                ESP_LOGW(TAG, "HTTP Request failed; URL: %s; Error: %s, retries(%d/10)", url.c_str(),
+                        HTTPClient::errorToString(code).c_str(), tries);
+                http->end();
+                delay(1000);
+              }
+
+              if (tries > 10) {
+                return -1;
+              }
+
+              std::string recv_string;
+              size_t size;
+              int fetched = 0;
+              int range = range_end - range_start;
+              int write_len;
+
+              // fetch next segment from HTTP stream
+              while (fetched < range) {
+                size = http->getStreamPtr()->available();
+                if (!size) {
+                  App.feed_wdt();
+                  delay(2);
+                  continue;
+                }
+                int c = http->getStreamPtr()->readBytes(
+                    &transfer_buffer_[fetched], ((size > transfer_buffer_size_) ? transfer_buffer_size_ : size));
+                fetched += c;
+              }
+              http->end();
+              ESP_LOGD(TAG, "Fetched %d bytes", fetched);
+
+              // upload fetched segments to the display in 4KB chunks
+              for (int i = 0; i < range; i += 4096) {
+                App.feed_wdt();
+                write_len = content_length_ < 4096 ? content_length_ : 4096;
+                id(tf_uart).write_array(&transfer_buffer_[i], write_len);
+                content_length_ -= write_len;
+                ESP_LOGD(TAG, "Uploaded %0.1f %%, remaining %d bytes",
+                        100.0 * (tft_size_ - content_length_) / tft_size_,
+                        content_length_);
+
+                if (!upload_first_chunk_sent_) {
+                  upload_first_chunk_sent_ = true;
+                  delay(500);
+                }
+
+                recv_ret_string_(recv_string, 5000, true);
+                if (recv_string[0] != 0x05) { // 0x05 == "ok"
+                  ESP_LOGD(TAG, "recv_string [%s]",
+                          format_hex_pretty(reinterpret_cast<const uint8_t *>(recv_string.data()), recv_string.size()).c_str());
+                }
+
+                // handle partial upload request
+                if (recv_string[0] == 0x08 && recv_string.size() == 5) {
+                  uint32_t result = 0;
+                  for (int j = 0; j < 4; ++j) {
+                    result += static_cast<uint8_t>(recv_string[j + 1]) << (8 * j);
+                  }
+                  if (result > 0) {
+                    ESP_LOGD(TAG, "Nextion reported new range %d", result);
+                    content_length_ = tft_size_ - result;
+                    return result;
+                  }
+                }
+
+                recv_string.clear();
+              }
+              return range_end + 1;
+            };
+          auto upload_tft_ = [&](const std::string &url, unsigned int update_baud_rate_) -> bool
+            {
+              static const char *const TAG = "script.upload_tft.upload_tft_arduino";
+              ESP_LOGD(TAG, "Nextion TFT upload requested");
+              ESP_LOGD(TAG, "url: %s", url.c_str());
+              ESP_LOGD(TAG, "baud_rate: %i", update_baud_rate_);
+
+              if (is_updating_) {
+                ESP_LOGD(TAG, "Currently updating");
+                return upload_end_(false);
+              }
+
+              if (!network::is_connected()) {
+                ESP_LOGD(TAG, "Network is not connected");
+                return upload_end_(false);
+              }
+
+              ESP_LOGD(TAG, "Setting Nextion protocol reparse mode to passive");
+              id(disp1).set_protocol_reparse_mode(false);
+
+              is_updating_ = true;
+
+              HTTPClient http;
+              http.setTimeout(15000); // Yes 15 seconds.... Helps 8266s along
+              http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+              bool begin_status = http.begin(url.c_str());
+              if (!begin_status) {
+                is_updating_ = false;
+                ESP_LOGD(TAG, "Connection failed");
+                ExternalRAMAllocator<uint8_t> allocator(ExternalRAMAllocator<uint8_t>::ALLOW_FAILURE);
+                allocator.deallocate(transfer_buffer_, transfer_buffer_size_);
+                return upload_end_(false);
+              } else {
+                ESP_LOGD(TAG, "Connected");
+              }
+
+              http.addHeader("Range", "bytes=0-255");
+              const char *header_names[] = {"Content-Range"};
+              http.collectHeaders(header_names, 1);
+              ESP_LOGD(TAG, "Requesting URL: %s", url.c_str());
+
+              http.setReuse(true);
+              // try up to 5 times. DNS sometimes needs a second try or so
+              int tries = 1;
+              int code = http.GET();
+              delay(100);
+
+              while (code != 200 && code != 206 && tries <= 5) {
+                ESP_LOGW(TAG, "HTTP Request failed; URL: %s; Error: %s, retrying (%d/5)", url.c_str(),
+                        HTTPClient::errorToString(code).c_str(), tries);
+
+                delay(250);
+                code = http.GET();
+                ++tries;
+              }
+
+              if ((code != 200 && code != 206) || tries > 5) {
+                return upload_end_(false);
+              }
+
+              String content_range_string = http.header("Content-Range");
+              content_range_string.remove(0, 12);
+              content_length_ = content_range_string.toInt();
+              tft_size_ = content_length_;
+              http.end();
+
+              if (content_length_ < 4096) {
+                ESP_LOGE(TAG, "Failed to get file size");
+                return upload_end_(false);
+              }
+
+              ESP_LOGD(TAG, "Updating Nextion");
+              // The Nextion will ignore the update command if it is sleeping
+
+              char command[128];
+              // Tells the Nextion the content length of the tft file and baud rate it will be sent at
+              // Once the Nextion accepts the command it will wait until the file is successfully uploaded
+              // If it fails for any reason a power cycle of the display will be needed
+              sprintf(command, "whmi-wris %d,%d,1", content_length_, update_baud_rate_);
+
+              // Clear serial receive buffer
+              uint8_t d;
+              while (id(tf_uart).available()) {
+                id(tf_uart).read_byte(&d);
+              };
+
+              send_nextion_command(command);
+
+              if (update_baud_rate_ != id(tf_uart).get_baud_rate())
+              {
+                id(tf_uart).set_baud_rate(update_baud_rate_);
+                id(tf_uart).setup();
+              }
+
+              std::string response;
+              ESP_LOGD(TAG, "Waiting for upgrade response");
+              recv_ret_string_(response, 2000, true); // This can take some time to return
+
+              // The Nextion display will, if it's ready to accept data, send a 0x05 byte.
+              ESP_LOGD(TAG, "Upgrade response is [%s]",
+                      format_hex_pretty(reinterpret_cast<const uint8_t *>(response.data()), response.size()).c_str());
+
+              if (response.find(0x05) != std::string::npos) {
+                ESP_LOGD(TAG, "Preparation for tft update done");
+              } else {
+                ESP_LOGD(TAG, "Preparation for tft update failed %d \"%s\"", response[0], response.c_str());
+                return upload_end_(false);
+              }
+
+              // Nextion wants 4096 bytes at a time. Make chunk_size a multiple of 4096
+              uint32_t chunk_size = 8192;
+              if (ESP.getFreeHeap() > 81920) { // Ensure some FreeHeap to other things and limit chunk size
+                chunk_size = ESP.getFreeHeap() - 65536;
+                chunk_size = int(chunk_size / 4096) * 4096;
+                chunk_size = chunk_size > ${upload_tft_chunk_size_max} ? ${upload_tft_chunk_size_max} : chunk_size;
+              } else if (ESP.getFreeHeap() < 32768) {
+                chunk_size = 4096;
+              }
+
+              if (transfer_buffer_ == nullptr) {
+                ExternalRAMAllocator<uint8_t> allocator(ExternalRAMAllocator<uint8_t>::ALLOW_FAILURE);
+                ESP_LOGD(TAG, "Allocating buffer size %d, Heap size is %u", chunk_size, ESP.getFreeHeap());
+                transfer_buffer_ = allocator.allocate(chunk_size);
+                if (transfer_buffer_ == nullptr) { // Try a smaller size
+                  ESP_LOGD(TAG, "Could not allocate buffer size: %d trying 4096 instead", chunk_size);
+                  chunk_size = 4096;
+                  ESP_LOGD(TAG, "Allocating %d buffer", chunk_size);
+                  transfer_buffer_ = allocator.allocate(chunk_size);
+
+                  if (!transfer_buffer_)
+                    {
+                      return upload_end_(false);
+                    }
+                }
+
+                transfer_buffer_size_ = chunk_size;
+              }
+
+              ESP_LOGD(TAG, "Updating tft from \"%s\" with a file size of %d using %zu chunksize, Heap Size %d",
+                      url.c_str(), content_length_, transfer_buffer_size_, ESP.getFreeHeap());
+
+              int result = 0;
+              while (content_length_ > 0) {
+                result = upload_by_chunks_arduino(&http, url, result);
+                if (result < 0) {
+                  ESP_LOGD(TAG, "Error updating Nextion!");
+                  return upload_end_(false);
+                }
+                App.feed_wdt();
+                ESP_LOGD(TAG, "Heap Size %d, Bytes left %d", ESP.getFreeHeap(), content_length_);
+              }
+              is_updating_ = false;
+              ESP_LOGD(TAG, "Successfully updated Nextion!");
+
+              return upload_end_(true);
+            };
+          #elif defined(ESP_PLATFORM) // esp-idf # To do: Move to Nextion component on ESPHome
+          auto upload_by_chunks_esp_idf = [&](const std::string &url, int range_start) -> int
+            {
+              static const char *const TAG = "script.upload_tft.upload_by_chunks_esp_idf";
+              int range_end;
+
+              if (range_start == 0 && transfer_buffer_size_ > 16384) {
+                  range_end = 16384 - 1;
+              } else {
+                  range_end = range_start + transfer_buffer_size_ - 1;
+              }
+
+              if (range_end > tft_size_)
+                  range_end = tft_size_;
+
+              char range_header[64];
+              sprintf(range_header, "bytes=%d-%d", range_start, range_end);
+              ESP_LOGD(TAG, "Requesting range: %s", range_header);
+
+              esp_http_client_config_t config = {
+                  .url = url.c_str(),
+              };
+              esp_http_client_handle_t client = esp_http_client_init(&config);
+              int tries = 1;
+              int status;
+
+              while (tries <= 10) {
+                  esp_http_client_set_header(client, "Range", range_header);
+                  status = esp_http_client_perform(client);
+                  ESP_LOGD(TAG, "Status: %s", esp_err_to_name(status));
+
+                  if (status == ESP_OK && (esp_http_client_get_status_code(client) == 200 || esp_http_client_get_status_code(client) == 206)) {
+                      break;
+                  }
+
+                  ESP_LOGW(TAG, "HTTP Request failed; URL: %s; Error: %d, retries(%d/10)", url.c_str(), status, tries);
+                  tries++;
+                  vTaskDelay(pdMS_TO_TICKS(1000));
+              }
+
+              if (tries > 10) {
+                  esp_http_client_cleanup(client);
+                  return -1;
+              }
+
+              std::string recv_string;
+              size_t size;
+              int fetched = 0;
+              int range = range_end - range_start;
+              int write_len;
+              while (fetched < range) {
+                  int size = esp_http_client_get_content_length(client);
+                  if (!size) {
+                      vTaskDelay(pdMS_TO_TICKS(2));
+                      continue;
+                  }
+                  int c = esp_http_client_read(client, reinterpret_cast<char*>(&transfer_buffer_[fetched]), size);
+                  fetched += c;
+              }
+
+              ESP_LOGD(TAG, "Fetched %d bytes", fetched);
+              esp_http_client_cleanup(client);
+
+              // upload fetched segments to the display in 4KB chunks
+              for (int i = 0; i < range; i += 4096) {
+                App.feed_wdt();
+                write_len = content_length_ < 4096 ? content_length_ : 4096;
+                id(tf_uart).write_array(&transfer_buffer_[i], write_len);
+                content_length_ -= write_len;
+                ESP_LOGD(TAG, "Uploaded %0.1f %%, remaining %d bytes",
+                        100.0 * (tft_size_ - content_length_) / tft_size_,
+                        content_length_);
+
+                if (!upload_first_chunk_sent_) {
+                  upload_first_chunk_sent_ = true;
+                  vTaskDelay(pdMS_TO_TICKS(500));
+                }
+
+                recv_ret_string_(recv_string, 5000, true);
+                if (recv_string[0] != 0x05) { // 0x05 == "ok"
+                  ESP_LOGD(TAG, "recv_string [%s]",
+                          format_hex_pretty(reinterpret_cast<const uint8_t *>(recv_string.data()), recv_string.size()).c_str());
+                }
+
+                // handle partial upload request
+                if (recv_string[0] == 0x08 && recv_string.size() == 5) {
+                  uint32_t result = 0;
+                  for (int j = 0; j < 4; ++j) {
+                    result += static_cast<uint8_t>(recv_string[j + 1]) << (8 * j);
+                  }
+                  if (result > 0) {
+                    ESP_LOGD(TAG, "Nextion reported new range %d", result);
+                    content_length_ = tft_size_ - result;
+                    return result;
+                  }
+                }
+
+                recv_string.clear();
+              }
+
+              return range_end + 1;
+            };
+          auto upload_tft_ = [&](const std::string &url, unsigned int update_baud_rate_) -> bool {
+              static const char *const TAG = "script.upload_tft.upload_tft_esp_idf";
+              ESP_LOGD(TAG, "Nextion TFT upload requested");
+              ESP_LOGD(TAG, "url: %s", url.c_str());
+              ESP_LOGD(TAG, "baud_rate: %i", update_baud_rate_);
+
+              if (is_updating_) {
+                ESP_LOGD(TAG, "Currently updating");
+                return upload_end_(false);
+              }
+
+              if (!network::is_connected()) {
+                ESP_LOGD(TAG, "Network is not connected");
+                return upload_end_(false);
+              }
+
+              ESP_LOGD(TAG, "Setting Nextion protocol reparse mode to passive");
+              id(disp1).set_protocol_reparse_mode(false);
+
+              is_updating_ = true;
+
+              esp_http_client_config_t config = {
+                .url = url.c_str()
+              };
+              esp_http_client_handle_t http = esp_http_client_init(&config);
+              esp_http_client_set_header(http, "Range", "bytes=0-255");
+              //esp_http_client_set_header(http, "User-Agent", "curl/7.68.0"); // Is this required?
+
+              char *content_range = NULL;
+              esp_err_t err = esp_http_client_get_header(http, "Content-Length", &content_range);
+              if (err == ESP_OK && content_range) {
+                  ESP_LOGD(TAG, "Received Content-Range: %s", content_range);
+              } else {
+                  ESP_LOGD(TAG, "Content-Range header not found or error retrieving it.");
+              }
+
+
+              int tries = 1;
+              int status = esp_http_client_perform(http);
+              vTaskDelay(pdMS_TO_TICKS(100));
+              while ((status != ESP_OK || (esp_http_client_get_status_code(http) != 200 && esp_http_client_get_status_code(http) != 206)) && tries <= 5) {
+                  ESP_LOGW(TAG, "HTTP Request failed; URL: %s; Error: %d, retrying (%d/5)", url.c_str(), status, tries);
+                  vTaskDelay(pdMS_TO_TICKS(250));
+                  status = esp_http_client_perform(http);
+                  tries++;
+              }
+
+              if (tries > 5) {
+                  esp_http_client_cleanup(http);
+                  return upload_end_(false);
+              }
+
+              int http_status = esp_http_client_get_status_code(http);
+              ESP_LOGD(TAG, "HTTP Status Code: %d", http_status);
+
+              char *content_range_cstr = nullptr;
+              char *content_length_cstr = nullptr;
+
+              vTaskDelay(pdMS_TO_TICKS(500));
+              esp_err_t range_err = esp_http_client_get_header(http, "Content-Range", &content_range_cstr);
+              ESP_LOGD(TAG, "range_err: %s", esp_err_to_name(range_err));
+              ESP_LOGD(TAG, "ESP_OK: %d", ESP_OK);
+              ESP_LOGD(TAG, "Same? %i", (range_err == ESP_OK) ? 1 : 0);
+              ESP_LOGD(TAG, "content_range_cstr null? %i", (content_range_cstr == nullptr) ? 1 : 0);
+              if (range_err == ESP_OK && content_range_cstr != nullptr) {
+                  ESP_LOGD(TAG, "Fetched Content-Range header: %s", content_range_cstr);
+                  std::string content_range_string = content_range_cstr;
+                  content_range_string = content_range_string.substr(content_range_string.find("/") + 1);
+                  content_length_ = atoi(content_range_string.c_str());
+                  ESP_LOGD(TAG, "Using Content-Range header: %s", content_range_cstr);
+                  free(content_range_cstr);
+              } else {
+                  ESP_LOGW(TAG, "Failed to fetch Content-Range header. Error: %d", range_err);
+              }
+
+              esp_err_t length_err = esp_http_client_get_header(http, "Content-Length", &content_length_cstr);
+              if (length_err == ESP_OK && content_length_cstr != nullptr) {
+                  ESP_LOGD(TAG, "Fetched Content-Length header: %s", content_length_cstr);
+                  content_length_ = atoi(content_length_cstr);  // Convert to integer
+                  free(content_length_cstr);
+              } else {
+                  ESP_LOGW(TAG, "Failed to fetch Content-Length header. Error: %d", length_err);
+              }
+
+              ESP_LOGD(TAG, "Parsed content length: %d", content_length_);
+
+              if (content_length_ < 4096) {
+                  ESP_LOGE(TAG, "File size check failed. Size: %d", content_length_);
+                  return upload_end_(false);
+              } else {
+                  ESP_LOGD(TAG, "File size check passed. Proceeding...");
+              }
+
+              ESP_LOGD(TAG, "Updating Nextion");
+              // The Nextion will ignore the update command if it is sleeping
+
+              char command[128];
+              // Tells the Nextion the content length of the tft file and baud rate it will be sent at
+              // Once the Nextion accepts the command it will wait until the file is successfully uploaded
+              // If it fails for any reason a power cycle of the display will be needed
+              sprintf(command, "whmi-wris %d,%d,1", content_length_, update_baud_rate_);
+
+              // Clear serial receive buffer
+              uint8_t d;
+              while (id(tf_uart).available()) {
+                id(tf_uart).read_byte(&d);
+              };
+
+              send_nextion_command(command);
+
+              if (update_baud_rate_ != id(tf_uart).get_baud_rate())
+              {
+                id(tf_uart).set_baud_rate(update_baud_rate_);
+                id(tf_uart).setup();
+              }
+
+              std::string response;
+              ESP_LOGD(TAG, "Waiting for upgrade response");
+              recv_ret_string_(response, 2000, true); // This can take some time to return
+
+              // The Nextion display will, if it's ready to accept data, send a 0x05 byte.
+              ESP_LOGD(TAG, "Upgrade response is [%s]",
+                      format_hex_pretty(reinterpret_cast<const uint8_t *>(response.data()), response.size()).c_str());
+
+              if (response.find(0x05) != std::string::npos) {
+                ESP_LOGD(TAG, "Preparation for tft update done");
+              } else {
+                ESP_LOGD(TAG, "Preparation for tft update failed %d \"%s\"", response[0], response.c_str());
+                return upload_end_(false);
+              }
+
+              // Nextion wants 4096 bytes at a time. Make chunk_size a multiple of 4096
+              uint32_t chunk_size = 8192;
+              if (esp_get_free_heap_size() > 81920) { // Ensure some FreeHeap to other things and limit chunk size
+                chunk_size = esp_get_free_heap_size() - 65536;
+                chunk_size = int(chunk_size / 4096) * 4096;
+                chunk_size = chunk_size > ${upload_tft_chunk_size_max} ? ${upload_tft_chunk_size_max} : chunk_size;
+              } else if (esp_get_free_heap_size() < 32768) {
+                chunk_size = 4096;
+              }
+
+              if (transfer_buffer_ == nullptr) {
+                ExternalRAMAllocator<uint8_t> allocator(ExternalRAMAllocator<uint8_t>::ALLOW_FAILURE);
+                ESP_LOGD(TAG, "Allocating buffer size %d, Heap size is %u", chunk_size, esp_get_free_heap_size());
+                transfer_buffer_ = allocator.allocate(chunk_size);
+                if (transfer_buffer_ == nullptr) { // Try a smaller size
+                  ESP_LOGD(TAG, "Could not allocate buffer size: %d trying 4096 instead", chunk_size);
+                  chunk_size = 4096;
+                  ESP_LOGD(TAG, "Allocating %d buffer", chunk_size);
+                  transfer_buffer_ = allocator.allocate(chunk_size);
+
+                  if (!transfer_buffer_) {
+                      return upload_end_(false);
+                  }
+                }
+
+                transfer_buffer_size_ = chunk_size;
+              }
+
+              ESP_LOGD(TAG, "Updating tft from \"%s\" with a file size of %d using %zu chunksize, Heap Size %d",
+                      url.c_str(), content_length_, transfer_buffer_size_, esp_get_free_heap_size());
+
+              int result = 0;
+              while (content_length_ > 0) {
+                result = upload_by_chunks_esp_idf(url, result);
+                if (result < 0) {
+                  ESP_LOGD(TAG, "Error updating Nextion!");
+                  return upload_end_(false);
+                }
+                App.feed_wdt();
+                ESP_LOGD(TAG, "Heap Size %d, Bytes left %d", esp_get_free_heap_size(), content_length_);
+              }
+              is_updating_ = false;
+              ESP_LOGD(TAG, "Successfully updated Nextion!");
+
+              return upload_end_(true);
+            };
+          #endif
+
+          unsigned int upload_tries = 0;
+          while (upload_tries < 5) {
+            upload_tries++;
+            ESP_LOGD(TAG, "Try #%i", upload_tries);
+            if (upload_tft_(url, id(tf_uart).get_baud_rate())) id(restart_nspanel).press();
+            ESP_LOGD(TAG, "Turn off Nextion");
+            id(screen_power).turn_off();
+            #ifdef ARDUINO
+            delay(1500);
+            #elif defined(ESP_PLATFORM)
+            vTaskDelay(pdMS_TO_TICKS(1500));
+            #endif
+            ESP_LOGD(TAG, "Turn on Nextion");
+            id(screen_power).turn_on();
+            #ifdef ARDUINO
+            delay(1500);
+            #elif defined(ESP_PLATFORM)
+            vTaskDelay(pdMS_TO_TICKS(1500));
+            #endif
+          }
+          unsigned int new_baud_rate;
+          if (id(tf_uart).get_baud_rate() == 115200) {
+            new_baud_rate = 921600;
+          } else {
+            new_baud_rate = 115200;
+          }
+          ESP_LOGD(TAG, "Trying again at %i bps", new_baud_rate);
+          if (upload_tft_(url, new_baud_rate)) {
+            id(restart_nspanel).press();
+          }
+          ESP_LOGE(TAG, "TFT upload failed.");
+          ESP_LOGD(TAG, "Turn off Nextion");
+          id(screen_power).turn_off();
+          #ifdef ARDUINO
+          delay(1500);
+          #elif defined(ESP_PLATFORM)
+          vTaskDelay(pdMS_TO_TICKS(1500));
+          #endif
+          ESP_LOGD(TAG, "Turn on Nextion");
+          id(screen_power).turn_on();
+          ESP_LOGD(TAG, "Restarting esphome");
+          #ifdef ARDUINO
+          delay(1500);
+          #elif defined(ESP_PLATFORM)
+          vTaskDelay(pdMS_TO_TICKS(1500));
+          #endif
+          id(restart_nspanel).press();
+
+          ESP_LOGD(TAG, "Finished!");
