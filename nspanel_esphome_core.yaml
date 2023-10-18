@@ -18,24 +18,6 @@ substitutions:
   upload_tft_chunk_size_max: "32768"
   #############################
 
-##### WIFI SETUP #####
-wifi:
-  networks:
-    - id: wifi_default
-      ssid: ${wifi_ssid}
-      password: ${wifi_password}
-  ap:
-    ssid: "${device_name}"
-    password: ${wifi_password}
-
-##### WEB SERVER SETUP - Required for json parsing and tft upload #####
-web_server:
-  id: web_server_std
-  port: 80
-  auth:
-    username: admin
-    password: ${wifi_password}
-
 ##### ESPHOME CONFIGURATION #####
 esphome:
   name: ${device_name}
@@ -71,6 +53,24 @@ esp32:
   board: esp32dev
 #  framework:
 #    type: esp-idf
+
+##### WIFI SETUP #####
+wifi:
+  networks:
+    - id: wifi_default
+      ssid: ${wifi_ssid}
+      password: ${wifi_password}
+  ap:
+    ssid: "${device_name}"
+    password: ${wifi_password}
+
+##### WEB SERVER SETUP - Required for json parsing and tft upload #####
+web_server:
+  id: web_server_std
+  port: 80
+  auth:
+    username: admin
+    password: ${wifi_password}
 
 ##### OTA PASSWORD #####
 ota:
@@ -118,13 +118,6 @@ time:
         - logger.log: "System clock synchronized"
         - script.execute:
             id: refresh_datetime
-
-##### START - BUTTON CONFIGURATION #####
-button:
-  ###### REBOOT BUTTON #####
-  - name: ${device_name} Restart
-    platform: restart
-    id: restart_nspanel
 
 ##### START - API CONFIGURATION #####
 api:
@@ -717,6 +710,61 @@ api:
                     }
                 }
 
+##### START - DISPLAY START CONFIGURATION #####
+display:
+  - id: disp1
+    platform: nextion
+    uart_id: tf_uart
+    #tft_url: ${nextion_update_url}
+    on_page: # I couldn't make this trigger to work, so used text_sensor nspanelevent and localevent instead
+      then:
+        - lambda: ESP_LOGW("display.disp1.on_page", "NEXTION PAGE CHANGED");
+    on_setup:
+      then:
+        - lambda: |-
+            ESP_LOGV("display.disp1.on_setup", "Nextion starting");
+            id(disp1).goto_page("boot");
+            id(disp1).send_command_printf("bkcmd=3");
+            id(disp1).set_component_text_printf("boot.esph_version", "%s", "${version}"); // ### esphome-version ###
+            id(disp1).show_component("bt_reboot");
+            id(timer_reset_all).execute("boot");
+            ESP_LOGV("display.disp1.on_setup", "Wait for API");
+        - wait_until:
+            api.connected
+        - lambda: |-
+            ESP_LOGV("display.disp1.on_setup", "Publish IP address");
+            auto ip = network::get_ip_address();
+            id(disp1).set_component_text_printf("boot.ip_addr", "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+            ESP_LOGV("display.disp1.on_setup", "Report to Home Assistant");
+            auto ha_event = new esphome::api::CustomAPIDevice();
+            ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+              {
+                {"type", "boot"},
+                {"step", "start"}
+              });
+        - delay: 1s
+        - lambda: |-
+            // Set dimming values
+            id(display_brightness).publish_state(id(display_brightness_global));
+            id(display_dim_brightness).publish_state(id(display_dim_brightness_global));
+            id(disp1).send_command_printf("brightness=%i", id(display_brightness_global));
+            id(disp1).send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
+            id(disp1).send_command_printf("brightness_dim=%i", id(display_dim_brightness_global));
+            id(disp1).send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
+            id(nextion_init).publish_state(true);
+            ESP_LOGV("display.disp1.on_setup", "Report to Home Assistant");
+            auto ha_event = new esphome::api::CustomAPIDevice();
+            ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+              {
+                {"type", "boot"},
+                {"step", "nextion_init"}
+              });
+            id(home_relay1_icon) = "\uE3A5";
+            id(home_relay1_icon) = "\uE3A8";
+            id(timer_reset_all).execute("boot");
+        - *notification_clear
+        - logger.log: "Nextion start - Done!"
+
 ##### START - GLOBALS CONFIGURATION #####
 globals:
 
@@ -809,7 +857,6 @@ globals:
     type: std::string
     restore_value: no
     initial_value: '"%H:%M"'
-
   - id: home_time_color
     type: int
     restore_value: true
@@ -820,7 +867,6 @@ globals:
     type: std::string
     restore_value: false
     initial_value: ''
-
   - id: home_relay1_icon_color
     type: int
     restore_value: true
@@ -830,7 +876,6 @@ globals:
     type: std::string
     restore_value: false
     initial_value: ''
-
   - id: home_relay2_icon_color
     type: int
     restore_value: true
@@ -839,7 +884,6 @@ globals:
   - id: home_notify_icon_color_normal
     type: std::vector<int>
     restore_value: false
-
   - id: home_notify_icon_color_unread
     type: std::vector<int>
     restore_value: false
@@ -943,7 +987,6 @@ binary_sensor:
     internal: true
     on_click:
       - button.press: restart_nspanel
-
   ##### Restart NSPanel Button - Boot Page #####
   - name: ${device_name} Restart
     platform: nextion
@@ -970,6 +1013,157 @@ binary_sensor:
       then:
         - script.execute:
             id: refresh_wifi_icon
+
+##### START - BUTTON CONFIGURATION #####
+button:
+  ###### REBOOT BUTTON #####
+  - name: ${device_name} Restart
+    platform: restart
+    id: restart_nspanel
+
+##### START - NUMBER CONFIGURATION #####
+number:
+
+  ##### SCREEN BRIGHTNESS #####
+  - name: ${device_name} Display Brightness
+    id: display_brightness
+    platform: template
+    entity_category: config
+    unit_of_measurement: '%'
+    min_value: 1
+    max_value: 100
+    step: 1
+    restore_value: true
+    optimistic: true
+    set_action:
+      then:
+        - lambda: |-
+            id(display_brightness_global) = int(x);
+            id(disp1).send_command_printf("brightness=%i", int(x));
+            id(disp1).send_command_printf("settings.brightslider.val=%i", int(x));
+            if (id(current_page).state != "screensaver")
+              {
+                id(disp1).set_backlight_brightness(x/100);
+                id(timer_dim).execute(id(current_page).state.c_str(), int(id(timeout_dim).state));
+                id(timer_sleep).execute(id(current_page).state.c_str(), int(id(timeout_sleep).state));
+                if (id(current_page).state == "settings") id(disp1).set_component_text_printf("bright_text", "%i%%", int(x));
+              }
+
+  ##### SCREEN BRIGHTNESS DIMMED DOWN #####
+  - name: ${device_name} Display Brightness Dimdown
+    id: display_dim_brightness
+    platform: template
+    entity_category: config
+    unit_of_measurement: '%'
+    min_value: 1
+    max_value: 100
+    step: 1
+    restore_value: true
+    optimistic: true
+    set_action:
+      then:
+        - lambda: |-
+            id(display_dim_brightness_global) = int(x);
+            id(disp1).send_command_printf("brightness_dim=%i", int(x));
+            id(disp1).send_command_printf("settings.dimslider.val=%i", int(x));
+            if (id(current_page).state != "screensaver" and id(is_dim_brightness))
+              {
+                id(disp1).set_backlight_brightness(x/100);
+                id(timer_sleep).execute(id(current_page).state.c_str(), int(id(timeout_sleep).state));
+                if (id(current_page).state == "settings") id(disp1).set_component_text_printf("dim_text", "%i%%", int(x));
+              }
+
+  ##### Temperature Correction #####
+  - name: ${device_name} Temperature Correction
+    platform: template
+    id: temperature_correction
+    entity_category: config
+    unit_of_measurement: '°C'
+    initial_value: 0
+    min_value: -10
+    max_value: 10
+    step: 0.1
+    restore_value: true
+    internal: false
+    optimistic: true
+    set_action:
+      - logger.log: Temperature correction changed.
+      - delay: 1s
+      - lambda: id(temp_nspanel).publish_state(id(temp_nspanel).raw_state);
+
+  ##### Timers settings #####
+  - name: ${device_name} Timeout Page
+    platform: template
+    id: timeout_page
+    entity_category: config
+    min_value: 0
+    max_value: 300
+    initial_value: 15
+    step: 1
+    restore_value: true
+    optimistic: true
+    icon: mdi:timer
+    unit_of_measurement: "s"
+    set_action:
+      - lambda: id(timer_page).execute(id(current_page).state.c_str(), int(x));
+  - name: ${device_name} Timeout Dimming
+    platform: template
+    id: timeout_dim
+    entity_category: config
+    min_value: 0
+    max_value: 300
+    initial_value: 30
+    step: 1
+    restore_value: true
+    optimistic: true
+    icon: mdi:timer
+    unit_of_measurement: "s"
+    set_action:
+      - lambda: id(timer_dim).execute(id(current_page).state.c_str(), int(x));
+  - name: ${device_name} Timeout Sleep
+    platform: template
+    id: timeout_sleep
+    entity_category: config
+    min_value: 0
+    max_value: 300
+    initial_value: 60
+    step: 1
+    restore_value: true
+    optimistic: true
+    icon: mdi:timer
+    unit_of_measurement: "s"
+    set_action:
+      - lambda: |-
+          id(timer_dim).execute(id(current_page).state.c_str(), int(id(timeout_dim).state));
+          id(timer_sleep).execute(id(current_page).state.c_str(), int(x));
+
+##### START - SELECT CONFIGURATION #####
+select:
+  - name: ${device_name} Wake-up page
+    id: wakeup_page_name
+    platform: template
+    options:
+      - home
+      - buttonpage01
+      - buttonpage02
+      - buttonpage03
+      - buttonpage04
+      - entitypage01
+      - entitypage02
+      - entitypage03
+      - entitypage04
+      - qrcode
+      - alarm
+    initial_option: home
+    optimistic: true
+    restore_value: true
+    internal: false
+    entity_category: config
+    icon: mdi:page-next-outline
+    set_action:
+      - script.execute:
+          id: page_screensaver
+          construct_page: false
 
 ##### START - SENSOR CONFIGURATION #####
 sensor:
@@ -1042,6 +1236,95 @@ sensor:
             value: !lambda 'return int(x);'
         - lambda: |-
             id(timer_reset_all).execute("settings");
+
+##### START - SWITCH CONFIGURATION #####
+switch:
+
+  ##### Notification unread #####
+  - name: ${device_name} Notification unread
+    platform: template
+    id: notification_unread
+    entity_category: config
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    on_turn_on:
+      - lambda: id(set_component_color).execute("home.bt_notific", id(home_notify_icon_color_unread), {});
+    on_turn_off:
+      - lambda: id(set_component_color).execute("home.bt_notific", id(home_notify_icon_color_normal), {});
+
+  ##### Notification sound #####
+  - name: ${device_name} Notification sound
+    platform: template
+    id: notification_sound
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  ##### PHYSICAL SWITCH 1 #####
+  - name: ${device_name} Relay 1
+    platform: gpio
+    id: relay_1
+    pin:
+      number: 22
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      then:
+        - script.execute:
+            id: refresh_relays
+    on_turn_off:
+      then:
+        - script.execute:
+            id: refresh_relays
+  ##### PHYSICAL SWITCH 2 ######
+  - name: ${device_name} Relay 2
+    platform: gpio
+    id: relay_2
+    pin:
+      number: 19
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      then:
+        - script.execute:
+            id: refresh_relays
+    on_turn_off:
+      then:
+        - script.execute:
+            id: refresh_relays
+
+  ##### DISPLAY ALWAYS ON #####
+  - name: ${device_name} Screen Power
+    platform: gpio
+    id: screen_power
+    entity_category: config
+    pin:
+      number: 4
+      inverted: true
+    restore_mode: ALWAYS_ON
+    internal: true
+
+  ##### Relay Local control #####
+  - name: ${device_name} Relay 1 Local
+    platform: template
+    id: relay1_local
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    internal: true
+    on_turn_on:
+      - logger.log: "Relay 1 Local turned On!"
+    on_turn_off:
+      - logger.log: "Relay 1 Local turned Off!"
+  - name: ${device_name} Relay 2 Local
+    platform: template
+    id: relay2_local
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    internal: true
+    on_turn_on:
+      - logger.log: "Relay 2 Local turned On!"
+    on_turn_off:
+      - logger.log: "Relay 2 Local turned Off!"
 
 ##### START - TEXT SENSOR CONFIGURATION #####
 text_sensor:
@@ -1246,294 +1529,6 @@ text_sensor:
                 else if (key == "volume_set") id(ha_call_service).execute("media_player.volume_set", "volume_level", to_string(stof(value) / 100), entity.c_str());
                 else if (not key.empty()) id(ha_call_service).execute((std::string("media_player.") + key.c_str()), "", "", entity.c_str());
               }
-
-##### START - SWITCH CONFIGURATION #####
-switch:
-
-  ##### Notification unread #####
-  - name: ${device_name} Notification unread
-    platform: template
-    id: notification_unread
-    entity_category: config
-    optimistic: true
-    restore_mode: ALWAYS_OFF
-    on_turn_on:
-      - lambda: id(set_component_color).execute("home.bt_notific", id(home_notify_icon_color_unread), {});
-    on_turn_off:
-      - lambda: id(set_component_color).execute("home.bt_notific", id(home_notify_icon_color_normal), {});
-
-  ##### Notification sound #####
-  - name: ${device_name} Notification sound
-    platform: template
-    id: notification_sound
-    entity_category: config
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
-
-  ##### PHYSICAL SWITCH 1 #####
-  - name: ${device_name} Relay 1
-    platform: gpio
-    id: relay_1
-    pin:
-      number: 22
-    restore_mode: RESTORE_DEFAULT_OFF
-    on_turn_on:
-      then:
-        - script.execute:
-            id: refresh_relays
-    on_turn_off:
-      then:
-        - script.execute:
-            id: refresh_relays
-  ##### PHYSICAL SWITCH 2 ######
-  - name: ${device_name} Relay 2
-    platform: gpio
-    id: relay_2
-    pin:
-      number: 19
-    restore_mode: RESTORE_DEFAULT_OFF
-    on_turn_on:
-      then:
-        - script.execute:
-            id: refresh_relays
-    on_turn_off:
-      then:
-        - script.execute:
-            id: refresh_relays
-
-  ##### DISPLAY ALWAYS ON #####
-  - name: ${device_name} Screen Power
-    platform: gpio
-    id: screen_power
-    entity_category: config
-    pin:
-      number: 4
-      inverted: true
-    restore_mode: ALWAYS_ON
-    internal: true
-
-  ##### Relay Local control #####
-  - name: ${device_name} Relay 1 Local
-    platform: template
-    id: relay1_local
-    entity_category: config
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
-    internal: true
-    on_turn_on:
-      - logger.log: "Relay 1 Local turned On!"
-    on_turn_off:
-      - logger.log: "Relay 1 Local turned Off!"
-  - name: ${device_name} Relay 2 Local
-    platform: template
-    id: relay2_local
-    entity_category: config
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
-    internal: true
-    on_turn_on:
-      - logger.log: "Relay 2 Local turned On!"
-    on_turn_off:
-      - logger.log: "Relay 2 Local turned Off!"
-
-##### START - NUMBER CONFIGURATION #####
-number:
-
-  ##### SCREEN BRIGHTNESS #####
-  - name: ${device_name} Display Brightness
-    id: display_brightness
-    platform: template
-    entity_category: config
-    unit_of_measurement: '%'
-    min_value: 1
-    max_value: 100
-    step: 1
-    restore_value: true
-    optimistic: true
-    set_action:
-      then:
-        - lambda: |-
-            id(display_brightness_global) = int(x);
-            id(disp1).send_command_printf("brightness=%i", int(x));
-            id(disp1).send_command_printf("settings.brightslider.val=%i", int(x));
-            if (id(current_page).state != "screensaver")
-              {
-                id(disp1).set_backlight_brightness(x/100);
-                id(timer_dim).execute(id(current_page).state.c_str(), int(id(timeout_dim).state));
-                id(timer_sleep).execute(id(current_page).state.c_str(), int(id(timeout_sleep).state));
-                if (id(current_page).state == "settings") id(disp1).set_component_text_printf("bright_text", "%i%%", int(x));
-              }
-
-  ##### SCREEN BRIGHTNESS DIMMED DOWN #####
-  - name: ${device_name} Display Brightness Dimdown
-    id: display_dim_brightness
-    platform: template
-    entity_category: config
-    unit_of_measurement: '%'
-    min_value: 1
-    max_value: 100
-    step: 1
-    restore_value: true
-    optimistic: true
-    set_action:
-      then:
-        - lambda: |-
-            id(display_dim_brightness_global) = int(x);
-            id(disp1).send_command_printf("brightness_dim=%i", int(x));
-            id(disp1).send_command_printf("settings.dimslider.val=%i", int(x));
-            if (id(current_page).state != "screensaver" and id(is_dim_brightness))
-              {
-                id(disp1).set_backlight_brightness(x/100);
-                id(timer_sleep).execute(id(current_page).state.c_str(), int(id(timeout_sleep).state));
-                if (id(current_page).state == "settings") id(disp1).set_component_text_printf("dim_text", "%i%%", int(x));
-              }
-
-  ##### Temperature Correction #####
-  - name: ${device_name} Temperature Correction
-    platform: template
-    id: temperature_correction
-    entity_category: config
-    unit_of_measurement: '°C'
-    initial_value: 0
-    min_value: -10
-    max_value: 10
-    step: 0.1
-    restore_value: true
-    internal: false
-    optimistic: true
-    set_action:
-      - logger.log: Temperature correction changed.
-      - delay: 1s
-      - lambda: id(temp_nspanel).publish_state(id(temp_nspanel).raw_state);
-
-  ##### Timers settings #####
-  - name: ${device_name} Timeout Page
-    platform: template
-    id: timeout_page
-    entity_category: config
-    min_value: 0
-    max_value: 300
-    initial_value: 15
-    step: 1
-    restore_value: true
-    optimistic: true
-    icon: mdi:timer
-    unit_of_measurement: "s"
-    set_action:
-      - lambda: id(timer_page).execute(id(current_page).state.c_str(), int(x));
-  - name: ${device_name} Timeout Dimming
-    platform: template
-    id: timeout_dim
-    entity_category: config
-    min_value: 0
-    max_value: 300
-    initial_value: 30
-    step: 1
-    restore_value: true
-    optimistic: true
-    icon: mdi:timer
-    unit_of_measurement: "s"
-    set_action:
-      - lambda: id(timer_dim).execute(id(current_page).state.c_str(), int(x));
-  - name: ${device_name} Timeout Sleep
-    platform: template
-    id: timeout_sleep
-    entity_category: config
-    min_value: 0
-    max_value: 300
-    initial_value: 60
-    step: 1
-    restore_value: true
-    optimistic: true
-    icon: mdi:timer
-    unit_of_measurement: "s"
-    set_action:
-      - lambda: |-
-          id(timer_dim).execute(id(current_page).state.c_str(), int(id(timeout_dim).state));
-          id(timer_sleep).execute(id(current_page).state.c_str(), int(x));
-
-##### START - SELECT CONFIGURATION #####
-select:
-  - name: ${device_name} Wake-up page
-    id: wakeup_page_name
-    platform: template
-    options:
-      - home
-      - buttonpage01
-      - buttonpage02
-      - buttonpage03
-      - buttonpage04
-      - entitypage01
-      - entitypage02
-      - entitypage03
-      - entitypage04
-      - qrcode
-      - alarm
-    initial_option: home
-    optimistic: true
-    restore_value: true
-    internal: false
-    entity_category: config
-    icon: mdi:page-next-outline
-    set_action:
-      - script.execute:
-          id: page_screensaver
-          construct_page: false
-
-##### START - DISPLAY START CONFIGURATION #####
-display:
-  - id: disp1
-    platform: nextion
-    uart_id: tf_uart
-    #tft_url: ${nextion_update_url}
-    on_page: # I couldn't make this trigger to work, so used text_sensor nspanelevent and localevent instead
-      then:
-        - lambda: ESP_LOGW("display.disp1.on_page", "NEXTION PAGE CHANGED");
-    on_setup:
-      then:
-        - lambda: |-
-            ESP_LOGV("display.disp1.on_setup", "Nextion starting");
-            id(disp1).goto_page("boot");
-            id(disp1).send_command_printf("bkcmd=3");
-            id(disp1).set_component_text_printf("boot.esph_version", "%s", "${version}"); // ### esphome-version ###
-            id(disp1).show_component("bt_reboot");
-            id(timer_reset_all).execute("boot");
-            ESP_LOGV("display.disp1.on_setup", "Wait for API");
-        - wait_until:
-            api.connected
-        - lambda: |-
-            ESP_LOGV("display.disp1.on_setup", "Publish IP address");
-            auto ip = network::get_ip_address();
-            id(disp1).set_component_text_printf("boot.ip_addr", "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-            ESP_LOGV("display.disp1.on_setup", "Report to Home Assistant");
-            auto ha_event = new esphome::api::CustomAPIDevice();
-            ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-              {
-                {"type", "boot"},
-                {"step", "start"}
-              });
-        - delay: 1s
-        - lambda: |-
-            // Set dimming values
-            id(display_brightness).publish_state(id(display_brightness_global));
-            id(display_dim_brightness).publish_state(id(display_dim_brightness_global));
-            id(disp1).send_command_printf("brightness=%i", id(display_brightness_global));
-            id(disp1).send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
-            id(disp1).send_command_printf("brightness_dim=%i", id(display_dim_brightness_global));
-            id(disp1).send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
-            id(nextion_init).publish_state(true);
-            ESP_LOGV("display.disp1.on_setup", "Report to Home Assistant");
-            auto ha_event = new esphome::api::CustomAPIDevice();
-            ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-              {
-                {"type", "boot"},
-                {"step", "nextion_init"}
-              });
-            id(home_relay1_icon) = "\uE3A5";
-            id(home_relay1_icon) = "\uE3A8";
-            id(timer_reset_all).execute("boot");
-        - *notification_clear
-        - logger.log: "Nextion start - Done!"
 
 ### Scripts ######
 script:
