@@ -88,5 +88,7 @@ See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 
 ## Special thanks to:
 - @misery - Fixing a typo in the docs (#1176)
+- @Floppe - Adding space for value fields on Home page (#1180)
 ## New Contributors
 @misery
+@Floppe
