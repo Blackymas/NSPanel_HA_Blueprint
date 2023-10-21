@@ -520,11 +520,10 @@ api:
               if (id(current_page).state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
               if (reset_timer)
                 id(timer_reset_all).execute(id(wakeup_page_name).state.c_str());
-              else
-                {
-                  id(timer_sleep).execute(id(wakeup_page_name).state.c_str(), int(id(timeout_sleep).state));
-                  id(timer_dim).execute(id(wakeup_page_name).state.c_str(), int(id(timeout_dim).state));
-                }
+              else {
+                id(timer_sleep).execute(id(wakeup_page_name).state.c_str(), int(id(timeout_sleep).state));
+                id(timer_dim).execute(id(wakeup_page_name).state.c_str(), int(id(timeout_dim).state));
+              }
 
       #### Service to set the entities ####
       - service: set_entity
@@ -726,6 +725,7 @@ display:
         - lambda: |-
             ESP_LOGV("display.disp1.on_setup", "Nextion starting");
             if (id(current_page).state != "boot") id(disp1).goto_page("boot");
+            id(set_brightness).execute(100);
             id(disp1).send_command_printf("bkcmd=3");
             id(disp1).set_component_text_printf("boot.esph_version", "%s", "${version}"); // ### esphome-version ###
             id(disp1).show_component("bt_reboot");
@@ -736,6 +736,7 @@ display:
         - lambda: |-
             ESP_LOGV("display.disp1.on_setup", "Publish IP address");
             id(disp1).set_component_text_printf("boot.ip_addr", "%s", network::get_ip_address().str().c_str());
+            id(set_brightness).execute(100);
             ESP_LOGV("display.disp1.on_setup", "Report to Home Assistant");
             auto ha_event = new esphome::api::CustomAPIDevice();
             ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
@@ -751,6 +752,7 @@ display:
             id(disp1).send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
             id(disp1).send_command_printf("brightness_dim=%i", id(display_dim_brightness_global));
             id(disp1).send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
+            id(set_brightness).execute(id(display_brightness_global));
             id(nextion_init).publish_state(true);
             ESP_LOGV("display.disp1.on_setup", "Report to Home Assistant");
             //auto ha_event = new esphome::api::CustomAPIDevice();
@@ -770,21 +772,21 @@ globals:
 
   ###### Last volume level from Home Assistant ######
   - id: last_volume_level
-    type: int
+    type: uint
     restore_value: false
-    initial_value: '-1'
+    initial_value: '0'
 
   ###### Last duration from Home Assistant ######
   - id: last_media_duration
-    type: int
+    type: uint
     restore_value: false
-    initial_value: '-1'
+    initial_value: '0'
 
   ###### Last duration from Home Assistant ######
   - id: last_media_position
-    type: int
+    type: uint
     restore_value: false
-    initial_value: '-1'
+    initial_value: '0'
 
   ###### Relay fallback even when buttons have other entities? ######
   - id: relay_1_fallback
@@ -798,15 +800,9 @@ globals:
 
   ##### Display mode (1 = EU, 2 = US, 3 = US Landscape)
   - id: display_mode
-    type: int
+    type: uint
     restore_value: true
     initial_value: '0'
-
-  ##### Is dimmed #####
-  - id: is_dim_brightness
-    type: bool
-    restore_value: false
-    initial_value: 'false'
 
   ##### Entity Id of the entity displayed on the detailed pages
   - id: entity_id
@@ -822,15 +818,21 @@ globals:
 
   ##### Save Display Brightness for NSPanel reboot #####
   - id: display_brightness_global
-    type: int
+    type: uint
     restore_value: true
     initial_value: '100'
 
   ##### Save Display DIM Brightness for NSPanel reboot
   - id: display_dim_brightness_global
-    type: int
+    type: uint
     restore_value: true
     initial_value: '10'
+
+  ##### Remember last brighness value sent to Nextion #####
+  - id: display_last_brightness
+    type: uint
+    restore_value: false
+    initial_value: '100'
 
   ##### Temperature unit #####
   ##### Is embedded sensor used for indoor temperature? #####
@@ -849,7 +851,7 @@ globals:
   #  restore_value: no
   #  initial_value: '"%A, %d.%m"'
   - id: home_date_color
-    type: int
+    type: uint
     restore_value: true
     initial_value: '65535'
 
@@ -858,7 +860,7 @@ globals:
     restore_value: no
     initial_value: '"%H:%M"'
   - id: home_time_color
-    type: int
+    type: uint
     restore_value: true
     initial_value: '65535'
 
@@ -868,7 +870,7 @@ globals:
     restore_value: false
     initial_value: ''
   - id: home_relay1_icon_color
-    type: int
+    type: uint
     restore_value: true
     initial_value: '65535'
 
@@ -877,7 +879,7 @@ globals:
     restore_value: false
     initial_value: ''
   - id: home_relay2_icon_color
-    type: int
+    type: uint
     restore_value: true
     initial_value: '65535'
 
@@ -1066,9 +1068,9 @@ number:
             id(display_dim_brightness_global) = int(x);
             id(disp1).send_command_printf("brightness_dim=%i", int(x));
             id(disp1).send_command_printf("settings.dimslider.val=%i", int(x));
-            if (id(current_page).state != "screensaver" and id(is_dim_brightness))
+            if (id(current_page).state != "screensaver" and (id(display_last_brightness) <= id(display_dim_brightness_global)))
               {
-                id(disp1).set_backlight_brightness(x/100);
+                id(set_brightness).execute(x);
                 id(timer_sleep).execute(id(current_page).state.c_str(), int(id(timeout_sleep).state));
                 if (id(current_page).state == "settings") id(disp1).set_component_text_printf("dim_text", "%i%%", int(x));
               }
@@ -1549,7 +1551,7 @@ script:
     mode: restart
     parameters:
       page: string
-      timeout: int
+      timeout: uint
     then:
       - lambda: |-
           ESP_LOGV("script.timer_page", "Reset timer: %is", timeout);
@@ -1570,36 +1572,34 @@ script:
     mode: restart
     parameters:
       page: string
-      timeout: int
+      timeout: uint
     then:
       - lambda: |-
           ESP_LOGV("script.timer_dim", "Reset timer: %is", timeout);
-          if (id(is_dim_brightness))
-            {
-              if (page != "screensaver" and page != "boot" and page != "blank-screensaver")
-                {
-                  ESP_LOGD("script.timer_dim", "Waking up on page: %s", page.c_str());
-                  id(disp1).send_command_printf("wakeup_timer.en=1");
-                }
-              id(is_dim_brightness) = false;
-            }
+          if (id(display_last_brightness) <= id(display_dim_brightness_global)
+              and page != "screensaver"
+              and page != "boot"
+              and page != "blank-screensaver") {
+            ESP_LOGD("script.timer_dim", "Waking up on page: %s", page.c_str());
+            id(set_brightness).execute(id(display_brightness_global));
+          }
       - if:
           condition:
             - lambda: !lambda return (timeout >= 1);
           then:
             - delay: !lambda return (timeout *1000);
             - lambda: |-
-                if (id(current_page).state != "screensaver" and id(current_page).state != "blank-screensaver" and id(current_page).state != "boot" and timeout >= 1)
-                  {
-                    ESP_LOGD("script.timer_dim", "Dimming the display to %i%%", id(display_dim_brightness_global));
-                    id(disp1).send_command_printf("dim=%i", id(display_dim_brightness_global));
-                    id(is_dim_brightness) = true;
-                  }
+                if (id(current_page).state != "screensaver" and
+                    id(current_page).state != "blank-screensaver" and
+                    id(current_page).state != "boot" and
+                    timeout >= 1) {
+                  id(set_brightness).execute(id(display_dim_brightness_global));
+                }
   - id: timer_sleep # Handle the sleep (go to screensaver page) after a timeout
     mode: restart
     parameters:
       page: string
-      timeout: int
+      timeout: uint
     then:
       - lambda: |-
           ESP_LOGV("script.timer_sleep", "Reset timer: %is", timeout);
@@ -1610,20 +1610,37 @@ script:
           then:
             - delay: !lambda return (timeout *1000);
             - lambda: |-
-                if (id(current_page).state != "screensaver" and id(current_page).state != "boot" and timeout >= 1)
-                  {
-                    ESP_LOGD("script.timer_sleep", "Going to sleep from page %s", id(current_page).state.c_str());
-                    id(disp1).goto_page("screensaver");
-                    id(is_dim_brightness) = true;
-                  }
+                if (id(current_page).state != "screensaver" and
+                    id(current_page).state != "boot" and
+                    timeout >= 1) {
+                  ESP_LOGD("script.timer_sleep", "Going to sleep from page %s", id(current_page).state.c_str());
+                  id(disp1).goto_page("screensaver");
+                  id(set_brightness).execute(0);
+                }
+
+  - id: set_brightness
+    mode: restart
+    parameters:
+      brightness: uint
+    then:
+      - lambda: |-
+          ESP_LOGD("script.set_brightness", "brightness: %i%%", brightness);
+          if (id(current_page).state != "screensaver") {
+            if (brightness == id(display_brightness_global)) {
+              id(disp1).send_command_printf("wakeup_timer.en=1");
+            } else {
+              id(disp1).set_backlight_brightness(static_cast<float>(brightness) / 100.0f);
+            }
+          id(display_last_brightness) = brightness;
+          }
 
   - id: set_climate
     mode: restart
     parameters:
       current_temp: float
       target_temp: float
-      temp_step: int
-      total_steps: int
+      temp_step: uint
+      total_steps: uint
       temp_offset: int
       climate_icon: string
       embedded_climate: bool
@@ -1885,8 +1902,8 @@ script:
     mode: restart
     parameters:
       component: string
-      action: int
-      mode: int
+      action: uint
+      mode: uint
     then:
       - lambda: |-
           switch (action) // CLIMATE_ACTION_OFF = 0, CLIMATE_ACTION_COOLING = 2, CLIMATE_ACTION_HEATING = 3, CLIMATE_ACTION_IDLE = 4, CLIMATE_ACTION_DRYING = 5, CLIMATE_ACTION_FAN = 6
@@ -1972,7 +1989,7 @@ script:
     parameters:
       component: string
       text: string
-      line_length_limit: int
+      line_length_limit: uint
     then:
       - lambda: |-
           int startPos = 0;
@@ -2079,9 +2096,9 @@ script:
               id(entity_id) = "";
           }
           if (page != "media_player") {
-            id(last_volume_level) = -1;
-            id(last_media_duration) = -1;
-            id(last_media_position) = -1;
+            id(last_volume_level) = 0;
+            id(last_media_duration) = 0;
+            id(last_media_position) = 0;
           }
 
           // Report new page to logs
