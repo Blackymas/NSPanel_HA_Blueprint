@@ -58,11 +58,11 @@ packages:
       - nspanel_esphome_advanced.yaml # activate advanced (legacy) elements - can be useful for troubleshooting
 ...
 ```
-2. 
+
 &nbsp;
 ## Overview of all changes
 1. New Upload TFT engine
-2. Smaller TFT file size
+2. 
 
 &nbsp;
 ## Details of all changes
@@ -72,15 +72,7 @@ We rebuilt the Upload TFT engine and now it will be using less resources from ES
 
 The original engine from Nextion component still as a fallback in case the new engine fails, but it might be removed in a future version.
 
-### 2. Smaller TFT file size
-The TFT files are now 15 to 20% smaller when compared to the previous version. This was achieved by removing some icon font sizes, so you will notice difference (a smaller icon) in the following components:
-| Pages | Components |
-| :--: | :--: |
-| settings | bt_reboot<br>bt_sleep |
-| cover | cover_open<br>cover_close<br>cover_stop |
-| notification<br>confirm | bt_accept<br>bt_clear |
-| fan | button_up<br>button_down<br>button_on<br>button_off |
-
+### 2. 
 
 &nbsp;
 ## Next topics we are currently working on
