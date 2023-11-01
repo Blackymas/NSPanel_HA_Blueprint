@@ -84,7 +84,6 @@ script:
           bool is_updating_ = false;
 
           size_t transfer_buffer_size_ = 0;
-          uint8_t *transfer_buffer_{nullptr};
           bool upload_first_chunk_sent_ = false;
 
           int content_length_ = 0;
@@ -176,6 +175,7 @@ script:
             };
 
           #ifdef ARDUINO // arduino # To do: Move to Nextion component on ESPHome
+          uint8_t *transfer_buffer_{nullptr};
           auto upload_by_chunks_arduino = [&](HTTPClient *http, const std::string &url, int range_start) -> int
             {
               static const char *const TAG = "script.upload_tft.upload_by_chunks_arduino";
@@ -447,6 +447,7 @@ script:
               ESP_LOGV(TAG, "range_start: %i", range_start);
               ESP_LOGV(TAG, "transfer_buffer_size_: %i", transfer_buffer_size_);
               ESP_LOGV(TAG, "tft_size_: %i", tft_size_);
+              ESP_LOGV(TAG, "Available heap: %u", esp_get_free_heap_size());
 
               int range_end;
 
@@ -466,17 +467,20 @@ script:
                   .url = url.c_str(),
               };
               esp_http_client_handle_t client = esp_http_client_init(&config);
+
               char range_header[64];
               sprintf(range_header, "bytes=%d-%d", range_start, range_end);
               ESP_LOGV(TAG, "Requesting range: %s", range_header);
               esp_http_client_set_header(client, "Range", range_header);
+              ESP_LOGV(TAG, "Available heap: %u", esp_get_free_heap_size());
+              ESP_LOGV(TAG, "Opening http connetion");
               esp_err_t err;
               if ((err = esp_http_client_open(client, 0)) != ESP_OK) {
                   ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
-                  free(transfer_buffer_);
                   esp_http_client_cleanup(client);
                   return -1;
               }
+              ESP_LOGV(TAG, "Fetch content length");
               int content_length = esp_http_client_fetch_headers(client);
               ESP_LOGV(TAG, "content_length = %d", content_length);
               int total_read_len = 0, read_len;
@@ -489,13 +493,12 @@ script:
                 ESP_LOGV(TAG, "Available heap: %u", esp_get_free_heap_size());
               } else {
                 ESP_LOGV(TAG, "Memory for buffer allocated successfully");
-                ESP_LOGV(TAG, "Available heap: %u", esp_get_free_heap_size());
 
                 while (true) {
                   ESP_LOGV(TAG, "Available heap: %u", esp_get_free_heap_size());
                   int read_len = esp_http_client_read(client, reinterpret_cast<char*>(buffer), 4096);
+                  ESP_LOGV(TAG, "Read %d bytes from HTTP client, writing to UART", read_len);
                   if (read_len > 0) {
-                    ESP_LOGV(TAG, "Read %d bytes from HTTP client, writing to UART", read_len);
                     tf_uart->write_array(buffer, read_len);
                     ESP_LOGV(TAG, "Write to UART successful");
                     recv_ret_string_(recv_string, 5000, true);
@@ -516,6 +519,9 @@ script:
                       if (result > 0) {
                         ESP_LOGI(TAG, "Nextion reported new range %d", result);
                         content_length_ = tft_size_ - result;
+                        // Deallocate the buffer when done
+                        delete[] buffer;
+                        ESP_LOGV(TAG, "Memory for buffer deallocated");
                         esp_http_client_cleanup(client);
                         esp_http_client_close(client);
                         return result;
@@ -652,25 +658,7 @@ script:
               } else if (esp_get_free_heap_size() < 32768) {
                 chunk_size = 4096;
               }
-
-              if (transfer_buffer_ == nullptr) {
-                ExternalRAMAllocator<uint8_t> allocator(ExternalRAMAllocator<uint8_t>::ALLOW_FAILURE);
-                ESP_LOGV(TAG, "Allocating buffer size %d, Heap size is %u", chunk_size, esp_get_free_heap_size());
-                transfer_buffer_ = allocator.allocate(chunk_size);
-                if (transfer_buffer_ == nullptr) { // Try a smaller size
-                  ESP_LOGW(TAG, "Could not allocate buffer size: %d trying 4096 instead", chunk_size);
-                  chunk_size = 4096;
-                  ESP_LOGD(TAG, "Allocating %d buffer", chunk_size);
-                  transfer_buffer_ = allocator.allocate(chunk_size);
-
-                  if (!transfer_buffer_) {
-                      esp_http_client_cleanup(http);
-                      return upload_end_(false);
-                  }
-                }
-
-                transfer_buffer_size_ = chunk_size;
-              }
+              transfer_buffer_size_ = chunk_size;
 
               ESP_LOGD(TAG, "Updating tft from \"%s\" with a file size of %d using %zu chunksize, Heap Size %d",
                       url.c_str(), content_length_, transfer_buffer_size_, esp_get_free_heap_size());
