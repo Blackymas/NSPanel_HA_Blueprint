@@ -440,28 +440,23 @@ script:
               return upload_end_(true);
             };
           #elif defined(ESP_PLATFORM) // esp-idf # To do: Move to Nextion component on ESPHome
-          auto upload_by_chunks_esp_idf = [&](const std::string &url, int range_start) -> int  // Is this function needed or should it be merged into the parent?
-            {
-              static const char *const TAG = "script.upload_tft.upload_by_chunks_esp_idf";
-              ESP_LOGV(TAG, "url: %s", url.c_str());
-              ESP_LOGV(TAG, "range_start: %i", range_start);
-              ESP_LOGV(TAG, "transfer_buffer_size_: %i", transfer_buffer_size_);
-              ESP_LOGV(TAG, "tft_size_: %i", tft_size_);
+          auto upload_range_esp_idf_ = [&](const std::string &url, int range_start) -> int {
+              static const char *const TAG = "script.upload_tft.upload_range_esp_idf_";
+              ESP_LOGVV(TAG, "url: %s", url.c_str());
+              ESP_LOGVV(TAG, "range_start: %i", range_start);
+              uint range_size_ = tft_size_ - range_start;
+              ESP_LOGVV(TAG, "range_size_: %i", range_size_);
+              if (range_size_ <= 0) {
+                ESP_LOGE(TAG, "Invalid range");
+                return -1;
+              }
+              ESP_LOGVV(TAG, "tft_size_: %i", tft_size_);
               ESP_LOGV(TAG, "Available heap: %u", esp_get_free_heap_size());
 
-              int range_end;
-
-              if (range_start == 0 && transfer_buffer_size_ > 16384) {
-                  range_end = 16384 - 1;
-              } else {
-                  range_end = range_start + transfer_buffer_size_ - 1;
-              }
-
-              if (range_end > tft_size_)
-                  range_end = tft_size_;
-              ESP_LOGV(TAG, "range_end: %i", range_end);
-              int range = range_end - range_start;
-              ESP_LOGV(TAG, "range size: %i", range);
+              int range_end = (range_start == 0) ? std::min(tft_size_, 16383) : tft_size_;
+              ESP_LOGVV(TAG, "range_end: %i", range_end);
+              //int range = range_end - range_start;
+              //ESP_LOGVV(TAG, "range size: %i", range);
 
               esp_http_client_config_t config = {
                   .url = url.c_str(),
@@ -472,7 +467,7 @@ script:
               sprintf(range_header, "bytes=%d-%d", range_start, range_end);
               ESP_LOGV(TAG, "Requesting range: %s", range_header);
               esp_http_client_set_header(client, "Range", range_header);
-              ESP_LOGV(TAG, "Available heap: %u", esp_get_free_heap_size());
+              ESP_LOGVV(TAG, "Available heap: %u", esp_get_free_heap_size());
               ESP_LOGV(TAG, "Opening http connetion");
               esp_err_t err;
               if ((err = esp_http_client_open(client, 0)) != ESP_OK) {
@@ -495,19 +490,20 @@ script:
                 ESP_LOGV(TAG, "Memory for buffer allocated successfully");
 
                 while (true) {
-                  ESP_LOGV(TAG, "Available heap: %u", esp_get_free_heap_size());
+                  App.feed_wdt();
+                  ESP_LOGVV(TAG, "Available heap: %u", esp_get_free_heap_size());
                   int read_len = esp_http_client_read(client, reinterpret_cast<char*>(buffer), 4096);
-                  ESP_LOGV(TAG, "Read %d bytes from HTTP client, writing to UART", read_len);
+                  ESP_LOGVV(TAG, "Read %d bytes from HTTP client, writing to UART", read_len);
                   if (read_len > 0) {
                     tf_uart->write_array(buffer, read_len);
-                    ESP_LOGV(TAG, "Write to UART successful");
+                    ESP_LOGVV(TAG, "Write to UART successful");
                     recv_ret_string_(recv_string, 5000, true);
                     content_length_ -= read_len;
-                    ESP_LOGD(TAG, "Uploaded %0.1f %%, remaining %d bytes",
+                    ESP_LOGD(TAG, "Uploaded %0.2f %%, remaining %d bytes",
                             100.0 * (tft_size_ - content_length_) / tft_size_,
                             content_length_);
                     if (recv_string[0] != 0x05) {  // 0x05 == "ok"
-                      ESP_LOGV(TAG, "recv_string [%s]",
+                      ESP_LOGD(TAG, "recv_string [%s]",
                               format_hex_pretty(reinterpret_cast<const uint8_t *>(recv_string.data()), recv_string.size()).c_str());
                     }
                     // handle partial upload request
@@ -521,7 +517,7 @@ script:
                         content_length_ = tft_size_ - result;
                         // Deallocate the buffer when done
                         delete[] buffer;
-                        ESP_LOGV(TAG, "Memory for buffer deallocated");
+                        ESP_LOGVV(TAG, "Memory for buffer deallocated");
                         esp_http_client_cleanup(client);
                         esp_http_client_close(client);
                         return result;
@@ -539,7 +535,7 @@ script:
 
                 // Deallocate the buffer when done
                 delete[] buffer;
-                ESP_LOGV(TAG, "Memory for buffer deallocated");
+                ESP_LOGVV(TAG, "Memory for buffer deallocated");
               }
               esp_http_client_cleanup(client);
               esp_http_client_close(client);
@@ -568,7 +564,7 @@ script:
 
               // Define the configuration for the HTTP client
               ESP_LOGV(TAG, "Establishing connection to HTTP server");
-              ESP_LOGV(TAG, "Available heap: %u", esp_get_free_heap_size());
+              ESP_LOGVV(TAG, "Available heap: %u", esp_get_free_heap_size());
               esp_http_client_config_t config = {
                   .url = url.c_str(),
                   .method = HTTP_METHOD_HEAD,
@@ -666,7 +662,7 @@ script:
               ESP_LOGV(TAG, "Starting transfer by chunks loop");
               int result = 0;
               while (content_length_ > 0) {
-                  result = upload_by_chunks_esp_idf(url.c_str(), result);
+                  result = upload_range_esp_idf_(url.c_str(), result);
                   if (result < 0) {
                       ESP_LOGE(TAG, "Error updating Nextion!");
                       esp_http_client_cleanup(http);
@@ -678,7 +674,7 @@ script:
 
               //int result = 0;
               //while (content_length_ > 0) {
-              //  result = upload_by_chunks_esp_idf(http, url, result);
+              //  result = upload_range_esp_idf_(http, url, result);
               //  if (result < 0) {
               //    ESP_LOGD(TAG, "Error updating Nextion!");
               //    esp_http_client_cleanup(http);
@@ -690,6 +686,8 @@ script:
               is_updating_ = false;
               ESP_LOGD(TAG, "Successfully updated Nextion!");
 
+              ESP_LOGD(TAG, "Close HTTP connection");
+              esp_http_client_close(http);
               esp_http_client_cleanup(http);
               return upload_end_(true);
             };
