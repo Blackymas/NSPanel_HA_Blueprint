@@ -18,27 +18,10 @@ substitutions:
   #############################
 
 external_components:
-#  - source: github://pr#3256 # adds esp-idf support to http_request
-#    components:
-#      - http_request
-  - source: github://pr#5667 #5484 #5660 # adds exit reparse to Nextion library
+  - source: github://pr#5667 # Remove this when that pr is merged
     components:
       - nextion
     refresh: 300s
-#  - source:
-#      type: git
-#      url: https://github.com/edwardtfn/esphome
-#      ref: nextion-esp-idf
-#    components:
-#      - nextion
-#    refresh: 1s
-
-##### HTTP REQUEST #####
-# Enables http client  #
-# for upload_tft.      #
-########################
-#http_request:
-#  id: httpclient
 
 button:
   ##### UPDATE TFT DISPLAY #####
@@ -49,11 +32,8 @@ button:
     entity_category: config
     on_press:
       - logger.log: "Button pressed: Update TFT display"
-      - binary_sensor.template.publish:
-          id: nextion_init
-          state: false
-      - delay: 16ms
-      - lambda: id(upload_tft).execute("${nextion_update_url}");
+      - lambda: |-
+          upload_tft->execute("${nextion_update_url}");
 
 api:
   services:
@@ -61,10 +41,8 @@ api:
       - service: upload_tft
         then:
           - logger.log: "Service: upload_tft"
-          - binary_sensor.template.publish:
-              id: nextion_init
-              state: false
-          - lambda: 'id(upload_tft).execute("${nextion_update_url}");'
+          - lambda: |-
+              upload_tft->execute("${nextion_update_url}");
 
       ##### SERVICE TO UPDATE THE TFT FILE from URL #####
       - service: upload_tft_url
@@ -72,10 +50,8 @@ api:
           url: string
         then:
           - logger.log: "Service: upload_tft_url"
-          - binary_sensor.template.publish:
-              id: nextion_init
-              state: false
-          - lambda: 'id(upload_tft).execute(url.c_str());'
+          - lambda: |-
+              upload_tft->execute(url.c_str());
 
 display:
   - id: !extend disp1
@@ -90,50 +66,50 @@ script:
       - lambda: |-
           static const char *const TAG = "script.upload_tft";
           ESP_LOGVV(TAG, "Starting...");
+
+          nextion_init->state = false;
+
+          auto delay_seconds_ = [](int seconds) {
+            ESP_LOGVV(TAG, "Wait %i seconds", seconds);
+            for (int i = 0; i < (seconds*4); i++) {
+              #ifdef ARDUINO
+              delay(250);
+              #elif defined(ESP_PLATFORM)
+              vTaskDelay(pdMS_TO_TICKS(250));
+              #endif
+              App.feed_wdt();
+            }
+          };
+
           ESP_LOGV(TAG, "Setting TFT url: %s", url.c_str());
-          id(disp1)->set_tft_url(url.c_str());
+          disp1->set_tft_url(url.c_str());
           unsigned int upload_tries = 0;
           while (upload_tries < 5) {
             upload_tries++;
             ESP_LOGD(TAG, "Try #%i", upload_tries);
             ESP_LOGD(TAG, "Setting Nextion protocol reparse mode to passive");
-            id(disp1).set_protocol_reparse_mode(false);
+            exit_reparse->execute();
+            delay_seconds_(2);
             ESP_LOGV(TAG, "Calling upload from Nextion component");
-            if (id(disp1)->upload_tft()) id(restart_nspanel).press();
+            if (disp1->upload_tft()) id(restart_nspanel).press();
             ESP_LOGD(TAG, "Turn off Nextion");
-            id(screen_power).turn_off();
-            #ifdef ARDUINO
-            delay(1500);
-            #elif defined(ESP_PLATFORM)
-            vTaskDelay(pdMS_TO_TICKS(1500));
-            #endif
+            screen_power->turn_off();
+            delay_seconds_(3);
             ESP_LOGD(TAG, "Turn on Nextion");
-            id(screen_power).turn_on();
-            #ifdef ARDUINO
-            delay(1500);
-            #elif defined(ESP_PLATFORM)
-            vTaskDelay(pdMS_TO_TICKS(1500));
-            #endif
+            screen_power->turn_on();
+            delay_seconds_(2);
           }
           ESP_LOGE(TAG, "TFT upload failed.");
           ESP_LOGD(TAG, "Turn off Nextion");
-          id(screen_power).turn_off();
-          #ifdef ARDUINO
-          delay(1500);
-          #elif defined(ESP_PLATFORM)
-          vTaskDelay(pdMS_TO_TICKS(1500));
-          #endif
+          screen_power->turn_off();
+          delay_seconds_(2);
           ESP_LOGD(TAG, "Turn on Nextion");
-          id(screen_power).turn_on();
+          screen_power->turn_on();
           ESP_LOGD(TAG, "Restarting esphome");
-          #ifdef ARDUINO
-          delay(1500);
-          #elif defined(ESP_PLATFORM)
-          vTaskDelay(pdMS_TO_TICKS(1500));
-          #endif
-          id(restart_nspanel).press();
+          delay_seconds_(1);
+          restart_nspanel->press();
+          nextion_init->state = true;
           ESP_LOGV(TAG, "Finished!");
-
 
   - id: upload_tft_legacy # Not in use - To be removed when Nextion component is updated
     mode: single
