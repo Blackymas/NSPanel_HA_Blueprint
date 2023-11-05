@@ -46,7 +46,7 @@ Since in this update lots of input to the blueprint changed, we highly recommend
      - SSID
      - BSSID
 
-    You can still add these components by adding the file `nspanel_esphome_advanced.yaml` in your ESPHome settings as in the example bellow, but please have in mind that these are not used by the blueprint and will be using some memory of your ESPHome. 
+    You can still add these components (except by "Exit reparse") by adding the file `nspanel_esphome_advanced.yaml` in your ESPHome settings as in the example bellow, but please have in mind that these are not used by the blueprint and will be using some memory of your ESPHome. 
 ```yaml
 ...
 packages:
@@ -58,21 +58,28 @@ packages:
       - nspanel_esphome_advanced.yaml # activate advanced (legacy) elements - can be useful for troubleshooting
 ...
 ```
+2. Very long press on hardware buttons
+If you have a custom automation using very long hold (more than 15s) of hardware buttons it may fail as now the panel will restart with button hold for 15s.
 
 &nbsp;
-## Overview of all changes
+## Overview of noteworthy changes
 1. New Upload TFT engine
-2. 
+2. Hardware restarts with button hold for 15s
 
 &nbsp;
-## Details of all changes
+## Details of noteworthy changes
 
 ### 1. New Upload TFT engine
 We rebuilt the Upload TFT engine and now it will be using less resources from ESPHome during the transfer and, in addition, will provide more logs for troubleshooting.
 
 The original engine from Nextion component still as a fallback in case the new engine fails, but it might be removed in a future version.
 
-### 2. 
+### 2. Hardware restarts with button hold for 15s
+Now if you press the hardware buttons for more than 15s, the panel will act as the following:
+| Button | Action | Details |
+| :--: | :--: | :- |
+| Left | Power cycle the screen | It can remove the need to power cycle the panel when the screen can't stablish connection to ESPHome (`Nextion is not connected!` on logs). |
+| Right | Restarts the panel | It is equivalent to press the "Restart" button on the Settings page or from Home Assistant, but is available even when the Wi-Fi isn't connected or Home Assistant is out. |
 
 &nbsp;
 ## Next topics we are currently working on
