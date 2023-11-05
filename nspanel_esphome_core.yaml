@@ -2050,6 +2050,8 @@ script:
       - lambda: |-
           static const char *const TAG = "script.page_changed";
 
+          // Go to boot page if not initiated
+          if (page != "boot" and not nextion_init->state) disp1->goto_page("boot");
           // Reset globals
           if (page != "climate" &&
               page != "cover" &&
@@ -2124,11 +2126,11 @@ script:
           static const char *const TAG = "script.page_boot";
           if (construct_page) {
             ESP_LOGV(TAG, "Construct boot page");
-            disp1->send_command_printf("tm_esphome.en=0");
-            disp1->send_command_printf("tm_pageid.en=0");
-            set_brightness->execute(100);
-            disp1->set_component_text_printf("boot.esph_version", "%s", "${version}"); // ### esphome-version ###
-            disp1->show_component("bt_reboot");
+            if (current_page->state == "boot") {
+              set_brightness->execute(100);
+              disp1->set_component_text_printf("esph_version", "%s", "${version}"); // ### esphome-version ###
+              disp1->show_component("bt_reboot");
+            }
           }
 
   - id: page_buttonpage
@@ -2396,8 +2398,20 @@ script:
       - lambda: |-
           static const char *const TAG = "script.boot_sequence";
           ESP_LOGD(TAG, "Starting boot sequence");
-          if (current_page->state == "boot") page_boot->execute(true);
+          ESP_LOGD(TAG, "Wait for TFT version");
+      - wait_until:
+          - lambda: !lambda return !id(version_tft).empty();
+      - lambda: |-
+          static const char *const TAG = "script.boot_sequence";
+          ESP_LOGD(TAG, "TFT version: %s", id(version_tft).c_str());
+          if (current_page->state == "boot") {
+            disp1->send_command_printf("tm_esphome.en=0");
+            disp1->send_command_printf("tm_pageid.en=0");
+            page_boot->execute(true);
+          }
           timer_reset_all->execute("boot");
+      - lambda: |-
+          static const char *const TAG = "script.boot_sequence";
           ESP_LOGD(TAG, "Wait for API");
       - wait_until:
           api.connected
