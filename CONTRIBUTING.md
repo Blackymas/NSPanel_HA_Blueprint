@@ -42,6 +42,8 @@ Scan through our [existing issues](https://github.com/Blackymas/NSPanel_HA_Bluep
 
 Commit the changes once you are happy with them. Don't forget to self review to speed up the review process:zap:.
 
+After a commit, GitHub will run the validation actions, which could take a while. Please take a look at [Actions](https://github.com/Blackymas/NSPanel_HA_Blueprint/actions) tab and follow the test results. If any test fails, please click on the action instance to open it's details, take a look at the report and fix the issues.
+
 ### Pull Request
 
 When you're finished with the changes, create a pull request, also known as a PR.
