@@ -65,6 +65,7 @@ If you have a custom automation using very long hold (more than 15s) of hardware
 ## Overview of noteworthy changes
 1. New Upload TFT engine
 2. Hardware restarts with button hold for 15s
+3. Support to `esp-idf` framework
 
 &nbsp;
 ## Details of noteworthy changes
@@ -74,6 +75,7 @@ We rebuilt the Upload TFT engine and now it will be using less resources from ES
 
 The original engine from Nextion component still as a fallback in case the new engine fails, but it might be removed in a future version.
 
+&nbsp;
 ### 2. Hardware restarts with button hold for 15s
 Now if you press the hardware buttons for more than 15s, the panel will act as the following:
 | Button | Action | Details |
@@ -82,12 +84,19 @@ Now if you press the hardware buttons for more than 15s, the panel will act as t
 | Right | Restarts the panel | It is equivalent to press the "Restart" button on the Settings page or from Home Assistant, but is available even when the Wi-Fi isn't connected or Home Assistant is out. |
 
 &nbsp;
+### 3. Support to `esp-idf` framework
+Although this project still using ESPHome default framework (currently `arduino`), we started supporting the framework `esp-idf` as this is a recomendation from ESPHome team since an year ago or so.
+The `arduino` protocol still more popular and therefore more components are available, but as `esp-idf` is maintained by EspressIF and is kept updated, more boards are supported and the memory management is better, making it ideal if you wanna customize your panel to support memory consumption functionalities, like `bluetooth_proxy` or [Improv](https://www.improv-wifi.com/).
+Please look at [customizations docs in the Wiki](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-Customization#framework-esp-idf) for more details on how to change the framework.
+
+&nbsp;
 ## Next topics we are currently working on
 See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 
 ## Special thanks to:
 - @misery - Fixing a typo in the docs (#1176)
 - @Floppe - Adding space for value fields on Home page (#1180)
+
 ## New Contributors
 @misery
 @Floppe
