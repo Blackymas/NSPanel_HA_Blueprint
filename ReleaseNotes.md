@@ -66,6 +66,7 @@ If you have a custom automation using very long hold (more than 15s) of hardware
 1. New Upload TFT engine
 2. Hardware restarts with button hold for 15s
 3. Support to `esp-idf` framework
+4. Support to 921600 bps
 
 &nbsp;
 ## Details of noteworthy changes
@@ -88,6 +89,13 @@ Now if you press the hardware buttons for more than 15s, the panel will act as t
 Although this project still using ESPHome default framework (currently `arduino`), we started supporting the framework `esp-idf` as this is a recomendation from ESPHome team since an year ago or so.
 The `arduino` protocol still more popular and therefore more components are available, but as `esp-idf` is maintained by EspressIF and is kept updated, more boards are supported and the memory management is better, making it ideal if you wanna customize your panel to support memory consumption functionalities, like `bluetooth_proxy` or [Improv](https://www.improv-wifi.com/).
 Please look at [customizations docs in the Wiki](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-Customization#framework-esp-idf) for more details on how to change the framework.
+
+&nbsp;
+### 4. Support to 921600 bps
+Until this point, the communication between ESPHome and the Nextion display is at 115200 bps. This is not changing for now, but we are preparing to change this in the near future to a higer rate of 921600 bps, which is 8 times higher than the one used currently.
+After installing the latest TFT v4.1, you will be able to [change the speed as a customization](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-Customization#change-uarts-baud-rate) and your system will switch to the higher transfer rate after the next boot.
+
+In most of the cases, you are not going to see any diference related tho this change, but it will reduce significantly the time to upload a TFT file.
 
 &nbsp;
 ## Next topics we are currently working on

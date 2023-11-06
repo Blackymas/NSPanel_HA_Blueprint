@@ -12,7 +12,7 @@ substitutions:
   ##############################################
 
   ##### DON'T CHANGE THIS #####
-  version: "4.1dev4"
+  version: "4.1dev5"
   #############################
 
 ##### ESPHOME CONFIGURATION #####
@@ -53,8 +53,6 @@ esphome:
 ##### TYPE OF ESP BOARD #####
 esp32:
   board: esp32dev
-#  framework:
-#    type: esp-idf
 
 ##### WIFI SETUP #####
 wifi:
@@ -712,6 +710,7 @@ display:
   - id: disp1
     platform: nextion
     uart_id: tf_uart
+    #start_up_page: 8   ####### Enable this when https://github.com/esphome/esphome/pull/5673 is merged
     on_page: # I couldn't make this trigger to work, so used text_sensor nspanelevent and localevent instead
       lambda: |-
         ESP_LOGW("display.disp1.on_page", "NEXTION PAGE CHANGED");
@@ -2033,13 +2032,23 @@ script:
           if (not compareVersions("${version}", id(version_tft).c_str())) ESP_LOGE(TAG, "TFT version mismatch!");
           ESP_LOGD(TAG, "Blueprint version: %s", id(version_blueprint).c_str());
           if (not compareVersions("${version}", id(version_blueprint).c_str())) ESP_LOGE(TAG, "Blueprint version mismatch!");
+          
+          std::string framework = "unknown";
+          #ifdef ARDUINO
+          framework = "arduino";
+          #elif defined(USE_ESP_IDF)
+          framework = "esp-idf";
+          #endif
+          ESP_LOGD(TAG, "Framework: %s", framework.c_str());
+
           auto ha_event = new esphome::api::CustomAPIDevice();
           ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
             {
               {"type", "version"},
               {"tft", id(version_tft).c_str()},
               {"esphome", "${version}"},
-              {"blueprint", id(version_blueprint).c_str()}
+              {"blueprint", id(version_blueprint).c_str()},
+              {"framework", framework.c_str()}
             });
 
   - id: page_changed
@@ -2128,7 +2137,15 @@ script:
             ESP_LOGV(TAG, "Construct boot page");
             if (current_page->state == "boot") {
               set_brightness->execute(100);
-              disp1->set_component_text_printf("esph_version", "%s", "${version}"); // ### esphome-version ###
+
+              std::string framework = "unknown";
+              #ifdef ARDUINO
+              framework = "arduino";
+              #elif defined(USE_ESP_IDF)
+              framework = "esp-idf";
+              #endif
+              disp1->set_component_text_printf("esph_version", "${version}");    // ESPHome version
+              disp1->set_component_text_printf("framework", framework.c_str());  // ESPHome framework
               disp1->show_component("bt_reboot");
             }
           }
