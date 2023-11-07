@@ -45,6 +45,8 @@ Since in this update lots of input to the blueprint changed, we highly recommend
      - IP
      - SSID
      - BSSID
+   - ESPHome components:
+     - Web server
 
     You can still add these components (except by "Exit reparse") by adding the file `nspanel_esphome_advanced.yaml` in your ESPHome settings as in the example bellow, but please have in mind that these are not used by the blueprint and will be using some memory of your ESPHome. 
 ```yaml
