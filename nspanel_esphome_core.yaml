@@ -231,9 +231,6 @@ api:
           relay2_icon: string
           relay2_icon_color: int
           relay2_fallback: bool
-          date_color: int
-          time_format: string
-          time_color: int
           embedded_climate: bool
           embedded_climate_friendly_name: string
           embedded_indoor_temperature: bool
@@ -241,58 +238,45 @@ api:
           mui_please_confirm: string
         then:
           - lambda: |-
+              static const char *const TAG = "service.global_settings";
               // Blueprint version
-              ESP_LOGV("service.global_settings", "Check Blueprint version");
+              ESP_LOGV(TAG, "Check Blueprint version");
               id(version_blueprint) = blueprint_version;
               check_versions->execute();
 
               // Relays
-              ESP_LOGV("service.global_settings", "Setup relays");
+              ESP_LOGV(TAG, "Setup relays");
               relay1_local->publish_state(relay1_local_control);
               relay2_local->publish_state(relay2_local_control);
               id(home_relay1_icon) = relay1_icon.c_str();
               id(home_relay2_icon) = relay2_icon.c_str();
-              id(home_relay1_icon_color) = relay1_icon_color;
-              id(home_relay2_icon_color) = relay2_icon_color;
               id(relay_1_fallback) = relay1_fallback;
               id(relay_2_fallback) = relay2_fallback;
-
-              // Localization
-              ESP_LOGV("service.global_settings", "Load localization");
-              id(mui_time_format) = time_format;
-
-              // Date/Time colors
-              ESP_LOGV("service.global_settings", "Load date/time colors");
-              id(home_date_color) = date_color;
-              id(home_time_color) = time_color;
+              disp1->set_component_font_color("home.icon_top_01", id(home_relay1_icon_color));
+              disp1->set_component_font_color("home.icon_top_02", id(home_relay2_icon_color));
+              id(home_relay1_icon_color) = relay1_icon_color;
+              id(home_relay2_icon_color) = relay2_icon_color;
 
               // Embedded thermostat
-              ESP_LOGV("service.global_settings", "Load embedded thermostat");
+              ESP_LOGV(TAG, "Load embedded thermostat");
               id(is_embedded_thermostat) = embedded_climate;
               addon_climate_set_climate_friendly_name->execute(embedded_climate_friendly_name.c_str());
 
               // Indoor temperature
-              ESP_LOGV("service.global_settings", "Set indoor temperature");
+              ESP_LOGV(TAG, "Set indoor temperature");
               id(embedded_indoor_temp) = embedded_indoor_temperature;
               id(temp_unit_fahrenheit) = temperature_unit_is_fahrenheit;
               display_embedded_temp->execute();
 
               // Confirm page
-              ESP_LOGV("service.global_settings", "Setup confirm page");
+              ESP_LOGV(TAG, "Setup confirm page");
               display_wrapped_text->execute("confirm.title", mui_please_confirm.c_str(), 15);
 
-              // Refresh colors of global components
-              ESP_LOGV("service.global_settings", "Refresh color of global components");
-              disp1->set_component_font_color("home.date", id(home_date_color));
-              disp1->set_component_font_color("home.time", id(home_time_color));
-              disp1->set_component_font_color("home.icon_top_01", id(home_relay1_icon_color));
-              disp1->set_component_font_color("home.icon_top_02", id(home_relay2_icon_color));
-
               // Update home page
-              ESP_LOGV("service.global_settings", "Update home page");
+              ESP_LOGV(TAG, "Update home page");
               page_home->execute(false);
 
-              ESP_LOGV("service.global_settings", "Current page: %s", current_page->state.c_str());
+              ESP_LOGV(TAG, "Current page: %s", current_page->state.c_str());
 
           - if:
               condition:
@@ -348,9 +332,10 @@ api:
       - service: send_command_value
         variables:
           component: string
-          message: int
+          val: int
         then:
-          - lambda: 'disp1->set_component_value(component.c_str(), message);'
+          - lambda: |-
+              disp1->set_component_value(component.c_str(), val);
 
       ##### Service to send a command "hide componente" directly to the display #####
       - service: send_command_hide ### unused ###
@@ -536,6 +521,9 @@ api:
       #### Service to populate the page Home #####
       - service: page_home
         variables:
+          date_color: int
+          time_format: string
+          time_color: int
           notification_icon: string
           notification_icon_color_normal: int[]
           notification_icon_color_unread: int[]
@@ -548,7 +536,21 @@ api:
           alarm_state: string
         then:
           - lambda: |-
+              static const char *const TAG = "service.page_home";
+
+              // Localization
+              ESP_LOGV(TAG, "Load localization");
+              id(mui_time_format) = time_format;
+
+              // Date/Time colors
+              ESP_LOGV(TAG, "Load date/time colors");
+              disp1->set_component_font_color("home.date", date_color);
+              disp1->set_component_font_color("home.time", time_color);
+              id(home_date_color) = date_color;
+              id(home_time_color) = time_color;
+
               // Notification button
+              ESP_LOGV(TAG, "Set Notification button");
               disp1->send_command_printf("is_notification=%i", (notification_text->state.empty() and notification_label->state.empty()) ? 0 : 1);
               disp1->set_component_text_printf("home.bt_notific", "%s", notification_icon.c_str());
               set_component_color->execute("home.bt_notific", notification_unread->state ? notification_icon_color_unread : notification_icon_color_normal, {});
@@ -556,18 +558,20 @@ api:
               id(home_notify_icon_color_unread) = notification_icon_color_unread;
 
               // QRCode button
+              ESP_LOGV(TAG, "Set QRCode button");
               disp1->send_command_printf("is_qrcode=%i", (qrcode) ? 1 : 0);
               disp1->set_component_text_printf("home.bt_qrcode", "%s", qrcode_icon.c_str());
               set_component_color->execute("home.bt_qrcode", qrcode_icon_color, {});
 
               // Entities pages button
+              ESP_LOGV(TAG, "Set Entities button");
               disp1->send_command_printf("is_entities=%i", (entities_pages) ? 1 : 0);
               disp1->set_component_text_printf("home.bt_entities", "%s", entities_pages_icon.c_str());
               //set_component_color->execute("home.bt_entities", entities_pages_icon_color, {});
               set_component_color->execute("home.bt_entities", entities_pages_icon_color, {});
 
-
               // Alarm button
+              ESP_LOGV(TAG, "Set Alarm button");
               disp1->send_command_printf("is_alarm=%i", (alarm_state == "" or alarm_state.empty()) ? 0 : 1);
               update_alarm_icon->execute("home.bt_alarm", alarm_state.c_str());
 
