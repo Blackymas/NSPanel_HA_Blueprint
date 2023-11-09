@@ -76,6 +76,7 @@ You can add it back as a [customization](https://github.com/Blackymas/NSPanel_HA
 2. Hardware restarts with button hold for 15s
 3. Support to `esp-idf` framework
 4. Support to 921600 bps
+5. Font size for chips
 
 &nbsp;
 ## Details of noteworthy changes
@@ -103,8 +104,22 @@ Please look at [customizations docs in the Wiki](https://github.com/Blackymas/NS
 ### 4. Support to 921600 bps
 Until this point, the communication between ESPHome and the Nextion display is at 115200 bps. This is not changing for now, but we are preparing to change this in the near future to a higer rate of 921600 bps, which is 8 times higher than the one used currently.
 After installing the latest TFT v4.1, you will be able to [change the speed as a customization](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-Customization#change-uarts-baud-rate) and your system will switch to the higher transfer rate after the next boot.
+<br>In most of the cases, you are not going to see any diference related tho this change, but it will reduce significantly the time to upload a TFT file.
 
-In most of the cases, you are not going to see any diference related tho this change, but it will reduce significantly the time to upload a TFT file.
+&nbsp;
+### 5. Font size for chips
+We ran a poll, the maiority select one option, but we respect the minority and... we supported both options. :smiley:
+<br>Now you can have your chips a bit bigger, making it easier to see from the distance:
+
+| 24px | 32px |
+| :--: | :--: |
+| As before | New option |
+| ![EU font 8](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/dfb79856-8456-443c-b4de-a955be8e4561) | ![EU font 9](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/268ec945-94dc-4f17-be94-8abd691ef2ed)  |
+| ![US font 8](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/a9eb3578-901a-444f-9d52-3909f2aa4f34) | ![US font 9](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/e46bac5e-8a84-4cfe-a01d-159042828350) |
+
+
+If you wanna try the new option, just go to your blueprint setting and select the font size:
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/83e64dfa-b2cf-4186-af2a-6f89c96e9044)
 
 &nbsp;
 ## Next topics we are currently working on
