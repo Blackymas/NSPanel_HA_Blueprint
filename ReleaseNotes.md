@@ -63,6 +63,8 @@ packages:
 2. Very long press on hardware buttons
 If you have a custom automation using very long hold (more than 15s) of hardware buttons it may fail as now the panel will restart with button hold for 15s.
 
+3. Logger via UART is disable
+You can add it back as a [customization](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/%28EN%29-Customization/_edit#logger-via-uart):
 &nbsp;
 ## Overview of noteworthy changes
 1. New Upload TFT engine
