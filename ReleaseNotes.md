@@ -77,6 +77,7 @@ You can add it back as a [customization](https://github.com/Blackymas/NSPanel_HA
 3. Support to `esp-idf` framework
 4. Support to 921600 bps
 5. Font size for chips
+6. Short click to open Climate and Media Player
 
 &nbsp;
 ## Details of noteworthy changes
@@ -97,8 +98,13 @@ Now if you press the hardware buttons for more than 15s, the panel will act as t
 &nbsp;
 ### 3. Support to `esp-idf` framework
 Although this project still using ESPHome default framework (currently `arduino`), we started supporting the framework `esp-idf` as this is a recomendation from ESPHome team since an year ago or so.
-The `arduino` protocol still more popular and therefore more components are available, but as `esp-idf` is maintained by EspressIF and is kept updated, more boards are supported and the memory management is better, making it ideal if you wanna customize your panel to support memory consumption functionalities, like `bluetooth_proxy` or [Improv](https://www.improv-wifi.com/).
-Please look at [customizations docs in the Wiki](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-Customization#framework-esp-idf) for more details on how to change the framework.
+The `arduino` protocol still more popular and therefore more components are available, but there are some advantages with the ESP-IDF framework:
+- It is updated more frequently by EspressIF, which means it is more secure and stable.
+- It reduces a layer, as Arduino is developed in top of ESP-IDF, so basically we are changing from ESPHome -> Arduino -> ESP-IDF -> Hardware to ESPHome -> ESP-IDF -> Hardware.
+- By reducing a layer, more memory is available for future features and for the custom components you might want to add to your panel (like `bluetooth_proxy` or [Improv](https://www.improv-wifi.com/)).
+- The memory management is more efficient, which makes critical tasks, like uploading a TFT file, more reliable.
+<br>In the future we will probably make this as the default framework, so if you are a new user or if for some reason you have to flash your panel via serial/usb, it's a good idea to change to ESP-IDF now.
+<br>Please look at [customizations docs in the Wiki](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-Customization#framework-esp-idf) for more details on how to change the framework.
 
 &nbsp;
 ### 4. Support to 921600 bps
@@ -117,9 +123,12 @@ We ran a poll, the maiority select one option, but we respect the minority and..
 | ![EU font 8](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/dfb79856-8456-443c-b4de-a955be8e4561) | ![EU font 9](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/268ec945-94dc-4f17-be94-8abd691ef2ed)  |
 | ![US font 8](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/a9eb3578-901a-444f-9d52-3909f2aa4f34) | ![US font 9](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/e46bac5e-8a84-4cfe-a01d-159042828350) |
 
-
 If you wanna try the new option, just go to your blueprint setting and select the font size:
 ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/83e64dfa-b2cf-4186-af2a-6f89c96e9044)
+
+&nbsp;
+### 6. Short click to open Climate and Media Player
+Now on any button page, buttons assigned to Climate or Media Player entities will always open the detailed page. As it is hard to define an adequate toggle action for all the different cases, it makes more sense to just open the page and let the control to the users.
 
 &nbsp;
 ## Next topics we are currently working on
