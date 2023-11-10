@@ -105,6 +105,7 @@ The `arduino` protocol still more popular and therefore more components are avai
 - The memory management is more efficient, which makes critical tasks, like uploading a TFT file, more reliable.
 <br>In the future we will probably make this as the default framework, so if you are a new user or if for some reason you have to flash your panel via serial/usb, it's a good idea to change to ESP-IDF now.
 <br>Please look at [customizations docs in the Wiki](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-Customization#framework-esp-idf) for more details on how to change the framework.
+<br>-> The ESP-IDF framework will be used when you enable the advanced mode.
 
 &nbsp;
 ### 4. Support to 921600 bps
