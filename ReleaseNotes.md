@@ -69,7 +69,10 @@ packages:
 If you have a custom automation using very long hold (more than 15s) of hardware buttons it may fail as now the panel will restart with button hold for 15s.
 
 4. Logger via UART is disable
-You can add it back as a [customization](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/%28EN%29-Customization/_edit#logger-via-uart):
+You can add it back as a [customization](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/%28EN%29-Customization/_edit#logger-via-uart).
+
+5. Service `notification_show` parameter `text` was renamed to `message` to support ESPHome 2023.11.0.
+
 &nbsp;
 ## Overview of noteworthy changes
 1. New Upload TFT engine
