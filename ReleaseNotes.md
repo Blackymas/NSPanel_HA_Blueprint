@@ -32,11 +32,12 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 
 &nbsp;
 ## Breaking changes
-1. Home Assistant 2023.9.0 or later is now required
-This is necessary in order to support the new [Weather Forecast Service](https://www.home-assistant.io/blog/2023/09/06/release-20239/#weather-forecast-service).
-The legacy forecast based on attributes will be deprecated in Home Assistant on the begining of 2024.
 
-2.The following components are now deprecated:
+1. Home Assistant 2023.9.0 or later is now required
+<br>This is necessary in order to support the new [Weather Forecast Service](https://www.home-assistant.io/blog/2023/09/06/release-20239/#weather-forecast-service).
+<br>The legacy forecast based on attributes will be deprecated in Home Assistant on the begining of 2024.
+
+2. The following components are now deprecated:
    - Buttons:
      - Exit reparse (`button.xxxxx_exit_reparse`) - It shouldn't be necessary with the new TFT upload engine
    - Services:
@@ -66,13 +67,15 @@ packages:
 ```
 
 3. Very long press on hardware buttons
-If you have a custom automation using very long hold (more than 15s) of hardware buttons it may fail as now the panel will restart with button hold for 15s.
+<br>If you have a custom automation using very long hold (more than 15s) of hardware buttons it may fail as now the panel will restart with button hold for 15s.
 
 4. Logger via UART is disable
-You can add it back as a [customization](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/%28EN%29-Customization/_edit#logger-via-uart).
-
+<br>You can add it back as a [customization](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/%28EN%29-Customization/_edit#logger-via-uart).
 5. Service `notification_show` parameter `text` was renamed to `message` to support ESPHome 2023.11.0.
 
+6. Buttons now will run an automation
+<br>On the previous versions, a button with an automation will enable or disable the automation. Now the button will trigger the automation.
+<br>If you want the legacy behavior, please create a script to enable/disable the automation and assign this to your button. 😉
 &nbsp;
 ## Overview of noteworthy changes
 1. New Upload TFT engine
