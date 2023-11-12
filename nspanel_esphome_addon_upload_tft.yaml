@@ -1,0 +1,114 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### TFT Upload engine                                                                         #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+substitutions:
+
+  ################## Defaults ##################
+  # Just in case user forgets to set something #
+  nextion_update_url: "https://github.com/Blackymas/NSPanel_HA_Blueprint/raw/main/nspanel_eu.tft"
+  # nextion_update_blank_url: "https://github.com/Blackymas/NSPanel_HA_Blueprint/raw/main/custom_configuration/nspanel_blank.tft"
+  ##############################################
+
+external_components:
+  - source: github://pr#5683 # Remove this when that pr is merged
+    components:
+      - nextion
+
+button:
+  ##### UPDATE TFT DISPLAY #####
+  - name: ${device_name} Update TFT display
+    platform: template
+    icon: mdi:file-sync
+    id: tft_update
+    entity_category: config
+    on_press:
+      - logger.log: "Button pressed: Update TFT display"
+      - lambda: |-
+          upload_tft->execute("${nextion_update_url}");
+
+api:
+  services:
+      ##### SERVICE TO UPDATE THE TFT FILE from URL #####
+      ##### It will use the default url if url is empty or "default"
+      - service: upload_tft_url
+        variables:
+          url: string
+        then:
+          - lambda: |-
+              static const char *const TAG = "service.upload_tft_url";
+              ESP_LOGVV(TAG, "Starting...");
+
+              std::string clean_url = url;
+              // Convert to lowercase
+              std::transform(clean_url.begin(), clean_url.end(), clean_url.begin(),
+                            [](unsigned char c){ return std::tolower(c); });
+              // Trim trailing spaces
+              auto endPos = clean_url.find_last_not_of(" \t");
+              if (std::string::npos != endPos) {
+                clean_url = clean_url.substr(0, endPos + 1);
+              }
+
+              if ( clean_url.empty() or clean_url == "default") url = "${nextion_update_url}";
+              upload_tft->execute(url.c_str());
+
+display:
+  - id: !extend disp1
+    tft_url: ${nextion_update_url}
+
+script:
+  - id: upload_tft
+    mode: single
+    parameters:
+      url: string
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.upload_tft";
+          ESP_LOGVV(TAG, "Starting...");
+
+          nextion_init->state = false;
+
+          auto delay_seconds_ = [](int seconds) {
+            ESP_LOGVV(TAG, "Wait %i seconds", seconds);
+            for (int i = 0; i < (seconds*4); i++) {
+              #ifdef ARDUINO
+              delay(250);
+              #elif defined(USE_ESP_IDF)
+              vTaskDelay(pdMS_TO_TICKS(250));
+              #endif
+              App.feed_wdt();
+            }
+          };
+
+          ESP_LOGV(TAG, "Setting TFT url: %s", url.c_str());
+          disp1->set_tft_url(url.c_str());
+          unsigned int upload_tries = 0;
+          while (upload_tries < 3) {
+            upload_tries++;
+            ESP_LOGD(TAG, "Try #%i", upload_tries);
+            ESP_LOGD(TAG, "Setting Nextion protocol reparse mode to passive");
+            exit_reparse->execute();
+            delay_seconds_(2);
+            ESP_LOGV(TAG, "Calling upload from Nextion component");
+            if (disp1->upload_tft()) id(restart_nspanel).press();
+            ESP_LOGD(TAG, "Turn off Nextion");
+            screen_power->turn_off();
+            delay_seconds_(3);
+            ESP_LOGD(TAG, "Turn on Nextion");
+            screen_power->turn_on();
+            delay_seconds_(2);
+          }
+          ESP_LOGE(TAG, "TFT upload failed.");
+          ESP_LOGD(TAG, "Turn off Nextion");
+          screen_power->turn_off();
+          delay_seconds_(2);
+          ESP_LOGD(TAG, "Turn on Nextion");
+          screen_power->turn_on();
+          ESP_LOGD(TAG, "Restarting esphome");
+          delay_seconds_(1);
+          restart_nspanel->press();
+          nextion_init->state = true;
+          ESP_LOGV(TAG, "Finished!");
