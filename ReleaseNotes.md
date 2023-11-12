@@ -107,7 +107,7 @@ Although this project still using ESPHome default framework (currently `arduino`
 The `arduino` protocol still more popular and therefore more components are available, but there are some advantages with the ESP-IDF framework:
 - It is updated more frequently by EspressIF, which means it is more secure and stable.
 - It reduces a layer, as Arduino is developed in top of ESP-IDF, so basically we are changing from ESPHome -> Arduino -> ESP-IDF -> Hardware to ESPHome -> ESP-IDF -> Hardware.
-- By reducing a layer, more memory is available for future features and for the custom components you might want to add to your panel (like `bluetooth_proxy` or [Improv](https://www.improv-wifi.com/)).
+- By reducing a layer, more memory is available for future features and for the custom components you might want to add to your panel.
 - The memory management is more efficient, which makes critical tasks, like uploading a TFT file, more reliable.
 <br>In the future we will probably make this as the default framework, so if you are a new user or if for some reason you have to flash your panel via serial/usb, it's a good idea to change to ESP-IDF now.
 <br>Please look at [customizations docs in the Wiki](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-Customization#framework-esp-idf) for more details on how to change the framework.
