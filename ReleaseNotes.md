@@ -87,6 +87,7 @@ packages:
 
 - 4.1.1 patch:
    - Service `esphome.xxxxx_play_rtttl` is back to core package
+   - Stop the fallback to Home page when Notification or Confirm pages are shown
 
 
 &nbsp;
