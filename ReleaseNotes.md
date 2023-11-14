@@ -1,4 +1,4 @@
-# v4.1 - Easier TFT transfer
+# v4.1.1 - Easier TFT transfer
 
 ## Support this project
 
@@ -87,7 +87,7 @@ packages:
 
 - 4.1.1 patch:
    - Service `esphome.xxxxx_play_rtttl` is back to core package
-   
+
 
 &nbsp;
 ## Details of noteworthy changes
@@ -154,6 +154,7 @@ See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 @Floppe
 
 ## Previous releases
+- [v4.1 - Easier TFT transfer](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1)
 - [v4.0.2 - Bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.0.2)
 - [v4.0.1 - Bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.0.1)
 - [v4.0 - Alarm and Media player pages, Climate add-ons and a more robust panel](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.0)
