@@ -88,7 +88,7 @@ packages:
 - 4.1.1 patch:
    - Service `esphome.xxxxx_play_rtttl` is back to core package
    - Stop the fallback to Home page when Notification or Confirm pages are shown
-   - Display target temperature on buttons even when climate is off
+   - Display current temperature on buttons even when climate is off
    - Buttons on both the Home and Buttons pages shows entity's icon when available
 
 &nbsp;
@@ -151,7 +151,7 @@ See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 - @misery - Fixing a typo in the docs (#1176)
 - @Floppe - Adding space for value fields on Home page (#1180)
 - @bkbartk:
-   - Display target temperature on buttons even when climate is off (#1268)
+   - Display current temperature on buttons even when climate is off (#1268)
    - Button pages shows entity's icon when available (#1269)
    - Home page buttons shows entity's icon when available (#1276)
 
