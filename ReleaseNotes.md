@@ -1,4 +1,4 @@
-# v4.1 - Easier TFT transfer
+# v4.1.1 - Easier TFT transfer
 
 ## Support this project
 
@@ -40,8 +40,8 @@ Since in this update lots of input to the blueprint changed, we highly recommend
 2. The following components are now deprecated:
    - Buttons:
      - Exit reparse (`button.xxxxx_exit_reparse`) - It shouldn't be necessary with the new TFT upload engine
-   - Services:
-     - Play rtttl (`esphome.xxxxx_play_rtttl`)
+   - ~~Services:~~
+     - ~~Play rtttl (`esphome.xxxxx_play_rtttl`)~~
    - Sensors:
      - API uptime
      - Device uptime
@@ -84,6 +84,12 @@ packages:
 4. Support to 921600 bps
 5. Font size for chips
 6. Short click to open Climate and Media Player
+
+- 4.1.1 patch:
+   - Service `esphome.xxxxx_play_rtttl` is back to core package
+   - Stop the fallback to Home page when Notification or Confirm pages are shown
+   - Display target temperature on buttons even when climate is off
+   - Buttons on both the Home and Buttons pages shows entity's icon when available
 
 &nbsp;
 ## Details of noteworthy changes
@@ -144,12 +150,18 @@ See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 ## Special thanks to:
 - @misery - Fixing a typo in the docs (#1176)
 - @Floppe - Adding space for value fields on Home page (#1180)
+- @bkbartk:
+   - Display target temperature on buttons even when climate is off (#1268)
+   - Button pages shows entity's icon when available (#1269)
+   - Home page buttons shows entity's icon when available (#1276)
 
 ## New Contributors
 @misery
 @Floppe
+@bkbartk
 
 ## Previous releases
+- [v4.1 - Easier TFT transfer](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1)
 - [v4.0.2 - Bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.0.2)
 - [v4.0.1 - Bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.0.1)
 - [v4.0 - Alarm and Media player pages, Climate add-ons and a more robust panel](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.0)
