@@ -92,6 +92,7 @@ packages:
    - Buttons on both the Home and Buttons pages shows entity's icon when available
 - 4.1.2 patch:
    - Fix light icon color not being used for buttons
+   - Add option to wake-up to Climate page
 
 &nbsp;
 ## Details of noteworthy changes
