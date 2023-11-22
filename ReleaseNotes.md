@@ -90,6 +90,8 @@ packages:
    - Stop the fallback to Home page when Notification or Confirm pages are shown
    - Display current temperature on buttons even when climate is off
    - Buttons on both the Home and Buttons pages shows entity's icon when available
+- 4.1.2 patch:
+   - Fix light icon color not being used for buttons
 
 &nbsp;
 ## Details of noteworthy changes
