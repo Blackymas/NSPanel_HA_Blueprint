@@ -59,9 +59,9 @@ This innovative solution is designed to revolutionize how you interact with your
 
 
 ### Home
-![Home EU](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/c24b0879-cb63-484c-b956-64115855d1c0)
+![Home EU](docs/pics/eu_home.png)
 <br>
-![Home US](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/27b2b4fe-95e2-481d-9f35-d338cf8b8d43)
+![Home US](docs/pics/us_home.png)
 
 - Current weather with button to Weather Forcast page
 - Hardware buttons can be freely assigned
@@ -147,29 +147,37 @@ This innovative solution is designed to revolutionize how you interact with your
 &nbsp;
 ### Display Settings
 
-![Settings EU](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/93fe2c47-269c-4a8b-ab5f-563963e7f6ee)
+![Settings EU](docs/pics/eu_settings.png)
 <br>
-![Settings US](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/e1957906-555c-45be-8702-5b1afc154fed)
+![Settings US](docs/pics/us_settings.png)
 
 - Restart NSPanel
 - Display brightness slider
 - Display dim brightness slider
 
 ### Boot
-![Boot EU](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/c13d9519-e417-47cc-b9f8-3f3d5f2e4434)
+![Boot EU](docs/pics/eu_boot.png)
 <br>
-![Boot US](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/432e0122-3bc5-48cf-9e41-28fca38a716c)
+![Boot US](docs/pics/us_boot.png)
 
 
 ## Home Assistant interface
 
 ## Device's page
-![Device Setting 1](https://user-images.githubusercontent.com/41958506/203723223-8afc0e44-51cf-49ed-8a49-8ba713716639.png)
-![Device Setting 2](https://user-images.githubusercontent.com/41958506/203724491-53ecd93d-bc7c-4c2d-850b-f106691e2639.png)
+On the device's page under "Devices & Services" you can set the global configuration of your device and see the value of it's sensors and relays:
+
+![Device Setting - Controls](docs/pics/ha_device_controls.png)<br>
+![Device Setting - Sensors](docs/pics/ha_device_sensors.png)<br>
+![Device Setting - Configuration](docs/pics/ha_device_configuration.png)<br>
+![Device Setting - Diagnostic](docs/pics/ha_device_diagnostic.png)<br>
 
 ## Automation (Blueprint)
-![Blueprint 1](https://user-images.githubusercontent.com/41958506/203655004-a11f5a1c-d098-4e1a-958a-0293e50000b2.png)
-![Blueprint 2](https://user-images.githubusercontent.com/41958506/203655014-e6cae9df-aaf8-4537-8165-b8f44a177d3b.png)
+In your automations you use the blueprint's inputs to define what will be shown on your panel and how it should behave:
+![Blueprint 01](docs/pics/ha_blueprint_01.png)
+![Blueprint 02](docs/pics/ha_blueprint_02.png)
+![Blueprint 03](docs/pics/ha_blueprint_03.png)
+![Blueprint 04](docs/pics/ha_blueprint_04.png)
+![Blueprint 05](docs/pics/ha_blueprint_05.png)
 
 
 ## 🚀 Contributing

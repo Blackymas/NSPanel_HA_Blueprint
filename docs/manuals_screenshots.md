@@ -13,9 +13,9 @@ bluep_version.txt=tft_version.txt
 vis bt_reboot,1
 ```
 
-![Boot EU](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/c13d9519-e417-47cc-b9f8-3f3d5f2e4434)
+![Boot EU](pics/eu_boot.png)
 <br>
-![Boot US](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/432e0122-3bc5-48cf-9e41-28fca38a716c)
+![Boot US](pics/us_boot.png)
 
 ### Home page
 #### EU version
@@ -54,7 +54,7 @@ button03.txt=""
 value03_state.txt="715 W"
 value03_icon.txt=""
 ```
-![Home EU](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/c24b0879-cb63-484c-b956-64115855d1c0)
+![Home EU](pics/eu_home.png)
 
 #### US version
 ```
@@ -93,13 +93,12 @@ button03.txt=""
 value03_state.txt="715 W"
 value03_icon.txt=""
 ```
-![Home US](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/27b2b4fe-95e2-481d-9f35-d338cf8b8d43)
+![Home US](pics/us_home.png)
 
 ### Settings page
 ```
 page settings
 ```
 
-![Settings EU](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/93fe2c47-269c-4a8b-ab5f-563963e7f6ee)
-<br>
-![Settings US](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/e1957906-555c-45be-8702-5b1afc154fed)
+![Settings EU](pics/eu_settings.png)
+![Settings US](pics/us_settings.png)
