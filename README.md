@@ -59,7 +59,9 @@ This innovative solution is designed to revolutionize how you interact with your
 
 
 ### Home
-![2 Home](https://user-images.githubusercontent.com/41958506/212768891-9610d800-43c5-454f-a8b6-6b7c43677b5d.png)
+![Home EU](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/c24b0879-cb63-484c-b956-64115855d1c0)
+<br>
+![Home US](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/27b2b4fe-95e2-481d-9f35-d338cf8b8d43)
 
 - Current weather with button to Weather Forcast page
 - Hardware buttons can be freely assigned
@@ -144,14 +146,20 @@ This innovative solution is designed to revolutionize how you interact with your
 
 &nbsp;
 ### Display Settings
-![10 Settings](https://user-images.githubusercontent.com/41958506/203654386-e4e574ad-8674-4268-84dd-1c4e40f98eb9.png)
+
+![Settings EU](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/93fe2c47-269c-4a8b-ab5f-563963e7f6ee)
+<br>
+![Settings US](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/e1957906-555c-45be-8702-5b1afc154fed)
 
 - Restart NSPanel
 - Display brightness slider
 - Display dim brightness slider
 
 ### Boot
-![1 Boot](https://user-images.githubusercontent.com/41958506/203667473-d33523a4-3197-4838-9099-cccebfc727db.png)
+![Boot EU](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/c13d9519-e417-47cc-b9f8-3f3d5f2e4434)
+<br>
+![Boot US](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/432e0122-3bc5-48cf-9e41-28fca38a716c)
+
 
 ## Home Assistant interface
 
