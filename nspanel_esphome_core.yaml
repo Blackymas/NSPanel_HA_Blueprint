@@ -345,8 +345,10 @@ api:
                     disp1->set_component_text_printf("boot.bluep_version", "%s", blueprint_version.c_str());
                 - wait_until:
                     condition:
-                      - lambda: |-
-                          return (id(boot_sequence_completed) or current_page->state != "boot");
+                      - not:
+                        - text_sensor.state: # Avoid this being called twice by multiple boot triggers
+                            id: current_page
+                            state: 'boot'
                     timeout: 2s
                 - if:
                     condition:
@@ -1287,9 +1289,18 @@ switch:
     restore_mode: ALWAYS_ON
     internal: false
     on_turn_on:
+      - logger.log: screen_power turn-on
+      - wait_until:
+          condition:
+            - lambda: !lambda return disp1->is_setup();
+          timeout: 20s
       - lambda: |-
-          if (id(boot_sequence_completed)) boot_sequence->execute();
+          if (id(boot_sequence_completed)) {
+            nextion_init->publish_state(true);
+            disp1->goto_page(wakeup_page_name->state.c_str());
+          }
     on_turn_off:
+      - logger.log: screen_power turn-off
       - lambda: |-
           nextion_init->publish_state(false);
 
@@ -2508,6 +2519,7 @@ script:
       - lambda: |-
           static const char *const TAG = "script.boot_sequence";
           ESP_LOGD(TAG, "Starting boot sequence");
+          id(boot_sequence_completed) = false;
           ESP_LOGD(TAG, "Wait for TFT version");
       - wait_until:
           - lambda: !lambda return !id(version_tft).empty();
