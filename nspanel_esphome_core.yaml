@@ -345,10 +345,8 @@ api:
                     disp1->set_component_text_printf("boot.bluep_version", "%s", blueprint_version.c_str());
                 - wait_until:
                     condition:
-                      - not:
-                        - text_sensor.state: # Is boot page visible?
-                            id: current_page
-                            state: 'boot'
+                      - lambda: |-
+                          return (id(boot_sequence_completed) or current_page->state != "boot");
                     timeout: 2s
                 - if:
                     condition:
@@ -734,6 +732,12 @@ display:
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
+
+  ##### Is boot sequence completed? #####
+  - id: boot_sequence_completed
+    type: bool
+    restore_value: false
+    initial_value: 'false'
 
   ###### Last volume level from Home Assistant ######
   - id: last_volume_level
@@ -1281,7 +1285,13 @@ switch:
       number: 4
       inverted: true
     restore_mode: ALWAYS_ON
-    # internal: true
+    internal: false
+    on_turn_on:
+      - lambda: |-
+          if (id(boot_sequence_completed)) boot_sequence->execute();
+    on_turn_off:
+      - lambda: |-
+          nextion_init->publish_state(false);
 
   ##### Relay Local control #####
   - name: ${device_name} Relay 1 Local
@@ -2529,7 +2539,7 @@ script:
               {"type", "boot"},
               {"step", "start"}
             });
-          delay(1000);
+          if (!id(boot_sequence_completed)) delay(1000);
           // Set dimming values
           display_brightness->publish_state(id(display_brightness_global));
           display_dim_brightness->publish_state(id(display_dim_brightness_global));
@@ -2556,6 +2566,7 @@ script:
           disp1->set_component_text_printf("home.icon_top_02", "%s", id(home_relay2_icon).c_str());
           timer_reset_all->execute("boot");
           notification_clear->execute();
+          id(boot_sequence_completed) = true;
           ESP_LOGD(TAG, "Boot sequence finished!");
 
   - id: notification_clear
