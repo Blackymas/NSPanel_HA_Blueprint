@@ -93,6 +93,7 @@ packages:
 - 4.1.2 patch:
    - Fix light icon color not being used for buttons
    - Add option to wake-up to Climate page
+   - New switch "Nextion display - Power" which can turn the screen on/off
 
 &nbsp;
 ## Details of noteworthy changes
@@ -157,6 +158,7 @@ See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
    - Display current temperature on buttons even when climate is off (#1268)
    - Button pages shows entity's icon when available (#1269)
    - Home page buttons shows entity's icon when available (#1276)
+   - New switch "Nextion display - Power" which can turn the screen on/off (#1327)
 
 ## New Contributors
 @misery

@@ -735,6 +735,12 @@ display:
 ##### START - GLOBALS CONFIGURATION #####
 globals:
 
+  ##### Is boot sequence completed? #####
+  - id: boot_sequence_completed
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+
   ###### Last volume level from Home Assistant ######
   - id: last_volume_level
     type: uint
@@ -1273,15 +1279,29 @@ switch:
             id: refresh_relays
 
   ##### DISPLAY ALWAYS ON #####
-  - name: ${device_name} Screen Power
+  - name: ${device_name} Nextion display - Power
     platform: gpio
     id: screen_power
-    entity_category: config
+    entity_category: diagnostic
     pin:
       number: 4
       inverted: true
     restore_mode: ALWAYS_ON
-    internal: true
+    internal: false
+    disabled_by_default: true
+    on_turn_on:
+      - wait_until:
+          condition:
+            - lambda: !lambda return disp1->is_setup();
+          timeout: 20s
+      - lambda: |-
+          if (id(boot_sequence_completed)) {
+            nextion_init->publish_state(true);
+            disp1->goto_page(wakeup_page_name->state.c_str());
+          }
+    on_turn_off:
+      - lambda: |-
+          nextion_init->publish_state(false);
 
   ##### Relay Local control #####
   - name: ${device_name} Relay 1 Local
@@ -2529,7 +2549,7 @@ script:
               {"type", "boot"},
               {"step", "start"}
             });
-          delay(1000);
+          if (!id(boot_sequence_completed)) delay(1000);
           // Set dimming values
           display_brightness->publish_state(id(display_brightness_global));
           display_dim_brightness->publish_state(id(display_dim_brightness_global));
@@ -2556,6 +2576,7 @@ script:
           disp1->set_component_text_printf("home.icon_top_02", "%s", id(home_relay2_icon).c_str());
           timer_reset_all->execute("boot");
           notification_clear->execute();
+          id(boot_sequence_completed) = true;
           ESP_LOGD(TAG, "Boot sequence finished!");
 
   - id: notification_clear
