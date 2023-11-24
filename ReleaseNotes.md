@@ -94,6 +94,7 @@ packages:
    - Fix light icon color not being used for buttons
    - Add option to wake-up to Climate page
    - New switch "Nextion display - Power" which can turn the screen on/off
+   - Fix for button image update when local fallback is enabled.
 
 &nbsp;
 ## Details of noteworthy changes
