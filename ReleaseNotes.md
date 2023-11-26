@@ -96,6 +96,7 @@ packages:
    - New switch "Nextion display - Power" which can turn the screen on/off
    - Fix for button image update when local fallback is enabled.
    - Don't show thermostat chip when state is `auto` and no action is available.
+   - Fallback to legacy forecast (attributes based) when new method (service based) fails.
 
 &nbsp;
 ## Details of noteworthy changes
