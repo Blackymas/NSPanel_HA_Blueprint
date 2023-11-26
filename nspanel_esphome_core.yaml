@@ -27,30 +27,47 @@ esphome:
           timeout: 60s
       - wait_until:
           condition:
-            - lambda: !lambda return disp1->is_setup();
+            - lambda: !lambda return disp1->is_detected();
           timeout: 20s
       - script.execute: exit_reparse
       - wait_until:
           condition:
-            - lambda: !lambda return disp1->is_setup();
+            - lambda: !lambda return disp1->is_detected();
           timeout: 20s
       - lambda: |-
           static const char *const TAG = "on_boot";
-          if (not disp1->is_setup()) {
+
+          auto delay_seconds_ = [](int seconds) {
+            ESP_LOGD(TAG, "Wait %i seconds", seconds);
+            for (int i = 0; i < (seconds*4); i++) {
+              #ifdef ARDUINO
+              delay(250);
+              #elif defined(USE_ESP_IDF)
+              vTaskDelay(pdMS_TO_TICKS(250));
+              #endif
+              App.feed_wdt();
+            }
+          };
+
+          nextion_status->execute();
+          if (not disp1->is_detected()) {
             ESP_LOGE(TAG, "No response from Nextion display");
             ESP_LOGD(TAG, "Turn off Nextion");
             screen_power->turn_off();
-            delay(1500);
+            delay_seconds_(2);
             ESP_LOGD(TAG, "Turn on Nextion");
             screen_power->turn_on();
+            delay_seconds_(5);
+            nextion_status->execute();
           }
       - wait_until:
           condition:
-            - lambda: !lambda return disp1->is_setup();
+            - lambda: !lambda return disp1->is_detected();
           timeout: 20s
       - lambda: |-
           static const char *const TAG = "on_boot";
-          if (not disp1->is_setup()) {
+          nextion_status->execute();
+          if (not disp1->is_detected()) {
             ESP_LOGE(TAG, "No response from Nextion display");
           }
           ESP_LOGD(TAG, "Finished");
@@ -729,7 +746,7 @@ display:
       lambda: |-
         static const char *const TAG = "display.disp1.on_page";
         ESP_LOGD(TAG, "Nextion page changed");
-        ESP_LOGD(TAG, "New page: %i", int(x));
+        ESP_LOGD(TAG, "New page: %s (%i)" , id(page_names)[x].c_str(), x);
     on_setup:
       - script.execute: boot_sequence
 
@@ -1164,18 +1181,18 @@ select:
     id: wakeup_page_name
     platform: template
     options:
-      - home
+      - alarm
       - buttonpage01
       - buttonpage02
       - buttonpage03
       - buttonpage04
+      - climate
       - entitypage01
       - entitypage02
       - entitypage03
       - entitypage04
+      - home
       - qrcode
-      - alarm
-      - climate
     initial_option: home
     optimistic: true
     restore_value: true
@@ -2470,24 +2487,22 @@ script:
     then:
       - lambda: |-
           static const char *const TAG = "script.page_screensaver";
+
+          auto pageIndex = [](const std::string& page_name) -> uint8_t {
+              for (uint8_t i = 0; i < id(page_names).size(); ++i) {
+                  if (id(page_names)[i] == page_name) {
+                      return i; // Return the index if found
+                  }
+              }
+              return 0u; // Return 0 (home page) if not found
+          };
+
           if (construct_page) {
             ESP_LOGV(TAG, "Construct screensaver page");
           }
           if (current_page->state == "screensaver") {  // Is screensaver page visible?
             ESP_LOGV(TAG, "Update screensaver page");
-            int wakeup_page_id = 0;
-            if (wakeup_page_name->state == "climate") wakeup_page_id = 6;
-            else if (wakeup_page_name->state == "buttonpage01") wakeup_page_id = 12;
-            else if (wakeup_page_name->state == "buttonpage02") wakeup_page_id = 13;
-            else if (wakeup_page_name->state == "buttonpage03") wakeup_page_id = 14;
-            else if (wakeup_page_name->state == "buttonpage04") wakeup_page_id = 15;
-            else if (wakeup_page_name->state == "entitypage01") wakeup_page_id = 18;
-            else if (wakeup_page_name->state == "entitypage02") wakeup_page_id = 19;
-            else if (wakeup_page_name->state == "entitypage03") wakeup_page_id = 20;
-            else if (wakeup_page_name->state == "entitypage04") wakeup_page_id = 21;
-            else if (wakeup_page_name->state == "qrcode") wakeup_page_id = 17;
-            else if (wakeup_page_name->state == "alarm") wakeup_page_id = 23;
-            disp1->set_component_value("orign", wakeup_page_id);
+            disp1->set_component_value("orign", pageIndex(wakeup_page_name->state));
           }
 
   - id: page_settings
@@ -2624,6 +2639,15 @@ script:
           notification_text->publish_state("");
           notification_unread->turn_off();
           if (current_page->state == "home") disp1->hide_component("bt_notific");
+
+  - id: nextion_status
+    mode: restart
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.nextion_status";
+          ESP_LOGD(TAG, "Nextion status:");
+          ESP_LOGD(TAG, "  Is detected: %s", disp1->is_detected() ? "True" : "False");
+          ESP_LOGD(TAG, "  Is setup:    %s", disp1->is_setup() ? "True" : "False");
 
   ##### ADD-ONS ############################################################
   ##### Add-on - Climate #####
