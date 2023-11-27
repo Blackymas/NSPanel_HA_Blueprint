@@ -97,6 +97,7 @@ packages:
    - Fix for button image update when local fallback is enabled.
    - Don't show thermostat chip when state is `auto` and no action is available.
    - Fallback to legacy forecast (attributes based) when new method (service based) fails.
+   - Fix custom buttons icons not updating on Home page
 
 &nbsp;
 ## Details of noteworthy changes
