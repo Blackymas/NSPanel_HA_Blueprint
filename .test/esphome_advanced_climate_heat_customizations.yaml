@@ -1,0 +1,268 @@
+substitutions:
+  device_name: nspanel
+  wifi_ssid: "nspanel"
+  wifi_password: "NSPanel_HA_Blueprint"
+  nextion_update_url: "https://github.com/Blackymas/NSPanel_HA_Blueprint/dummy"
+  nextion_update_blank_url: "http://homeassistant.local:8123/local/nspanel/dev/nspanel_blank.tft"
+
+packages:
+  core_package: !include ../nspanel_esphome.yaml # Core package
+  advanced_package: !include ../nspanel_esphome_advanced.yaml
+  addon_climate_heat: !include ../nspanel_esphome_addon_climate_heat.yaml
+  #addon_climate_cold: !include ../nspanel_esphome_addon_climate_cold.yaml
+
+##### Customizations from Wiki #####
+api:
+  # Encrypt the communication between ESPHome and Home Assistant
+  encryption:
+    key: !secret api_encryption_key
+  # Reboot if HA is not connected for 15 minutes
+  reboot_timeout: 15min
+
+binary_sensor:
+  # Is display awake?
+  - name: ${device_name} Display state
+    id: display_state
+    platform: template
+    lambda: |-
+      return (id(current_page).state != "screensaver");
+
+# Enable Bluetooth proxy
+bluetooth_proxy:
+
+button:
+  ##### UPDATE TFT BLANK DISPLAY #####
+  - name: ${device_name} Update TFT display (blank)
+    platform: template
+    icon: mdi:file-sync
+    id: tft_update_blank
+    entity_category: config
+    on_press:
+      - logger.log: "Button pressed: Update TFT display (blank)"
+      - binary_sensor.template.publish:
+          id: nextion_init
+          state: false
+      - delay: 16ms
+      - lambda: |-
+          id(disp1)->set_tft_url("${nextion_update_blank_url}");
+          id(disp1).upload_tft();
+  # Adds a button to put the panel to sleep
+  - name: ${device_name} Sleep
+    id: force_sleep
+    platform: template
+    icon: mdi:sleep
+    on_press:
+      then:
+        - logger.log: Button Sleep pressed
+        - lambda: |-
+            if (id(current_page).state != "screensaver") id(disp1).goto_page("screensaver");
+  
+  # Adds a button to wake-up the panel (similar to the existing service)
+  - name: ${device_name} Wake-up
+    id: force_wake_up
+    platform: template
+    icon: mdi:alarm
+    on_press:
+      then:
+        - logger.log: Button Wake-up pressed
+        - lambda: |-
+            if (id(current_page).state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
+            // id(timer_page).execute(id(wakeup_page_name).state.c_str()); // enable this if you want page timeout to be reset
+            id(timer_sleep).execute(id(wakeup_page_name).state.c_str(), int(id(timeout_sleep).state));
+            id(timer_dim).execute(id(wakeup_page_name).state.c_str(), int(id(timeout_dim).state));
+
+# Add custom presets to your climate (heat in this example)
+climate:
+  - id: !extend thermostat_embedded
+    heat_deadband: 0.3
+    heat_overrun: 0.0
+    default_preset: "Home"
+    preset:
+      - name: "Off"
+        default_target_temperature_low: ${temp_min} ${temp_units}
+        mode: "off"
+      - name: Home
+        default_target_temperature_low: 21 ${temp_units}
+        mode: "heat"
+      - name: Away
+        default_target_temperature_low: 16.5 ${temp_units}
+        mode: "heat"
+      - name: Sleep
+        default_target_temperature_low: 17.5 ${temp_units}
+        mode: "heat"
+
+deep_sleep:
+  # Define the wake-up button. Use pin 14 for left button or pin 27 for right button
+  wakeup_pin: 14
+  wakeup_pin_mode: INVERT_WAKEUP
+
+# Change framework to `esp-idf`
+esp32:
+  framework:
+    type: esp-idf
+
+esphome:
+  # change OTA password, remove after flashing
+  on_boot:
+    - lambda: |-
+        id(my_ota).set_auth_password("New password");
+  # Limit the amount of resources used for compiling
+  compile_process_limit: 1
+
+light:
+  # Add the display as a light in Home Assistant
+  - name: ${device_name} Display
+    id: display_light
+    icon: mdi:tablet-dashboard
+    platform: monochromatic
+    output: display_output
+    default_transition_length: 0s
+    on_turn_on:
+      then:
+        - lambda: |-
+            ESP_LOGV("light.display_light", "Turn-on");
+            if (id(current_page).state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
+            id(timer_reset_all).execute(id(wakeup_page_name).state.c_str());
+    on_turn_off:
+      then:
+        - lambda: |-
+            ESP_LOGV("light.display_light", "Turn-off");
+            id(disp1).goto_page("screensaver");
+
+logger:
+  # Enable hardware UART serial logging
+  baud_rate: 115200
+
+ota:
+  # change OTA password, remove after flashing
+  password: !secret wifi_password
+  id: my_ota
+
+output:
+  # Output required by `display_light` to send the commands to Nextion
+  - id: display_output
+    platform: template
+    type: float
+    write_action:
+      - lambda: |-
+          ESP_LOGV("output.display_output", "state: %f", state);
+          uint current_brightness = int(round(id(display_light).current_values.is_on() ? (id(display_light).current_values.get_brightness() * 100.0f) : 0.0));
+          ESP_LOGV("output.display_output", "current_brightness: %i%%", current_brightness);
+          id(set_brightness).execute(current_brightness);
+
+script:
+  # Updates the existing `page_changed` script to update the `display_light` status when a page changes
+  - id: !extend page_changed
+    then:
+      - lambda: |-
+          ESP_LOGV("script.page_changed(custom)", "page: %s", page.c_str());
+          ESP_LOGV("script.page_changed(custom)", "is_on(): %i", id(display_light).current_values.is_on() ? 1 : 0);
+          if (page == "screensaver" and id(display_light).current_values.is_on()) {
+            auto call = id(display_light).turn_off();
+            call.perform();
+          } else if (page != "screensaver" and (not id(display_light).current_values.is_on())) {
+            auto call = id(display_light).turn_on();
+            call.perform();
+          }
+
+  # Updates the existing `set_brightness` script to update the `display_light` status when a new brightness level is set
+  - id: !extend set_brightness
+    then:
+      - lambda: |-
+          ESP_LOGD("script.set_brightness(custom)", "brightness: %i", brightness);
+          if (id(current_page).state != "screensaver" and brightness > 0) {
+            auto call = id(display_light).turn_on();
+            call.set_brightness(static_cast<float>(id(display_last_brightness)) / 100.0f);
+            call.perform();
+          } else {
+            auto call = id(display_light).turn_off();
+            call.perform();
+          }
+
+time:
+  - id: !extend time_provider
+    timezone: "America/Cancun"
+    # Use my own local network time server
+    platform: sntp
+    servers:
+      - !secret mysntpserver
+      - europe.pool.ntp.org
+      - 0.pool.ntp.org
+    on_time:
+      - hours: 22
+        minutes: 0
+        seconds: 0
+        then:
+          - deep_sleep.enter:
+              sleep_duration: 7h
+    # Scheduled relay
+      - hours: 7
+        minutes: 30
+        seconds: 0
+        then:
+          - switch.turn_on: relay_1
+      - hours: 12
+        minutes: 15
+        seconds: 0
+        then:
+          - switch.turn_off: relay_1
+      - hours: 19
+        minutes: 30
+        seconds: 0
+        then:
+          - switch.turn_on: relay_1
+      - hours: 23
+        minutes: 30
+        seconds: 0
+        then:
+          - switch.turn_off: relay_1
+      # Scheduled climate
+      - hours: 7
+        minutes: 0
+        seconds: 0
+        then:
+          - climate.control:
+              id: thermostat_embedded
+              mode: auto
+              target_temperature: 22°C
+      - hours: 19
+        minutes: 0
+        seconds: 0
+        then:
+          - climate.control:
+              id: thermostat_embedded
+              mode: auto
+              target_temperature: 20°C
+      - hours: 23
+        minutes: 0
+        seconds: 0
+        then:
+          - climate.control:
+              id: thermostat_embedded
+              mode: auto
+              target_temperature: 18°C
+
+uart:
+  # Set Nextion comms baud rate to 921600 bps
+  - id: !extend tf_uart
+    baud_rate: 9600
+
+web_server:
+  # Custom web server credentials
+  auth:
+    username: !secret web_server_username
+    password: !secret web_server_password
+
+wifi:
+  networks:
+    - id: !extend wifi_default
+      # Set IP address manually
+      manual_ip:
+        static_ip: 192.168.0.123
+        gateway: 192.168.0.1
+        subnet: 255.255.255.0
+      # Set dual network
+      priority: 10
+    - ssid: !secret wifi_ssid_backup
+      password: !secret wifi_password_backup
+      priority: 0

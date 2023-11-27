@@ -88,8 +88,16 @@ packages:
 - 4.1.1 patch:
    - Service `esphome.xxxxx_play_rtttl` is back to core package
    - Stop the fallback to Home page when Notification or Confirm pages are shown
-   - Display target temperature on buttons even when climate is off
+   - Display current temperature on buttons even when climate is off
    - Buttons on both the Home and Buttons pages shows entity's icon when available
+- 4.1.2 patch:
+   - Fix light icon color not being used for buttons
+   - Add option to wake-up to Climate page
+   - New switch "Nextion display - Power" which can turn the screen on/off
+   - Fix for button image update when local fallback is enabled.
+   - Don't show thermostat chip when state is `auto` and no action is available.
+   - Fallback to legacy forecast (attributes based) when new method (service based) fails.
+   - Fix custom buttons icons not updating on Home page
 
 &nbsp;
 ## Details of noteworthy changes
@@ -151,9 +159,11 @@ See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 - @misery - Fixing a typo in the docs (#1176)
 - @Floppe - Adding space for value fields on Home page (#1180)
 - @bkbartk:
-   - Display target temperature on buttons even when climate is off (#1268)
+   - Display current temperature on buttons even when climate is off (#1268)
    - Button pages shows entity's icon when available (#1269)
    - Home page buttons shows entity's icon when available (#1276)
+   - New switch "Nextion display - Power" which can turn the screen on/off (#1327)
+   - Fix for button image update when local fallback is enabled (#1333)
 
 ## New Contributors
 @misery
