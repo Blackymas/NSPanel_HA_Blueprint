@@ -98,6 +98,7 @@ packages:
    - Don't show thermostat chip when state is `auto` and no action is available.
    - Fallback to legacy forecast (attributes based) when new method (service based) fails.
    - Fix custom buttons icons not updating on Home page
+   - Fix Nextion not communicating with ESPHome 2023.11.6
 
 &nbsp;
 ## Details of noteworthy changes
