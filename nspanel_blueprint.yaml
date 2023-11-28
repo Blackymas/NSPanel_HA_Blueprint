@@ -33,7 +33,7 @@ blueprint:
     🎉 Roadmap can be found here: [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
 
 
-    ℹ️ Version: v4.1.2
+    ℹ️ Version: v4.2dev
 
   source_url: https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/nspanel_blueprint.yaml
   domain: automation
@@ -3603,7 +3603,7 @@ trigger_variables:
 
 variables:
   ##### GENERAL #####
-  blueprint_version: '4.1.2'
+  blueprint_version: '4.2dev'
   date_format_temp: !input 'date_format'
   #Avoid breaking change for existing users with legacy type format
   date_format: >
@@ -6462,7 +6462,7 @@ condition:
         conditions:
           - '{{ trigger.event is defined and trigger.event.data is defined }}'
           - '{{ trigger.event.data.entity_id is defined }}'
-          #- '{{ trigger.event.data.entity_id is match "light." }}'
+          - '{{ trigger.event.data.entity_id is match "light." }}'
       - condition: and
         conditions:
           - '{{ trigger.event is defined and trigger.event.data is defined }}'
@@ -6543,6 +6543,106 @@ condition:
 ##### START - Action #####
 #############################################################
 action:
+  - if: '{{ false }}' # Global anchor repository
+    then:
+      - variables:
+          entity_id: '{{ None }}'
+          overlap:
+            icon: '{{ None }}'
+            icon_color: '{{ None }}'
+            frendly_name: '{{ None }}'
+      - &variable_entity #DEBUG
+        variables:
+          entity_id_is_valid: '{{ entity_id is defined and entity_id is string and entity_id.split(".") | count == 2 }}'
+          entity_state: '{{ states(entity_id) | default(None) if entity_id_is_valid else None }}'
+          entity_domain: '{{ entity_id.split(".")[0] if entity_id_is_valid else None }}'
+          entity_hvac_action: '{{ state_attr(entity_id, "hvac_action") | default(None) if entity_id_is_valid else None }}'
+          entity_climate_action: '{{ (entity_hvac_action if entity_hvac_action not in ["unavailable", "unknown", "", None] else entity_state) if entity_domain == "climate" else None }}'
+          entity_rgb_color: '{{ state_attr(entity_id, "rgb_color") | default(None) if entity_id_is_valid else None }}'
+          entity_brightness: '{{ state_attr(entity_id, "brightness") | default(None) if entity_id_is_valid else None }}'
+          entity_brightness_index: '{{ (entity_brightness | int(255))/255 if entity_brightness else 1 }}'
+          entity_icon: '{{ state_attr(entity_id, "icon") | default(None) if entity_id_is_valid else None }}'
+          entity_icon_color: >
+            {{
+              entity_rgb_color | list
+              if entity_rgb_color is sequence
+              else
+                (
+                  nextion.color.on
+                  if entity_state in enum.states.on
+                  else nextion.color.off
+                )
+            }}
+          entity_icon_color_adjusted: >
+            {{
+              [
+                min(255,entity_icon_color[0] * entity_brightness_index) | round(0),
+                min(255,entity_icon_color[1] * entity_brightness_index) | round(0),
+                min(255,entity_icon_color[2] * entity_brightness_index) | round(0)
+              ]
+              if entity_icon_color is sequence and entity_icon_color | count == 3
+              else entity_icon_color
+            }}
+          entity:
+            id: '{{ entity_id }}'
+            valid: '{{ entity_id_is_valid }}'
+            has_value: '{{ has_value(entity_id) if entity_id_is_valid else false }}'
+            state: '{{ entity_state }}'
+            state_is_number: '{{ is_number(entity_state) }}'
+            domain: '{{ entity_domain }}'
+            unit_of_measurement: '{{ state_attr(entity_id, "unit_of_measurement") | default(None) if entity_id_is_valid else None }}'
+            friendly_name: >
+              {{
+                overlap.frendly_name
+                if overlap is defined and overlap.frendly_name is defined and overlap.frendly_name is string
+                else
+                  (
+                    state_attr(entity_id, "friendly_name") | default(None)
+                    if entity_id_is_valid
+                    else None
+                  )
+              }}
+            supported_features: '{{ state_attr(entity_id, "supported_features") | default(None) if entity_id_is_valid else None }}'
+            icon: >
+              {% set icon_domain = nextion.icon.domain[entity_domain] | default(all_icons.blank) %}
+              {% if overlap is defined and overlap.icon is defined and overlap.icon is string and overlap.icon.split(":") | count == 2 %}
+                {{ all_icons[overlap.icon[1]] | default(icon_domain) }}
+              {% elif entity_domain == "climate" %}
+                {% if "off" in entity_climate_action %}{{ all_icons.blank }}
+                {% elif "heating" in entity_climate_action or "heat" in entity_climate_action %}{{ all_icons["thermometer-lines"] }}
+                {% elif "cooling" in entity_climate_action or "cool" in entity_climate_action %}{{ all_icons.snowflake }}
+                {% elif "drying" in entity_climate_action or "dry" in entity_climate_action %}{{ all_icons["water-percent"] }}
+                {% elif "fan" in entity_climate_action or "fan_only" in entity_climate_action %}{{ all_icons.fan }}
+                {% elif "heat_cool" in entity_climate_action %}{{ all_icons.autorenew }}
+                {% elif "auto" in entity_climate_action %}{{ all_icons.blank }}
+                {% elif "idle" in entity_climate_action %}{{ all_icons.thermometer }}
+                {% else %}{{ icon_domain }}
+                {% endif %}
+              {% else %}
+                {{
+                  all_icons[entity_icon[1]] | default(icon_domain)
+                  if entity_id_is_valid and entity_icon is string and entity_icon.split(":") | count == 2
+                  else icon_domain
+                }}
+              {% endif %}
+            icon_color: >
+              {% if entity_domain == "climate" %}
+                {% if "off" in entity_climate_action %}{{ nextion.color["off"] }}
+                {% elif "heating" in entity_climate_action or "heat" in entity_climate_action %}{{ nextion.color["deep-orange"]}}
+                {% elif "cooling" in entity_climate_action or "cool" in entity_climate_action %}{{ nextion.color["blue"] }}
+                {% elif "drying" in entity_climate_action or "dry" in entity_climate_action %}{{ nextion.color["orange"] }}
+                {% elif "fan" in entity_climate_action or "fan_only" in entity_climate_action %}{{ nextion.color["cyan"] }}
+                {% elif "heat_cool" in entity_climate_action %}{{ nextion.color["amber"] }}
+                {% elif "auto" in entity_climate_action %}{{ nextion.color["off"] }}
+                {% elif "idle" in entity_climate_action %}{{ nextion.color["off"] }}
+                {% else %}{{ nextion.color["off"] }}
+                {% endif %}
+              {% else %}{{ entity_icon_color_adjusted }}
+              {% endif %}
+            rgb_color: '{{ entity_rgb_color }}'
+            hvac_action: '{{ entity_hvac_action }}'
+            climate_action: '{{ entity_climate_action }}'
+
   - alias: Main choices
     choose:
       ##### DATE #####
@@ -6849,7 +6949,6 @@ action:
                                     data:
                                       component: home.outdoor_temp
                                       foreground: '{{ [ outdoor_temp_color_rgb ] if is_number(outdoor_temp_color_rgb) else outdoor_temp_color_rgb }}'
-                                      background: []
                                     continue_on_error: true
                                   ### LABEL Outdoor Temp Font ###
                                   - *delay-default
@@ -6907,7 +7006,6 @@ action:
                                     data:
                                       component: home.indoortempicon
                                       foreground: '{{ [ indoor_temp.icon.color_rgb ] if is_number(indoor_temp.icon.color_rgb) else indoor_temp.icon.color_rgb }}'
-                                      background: []
                                     continue_on_error: true
                                   ### ICON Indoor Temp Font ###
                                   - *delay-default
@@ -6932,7 +7030,6 @@ action:
                                     data:
                                       component: home.current_temp
                                       foreground: '{{ [ indoor_temp.label.color_rgb ] if is_number(indoor_temp.label.color_rgb) else indoor_temp.label.color_rgb }}'
-                                      background: []
                                     continue_on_error: true
                                   - if: '{{ not embedded_indoor_temperature }}'
                                     then:
@@ -6959,7 +7056,6 @@ action:
                                 data:
                                   component: home.left_bt_text
                                   foreground: '{{ [ hardware.buttons.left.color_rgb ] if is_number(hardware.buttons.left.color_rgb) else hardware.buttons.left.color_rgb }}'
-                                  background: []
                                 continue_on_error: true
                               ### LABEL Font ###
                               - *delay-default
@@ -6988,7 +7084,6 @@ action:
                                 data:
                                   component: home.right_bt_text
                                   foreground: '{{ [ hardware.buttons.right.color_rgb ] if is_number(hardware.buttons.right.color_rgb) else hardware.buttons.right.color_rgb }}'
-                                  background: []
                                 continue_on_error: true
                               ### LABEL Font ###
                               - *delay-default
@@ -7031,54 +7126,20 @@ action:
                                       if: '{{ repeat.item.entity is defined and repeat.item.entity is string and repeat.item.entity | length > 0 }}'
                                       then:
                                         - variables:
-                                            entity_domain: '{{ repeat.item.entity.split(".")[0] if repeat.item.entity and repeat.item.entity.split(".") | count > 1 else "unknown" }}'
-                                            entity_state: '{{ states(repeat.item.entity) }}'
-                                            rgb_color: '{{ state_attr(repeat.item.entity, "rgb_color") | default(None) }}'
-                                            brightness: '{{ (state_attr(repeat.item.entity, "brightness") | int(255))/255 }}'
-                                            icon_color: >
-                                              {{
-                                                rgb_color | list
-                                                if rgb_color is sequence
-                                                else
-                                                  (
-                                                    nextion.color.on
-                                                    if entity_state in enum.states.on
-                                                    else nextion.color.off
-                                                  )
-                                              }}
-                                            icon_color_adjusted: >
-                                              {{
-                                                [
-                                                  min(255,icon_color[0] * brightness) | round(0),
-                                                  min(255,icon_color[1] * brightness) | round(0),
-                                                  min(255,icon_color[2] * brightness) | round(0)
-                                                ]
-                                                if icon_color is sequence and icon_color | count == 3
-                                                else icon_color
-                                              }}
+                                            entity_id: '{{ repeat.item.entity }}'
+                                            overlap:
+                                              icon: '{{ repeat.item.icon }}'
+                                        - *variable_entity
                                         - service: '{{ nextion.command.set_component_color }}'
                                           data:
                                             component: 'home.{{ repeat.item.component }}'
-                                            foreground: '{{ icon_color_adjusted }}'
-                                            background: []
+                                            foreground: '{{ entity.icon_color }}'
                                           continue_on_error: true
                                         - *delay-default
                                         - service: '{{ nextion.command.text_printf }}'
                                           data:
                                             component: 'home.{{ repeat.item.component }}'
-                                            message: >
-                                              {% if repeat.item.icon | length > 0 %}
-                                                {{
-                                                  all_icons[repeat.item.icon.split(":")[1]] | default(all_icons.unknown)
-                                                  if repeat.item.icon.split(":") | count > 0
-                                                  else repeat.item.icon
-                                                }}
-                                              {% elif state_attr(repeat.item.entity, "icon") | default("") not in ["unavailable", "unknown", "", None] and all_icons[state_attr(repeat.item.entity, "icon").split(":")[1]] != null %}
-                                                {{ all_icons[state_attr(repeat.item.entity, "icon").split(":")[1]] | default(all_icons.unknown) }}
-                                              {% elif repeat.item.entity and repeat.item.entity.split(".") | count > 1 %}
-                                                {{ nextion.icon.domain[entity_domain] }}
-                                              {% else %}{{ nextion.icon.domain.unknown }}
-                                              {% endif %}
+                                            message: '{{ entity.icon }}'
                                           continue_on_error: true
                                         - if: '{{ page.current == page.home }}'
                                           then:
@@ -7098,49 +7159,27 @@ action:
                           ###### Climate chip ######
                           - &update-home_page-climate_chip
                             if: '{{ (not embedded_climate) and climate is string and climate is match "climate." }}'
-                            then:
-                              - if: '{{ has_value(climate) }}'
+                            then: # DEBUG
+                              - variables:
+                                  entity_id: '{{ climate }}'
+                              - *variable_entity
+                              - if: '{{ entity.has_value }}'
                                 then:
-                                  - variables:
-                                      climate_state: '{{ states(climate) | default("unavailable") if climate is string else "unavailable" }}'
-                                      hvac_action: '{{ state_attr(climate, "hvac_action") | default("unavailable") if climate is string else "unavailable" }}'
-                                      climate_action: '{{ hvac_action if hvac_action not in ["unavailable", "unknown", "", None] else climate_state }}'
                                   - *delay-default
-                                  - if: '{{ climate_action in ["off", "heating", "heat", "cooling", "cool", "dry", "fan", "fan_only", "heat_cool", "auto", "idle"] }}'
+                                  - if: '{{ entity.climate_action in ["off", "heating", "heat", "cooling", "cool", "dry", "fan", "fan_only", "heat_cool", "auto", "idle"] }}'
                                     then:
                                       ### ICON Font Color ###
                                       - service: '{{ nextion.command.set_component_color }}'
                                         data:
                                           component: home.icon_top_03
-                                          foreground: >
-                                            {% if "off" in climate_action %}{{ nextion.color["off"] }}
-                                            {% elif "heating" in climate_action or "heat" in climate_action %}{{ nextion.color["deep-orange"]}}
-                                            {% elif "cooling" in climate_action or "cool" in climate_action %}{{ nextion.color["blue"] }}
-                                            {% elif "drying" in climate_action or "dry" in climate_action %}{{ nextion.color["orange"] }}
-                                            {% elif "fan" in climate_action or "fan_only" in climate_action %}{{ nextion.color["cyan"] }}
-                                            {% elif "heat_cool" in climate_action %}{{ nextion.color["amber"] }}
-                                            {% elif "auto" in climate_action %}{{ nextion.color["off"] }}
-                                            {% elif "idle" in climate_action %}{{ nextion.color["off"] }}
-                                            {% else %}{{ nextion.color["off"] }}
-                                            {% endif %}
-                                          background: []
+                                          foreground: '{{ entity.icon_color }}'
                                         continue_on_error: true
                                       ### ICON Font ###
                                       - *delay-default
                                       - service: '{{ nextion.command.text_printf }}'
                                         data:
                                           component: home.icon_top_03
-                                          message: >
-                                            {% if "off" in climate_action %}{{ all_icons.blank }}
-                                            {% elif "heating" in climate_action or "heat" in climate_action %}{{ all_icons["thermometer-lines"] }}
-                                            {% elif "cooling" in climate_action or "cool" in climate_action %}{{ all_icons.snowflake }}
-                                            {% elif "drying" in climate_action or "dry" in climate_action %}{{ all_icons["water-percent"] }}
-                                            {% elif "fan" in climate_action or "fan_only" in climate_action %}{{ all_icons.fan }}
-                                            {% elif "heat_cool" in climate_action %}{{ all_icons.autorenew }}
-                                            {% elif "auto" in climate_action %}{{ all_icons.blank }}
-                                            {% elif "idle" in climate_action %}{{ all_icons.thermometer }}
-                                            {% else %}{{ all_icons.blank }}
-                                            {% endif %}
+                                          message: '{{ entity.icon }}'
                                         continue_on_error: true
                                     else:
                                       - &hide-home_page-climate_chip
@@ -7213,7 +7252,6 @@ action:
                                           data:
                                             component: 'home.{{ repeat.item.component }}'
                                             foreground: '{{ [ repeat.item.icon_color_rgb ] if is_number(repeat.item.icon_color_rgb) else repeat.item.icon_color_rgb }}'
-                                            background: []
                                           continue_on_error: true
                                         ### ICON Font ###
                                         - *delay-default
@@ -7269,7 +7307,6 @@ action:
                                           data:
                                             component: '{{ repeat.item.page }}.{{ repeat.item.component }}_icon'
                                             foreground: '{{ [ repeat.item.icon_color_rgb ] if is_number(repeat.item.icon_color_rgb) else repeat.item.icon_color_rgb }}'
-                                            background: []
                                           continue_on_error: true
                                         ### ICON Font ###
                                         - *delay-default
@@ -7298,7 +7335,6 @@ action:
                                       data:
                                         component: '{{ repeat.item.page }}.{{ repeat.item.component }}{{ "_state" if repeat.item.page == page.home }}'
                                         foreground: '{{ [ repeat.item.label_color_rgb ] if is_number(repeat.item.label_color_rgb) else repeat.item.label_color_rgb }}'
-                                        background: []
                                       continue_on_error: true
                                     ### LABEL Font ###
                                     - *delay-default
@@ -7947,7 +7983,6 @@ action:
                                 data:
                                   component: cover.battery_icon
                                   foreground: '{{ nextion.color.grey_super_light }}'
-                                  background: []
                                 continue_on_error: true
                               ### ICON Battery Font ###
                               - *delay-default
@@ -8000,21 +8035,18 @@ action:
                             data:
                               component: fan.button_up
                               foreground: '{{ nextion.color.grey_white if fan.percentage < 100 else nextion.color.grey_dark }}'
-                              background: []
                             continue_on_error: true
                           - *delay-default
                           - service: '{{ nextion.command.set_component_color }}'
                             data:
                               component: fan.button_down
                               foreground: '{{ nextion.color.grey_white if fan.percentage > 0 else nextion.color.grey_dark }}'
-                              background: []
                             continue_on_error: true
                           - *delay-default
                           - service: '{{ nextion.command.set_component_color }}'
                             data:
                               component: fan.button_off
                               foreground: '{{ nextion.color.grey_white if fan.percentage > 0 else nextion.color.grey_dark }}'
-                              background: []
                             continue_on_error: true
 
                       ## PAGE MEDIA PLAYER ##
@@ -8230,7 +8262,6 @@ action:
                                             if states(climate_entity) == repeat.item.mode
                                             else nextion.color.disabled
                                           }}
-                                        background: []
                                       continue_on_error: true
                                     ### ICON Font ###
                                     - *delay-default
@@ -8288,7 +8319,6 @@ action:
                                             if states(repeat.item.entity) in ["on", "true", true, "open", "opening"]
                                             else nextion.color.disabled
                                           }}
-                                        background: []
                                       continue_on_error: true
                                     ### ICON Font ###
                                     - *delay-default
@@ -8907,37 +8937,34 @@ action:
                           - *variables_hardware
                           - variables:
                               last_click_button: '{{ hardware.buttons.left if nspanel_event.component == "hw_bt_left" else hardware.buttons.right }}'
-                              entity_domain: >
-                                {{
-                                  last_click_button.entity.split(".")[0] | default("unknown")
-                                  if
-                                    last_click_button.entity is string and
-                                    last_click_button.entity | length > 0 and
-                                    last_click_button.entity.split(".") | count > 0
-                                  else "unknown"
-                                }}
+                              entity_id: '{{ last_click_button.entity }}'
+                          - *variable_entity
+                          - condition: '{{ entity.valid }}'
                           - choose:
                               - alias: Long click
                                 conditions:
-                                  - '{{ nspanel_event.command == "long_click" or entity_domain in ["climate", "media_player"] }}'
+                                  - '{{ nspanel_event.command == "long_click" or entity.domain in ["climate", "media_player"] }}'
                                 sequence:
                                   - choose:
                                       - alias: Default
                                         conditions:
-                                        - '{{ last_click_button.hold_select == "Default" and last_click_button.entity | length > 0 }}'
-                                        - '{{ entity_domain in ["climate", "cover", "light", "fan", "media_player"] }}'
-                                        #- '{{ entity_domain != "cover" or state_attr(last_click_button.entity, "supported_features") | int(0) | bitwise_and(4) > 0 }}'
-                                        #- '{{ entity_domain != "fan" or state_attr(last_click_button.entity, "supported_features") | int(0) | bitwise_and(1) > 0 }}'
-                                        #- '{{ entity_domain != "light" or state_attr(last_click_button.entity, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
+                                        - '{{ last_click_button.hold_select == "Default" }}'
+                                        - '{{ entity.domain in ["climate", "cover", "light", "fan", "media_player"] }}'
+                                        #- '{{ entity.domain != "cover" or entity.supported_features | bitwise_and(4) > 0 }}'
+                                        #- '{{ entity.domain != "fan" or entity.supported_features | bitwise_and(1) > 0 }}'
+                                        #- '{{ entity.domain != "light" or state_attr(entity.id, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
                                         sequence:
-                                          - service: '{{ nextion.command.open_entity_settings_page }}'
-                                            data:
-                                              page: '{{ entity_domain }}'
-                                              page_label: '{{ last_click_button.name if last_click_button.name is string and last_click_button.name | length > 0 else state_attr(last_click_button.entity, "friendly_name") }}'
-                                              page_icon: '{{ nextion.icon.domain[entity_domain] }}'
-                                              page_icon_color: [-1 ] #No color set
-                                              entity: '{{ "embedded_climate" if last_click_button.entity == thermostat_embedded else last_click_button.entity }}'
+                                          - variables:
                                               back_page: '{{ page.home }}'
+                                          - &open_entity_settings_page
+                                            service: '{{ nextion.command.open_entity_settings_page }}'
+                                            data:
+                                              page: '{{ entity.domain }}'
+                                              page_label: '{{ entity.friendly_name }}'
+                                              page_icon: '{{ entity.icon }}'
+                                              page_icon_color: '{{ entity.icon_color }}'
+                                              entity: '{{ "embedded_climate" if entity.id == thermostat_embedded else entity.id }}'
+                                              back_page: '{{ back_page }}'
                                             continue_on_error: true
                                       - alias: Custom action - Left
                                         conditions: '{{ last_click_button.hold_select == "Custom Action" and nspanel_event.component == "hw_bt_left" }}'
@@ -8993,43 +9020,28 @@ action:
                           - condition: '{{ last_click_button | count >= 0 }}'
                           - variables:
                               last_click_button: '{{ last_click_button[0] }}'
-                              entity_domain: >
-                                {{
-                                  last_click_button.entity.split(".")[0] | default("unknown")
-                                  if
-                                    last_click_button.entity is string and
-                                    last_click_button.entity | length > 0 and
-                                    last_click_button.entity.split(".") | count > 0
-                                  else "unknown"
-                                }}
+                              entity_id: '{{ last_click_button.entity }}'
+                              overlap:
+                                icon: '{{ last_click_button.icon }}'
+                                friendly_name: '{{ last_click_button.name }}'
+                          - *variable_entity
+                          - condition: '{{ entity.valid }}'
                           - choose:
                             - alias: Long click
                               conditions:
-                                - '{{ nspanel_event.command == "long_click" or entity_domain in ["climate", "media_player"] }}'
-                                - '{{ last_click_button.entity | length > 0 }}'
-                                - '{{ entity_domain in ["climate", "cover", "light", "fan", "media_player"] }}'
-                                #- '{{ entity_domain != "cover" or state_attr(last_click_button.entity, "supported_features") | int(0) | bitwise_and(4) > 0 }}'
-                                #- '{{ entity_domain != "fan" or state_attr(last_click_button.entity, "supported_features") | int(0) | bitwise_and(1) > 0 }}'
-                                #- '{{ entity_domain != "light" or state_attr(last_click_button.entity, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
+                                - '{{ nspanel_event.command == "long_click" or entity.domain in ["climate", "media_player"] }}'
+                                - '{{ entity.domain in ["climate", "cover", "light", "fan", "media_player"] }}'
+                                #- '{{ entity.domain != "cover" or entity.supported_features | bitwise_and(4) > 0 }}'
+                                #- '{{ entity.domain != "fan" or entity.supported_features | bitwise_and(1) > 0 }}'
+                                #- '{{ entity.domain != "light" or state_attr(entity_id, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
                               sequence:
-                                - service: '{{ nextion.command.open_entity_settings_page }}'
-                                  data:
-                                    page: '{{ entity_domain }}'
-                                    page_label: '{{ last_click_button.name if last_click_button.name is string and last_click_button.name | length > 0 else state_attr(last_click_button.entity, "friendly_name") }}'
-                                    page_icon: >
-                                      {{
-                                        all_icons[last_click_button.icon.split(":")[1]] | default(last_click_button.icon if last_click_button.icon is defined and last_click_button.icon is string else nextion.icon.domain[entity_domain])
-                                        if last_click_button.icon not in ["unavailable", "unknown", "", None] and last_click_button.icon | length > 0
-                                        else nextion.icon.domain[entity_domain]
-                                      }}
-                                    page_icon_color: '{{ [ last_click_button.icon_color_rgb ] if is_number(last_click_button.icon_color_rgb) else last_click_button.icon_color_rgb }}'
-                                    entity: '{{ "embedded_climate" if last_click_button.entity == thermostat_embedded else last_click_button.entity }}'
+                                - variables:
                                     back_page: '{{ nspanel_event.page }}'
-                                  continue_on_error: true
+                                - *open_entity_settings_page
                             - alias: Short click
                               conditions:
-                                - '{{ nspanel_event.command == "short_click" and entity_domain not in ["climate", "media_player"] }}'
-                                - '{{ entity_domain not in ["unknown", "person", "binary_sensor", "sensor"] }}'
+                                - '{{ nspanel_event.command == "short_click" and entity.domain not in ["climate", "media_player"] }}'
+                                - '{{ entity.domain not in ["unknown", "person", "binary_sensor", "sensor"] }}'
                               sequence:
                                 - *short_press-service_call
 
@@ -9078,36 +9090,21 @@ action:
                           - condition: '{{ last_click_button | count >= 0 }}'
                           - variables:
                               last_click_button: '{{ last_click_button[0] }}'
-                              entity_domain: >
-                                {{
-                                  last_click_button.entity.split(".")[0] | default("unknown")
-                                  if
-                                    last_click_button.entity is string and
-                                    last_click_button.entity | length > 0 and
-                                    last_click_button.entity.split(".") | count > 0
-                                  else "unknown"
-                                }}
+                              entity_id: '{{ last_click_button.entity }}'
+                              overlap:
+                                icon: '{{ last_click_button.icon }}'
+                                friendly_name: '{{ last_click_button.name }}'
+                          - *variable_entity
+                          - condition: '{{ entity.valid }}'
                           - if:
-                              - '{{ entity_domain in ["climate", "cover", "fan", "light", "media_player"] }}'
-                              - '{{ last_click_button.entity | length > 0 }}'
-                              #- '{{ entity_domain != "cover" or state_attr(last_click_button.entity, "supported_features") | int(0) | bitwise_and(4) > 0 }}'
-                              #- '{{ entity_domain != "fan" or state_attr(last_click_button.entity, "supported_features") | int(0) | bitwise_and(1) > 0 }}'
-                              #- '{{ entity_domain != "light" or state_attr(last_click_button.entity, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
+                              - '{{ entity.domain in ["climate", "cover", "fan", "light", "media_player"] }}'
+                              #- '{{ entity.domain != "cover" or entity.supported_features | bitwise_and(4) > 0 }}'
+                              #- '{{ entity.domain != "fan" or entity.supported_features | bitwise_and(1) > 0 }}'
+                              #- '{{ entity.domain != "light" or state_attr(entity.id, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
                             then:
-                              - service: '{{ nextion.command.open_entity_settings_page }}'
-                                data:
-                                  page: '{{ entity_domain }}'
-                                  page_label: '{{ last_click_button.name if last_click_button.name is string and last_click_button.name | length > 0 else state_attr(last_click_button.entity, "friendly_name") }}'
-                                  page_icon: >
-                                    {{
-                                      all_icons[last_click_button.icon.split(":")[1]] | default(last_click_button.icon if last_click_button.icon is defined and last_click_button.icon is string else nextion.icon.domain[entity_domain])
-                                      if last_click_button.icon not in ["unavailable", "unknown", "", None] and last_click_button.icon | length > 0
-                                      else nextion.icon.domain[entity_domain]
-                                    }}
-                                  page_icon_color: [-1 ] #No color set
-                                  entity: '{{ "embedded_climate" if last_click_button.entity == thermostat_embedded else last_click_button.entity }}'
+                              - variables:
                                   back_page: '{{ page.home }}'
-                                continue_on_error: true
+                              - *open_entity_settings_page
                             else:
                                 - *short_press-service_call
 
@@ -9188,15 +9185,12 @@ action:
                           - '{{ nspanel_event.value == "release" }}'
                           - '{{ climate | length > 0 }} '
                         sequence:
-                          - service: '{{ nextion.command.open_entity_settings_page }}'
-                            data:
-                              page: 'climate'
-                              page_label: '{{ state_attr(climate, "friendly_name") }}'
-                              page_icon: ''
-                              page_icon_color: [ -1 ] #No color set
-                              entity: '{{ "embedded_climate" if climate == thermostat_embedded else climate }}'
+                          - variables:
+                              entity_id: '{{ climate }}'
                               back_page: '{{ page.home }}'
-                            continue_on_error: true
+                          - *variable_entity
+                          - condition: '{{ entity.valid }}'
+                          - *open_entity_settings_page
 
                       - alias: Show button - Notification clear
                         conditions:
