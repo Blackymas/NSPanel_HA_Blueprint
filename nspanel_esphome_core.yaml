@@ -7,8 +7,13 @@
 
 substitutions:
   ##### DON'T CHANGE THIS #####
-  version: "4.1.1"
+  version: "4.1.2"
   #############################
+
+external_components:
+  - source: github://pr#5825 # Remove this when that pr is merged and released
+    components:
+      - nextion
 
 ##### ESPHOME CONFIGURATION #####
 esphome:
@@ -32,25 +37,42 @@ esphome:
       - script.execute: exit_reparse
       - wait_until:
           condition:
-            - lambda: !lambda return disp1->is_setup();
+            - lambda: !lambda return disp1->is_detected();
           timeout: 20s
       - lambda: |-
           static const char *const TAG = "on_boot";
-          if (not disp1->is_setup()) {
+
+          auto delay_seconds_ = [](int seconds) {
+            ESP_LOGD(TAG, "Wait %i seconds", seconds);
+            for (int i = 0; i < (seconds*4); i++) {
+              #ifdef ARDUINO
+              delay(250);
+              #elif defined(USE_ESP_IDF)
+              vTaskDelay(pdMS_TO_TICKS(250));
+              #endif
+              App.feed_wdt();
+            }
+          };
+
+          nextion_status->execute();
+          if (not disp1->is_detected()) {
             ESP_LOGE(TAG, "No response from Nextion display");
             ESP_LOGD(TAG, "Turn off Nextion");
             screen_power->turn_off();
-            delay(1500);
+            delay_seconds_(2);
             ESP_LOGD(TAG, "Turn on Nextion");
             screen_power->turn_on();
+            delay_seconds_(5);
+            nextion_status->execute();
           }
       - wait_until:
           condition:
-            - lambda: !lambda return disp1->is_setup();
+            - lambda: !lambda return disp1->is_detected();
           timeout: 20s
       - lambda: |-
           static const char *const TAG = "on_boot";
-          if (not disp1->is_setup()) {
+          nextion_status->execute();
+          if (not disp1->is_detected()) {
             ESP_LOGE(TAG, "No response from Nextion display");
           }
           ESP_LOGD(TAG, "Finished");
@@ -557,9 +579,9 @@ api:
               // Chips icon size
               ESP_LOGV(TAG, "Chips size");
               for (int i = 1; i <= 10; ++i) {
-                disp1->send_command_printf("home.icon_top_%02d.font=%i", i, chip_font_size);
+                disp1->send_command_printf("home.icon_top_%02d.font=%" PRIu32, i, chip_font_size);
               }
-              disp1->send_command_printf("home.wifi_icon.font=%i", chip_font_size);
+              disp1->send_command_printf("home.wifi_icon.font=%" PRIu32, chip_font_size);
               id(home_chip_font_size) = chip_font_size;
 
               // Notification button
@@ -572,13 +594,13 @@ api:
 
               // QRCode button
               ESP_LOGV(TAG, "Set QRCode button");
-              disp1->send_command_printf("is_qrcode=%i", (qrcode) ? 1 : 0);
+              disp1->send_command_printf("is_qrcode=%i", qrcode ? 1 : 0);
               disp1->set_component_text_printf("home.bt_qrcode", "%s", qrcode_icon.c_str());
               set_component_color->execute("home.bt_qrcode", qrcode_icon_color, {});
 
               // Entities pages button
               ESP_LOGV(TAG, "Set Entities button");
-              disp1->send_command_printf("is_entities=%i", (entities_pages) ? 1 : 0);
+              disp1->send_command_printf("is_entities=%i", entities_pages ? 1 : 0);
               disp1->set_component_text_printf("home.bt_entities", "%s", entities_pages_icon.c_str());
               //set_component_color->execute("home.bt_entities", entities_pages_icon_color, {});
               set_component_color->execute("home.bt_entities", entities_pages_icon_color, {});
@@ -661,7 +683,7 @@ api:
                   //if (supported_features & 4096 and (state == "playing" or state == "paused")) disp1->show_component("bt_stop"); else disp1->hide_component("bt_stop");
 
                   // mute/unmute button - VOLUME_MUTE
-                  disp1->set_component_value("is_muted", (is_volume_muted) ? 1 : 0);
+                  disp1->set_component_value("is_muted", is_volume_muted ? 1 : 0);
                   if (supported_features & 8 and is_volume_muted) // unmute
                     {
                       disp1->set_component_text_printf("bt_mute", "%s", "\uEE07"); // mdi:volume-variant-off
@@ -725,15 +747,22 @@ display:
     platform: nextion
     uart_id: tf_uart
     start_up_page: 8
-    on_page: # I couldn't make this trigger to work, so used text_sensor nspanelevent and localevent instead
+    on_page: # This requires `sendme` to be executed on Nextion side
       lambda: |-
-        ESP_LOGW("display.disp1.on_page", "NEXTION PAGE CHANGED");
-        ESP_LOGW("display.disp1.on_page", "New page: %i", int(x));
+        static const char *const TAG = "display.disp1.on_page";
+        ESP_LOGD(TAG, "Nextion page changed");
+        ESP_LOGD(TAG, "New page: %s (%i)" , id(page_names)[x].c_str(), x);
     on_setup:
       - script.execute: boot_sequence
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
+
+  ##### Is boot sequence completed? #####
+  - id: boot_sequence_completed
+    type: bool
+    restore_value: false
+    initial_value: 'false'
 
   ###### Last volume level from Home Assistant ######
   - id: last_volume_level
@@ -835,7 +864,7 @@ globals:
     restore_value: false
     initial_value: ''
   - id: home_relay1_icon_color
-    type: uint
+    type: uint16_t
     restore_value: true
     initial_value: '65535'
 
@@ -844,15 +873,15 @@ globals:
     restore_value: false
     initial_value: ''
   - id: home_relay2_icon_color
-    type: uint
+    type: uint16_t
     restore_value: true
     initial_value: '65535'
 
   - id: home_notify_icon_color_normal
-    type: std::vector<int>
+    type: std::vector<int32_t>
     restore_value: false
   - id: home_notify_icon_color_unread
-    type: std::vector<int>
+    type: std::vector<int32_t>
     restore_value: false
 
   ##### Versions #####
@@ -864,6 +893,40 @@ globals:
     type: std::string
     restore_value: false
     initial_value: ''
+
+  - id: page_names
+    type: std::vector<std::string>
+    restore_value: no
+    initial_value:
+      '{
+        "home",
+        "weather01",
+        "weather02",
+        "weather03",
+        "weather04",
+        "weather05",
+        "climate",
+        "settings",
+        "boot",
+        "screensaver",
+        "light",
+        "cover",
+        "buttonpage01",
+        "buttonpage02",
+        "buttonpage03",
+        "buttonpage04",
+        "notification",
+        "qrcode",
+        "entitypage01",
+        "entitypage02",
+        "entitypage03",
+        "entitypage04",
+        "fan",
+        "alarm",
+        "keyb_num",
+        "media_player",
+        "confirm"
+      }'
 
 ##### START - BINARY SENSOR CONFIGURATION #####
 binary_sensor:
@@ -1123,17 +1186,18 @@ select:
     id: wakeup_page_name
     platform: template
     options:
-      - home
+      - alarm
       - buttonpage01
       - buttonpage02
       - buttonpage03
       - buttonpage04
+      - climate
       - entitypage01
       - entitypage02
       - entitypage03
       - entitypage04
+      - home
       - qrcode
-      - alarm
     initial_option: home
     optimistic: true
     restore_value: true
@@ -1272,15 +1336,29 @@ switch:
             id: refresh_relays
 
   ##### DISPLAY ALWAYS ON #####
-  - name: ${device_name} Screen Power
+  - name: ${device_name} Nextion display - Power
     platform: gpio
     id: screen_power
-    entity_category: config
+    entity_category: diagnostic
     pin:
       number: 4
       inverted: true
     restore_mode: ALWAYS_ON
-    internal: true
+    internal: false
+    disabled_by_default: true
+    on_turn_on:
+      - wait_until:
+          condition:
+            - lambda: !lambda return disp1->is_detected();
+          timeout: 20s
+      - lambda: |-
+          if (id(boot_sequence_completed)) {
+            nextion_init->publish_state(true);
+            disp1->goto_page(wakeup_page_name->state.c_str());
+          }
+    on_turn_off:
+      - lambda: |-
+          nextion_init->publish_state(false);
 
   ##### Relay Local control #####
   - name: ${device_name} Relay 1 Local
@@ -1421,7 +1499,7 @@ text_sensor:
                 if (page == "home" and component == "climate")
                   {
                     detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
-                    disp1->set_component_value("climate.embedded", (id(is_embedded_thermostat)) ? 1 : 0);
+                    disp1->set_component_value("climate.embedded", id(is_embedded_thermostat) ? 1 : 0);
                   }
                 disp1->goto_page("climate");
               }
@@ -1721,8 +1799,8 @@ script:
           if (relay_2->state) disp1->set_component_text_printf("home.icon_top_02", "%s", id(home_relay2_icon).c_str());
             else disp1->set_component_text_printf("home.icon_top_02", "\uFFFF");
           // Hardware buttons - Fallback mode
-          if (relay_1->state and relay1_local->state) disp1->send_command_printf("home.left_bt_pic.val=%i", (relay_1->state) ? 1 : 0);
-          if (relay_2->state and relay2_local->state) disp1->send_command_printf("home.right_bt_pic.val=%i", (relay_2->state) ? 1 : 0);
+          if (relay1_local->state) disp1->send_command_printf("home.left_bt_pic.val=%i", (relay_1->state) ? 1 : 0);
+          if (relay2_local->state) disp1->send_command_printf("home.right_bt_pic.val=%i", (relay_2->state) ? 1 : 0);
 
   - id: refresh_wifi_icon
     mode: restart
@@ -1967,8 +2045,8 @@ script:
     mode: queued
     parameters:
       component: string
-      foreground: int[]
-      background: int[]
+      foreground: int32_t[]
+      background: int32_t[]
     then:
       - lambda: |-
           int fg565 = -1;
@@ -2414,23 +2492,22 @@ script:
     then:
       - lambda: |-
           static const char *const TAG = "script.page_screensaver";
+
+          auto pageIndex = [](const std::string& page_name) -> uint8_t {
+              for (uint8_t i = 0; i < id(page_names).size(); ++i) {
+                  if (id(page_names)[i] == page_name) {
+                      return i; // Return the index if found
+                  }
+              }
+              return 0u; // Return 0 (home page) if not found
+          };
+
           if (construct_page) {
             ESP_LOGV(TAG, "Construct screensaver page");
           }
           if (current_page->state == "screensaver") {  // Is screensaver page visible?
             ESP_LOGV(TAG, "Update screensaver page");
-            int wakeup_page_id = 0;
-            if (wakeup_page_name->state == "buttonpage01") wakeup_page_id = 12;
-            else if (wakeup_page_name->state == "buttonpage02") wakeup_page_id = 13;
-            else if (wakeup_page_name->state == "buttonpage03") wakeup_page_id = 14;
-            else if (wakeup_page_name->state == "buttonpage04") wakeup_page_id = 15;
-            else if (wakeup_page_name->state == "entitypage01") wakeup_page_id = 18;
-            else if (wakeup_page_name->state == "entitypage02") wakeup_page_id = 19;
-            else if (wakeup_page_name->state == "entitypage03") wakeup_page_id = 20;
-            else if (wakeup_page_name->state == "entitypage04") wakeup_page_id = 21;
-            else if (wakeup_page_name->state == "qrcode") wakeup_page_id = 17;
-            else if (wakeup_page_name->state == "alarm") wakeup_page_id = 23;
-            disp1->set_component_value("orign", wakeup_page_id);
+            disp1->set_component_value("orign", pageIndex(wakeup_page_name->state));
           }
 
   - id: page_settings
@@ -2527,7 +2604,7 @@ script:
               {"type", "boot"},
               {"step", "start"}
             });
-          delay(1000);
+          if (!id(boot_sequence_completed)) delay(1000);
           // Set dimming values
           display_brightness->publish_state(id(display_brightness_global));
           display_dim_brightness->publish_state(id(display_dim_brightness_global));
@@ -2554,6 +2631,7 @@ script:
           disp1->set_component_text_printf("home.icon_top_02", "%s", id(home_relay2_icon).c_str());
           timer_reset_all->execute("boot");
           notification_clear->execute();
+          id(boot_sequence_completed) = true;
           ESP_LOGD(TAG, "Boot sequence finished!");
 
   - id: notification_clear
@@ -2561,10 +2639,20 @@ script:
     then:
       - lambda: |-
           disp1->send_command_printf("is_notification=0");
-          if (current_page->state == "home") disp1->hide_component("bt_notific");
+          if (current_page->state == "notification") disp1->goto_page("home");
           notification_label->publish_state("");
           notification_text->publish_state("");
           notification_unread->turn_off();
+          if (current_page->state == "home") disp1->hide_component("bt_notific");
+
+  - id: nextion_status
+    mode: restart
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.nextion_status";
+          ESP_LOGD(TAG, "Nextion status:");
+          ESP_LOGD(TAG, "  Is detected: %s", disp1->is_detected() ? "True" : "False");
+          ESP_LOGD(TAG, "  Is setup:    %s", disp1->is_setup() ? "True" : "False");
 
   ##### ADD-ONS ############################################################
   ##### Add-on - Climate #####
@@ -2591,7 +2679,7 @@ script:
       # Reserved for Add-on Climate
       - lambda: |-
           ESP_LOGV("script.addon_climate_set_climate", "Check for addon_climate");
-          ESP_LOGV("script.addon_climate_set_climate", "embedded_climate: %i", (embedded_climate) ? 1 : 0);
+          ESP_LOGV("script.addon_climate_set_climate", "embedded_climate: %s", embedded_climate ? "True" : "False");
   - id: addon_climate_update_page_climate
     mode: restart
     then:

@@ -59,7 +59,9 @@ This innovative solution is designed to revolutionize how you interact with your
 
 
 ### Home
-![2 Home](https://user-images.githubusercontent.com/41958506/212768891-9610d800-43c5-454f-a8b6-6b7c43677b5d.png)
+![Home EU](docs/pics/eu_home.png)
+<br>
+![Home US](docs/pics/us_home.png)
 
 - Current weather with button to Weather Forcast page
 - Hardware buttons can be freely assigned
@@ -144,24 +146,38 @@ This innovative solution is designed to revolutionize how you interact with your
 
 &nbsp;
 ### Display Settings
-![10 Settings](https://user-images.githubusercontent.com/41958506/203654386-e4e574ad-8674-4268-84dd-1c4e40f98eb9.png)
+
+![Settings EU](docs/pics/eu_settings.png)
+<br>
+![Settings US](docs/pics/us_settings.png)
 
 - Restart NSPanel
 - Display brightness slider
 - Display dim brightness slider
 
 ### Boot
-![1 Boot](https://user-images.githubusercontent.com/41958506/203667473-d33523a4-3197-4838-9099-cccebfc727db.png)
+![Boot EU](docs/pics/eu_boot.png)
+<br>
+![Boot US](docs/pics/us_boot.png)
+
 
 ## Home Assistant interface
 
 ## Device's page
-![Device Setting 1](https://user-images.githubusercontent.com/41958506/203723223-8afc0e44-51cf-49ed-8a49-8ba713716639.png)
-![Device Setting 2](https://user-images.githubusercontent.com/41958506/203724491-53ecd93d-bc7c-4c2d-850b-f106691e2639.png)
+On the device's page under "Devices & Services" you can set the global configuration of your device and see the value of it's sensors and relays:
+
+![Device Setting - Controls](docs/pics/ha_device_controls.png)<br>
+![Device Setting - Sensors](docs/pics/ha_device_sensors.png)<br>
+![Device Setting - Configuration](docs/pics/ha_device_configuration.png)<br>
+![Device Setting - Diagnostic](docs/pics/ha_device_diagnostic.png)<br>
 
 ## Automation (Blueprint)
-![Blueprint 1](https://user-images.githubusercontent.com/41958506/203655004-a11f5a1c-d098-4e1a-958a-0293e50000b2.png)
-![Blueprint 2](https://user-images.githubusercontent.com/41958506/203655014-e6cae9df-aaf8-4537-8165-b8f44a177d3b.png)
+In your automations you use the blueprint's inputs to define what will be shown on your panel and how it should behave:
+![Blueprint 01](docs/pics/ha_blueprint_01.png)
+![Blueprint 02](docs/pics/ha_blueprint_02.png)
+![Blueprint 03](docs/pics/ha_blueprint_03.png)
+![Blueprint 04](docs/pics/ha_blueprint_04.png)
+![Blueprint 05](docs/pics/ha_blueprint_05.png)
 
 
 ## 🚀 Contributing

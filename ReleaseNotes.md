@@ -19,9 +19,9 @@ So at this release we concentrated on cleaning up de code everywhere and shave s
 Since in this update lots of input to the blueprint changed, we highly recommend you review your settings and make sure all fields have the correct selection. We did our best to support your legacy settings and avoid breaking your system, but please double check your settings if you see something not working as expected.
 
 ### Files that need to be reloaded:
-1. nspanel_eu.tft,  nspanel_us.tft or nspanel_us_land.tft - v4.1
-2. nspanel_esphome.yaml - v4.1
-3. nspanel_blueprint.yaml - v4.1
+1. nspanel_eu.tft,  nspanel_us.tft or nspanel_us_land.tft - v4.1.2
+2. nspanel_esphome.yaml - v4.1.2
+3. nspanel_blueprint.yaml - v4.1.2
 
 ####
 
@@ -88,8 +88,17 @@ packages:
 - 4.1.1 patch:
    - Service `esphome.xxxxx_play_rtttl` is back to core package
    - Stop the fallback to Home page when Notification or Confirm pages are shown
-   - Display target temperature on buttons even when climate is off
+   - Display current temperature on buttons even when climate is off
    - Buttons on both the Home and Buttons pages shows entity's icon when available
+- 4.1.2 patch:
+   - Fix light icon color not being used for buttons
+   - Add option to wake-up to Climate page
+   - New switch "Nextion display - Power" which can turn the screen on/off
+   - Fix for button image update when local fallback is enabled.
+   - Don't show thermostat chip when state is `auto` and no action is available.
+   - Fallback to legacy forecast (attributes based) when new method (service based) fails.
+   - Fix custom buttons icons not updating on Home page
+   - Fix Nextion not communicating with ESPHome 2023.11.6
 
 &nbsp;
 ## Details of noteworthy changes
@@ -151,9 +160,11 @@ See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 - @misery - Fixing a typo in the docs (#1176)
 - @Floppe - Adding space for value fields on Home page (#1180)
 - @bkbartk:
-   - Display target temperature on buttons even when climate is off (#1268)
+   - Display current temperature on buttons even when climate is off (#1268)
    - Button pages shows entity's icon when available (#1269)
    - Home page buttons shows entity's icon when available (#1276)
+   - New switch "Nextion display - Power" which can turn the screen on/off (#1327)
+   - Fix for button image update when local fallback is enabled (#1333)
 
 ## New Contributors
 @misery
