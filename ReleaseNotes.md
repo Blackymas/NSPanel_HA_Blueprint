@@ -76,13 +76,11 @@ packages:
 6. Buttons now will run an automation
 <br>On the previous versions, a button with an automation will enable or disable the automation. Now the button will trigger the automation.
 <br>If you want the legacy behavior, please create a script to enable/disable the automation and assign this to your button. 😉
-7. ESP-IDF IS TEMPORARILY UNAVAILABLE
-
 &nbsp;
 ## Overview of noteworthy changes
 1. New Upload TFT engine
 2. Hardware restarts with button hold for 15s
-3. ~~Support to `esp-idf` framework~~
+3. Support to `esp-idf` framework
 4. Support to 921600 bps
 5. Font size for chips
 6. Short click to open Climate and Media Player
@@ -119,18 +117,16 @@ Now if you press the hardware buttons for more than 15s, the panel will act as t
 | Right | Restarts the panel | It is equivalent to press the "Restart" button on the Settings page or from Home Assistant, but is available even when the Wi-Fi isn't connected or Home Assistant is out. |
 
 &nbsp;
-### 3. ~~Support to `esp-idf` framework~~
-~~Although this project still using ESPHome default framework (currently `arduino`), we started supporting the framework `esp-idf` as this is a recomendation from ESPHome team since an year ago or so.~~
-~~The `arduino` protocol still more popular and therefore more components are available, but there are some advantages with the ESP-IDF framework:~~
-- ~~It is updated more frequently by EspressIF, which means it is more secure and stable.~~
-- ~~It reduces a layer, as Arduino is developed in top of ESP-IDF, so basically we are changing from ESPHome -> Arduino -> ESP-IDF -> Hardware to ESPHome -> ESP-IDF -> Hardware.~~
-- ~~By reducing a layer, more memory is available for future features and for the custom components you might want to add to your panel.~~
-- ~~The memory management is more efficient, which makes critical tasks, like uploading a TFT file, more reliable.~~
-~~<br>In the future we will probably make this as the default framework, so if you are a new user or if for some reason you have to flash your panel via serial/usb, it's a good idea to change to ESP-IDF now.~~
-~~<br>Please look at [customizations docs in the Wiki](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-Customization#framework-esp-idf) for more details on how to change the framework.~~
-~~<br>-> The ESP-IDF framework will be used when you enable the advanced mode.~~
-
-> The support to IDF was temporarily removed on v4.1.2
+### 3. Support to `esp-idf` framework
+Although this project still using ESPHome default framework (currently `arduino`), we started supporting the framework `esp-idf` as this is a recomendation from ESPHome team since an year ago or so.
+The `arduino` protocol still more popular and therefore more components are available, but there are some advantages with the ESP-IDF framework:
+- It is updated more frequently by EspressIF, which means it is more secure and stable.
+- It reduces a layer, as Arduino is developed in top of ESP-IDF, so basically we are changing from ESPHome -> Arduino -> ESP-IDF -> Hardware to ESPHome -> ESP-IDF -> Hardware.
+- By reducing a layer, more memory is available for future features and for the custom components you might want to add to your panel.
+- The memory management is more efficient, which makes critical tasks, like uploading a TFT file, more reliable.
+<br>In the future we will probably make this as the default framework, so if you are a new user or if for some reason you have to flash your panel via serial/usb, it's a good idea to change to ESP-IDF now.
+<br>Please look at [customizations docs in the Wiki](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-Customization#framework-esp-idf) for more details on how to change the framework.
+<br>-> The ESP-IDF framework will be used when you enable the advanced mode.
 
 &nbsp;
 ### 4. Support to 921600 bps
