@@ -11,9 +11,10 @@ substitutions:
   #############################
 
 external_components:
-  - source: github://pr#5825 # Remove this when that pr is merged and released
+  - source: github://pr#5825 #5683 # Remove this when that pr is merged and released
     components:
       - nextion
+    refresh: 1s
 
 ##### ESPHOME CONFIGURATION #####
 esphome:
@@ -32,7 +33,7 @@ esphome:
           timeout: 60s
       - wait_until:
           condition:
-            - lambda: !lambda return disp1->is_setup();
+            - lambda: !lambda return disp1->is_detected();
           timeout: 20s
       - script.execute: exit_reparse
       - wait_until:
@@ -485,30 +486,37 @@ api:
     #### Service to set the buttons ####
       - service: set_button
         variables:
-          btn_id: string
-          btn_pic: int
-          btn_bg: int[]
-          btn_icon_font: int[]
-          btn_txt_font: int[]
-          btn_bri_font: int[]
-          btn_icon: string
-          btn_label: string
-          btn_bri_txt: string
+          page: string
+          id: string
+          pic: int
+          bg: int[]
+          icon: string
+          icon_color: int[]
+          bri: string
+          bri_color: int[]
+          label: string
+          label_color: int[]
         then:
           - lambda: |-
-              std::string btnicon = btn_id.c_str() + std::string("icon");
-              std::string btntext = btn_id.c_str() + std::string("text");
-              std::string btnbri = btn_id.c_str() + std::string("bri");
-              disp1->send_command_printf("%spic.pic=%" PRIu32, btn_id.c_str(), btn_pic);
-              set_component_color->execute(btnicon.c_str(), btn_icon_font, btn_bg);
-              set_component_color->execute(btntext.c_str(), btn_txt_font, btn_bg);
-              set_component_color->execute(btnbri.c_str(), btn_bri_font, btn_bg);
-              disp1->set_component_text_printf(btnicon.c_str(), "%s", btn_icon.c_str());
-              display_wrapped_text->execute(btntext.c_str(), btn_label.c_str(), 10);
-              if (strcmp(btn_bri_txt.c_str(), "0") != 0)
-                disp1->set_component_text_printf(btnbri.c_str(), "%s", btn_bri_txt.c_str());
-              else
-                disp1->set_component_text_printf(btnbri.c_str(), " ");
+              static const char *const TAG = "service.set_button";
+              if (page == current_page->state) {
+                std::string btnicon = id.c_str() + std::string("icon");
+                std::string btntext = id.c_str() + std::string("text");
+                std::string btnbri = id.c_str() + std::string("bri");
+                disp1->send_command_printf("%spic.pic=%" PRIu32, id.c_str(), pic);
+                set_component_color->execute(btnicon.c_str(), icon_color, bg);
+                set_component_color->execute(btntext.c_str(), label_color, bg);
+                set_component_color->execute(btnbri.c_str(), bri_color, bg);
+                disp1->set_component_text_printf(btnicon.c_str(), "%s", icon.c_str());
+                display_wrapped_text->execute(btntext.c_str(), label.c_str(), 10);
+                if (strcmp(bri.c_str(), "0") != 0)
+                  disp1->set_component_text_printf(btnbri.c_str(), "%s", bri.c_str());
+                else
+                  disp1->set_component_text_printf(btnbri.c_str(), " ");
+              } else {
+                ESP_LOGW(TAG, "Skipping button `%s.%s` as page has changed to %s.", page.c_str(), id.c_str(), current_page->state.c_str());
+              }
+
 
       ##### SERVICE TO WAKE UP THE DISPLAY #####
       - service: wake_up
@@ -1351,7 +1359,7 @@ switch:
     on_turn_on:
       - wait_until:
           condition:
-            - lambda: !lambda return disp1->is_detected();
+            - lambda: !lambda return disp1->is_setup();
           timeout: 20s
       - lambda: |-
           if (id(boot_sequence_completed)) {
