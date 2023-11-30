@@ -99,6 +99,8 @@ packages:
    - Fallback to legacy forecast (attributes based) when new method (service based) fails.
    - Fix custom buttons icons not updating on Home page
    - Fix Nextion not communicating with ESPHome 2023.11.6
+- 4.1.3 patch:
+   - Upload TFT remove dependency to from ESPHome Nextion component
 
 &nbsp;
 ## Details of noteworthy changes
