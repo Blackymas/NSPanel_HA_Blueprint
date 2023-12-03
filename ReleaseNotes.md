@@ -102,6 +102,7 @@ packages:
 - 4.1.3 patch:
    - Upload TFT remove dependency to from ESPHome Nextion component
    - Fix light icon color on buttons
+   - Fix climate page not updating properly
 
 &nbsp;
 ## Details of noteworthy changes
