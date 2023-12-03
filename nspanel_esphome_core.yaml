@@ -1724,41 +1724,48 @@ script:
       climate_icon: string
       embedded_climate: bool
     then:
-      - if:
-          condition:
-            - text_sensor.state: # Is climate page visible?
-                id: current_page
-                state: 'climate'
-          then:
-            - lambda: |-
-                addon_climate_set_climate->execute(embedded_climate);
-                disp1->send_command_printf("climateslider.maxval=%i", total_steps);
-                disp1->set_component_value("temp_offset", temp_offset);
-                disp1->set_component_value("temp_step", temp_step);
-                disp1->set_component_text_printf("current_temp", "%.1f°", current_temp);
-                disp1->show_component("current_temp");
-                disp1->show_component("current_icon");
-                if (target_temp > -999)
-                  {
-                    float slider_val = round(((10*target_temp) - temp_offset) / temp_step);
-                    disp1->set_component_value("climateslider", slider_val);
-                    disp1->set_component_text_printf("target_temp", "%.1f°", target_temp);
-                    disp1->set_component_text_printf("target_icon", "%s", climate_icon.c_str());
-                    disp1->show_component("target_icon");
-                    disp1->show_component("target_temp");
-                    disp1->show_component("climateslider");
-                    disp1->show_component("decrease_temp");
-                    disp1->show_component("increase_temp");
-                  }
-                else
-                  {
-                    disp1->hide_component("target_icon");
-                    disp1->hide_component("target_temp");
-                    disp1->hide_component("climateslider");
-                    disp1->hide_component("decrease_temp");
-                    disp1->hide_component("increase_temp");
-                  }
-                disp1->set_component_value("embedded", (embedded_climate) ? 1 : 0);
+      - lambda: |-
+          static const char *const TAG = "script.set_climate";
+          ESP_LOGV(TAG, "Starting");
+          ESP_LOGV(TAG, "  current_temp:     %f", current_temp);
+          ESP_LOGV(TAG, "  target_temp:      %f", target_temp);
+          ESP_LOGV(TAG, "  temp_step:        %d", temp_step);
+          ESP_LOGV(TAG, "  total_steps:      %d", total_steps);
+          ESP_LOGV(TAG, "  temp_offset:      %i", temp_offset);
+          ESP_LOGV(TAG, "  climate_icon:     %s", climate_icon.c_str());
+          ESP_LOGV(TAG, "  embedded_climate: %s", embedded_climate ? "True" : "False");
+          if (current_page->state == "climate") {
+            ESP_LOGV(TAG, "Page climate is visible");
+            addon_climate_set_climate->execute(embedded_climate);
+            disp1->send_command_printf("climateslider.maxval=%i", total_steps);
+            disp1->set_component_value("temp_offset", temp_offset);
+            disp1->set_component_value("temp_step", temp_step);
+            disp1->set_component_text_printf("current_temp", "%.1f°", current_temp);
+            disp1->show_component("current_temp");
+            disp1->show_component("current_icon");
+            if (target_temp > -999)
+              {
+                float slider_val = round(((10*target_temp) - temp_offset) / temp_step);
+                disp1->set_component_value("climateslider", slider_val);
+                disp1->set_component_text_printf("target_temp", "%.1f°", target_temp);
+                disp1->set_component_text_printf("target_icon", "%s", climate_icon.c_str());
+                disp1->show_component("target_icon");
+                disp1->show_component("target_temp");
+                disp1->show_component("climateslider");
+                disp1->show_component("decrease_temp");
+                disp1->show_component("increase_temp");
+              }
+            else
+              {
+                disp1->hide_component("target_icon");
+                disp1->hide_component("target_temp");
+                disp1->hide_component("climateslider");
+                disp1->hide_component("decrease_temp");
+                disp1->hide_component("increase_temp");
+              }
+            disp1->set_component_value("embedded", (embedded_climate) ? 1 : 0);
+          }
+          ESP_LOGV(TAG, "Finished");
 
   - id: refresh_datetime
     mode: restart
@@ -1873,12 +1880,15 @@ script:
       embedded: bool
     then:
       - lambda: |-
+          static const char *const TAG = "script.service_call_climate";
+          ESP_LOGV(TAG, "Calling climate service");
           if (embedded)
             addon_climate_service_call->execute(key.c_str(), value.c_str());
           else if (key == "set_temperature")
             ha_call_service->execute("climate.set_temperature", "temperature", to_string(stof(value) / 10), entity.c_str());
           else if (key == "hvac_mode")
             ha_call_service->execute("climate.set_hvac_mode", key.c_str(), value.c_str(), entity.c_str());
+          ESP_LOGV(TAG, "Finished");
 
   - id: ha_call_service
     mode: restart
@@ -1889,6 +1899,13 @@ script:
       entity: string
     then:
       - lambda: |-
+          static const char *const TAG = "script.ha_call_service";
+          ESP_LOGV(TAG, "Calling Home Assisant service");
+          ESP_LOGV(TAG, "  Type: service_call");
+          ESP_LOGV(TAG, "  Service: %s", service.c_str());
+          ESP_LOGV(TAG, "  Entity:  %s", entity.c_str());
+          ESP_LOGV(TAG, "  Key:     %s", key.c_str());
+          ESP_LOGV(TAG, "  Value:   %s", value.c_str());
           if (service != "" and not service.empty())
             {
               auto ha_event = new esphome::api::CustomAPIDevice();
@@ -1901,6 +1918,7 @@ script:
                   {"value", value}
                 });
             }
+          ESP_LOGV(TAG, "Finished");
 
   - id: ha_button
     mode: parallel
