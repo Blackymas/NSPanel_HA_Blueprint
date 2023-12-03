@@ -101,6 +101,7 @@ packages:
    - Fix Nextion not communicating with ESPHome 2023.11.6
 - 4.1.3 patch:
    - Upload TFT remove dependency to from ESPHome Nextion component
+   - Fix light icon color on buttons
 
 &nbsp;
 ## Details of noteworthy changes
