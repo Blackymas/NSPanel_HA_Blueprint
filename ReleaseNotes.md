@@ -105,6 +105,7 @@ packages:
    - Fix climate page not updating properly
 - 4.1.4 patch:
    - Supports new `weather.get_forecasts` introduced by Home Assistant 2023.12.0
+   - Manual line break on multiline text with `\r`
 
 &nbsp;
 ## Details of noteworthy changes
