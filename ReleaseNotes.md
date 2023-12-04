@@ -19,9 +19,9 @@ So at this release we concentrated on cleaning up de code everywhere and shave s
 Since in this update lots of input to the blueprint changed, we highly recommend you review your settings and make sure all fields have the correct selection. We did our best to support your legacy settings and avoid breaking your system, but please double check your settings if you see something not working as expected.
 
 ### Files that need to be reloaded:
-1. nspanel_eu.tft,  nspanel_us.tft or nspanel_us_land.tft - v4.1.2
-2. nspanel_esphome.yaml - v4.1.2
-3. nspanel_blueprint.yaml - v4.1.2
+1. nspanel_eu.tft,  nspanel_us.tft or nspanel_us_land.tft - v4.1.4
+2. nspanel_esphome.yaml - v4.1.4
+3. nspanel_blueprint.yaml - v4.1.4
 
 ####
 
@@ -103,6 +103,10 @@ packages:
    - Upload TFT remove dependency to from ESPHome Nextion component
    - Fix light icon color on buttons
    - Fix climate page not updating properly
+- 4.1.4 patch:
+   - Supports new `weather.get_forecasts` introduced by Home Assistant 2023.12.0
+   - Manual line break on multiline text with `\r`
+
 
 &nbsp;
 ## Details of noteworthy changes
