@@ -38,7 +38,7 @@ esphome:
       - script.execute: exit_reparse
       - wait_until:
           condition:
-            - lambda: !lambda return disp1->is_detected();
+            - lambda: !lambda return disp1->is_setup();
           timeout: 20s
       - lambda: |-
           static const char *const TAG = "on_boot";
@@ -56,7 +56,7 @@ esphome:
           };
 
           nextion_status->execute();
-          if (not disp1->is_detected()) {
+          if (not disp1->is_setup()) {
             ESP_LOGE(TAG, "No response from Nextion display");
             ESP_LOGD(TAG, "Turn off Nextion");
             screen_power->turn_off();
@@ -68,12 +68,12 @@ esphome:
           }
       - wait_until:
           condition:
-            - lambda: !lambda return disp1->is_detected();
-          timeout: 20s
+            - lambda: !lambda return disp1->is_setup();
+          timeout: 45s
       - lambda: |-
           static const char *const TAG = "on_boot";
           nextion_status->execute();
-          if (not disp1->is_detected()) {
+          if (not disp1->is_setup()) {
             ESP_LOGE(TAG, "No response from Nextion display");
           }
           ESP_LOGD(TAG, "Finished");
@@ -1136,6 +1136,7 @@ number:
     min_value: -10
     max_value: 10
     step: 0.1
+    mode: box
     restore_value: true
     internal: false
     optimistic: true
@@ -1733,41 +1734,48 @@ script:
       climate_icon: string
       embedded_climate: bool
     then:
-      - if:
-          condition:
-            - text_sensor.state: # Is climate page visible?
-                id: current_page
-                state: 'climate'
-          then:
-            - lambda: |-
-                addon_climate_set_climate->execute(embedded_climate);
-                disp1->send_command_printf("climateslider.maxval=%i", total_steps);
-                disp1->set_component_value("temp_offset", temp_offset);
-                disp1->set_component_value("temp_step", temp_step);
-                disp1->set_component_text_printf("current_temp", "%.1f°", current_temp);
-                disp1->show_component("current_temp");
-                disp1->show_component("current_icon");
-                if (target_temp > -999)
-                  {
-                    float slider_val = round(((10*target_temp) - temp_offset) / temp_step);
-                    disp1->set_component_value("climateslider", slider_val);
-                    disp1->set_component_text_printf("target_temp", "%.1f°", target_temp);
-                    disp1->set_component_text_printf("target_icon", "%s", climate_icon.c_str());
-                    disp1->show_component("target_icon");
-                    disp1->show_component("target_temp");
-                    disp1->show_component("climateslider");
-                    disp1->show_component("decrease_temp");
-                    disp1->show_component("increase_temp");
-                  }
-                else
-                  {
-                    disp1->hide_component("target_icon");
-                    disp1->hide_component("target_temp");
-                    disp1->hide_component("climateslider");
-                    disp1->hide_component("decrease_temp");
-                    disp1->hide_component("increase_temp");
-                  }
-                disp1->set_component_value("embedded", (embedded_climate) ? 1 : 0);
+      - lambda: |-
+          static const char *const TAG = "script.set_climate";
+          ESP_LOGV(TAG, "Starting");
+          ESP_LOGV(TAG, "  current_temp:     %f", current_temp);
+          ESP_LOGV(TAG, "  target_temp:      %f", target_temp);
+          ESP_LOGV(TAG, "  temp_step:        %d", temp_step);
+          ESP_LOGV(TAG, "  total_steps:      %d", total_steps);
+          ESP_LOGV(TAG, "  temp_offset:      %i", temp_offset);
+          ESP_LOGV(TAG, "  climate_icon:     %s", climate_icon.c_str());
+          ESP_LOGV(TAG, "  embedded_climate: %s", embedded_climate ? "True" : "False");
+          if (current_page->state == "climate") {
+            ESP_LOGV(TAG, "Page climate is visible");
+            addon_climate_set_climate->execute(embedded_climate);
+            disp1->send_command_printf("climateslider.maxval=%i", total_steps);
+            disp1->set_component_value("temp_offset", temp_offset);
+            disp1->set_component_value("temp_step", temp_step);
+            disp1->set_component_text_printf("current_temp", "%.1f°", current_temp);
+            disp1->show_component("current_temp");
+            disp1->show_component("current_icon");
+            if (target_temp > -999)
+              {
+                float slider_val = round(((10*target_temp) - temp_offset) / temp_step);
+                disp1->set_component_value("climateslider", slider_val);
+                disp1->set_component_text_printf("target_temp", "%.1f°", target_temp);
+                disp1->set_component_text_printf("target_icon", "%s", climate_icon.c_str());
+                disp1->show_component("target_icon");
+                disp1->show_component("target_temp");
+                disp1->show_component("climateslider");
+                disp1->show_component("decrease_temp");
+                disp1->show_component("increase_temp");
+              }
+            else
+              {
+                disp1->hide_component("target_icon");
+                disp1->hide_component("target_temp");
+                disp1->hide_component("climateslider");
+                disp1->hide_component("decrease_temp");
+                disp1->hide_component("increase_temp");
+              }
+            disp1->set_component_value("embedded", (embedded_climate) ? 1 : 0);
+          }
+          ESP_LOGV(TAG, "Finished");
 
   - id: refresh_datetime
     mode: restart
@@ -1882,12 +1890,15 @@ script:
       embedded: bool
     then:
       - lambda: |-
+          static const char *const TAG = "script.service_call_climate";
+          ESP_LOGV(TAG, "Calling climate service");
           if (embedded)
             addon_climate_service_call->execute(key.c_str(), value.c_str());
           else if (key == "set_temperature")
             ha_call_service->execute("climate.set_temperature", "temperature", to_string(stof(value) / 10), entity.c_str());
           else if (key == "hvac_mode")
             ha_call_service->execute("climate.set_hvac_mode", key.c_str(), value.c_str(), entity.c_str());
+          ESP_LOGV(TAG, "Finished");
 
   - id: ha_call_service
     mode: restart
@@ -1898,6 +1909,13 @@ script:
       entity: string
     then:
       - lambda: |-
+          static const char *const TAG = "script.ha_call_service";
+          ESP_LOGV(TAG, "Calling Home Assisant service");
+          ESP_LOGV(TAG, "  Type: service_call");
+          ESP_LOGV(TAG, "  Service: %s", service.c_str());
+          ESP_LOGV(TAG, "  Entity:  %s", entity.c_str());
+          ESP_LOGV(TAG, "  Key:     %s", key.c_str());
+          ESP_LOGV(TAG, "  Value:   %s", value.c_str());
           if (service != "" and not service.empty())
             {
               auto ha_event = new esphome::api::CustomAPIDevice();
@@ -1910,6 +1928,7 @@ script:
                   {"value", value}
                 });
             }
+          ESP_LOGV(TAG, "Finished");
 
   - id: ha_button
     mode: parallel
@@ -2085,23 +2104,27 @@ script:
           int startPos = 0;
           int endPos = 0;
           std::string wrappedText = "";
-          while (startPos < text_to_display.length()) {
-            while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
-            int endPos = startPos + line_length_limit;
-            if (endPos >= text_to_display.length()) endPos = text_to_display.length();
-            else
-              {
-                while (endPos > startPos && text_to_display[endPos] != ' ') { endPos--; }
-                if (endPos == startPos) endPos = startPos + line_length_limit; // Handle case of long word
-              }
-            wrappedText += text_to_display.substr(startPos, endPos-startPos);
-            if (endPos < text_to_display.length())
-              {
-                while (text_to_display[endPos] == ' ') { endPos--; }
-                if (endPos >= startPos) wrappedText += "\\r";
-              }
-            startPos = endPos + 1; // Skip the space
-            while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
+          if (text_to_display.find("\\r") != std::string::npos) {
+            wrappedText = text_to_display;
+          } else {
+            while (startPos < text_to_display.length()) {
+              while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
+              int endPos = startPos + line_length_limit;
+              if (endPos >= text_to_display.length()) endPos = text_to_display.length();
+              else
+                {
+                  while (endPos > startPos && text_to_display[endPos] != ' ') { endPos--; }
+                  if (endPos == startPos) endPos = startPos + line_length_limit; // Handle case of long word
+                }
+              wrappedText += text_to_display.substr(startPos, endPos-startPos);
+              if (endPos < text_to_display.length())
+                {
+                  while (text_to_display[endPos] == ' ') { endPos--; }
+                  if (endPos >= startPos) wrappedText += "\\r";
+                }
+              startPos = endPos + 1; // Skip the space
+              while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
+            }
           }
           disp1->set_component_text_printf(component.c_str(), "%s", wrappedText.c_str());
 
@@ -2661,7 +2684,7 @@ script:
       - lambda: |-
           static const char *const TAG = "script.nextion_status";
           ESP_LOGD(TAG, "Nextion status:");
-          ESP_LOGD(TAG, "  Is detected: %s", disp1->is_detected() ? "True" : "False");
+          //ESP_LOGD(TAG, "  Is detected: %s", disp1->is_detected() ? "True" : "False");
           ESP_LOGD(TAG, "  Is setup:    %s", disp1->is_setup() ? "True" : "False");
 
   ##### ADD-ONS ############################################################
@@ -2705,3 +2728,61 @@ script:
       - lambda: |-
           ESP_LOGV("script.addon_climate_set_climate_friendly_name", "Check for addon_climate");
           ESP_LOGV("script.addon_climate_set_climate_friendly_name", "friendly_name: %s", friendly_name.c_str());
+
+  - id: stop_all
+    mode: restart
+    #parameters:
+    #  exceptions: string[] # to be implemented
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.stop_all";
+          ESP_LOGD(TAG, "Stopping scripts...");
+          timer_reset_all->stop();
+          timer_page->stop();
+          timer_dim->stop();
+          timer_sleep->stop();
+          set_brightness->stop();
+          set_climate->stop();
+          refresh_datetime->stop();
+          refresh_relays->stop();
+          refresh_wifi_icon->stop();
+          service_call_alarm_control_panel->stop();
+          service_call_climate->stop();
+          ha_call_service->stop();
+          ha_button->stop();
+          update_alarm_icon->stop();
+          update_climate_icon->stop();
+          set_component_color->stop();
+          display_wrapped_text->stop();
+          display_embedded_temp->stop();
+          check_versions->stop();
+          page_changed->stop();
+          page_alarm->stop();
+          page_blank->stop();
+          page_boot->stop();
+          page_buttonpage->stop();
+          page_climate->stop();
+          page_confirm->stop();
+          page_cover->stop();
+          page_entitypage->stop();
+          page_fan->stop();
+          page_home->stop();
+          page_keyb_num->stop();
+          page_light->stop();
+          page_media_player->stop();
+          page_notification->stop();
+          page_qrcode->stop();
+          page_screensaver->stop();
+          page_settings->stop();
+          page_weather->stop();
+          page_index_indicator->stop();
+          exit_reparse->stop();
+          boot_sequence->stop();
+          notification_clear->stop();
+          nextion_status->stop();
+          addon_climate_service_call->stop();
+          addon_climate_update_page_home->stop();
+          addon_climate_set_climate->stop();
+          addon_climate_update_page_climate->stop();
+          addon_climate_set_climate_friendly_name->stop();
+          ESP_LOGD(TAG, "Finished");
