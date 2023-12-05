@@ -106,6 +106,7 @@ packages:
 - 4.1.4 patch:
    - Supports new `weather.get_forecasts` introduced by Home Assistant 2023.12.0
    - Manual line break on multiline text with `\r`
+   - Upload TFT user's interface on the panel
 
 &nbsp;
 ## Details of noteworthy changes
