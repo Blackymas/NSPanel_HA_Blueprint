@@ -1,0 +1,146 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHome Add-on for Climate control - Shared - This will be called by heat/cool            #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+##### ATTENTION: This will add climate elements to the core system and requires the core part.  #####
+#####################################################################################################
+
+substitutions:
+  ### Local thermostat defaults ###
+  # https://esphome.io/components/climate/thermostat.html
+  temp_units: "°C"
+  heater_relay: "0" # Select 1 for "Relay 1", 2 for "Relay 2" or "0" to a dummy switch/disabled
+  cooler_relay: "0" # Select 1 for "Relay 1", 2 for "Relay 2" or "0" to a dummy switch/disabled
+  min_off_time: "300"
+  min_run_time: "300"
+  min_idle_time: "30"
+  # https://esphome.io/components/climate/index.html#base-climate-configuration
+  temp_min: "5"
+  temp_max: "45"
+  temp_step: "0.5"
+
+  ##### DO NOT CHANGE THIS #####
+  addon_climate_cool: "false"
+  addon_climate_heat: "false"
+  ##############################
+
+climate:
+  - platform: thermostat
+    name: ${device_name} Thermostat
+    id: thermostat_embedded
+    sensor: temp_nspanel
+    min_idle_time: ${min_idle_time}s
+    visual:
+      min_temperature: ${temp_min} ${temp_units}
+      max_temperature: ${temp_max} ${temp_units}
+      temperature_step: ${temp_step} ${temp_units}
+    idle_action:
+      - switch.turn_off: relay_${heater_relay}
+    default_preset: "Off"
+    on_boot_restore_from: memory
+    internal: false
+    on_state:
+      - logger.log: Climate state changed - Start
+      - script.execute: addon_climate_update_page_climate
+      - script.execute: addon_climate_update_page_home
+      - logger.log: Climate state changed - End
+
+globals:
+  ##### Is embedded thermostat visible on climate page? #####
+  - id: is_addon_climate_visible
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  ##### Embeded climate friendly name #####
+  - id: addon_climate_friendly_name
+    type: std::string
+    restore_value: false
+    initial_value: '"${device_name} Thermostat"'
+
+switch:
+  ##### PHYSICAL SWITCH 0 (Dummy) - Used when relay is not set #####
+  - name: ${device_name} Relay 0 (dummy)
+    platform: template
+    id: relay_0
+    lambda: !lambda return false;
+    internal: true
+    optimistic: true
+
+script:
+  - id: !extend addon_climate_update_page_home
+    mode: restart
+    then:
+      - lambda: |-
+          // Update home.climate_entity variable
+          detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
+          disp1->set_component_value("climate.embedded", (id(is_embedded_thermostat)) ? 1 : 0);
+          // Update chips
+          if (id(is_embedded_thermostat))
+            id(update_climate_icon).execute("home.icon_top_03", int(thermostat_embedded->action), int(thermostat_embedded->mode));
+
+  - id: !extend addon_climate_service_call
+    then:
+      - lambda: |-
+          id(is_addon_climate_visible) = true;
+          disp1->set_component_value("climate.embedded", 1);
+          auto call = thermostat_embedded->make_call();
+          if (key == "set_temperature")
+            call.set_target_temperature(stof(value) / 10);
+          else if (key == "hvac_mode")
+            call.set_mode(value);
+          call.perform();
+
+  - id: !extend addon_climate_set_climate
+    then:
+      - lambda: |-
+          id(is_addon_climate_visible) = embedded_climate;
+
+  - id: !extend addon_climate_update_page_climate
+    then:
+      - lambda: |-
+          if (current_page->state == "climate" and id(is_addon_climate_visible))
+            {
+              disp1->set_component_text_printf("page_label", id(addon_climate_friendly_name).c_str());
+              float temp_step = ${temp_step};
+              float temp_offset = ${temp_min};
+              float temp_max = ${temp_max};
+              float total_steps = (temp_max-temp_offset)/temp_step;
+              set_climate->execute
+                (
+                  thermostat_embedded->current_temperature, // current_temp
+                  thermostat_embedded->target_temperature, // target_temp
+                  int(round(${temp_step}*10)), // temp_step
+                  int(round(total_steps)), // total_steps //int(round((10*thermostat_embedded->target_temperature-temp_offset)/temp_step)), // slider_val
+                  int(round(${temp_min}*10)), // temp_offset
+                  "", // climate_icon
+                  true // embedded_climate
+                );
+
+                // Update target temp icon
+                update_climate_icon->execute("climate.target_icon", int(thermostat_embedded->action), int(thermostat_embedded->mode));
+
+                // Update buttons bar
+                // Hide not supported hotspots
+                disp1->hide_component("button01");
+                disp1->hide_component("button02");
+                if (${addon_climate_heat}) disp1->show_component("button03"); else disp1->hide_component("button03"); //Heat
+                if (${addon_climate_cool}) disp1->show_component("button04"); else disp1->hide_component("button04"); //Cool
+                disp1->hide_component("button05");
+                disp1->hide_component("button06");
+                disp1->show_component("button07"); //Off
+                // Set buttons colors
+                disp1->set_component_font_color("climate.button01_icon", 6339);
+                disp1->set_component_font_color("climate.button02_icon", 6339);
+                disp1->set_component_font_color("climate.button03_icon", (thermostat_embedded->mode==climate::CLIMATE_MODE_HEAT) ? 64164 : ((${addon_climate_heat}) ? 48631 : 6339));
+                disp1->set_component_font_color("climate.button04_icon", (thermostat_embedded->mode==climate::CLIMATE_MODE_COOL) ? 1055 : ((${addon_climate_cool}) ? 48631 : 6339));
+                disp1->set_component_font_color("climate.button05_icon", 6339);
+                disp1->set_component_font_color("climate.button06_icon", 6339);
+                disp1->set_component_font_color("climate.button07_icon", (thermostat_embedded->mode==climate::CLIMATE_MODE_OFF) ? 10597 : 35921);
+            }
+
+  - id: !extend addon_climate_set_climate_friendly_name
+    then:
+      - lambda: |-
+          id(addon_climate_friendly_name) = friendly_name;

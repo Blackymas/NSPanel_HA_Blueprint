@@ -1,6 +1,9 @@
-#############################################################
-##### START - INPUT #####
-#############################################################
+#######################################################################################################
+##### NSPANEL Blueprint created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### Blueprint                                                                                   #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available.   #####
+##### For normal use with the Blueprint, no changes are necessary.                                #####
+#######################################################################################################
 
 blueprint:
   name: NSPanel Configuration
@@ -33,7 +36,7 @@ blueprint:
     🎉 Roadmap can be found here: [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
 
 
-    ℹ️ Version: v4.1.3
+    ℹ️ Version: v4.1.4
 
   source_url: https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/nspanel_blueprint.yaml
   domain: automation
@@ -3599,7 +3602,7 @@ trigger_variables:
 
 variables:
   ##### GENERAL #####
-  blueprint_version: '4.1.3'
+  blueprint_version: '4.1.4'
   date_format_temp: !input 'date_format'
   #Avoid breaking change for existing users with legacy type format
   date_format: >
@@ -8581,7 +8584,14 @@ action:
                           - *delay-default
 
                           ##### Display weather data only when available #####
-                          - service: weather.get_forecast
+                          - variables:
+                              ha_core_update_entity: >
+                                {% for u in integration_entities("hassio") | select("search", "^update[.]") if (device_attr(u, "identifiers") | first)[1] == "core" %}
+                                  {{ u }}
+                                {% endfor %}
+                              ha_core_current_version: '{{ state_attr(ha_core_update_entity, "installed_version") }}'
+                              use_new_forecasts: '{{ ha_core_current_version | version >= "2023.12.0b1" if ha_core_current_version else false }}'
+                          - service: '{{ "weather.get_forecasts" if use_new_forecasts else "weather.get_forecast" }}'
                             target:
                               entity_id: '{{ weather_entity }}'
                             data:
@@ -8590,11 +8600,13 @@ action:
                             continue_on_error: true
                           - variables:
                               forecast: >
-                                {{
-                                  service_response_var.forecast
-                                  if service_response_var is defined and service_response_var.forecast is defined
-                                  else state_attr(weather_entity, "forecast") | default(false)
-                                }}
+                                {% if use_new_forecasts and service_response_var is defined and service_response_var[weather_entity] is defined and service_response_var[weather_entity].forecast is defined %}
+                                  {{ service_response_var[weather_entity].forecast }}
+                                {% elif service_response_var is defined and service_response_var.forecast is defined %}
+                                  {{ service_response_var.forecast }}
+                                {% else %}
+                                  {{ state_attr(weather_entity, "forecast") | default(false) }}
+                                {% endif %}
                           - condition: '{{ forecast != false }}'
                           - variables:
                               datetime_is_string: '{{ forecast[0] is defined and forecast[0]["datetime"] is string }}'
