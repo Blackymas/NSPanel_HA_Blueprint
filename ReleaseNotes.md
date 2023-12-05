@@ -107,7 +107,6 @@ packages:
    - Supports new `weather.get_forecasts` introduced by Home Assistant 2023.12.0
    - Manual line break on multiline text with `\r`
 
-
 &nbsp;
 ## Details of noteworthy changes
 
