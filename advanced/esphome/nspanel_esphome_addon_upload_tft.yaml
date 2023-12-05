@@ -141,9 +141,9 @@ script:
           ESP_LOGD(TAG, "Starting...");
 
           nextion_init->publish_state(false);
+          stop_all->execute();
           disp1->set_backlight_brightness(1);
           disp1->hide_component("255");
-          stop_all->execute();
 
           std::vector<uint8_t> buffer_;
 
@@ -153,6 +153,17 @@ script:
 
           int content_length_ = 0;
           int tft_size_ = 0;
+
+          auto set_baud_rate_ = [](int baud_rate) {
+            #ifdef USE_ARDUINO
+            auto *uart = reinterpret_cast<uart::ESP32ArduinoUARTComponent *>(tf_uart);
+            #endif
+            #ifdef USE_ESP_IDF
+            auto *uart = reinterpret_cast<uart::IDFUARTComponent *>(tf_uart);
+            #endif
+            uart->set_baud_rate(baud_rate);
+            uart->setup();
+          };
 
           auto delay_seconds_ = [](int seconds) {
             ESP_LOGD(TAG, "Wait %i seconds", seconds);
@@ -365,8 +376,8 @@ script:
             {
               static const char *const TAG = "script.upload_tft.upload_tft_arduino";
               ESP_LOGD(TAG, "Nextion TFT upload requested");
-              ESP_LOGD(TAG, "url: %s", url.c_str());
-              ESP_LOGD(TAG, "baud_rate: %i", update_baud_rate_);
+              ESP_LOGD(TAG, "  url: %s", url.c_str());
+              ESP_LOGD(TAG, "  baud_rate: %i", update_baud_rate_);
 
               if (is_updating_) {
                 ESP_LOGD(TAG, "Currently updating");
@@ -442,8 +453,9 @@ script:
               // Tells the Nextion the content length of the tft file and baud rate it will be sent at
               // Once the Nextion accepts the command it will wait until the file is successfully uploaded
               // If it fails for any reason a power cycle of the display will be needed
-              sprintf(command, "whmi-wris %d,%" PRIu32 ",1", content_length_, update_baud_rate_);
+              sprintf(command, "whmi-wris %d,%d,1", content_length_, update_baud_rate_);
 
+              ESP_LOGD(TAG, "Clear serial receive buffer: %d", id(tf_uart).available());
               // Clear serial receive buffer
               uint8_t d;
               while (id(tf_uart).available()) {
@@ -452,16 +464,16 @@ script:
 
               send_nextion_command(command);
 
-              if (update_baud_rate_ != id(tf_uart).get_baud_rate())
-              {
-                id(tf_uart).set_baud_rate(update_baud_rate_);
-                id(tf_uart).setup();
+              if (update_baud_rate_ != id(tf_uart).get_baud_rate()) {
+                set_baud_rate_(update_baud_rate_);
+                //id(tf_uart).set_baud_rate(update_baud_rate_);
+                //id(tf_uart).setup();
+                //delay_seconds_(2);
               }
 
-              std::string response;
               ESP_LOGD(TAG, "Waiting for upgrade response");
-              recv_ret_string_(response, 2000, true); // This can take some time to return
-
+              std::string response;
+              recv_ret_string_(response, 5000, true); // This can take some time to return
               // The Nextion display will, if it's ready to accept data, send a 0x05 byte.
               ESP_LOGD(TAG, "Upgrade response is [%s]",
                       format_hex_pretty(reinterpret_cast<const uint8_t *>(response.data()), response.size()).c_str());
@@ -630,8 +642,8 @@ script:
           auto upload_tft_ = [&](const std::string &url, unsigned int update_baud_rate_) -> bool {
               static const char *const TAG = "script.upload_tft.upload_tft_esp_idf";
               ESP_LOGD(TAG, "Nextion TFT upload requested");
-              ESP_LOGD(TAG, "url: %s", url.c_str());
-              ESP_LOGD(TAG, "baud_rate: %i", update_baud_rate_);
+              ESP_LOGD(TAG, "  url: %s", url.c_str());
+              ESP_LOGD(TAG, "  baud_rate: %i", update_baud_rate_);
 
               if (is_updating_) {
                 ESP_LOGW(TAG, "Currently updating");
@@ -713,10 +725,10 @@ script:
 
               send_nextion_command(command);
 
-              if (update_baud_rate_ != id(tf_uart).get_baud_rate())
-              {
-                id(tf_uart).set_baud_rate(update_baud_rate_);
-                id(tf_uart).setup();
+              if (update_baud_rate_ != id(tf_uart).get_baud_rate()) {
+                set_baud_rate_(update_baud_rate_);
+                //id(tf_uart).set_baud_rate(update_baud_rate_);
+                //id(tf_uart).setup();
               }
 
               std::string response;
@@ -761,35 +773,32 @@ script:
             };
           #endif
 
-          unsigned int upload_tries = 0;
-          while (upload_tries < 5) {
-            upload_tries++;
-            ESP_LOGD(TAG, "Try #%i", upload_tries);
-            if (upload_tft_(url, 921600)) id(restart_nspanel).press();
-            ESP_LOGD(TAG, "Turn off Nextion");
-            id(screen_power).turn_off();
-            delay_seconds_(2);
-            ESP_LOGD(TAG, "Turn on Nextion");
-            id(screen_power).turn_on();
-            delay_seconds_(5);
-          }
-          unsigned int new_baud_rate;
-          if (id(tf_uart).get_baud_rate() == 115200) {
-            new_baud_rate = 921600;
-          } else {
-            new_baud_rate = 115200;
-          }
-          ESP_LOGD(TAG, "Trying again at %i bps", new_baud_rate);
-          if (upload_tft_(url, new_baud_rate)) {
-            id(restart_nspanel).press();
-          }
-          ESP_LOGE(TAG, "TFT upload failed.");
+          ESP_LOGD(TAG, "Try #1 at 921600 bps");
+          if (upload_tft_(url, 921600)) id(restart_nspanel).press();
+          ESP_LOGW(TAG, "Try #1 failed");
+          delay_seconds_(5);
+          ESP_LOGD(TAG, "Try #2 at 921600 bps");
+          if (upload_tft_(url, 921600)) id(restart_nspanel).press();
+          ESP_LOGW(TAG, "Try #2 failed");
+          delay_seconds_(5);
+          ESP_LOGD(TAG, "Try #3 at 115200 bps");
+          if (upload_tft_(url, 115200)) id(restart_nspanel).press();
+          ESP_LOGW(TAG, "Try #3 failed");
           ESP_LOGD(TAG, "Turn off Nextion");
           id(screen_power).turn_off();
           delay_seconds_(2);
           ESP_LOGD(TAG, "Turn on Nextion");
           id(screen_power).turn_on();
-          ESP_LOGD(TAG, "Restarting esphome");
+          delay_seconds_(10);
+          ESP_LOGD(TAG, "Try #4 at 115200 bps");
+          if (upload_tft_(url, 115200)) id(restart_nspanel).press();
+          ESP_LOGE(TAG, "TFT upload failed");
+          ESP_LOGD(TAG, "Turn off Nextion");
+          id(screen_power).turn_off();
+          delay_seconds_(2);
+          ESP_LOGD(TAG, "Turn on Nextion");
+          id(screen_power).turn_on();
+          ESP_LOGD(TAG, "Restarting ESPHome");
           delay_seconds_(2);
           id(restart_nspanel).press();
 
