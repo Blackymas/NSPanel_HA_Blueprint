@@ -140,10 +140,45 @@ script:
           static const char *const TAG = "script.upload_tft";
           ESP_LOGD(TAG, "Starting...");
 
+          auto delay_seconds_ = [](int seconds) {
+            ESP_LOGD(TAG, "Wait %i seconds", seconds);
+            for (int i = 0; i < (seconds*4); i++) {
+              #ifdef ARDUINO
+              delay(250);
+              #elif defined(USE_ESP_IDF)
+              vTaskDelay(pdMS_TO_TICKS(250));
+              #endif
+              App.feed_wdt();
+            }
+          };
+
+          std::string framework = "Unknown";
+          #ifdef ARDUINO
+          framework = "Arduino";
+          #elif defined(ESP_PLATFORM)
+          framework = "ESP-IDF";
+          #endif
+
+          if (disp1->is_setup()) {
+            disp1->set_backlight_brightness(1);
+            disp1->set_component_text_printf("confirm.title", "Upload TFT\\r%s", framework.c_str());
+            disp1->set_component_text_printf("confirm.body", "Preparing...");
+            disp1->goto_page("confirm");
+            disp1->hide_component("bt_close");
+            disp1->hide_component("bt_accept");
+            disp1->hide_component("bt_clear");
+            disp1->hide_component("bt_close");
+            delay_seconds_(1);
+            display_wrapped_text->execute("confirm.body", "Informing the blueprint that panel is unavailable...", 18);
+            disp1->hide_component("bt_close");
+          }
           nextion_init->publish_state(false);
+          if (disp1->is_setup()) {
+            delay_seconds_(1);
+            display_wrapped_text->execute("confirm.body", "Stopping scripts...", 18);
+          }
           stop_all->execute();
-          disp1->set_backlight_brightness(1);
-          disp1->hide_component("255");
+          if (disp1->is_setup()) delay_seconds_(1);
 
           std::vector<uint8_t> buffer_;
 
@@ -163,18 +198,6 @@ script:
             #endif
             uart->set_baud_rate(baud_rate);
             uart->setup();
-          };
-
-          auto delay_seconds_ = [](int seconds) {
-            ESP_LOGD(TAG, "Wait %i seconds", seconds);
-            for (int i = 0; i < (seconds*4); i++) {
-              #ifdef ARDUINO
-              delay(250);
-              #elif defined(USE_ESP_IDF)
-              vTaskDelay(pdMS_TO_TICKS(250));
-              #endif
-              App.feed_wdt();
-            }
           };
 
           auto send_nextion_command = [](const std::string &command) -> bool
@@ -774,16 +797,26 @@ script:
           #endif
 
           ESP_LOGD(TAG, "Try #1 at 921600 bps");
+          if (disp1->is_setup()) {
+            display_wrapped_text->execute("confirm.body", "Try #1 at 921600 bps", 18);
+            delay_seconds_(1);
+          }
           if (upload_tft_(url, 921600)) id(restart_nspanel).press();
           ESP_LOGW(TAG, "Try #1 failed");
+          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", "Try #1 failed", 18);
           delay_seconds_(5);
           ESP_LOGD(TAG, "Try #2 at 921600 bps");
           if (upload_tft_(url, 921600)) id(restart_nspanel).press();
           ESP_LOGW(TAG, "Try #2 failed");
+          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", "Try #2 failed", 18);
           delay_seconds_(5);
           ESP_LOGD(TAG, "Try #3 at 115200 bps");
           if (upload_tft_(url, 115200)) id(restart_nspanel).press();
           ESP_LOGW(TAG, "Try #3 failed");
+          if (disp1->is_setup()) {
+            display_wrapped_text->execute("confirm.body", "Try #3 failed. Restarting display.", 18);
+            delay_seconds_(3);
+          }
           ESP_LOGD(TAG, "Turn off Nextion");
           id(screen_power).turn_off();
           delay_seconds_(2);
