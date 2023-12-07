@@ -11,7 +11,8 @@ substitutions:
 
   ################## Defaults ##################
   # Just in case user forgets to set something #
-  nextion_update_url: "http://github.com/Blackymas/NSPanel_HA_Blueprint/raw/main/custom_configuration/nspanel_blank.tft"
+  nextion_update_url: "http://github.com/Blackymas/NSPanel_HA_Blueprint/raw/main/custom_configuration/nspanel_eu.tft"
+  nextion_blank_url: "http://github.com/Blackymas/NSPanel_HA_Blueprint/raw/main/custom_configuration/nspanel_blank.tft"
   ##############################################
 
   ##### DON'T CHANGE THIS #####
@@ -32,18 +33,6 @@ external_components:
 ########################
 http_request:
   id: httpclient
-
-button:
-  ##### UPDATE TFT DISPLAY #####
-  - name: ${device_name} Update TFT display
-    platform: template
-    icon: mdi:file-sync
-    id: tft_update
-    entity_category: config
-    on_press:
-      - logger.log: "Button pressed: Update TFT display"
-      - lambda: |-
-          upload_tft->execute("${nextion_update_url}");
 
 api:
   services:
@@ -67,12 +56,25 @@ api:
                 clean_url = clean_url.substr(0, endPos + 1);
               }
 
-              if ( clean_url.empty() or clean_url == "default") url = "${nextion_update_url}";
+              if ( clean_url.empty() or clean_url == "default") url = tft_list->state;
               upload_tft->execute(url.c_str());
 
-display:
-  - id: !extend disp1
-    #tft_url: ${nextion_update_url}
+button:
+  ##### UPDATE TFT DISPLAY #####
+  - name: ${device_name} Update TFT display
+    platform: template
+    icon: mdi:file-sync
+    id: tft_update
+    entity_category: config
+    on_press:
+      - lambda: |-
+          static const char *const TAG = "button.tft_update.on_press";
+          ESP_LOGD(TAG, "Update TFT display button pressed");
+          upload_tft->execute(tft_list->state.c_str());
+
+#display:
+#  - id: !extend disp1
+#    tft_url: ${nextion_update_url}
 
 script:
   - id: upload_tft_new #NOT IN USE FOR NOW
@@ -81,7 +83,7 @@ script:
       url: string
     then:
       - lambda: |-
-          static const char *const TAG = "script.upload_tft";
+          static const char *const TAG = "script.upload_tft_new";
           ESP_LOGVV(TAG, "Starting...");
 
           nextion_init->state = false;
@@ -853,3 +855,22 @@ script:
           id(restart_nspanel).press();
 
           ESP_LOGD(TAG, "Finished!");
+
+select:
+  - id: tft_list
+    name: Update TFT display URL
+    platform: template
+    options:
+      - "${nextion_update_url}"
+      - "${nextion_blank_url}"
+    initial_option: "${nextion_update_url}"
+    optimistic: true
+    restore_value: false
+    internal: false
+    entity_category: config
+    icon: mdi:file-arrow-up-down-outline
+    disabled_by_default: true
+    set_action:
+      - lambda: |-
+          static const char *const TAG = "select.tft_list.set_action";
+          ESP_LOGD(TAG, "Selected TFT URL: %s", x.c_str());
