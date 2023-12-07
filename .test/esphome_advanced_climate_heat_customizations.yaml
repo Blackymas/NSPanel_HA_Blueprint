@@ -120,14 +120,14 @@ light:
     on_turn_on:
       then:
         - lambda: |-
-            ESP_LOGV("light.display_light", "Turn-on");
-            if (id(current_page).state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
-            id(timer_reset_all).execute(id(wakeup_page_name).state.c_str());
+            ESP_LOGD("light.display_light", "Turn-on");
+            if (current_page->state == "screensaver") disp1->goto_page(wakeup_page_name->state.c_str());
+            timer_reset_all->execute(wakeup_page_name->state.c_str());
     on_turn_off:
       then:
         - lambda: |-
-            ESP_LOGV("light.display_light", "Turn-off");
-            id(disp1).goto_page("screensaver");
+            ESP_LOGD("light.display_light", "Turn-off");
+            disp1->goto_page("screensaver");
 
 logger:
   # Enable hardware UART serial logging
@@ -146,22 +146,22 @@ output:
     write_action:
       - lambda: |-
           ESP_LOGV("output.display_output", "state: %f", state);
-          uint current_brightness = int(round(id(display_light).current_values.is_on() ? (id(display_light).current_values.get_brightness() * 100.0f) : 0.0));
+          uint8_t current_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
           ESP_LOGV("output.display_output", "current_brightness: %i%%", current_brightness);
-          id(set_brightness).execute(current_brightness);
-
+          set_brightness->execute(current_brightness);
+    
 script:
   # Updates the existing `page_changed` script to update the `display_light` status when a page changes
   - id: !extend page_changed
     then:
       - lambda: |-
-          ESP_LOGV("script.page_changed(custom)", "page: %s", page.c_str());
-          ESP_LOGV("script.page_changed(custom)", "is_on(): %i", id(display_light).current_values.is_on() ? 1 : 0);
-          if (page == "screensaver" and id(display_light).current_values.is_on()) {
-            auto call = id(display_light).turn_off();
+          ESP_LOGD("script.page_changed(custom)", "page: %s", page.c_str());
+          ESP_LOGV("script.page_changed(custom)", "is_on(): %s", display_light->current_values.is_on() ? "True" : "False");
+          if (page == "screensaver" and display_light->current_values.is_on()) {
+            auto call = display_light->turn_off();
             call.perform();
-          } else if (page != "screensaver" and (not id(display_light).current_values.is_on())) {
-            auto call = id(display_light).turn_on();
+          } else if (page != "screensaver" and (not display_light->current_values.is_on())) {
+            auto call = display_light->turn_on();
             call.perform();
           }
 
@@ -169,14 +169,19 @@ script:
   - id: !extend set_brightness
     then:
       - lambda: |-
-          ESP_LOGD("script.set_brightness(custom)", "brightness: %i", brightness);
-          if (id(current_page).state != "screensaver" and brightness > 0) {
-            auto call = id(display_light).turn_on();
-            call.set_brightness(static_cast<float>(id(display_last_brightness)) / 100.0f);
-            call.perform();
-          } else {
-            auto call = id(display_light).turn_off();
-            call.perform();
+          ESP_LOGD("script.set_brightness(custom)", "brightness: %i%%", brightness);
+          uint8_t current_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
+          ESP_LOGV("script.set_brightness(custom)", "current_brightness: %i%%", current_brightness);
+          if (brightness != current_brightness) {
+            if (current_page->state != "screensaver" and brightness > 0) {
+              auto call = display_light->turn_on();
+              call.set_brightness(static_cast<float>(id(display_last_brightness)) / 100.0f);
+              call.perform();
+            } else if (display_light->current_values.is_on()) {
+              auto call = display_light->turn_off();
+              call.set_brightness(0);
+              call.perform();
+            }
           }
 
 time:
