@@ -34,12 +34,12 @@ Updates may come with changes on the blueprint inputs and we highly recommend yo
 ## Breaking changes
 
 1. Service `esphome.xxxxx_set_component_color` parameter `background` is deprecated.
-2. Due to the additional custom button, the other buttons on home page changed it's position slightly
+2. Due to the additional custom buttons, the other buttons on home page changed their positions.
 
 &nbsp;
 ## Overview of noteworthy changes
 1. Standardized entity's icons
-2. Additional custom button on Home page
+2. Additional custom buttons on Home page
 3. Outdoor temperature selectable font size
 
 &nbsp;
@@ -49,8 +49,8 @@ Updates may come with changes on the blueprint inputs and we highly recommend yo
 The engine for defining the icons to be shown and it's color was standardize between all the pages, so now you may see a more consistent User's Interface.
 
 &nbsp;
-### 2. Additional custom button on Home page
-It's that simple, now you have 4 buttons where used to be 3. 😉
+### 2. Additional custom buttons on Home page
+It's that simple, now you have 6 buttons where used to be 3. 😉
 
 &nbsp;
 ### 3. Outdoor temperature selectable font size
