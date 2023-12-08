@@ -56,7 +56,7 @@ It's that simple, now you have 4 buttons where used to be 3. 😉
 ### 3. Outdoor temperature selectable font size
 Now you can select the font size of your outdoor temperature display:
 
-<<ADD IMAGE>>
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/263f14d6-39f7-41d2-ae12-72f403d811fd)
 
 > Important: Long text with bigger fonts may exceed the limit of space reserved for this with incomplete information shown.
 
