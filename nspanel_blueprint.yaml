@@ -6554,10 +6554,7 @@ condition:
         conditions:
           - '{{ trigger.event is defined and trigger.event.data is defined }}'
           - '{{ trigger.event.data.entity_id is defined }}'
-          - condition: or
-            conditions:
-              - '{{ trigger.event.data.entity_id is match "light." }}'
-              - '{{ trigger.event.data.entity_id == states(detailed_entity) }}'
+          - '{{ trigger.event.data.entity_id is not match "media_player." }}'
       - condition: and
         conditions:
           - '{{ trigger.event is defined and trigger.event.data is defined }}'
@@ -8253,8 +8250,18 @@ action:
                         sequence: &refresh_page_climate
                           - &variables-climate_entity
                             variables:
-                              climate_entity_temp: '{{ nspanel_event.entity if nspanel_event is defined and nspanel_event.entity is defined else trigger.entity_id }}'
-                              climate_entity: '{{ climate_entity_temp if climate_entity_temp is string and climate_entity_temp | length > 0 and climate_entity_temp != "embedded_climate" else climate }}'
+                              climate_entity_temp: >
+                                {{
+                                  nspanel_event.entity
+                                  if nspanel_event is defined and nspanel_event.entity is defined
+                                  else (trigger.entity_id if trigger.entity_id is defined else trigger.event.data.entity_id)
+                                }}
+                              climate_entity: >
+                                {{
+                                  climate_entity_temp
+                                  if climate_entity_temp is string and climate_entity_temp | length > 0 and climate_entity_temp != "embedded_climate"
+                                  else climate
+                                }}
                               settings_entity_domain: >
                                 {{
                                   climate_entity.split(".")[0]
@@ -9586,11 +9593,48 @@ action:
             id:
               - home_custom_buttons
         sequence:
-          - *variables_home_page_custom_buttons
-          - repeat:
-              for_each: '{{ home_page_custom_buttons | selectattr("entity", "defined") | selectattr("entity", "eq", trigger.event.data.entity_id) | list }}'
-              sequence:
-                - *display_home_page_custom_buttons
+          - variables:
+              trigger_entity_id: '{{ trigger.event.data.entity_id }}'
+          - choose:
+              - alias: "Home page"
+                conditions:
+                  - '{{ page.current in page.home }}'
+                sequence:
+                  - *variables_home_page_custom_buttons
+                  - repeat:
+                      for_each: '{{ home_page_custom_buttons | selectattr("entity", "defined") | selectattr("entity", "eq", trigger_entity_id) | list }}'
+                      sequence:
+                        - *display_home_page_custom_buttons
+              - alias: 'Light settings page'
+                conditions:
+                  - '{{ page.current == page.light }}'
+                  - '{{ trigger_entity_id is match "light." }}'
+                sequence: *refresh_page_light
+              - alias: 'Cover settings page'
+                conditions:
+                  - '{{ page.current == page.cover }}'
+                  - '{{ trigger_entity_id is match "cover." }}'
+                sequence: *refresh_page_cover
+              - alias: 'Climate page'
+                conditions:
+                  - '{{ page.current == page.climate }}'
+                  - '{{ trigger_entity_id is match "climate." }}'
+                sequence: *refresh_page_climate
+              - alias: 'Fan page'
+                conditions:
+                  - '{{ page.current == page.fan }}'
+                  - '{{ trigger_entity_id is match "fan." }}'
+                sequence: *refresh_page_fan
+              - alias: 'Media player page'
+                conditions:
+                  - '{{ page.current == page.media_player }}'
+                  - '{{ trigger_entity_id is match "media_player." }}'
+                sequence: *refresh_page_media_player
+              #- alias: 'Alarm page'
+              #  conditions:
+              #    - '{{ trigger_entity_id == page.alarm }}'
+              #  sequence: *refresh-page_alarm
+
 
       ##### HOME PAGE - Values #####
       - alias: Home page - Values
