@@ -40,6 +40,7 @@ Updates may come with changes on the blueprint inputs and we highly recommend yo
 ## Overview of noteworthy changes
 1. Standardized entity's icons
 2. Additional custom button on Home page
+3. Outdoor temperature selectable font size
 
 &nbsp;
 ## Details of noteworthy changes
@@ -50,6 +51,14 @@ The engine for defining the icons to be shown and it's color was standardize bet
 &nbsp;
 ### 2. Additional custom button on Home page
 It's that simple, now you have 4 buttons where used to be 3. 😉
+
+&nbsp;
+### 3. Outdoor temperature selectable font size
+Now you can select the font size of your outdoor temperature display:
+
+<<ADD IMAGE>>
+
+> Important: Long text with bigger fonts may exceed the limit of space reserved for this with incomplete information shown.
 
 &nbsp;
 ## Next topics we are currently working on
