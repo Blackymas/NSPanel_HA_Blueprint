@@ -34,10 +34,12 @@ Updates may come with changes on the blueprint inputs and we highly recommend yo
 ## Breaking changes
 
 1. Service `esphome.xxxxx_set_component_color` parameter `background` is deprecated.
+2. Due to the additional custom button, the other buttons on home page changed it's position slightly
 
 &nbsp;
 ## Overview of noteworthy changes
 1. Standardized entity's icons
+2. Additional custom button on Home page
 
 &nbsp;
 ## Details of noteworthy changes
@@ -46,7 +48,8 @@ Updates may come with changes on the blueprint inputs and we highly recommend yo
 The engine for defining the icons to be shown and it's color was standardize between all the pages, so now you may see a more consistent User's Interface.
 
 &nbsp;
-### 2. 
+### 2. Additional custom button on Home page
+It's that simple, now you have 4 buttons where used to be 3. 😉
 
 &nbsp;
 ## Next topics we are currently working on
@@ -58,6 +61,8 @@ See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
 ## New Contributors
 
 ## Previous releases
+- [v4.1.4 - Support to Home Assistant 2023.12.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.4)
+- [v4.1.3 - Bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.3)
 - [v4.1.2 - Bug fixes and minor enhancements](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.2)
 - [v4.1.1 - UI Enhancements and Reintroduction of `play_rtttl` Service](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.1)
 - [v4.1 - Easier TFT transfer](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1)
