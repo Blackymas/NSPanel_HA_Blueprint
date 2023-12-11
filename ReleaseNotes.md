@@ -35,7 +35,7 @@ Updates may come with changes on the blueprint inputs and we highly recommend yo
 
 1. Service `esphome.xxxxx_set_component_color` parameter `background` is deprecated.
 2. Due to the additional custom buttons, the other buttons on home page changed their positions.
-3. The Wi-Fi power save mode is back to "NONE" as default<br>
+3. The Wi-Fi power save mode is back to "NONE" as default.<br>
 This was the default until v4.0, but we changed on v4.1 to support Bluetooth components, however as this is not used by the majority of users, we are reverting back to the original setting. You can (and should if you want use Bluetooth) enforce other mode as a customization, like in the example bellow:
 ```yaml
 ##### My customization - Start #####
@@ -46,6 +46,7 @@ wifi:
   power_save_mode: LIGHT
 ##### My customization - End #####
 ```
+4. Default baud rate for advanced mode is back to 115200 bps, to avoid issues when creating buttons pages.
 
 &nbsp;
 ## Overview of noteworthy changes
