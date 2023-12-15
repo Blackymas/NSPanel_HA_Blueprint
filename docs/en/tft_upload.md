@@ -1,45 +1,46 @@
-> #### _**ATTENTION! if you have already installed the version "nspanel-lovelace-ui" from joBr99 on your NSPanel, an intermediate step is necessary - otherwise it is not possible to install this or any other version.**_ 
+
+> #### _**ATTENTION! If you have already installed the version "nspanel-lovelace-ui" from joBr99 on your NSPanel, an intermediate step is necessary - otherwise, it is not possible to install this or any other version.**_
 > See [Common Issues | TFT Upload when NSPanel Lovelace UI has been installed](howto.md)
 <br>
 
-> #### _**The previous method of having the NSPanel download the TFT directly from GitHub has been discontinued due to a large number of users experiencing slow or failed downloads. Please make sure you change to locally hosted tft file**_ 
+> #### _**The previous method of having the NSPanel download the TFT directly from GitHub has been discontinued due to a large number of users experiencing slow or failed downloads. Please make sure you change to a locally hosted TFT file for a more reliable installation process.**_
 
-There are a number of issues that can affect the upload of the TFT upload, these are not issues with the NSPanel HA Blueprint project but seem to be common to Nextion displays and ESPhome. Not all of the below causes affect all users however following instructions in each point have resolved 
+## Common Issues and Troubleshooting
 
-<br>In order of likelihood:
+The following is a list of common issues affecting the TFT upload, along with suggested solutions. These issues are not specific to the NSPanel HA Blueprint project but are common to Nextion displays and ESPHome.
 
-### Using a local source (Home Assistant) 
-This is our most common cause of issues and is the reason our instructions no longer point to downloading the TFT from GitHub, changing the nextion_update_url to host the TFT file on your home assistant resolves the majority of issues.
+### Wait a Bit Before Starting the TFT Upload
+- **Issue**: The Nextion display might not connect to ESPHome immediately after boot.
+- **Solution**: Wait up to 2 minutes for the boot script to complete. If you are already using a TFT from this project, the display of ESPHome version and the framework used (`arduino` vs `esp-idf`) is an indication that a communication was established. If you haven't installed any TFT yet, look for Nextion related messages on ESPHome logs.
+- **Additional Guidance**: Knowing when the device is fully booted and ready to accept the TFT upload can prevent many issues. Observe any changes in the display or logs indicators to ensure the device is ready.
 
-&nbsp;
-### HTTP instead of HTTPS
-While HTTPS may work for some users we have seen it cause a number of issues. Change your TFT file hosting and nextion_update_url to use http. 
+### Using a Local Source (Home Assistant)
+- **Issue**: Problems with downloading the TFT from GitHub.
+- **Solution**: Host the TFT file on your Home Assistant and change the `nextion_update_url` accordingly.
+- **Step-by-Step Guide**: Here's how you can change your `nextion_update_url`:
+    1. Locate your panel's ESPHome configuration file.
+    2. Find the line with `nextion_update_url`.
+    3. Replace the URL with the local address where your TFT file is hosted.
 
-&nbsp;
-### Remove customizations
-Please try removing any customization you might have added to your panel. Specially `bluetooth_proxy` and `ble_tracker` consumes quite a lot of memory, competing with the uploading TFT engine, which also requires lots of memory from ESP.
+### HTTP Instead of HTTPS
+- **Issue**: HTTPS connections may be problematic with ESP.
+- **Solution**: Use HTTP for hosting the TFT file and updating the `nextion_update_url`.
+- **Why HTTP?**: HTTP can be more stable for these connections. To switch, simply replace 'https' with 'http' in your URLs and make sure your http server supports non-secure connections.
 
-&nbsp;
-### Network issues
-Check there are no issues with your network, bring your NSPanel and router closer together or try rebooting the router.
-The issue we have seen with this is _connection refused_ or _connection reset_.
+### Remove Customizations
+- **Issue**: Customizations like `bluetooth_proxy` and `ble_tracker` may interfere with the upload.
+- **Solution**: Temporarily remove any customizations to free up memory.
+- **How to Remove Customizations**: Identify any additional features you've added and remove them from your configuration file. Pay special attention to memory-intensive customizations.
 
-&nbsp;
-### DNS
-Related to point 2, please use IP address instead of DNS. e.g. use http://192.168.0.100:8123/local/nspanel.tft instead of http://homeassistant.local:8123/local/nspanel.tft
+### Use IP Address Instead of DNS
+- **Issue**: DNS may cause connection problems.
+- **Solution**: Use the IP address of your Home Assistant directly.
+- **Example**: Replace `http://homeassistant.local:8123/local/nspanel_blank.tft` with `http://192.168.0.100:8123/local/nspanel_blank.tft`.
 
-&nbsp;
-### Check the file size by downloading to your computer
-Use the same url provided to ESPHome into your browser (in your computer), e.g. http://192.168.0.100:8123/local/nspanel_eu.tft, and make sure you can download the file to your computer and the file have the same size as the one from GitHub.
-
-&nbsp;
-### Power cycle your panel
-Cut the power supply off, wait a bit, and power on again. It usually helps when you already tried many other things.
-If your panel is already installed in your wall, you probably can still power cycle using your power relay connected to that room.
-
-&nbsp;
 ### Consider changing the framework
-This project supports both `arduino` (ESPHome default) or `esp-idf` frameworks. Those have totally independently upload TFT engines, so changing the framework may cause a significant change.
+- **Issue**: You might be facing some situation where the transfer engine used by your framework cannot handle it properly.
+- **Solution**: Temporarily switch between the frameworks.
+- **Additional Guidance**: This project supports both `arduino` (ESPHome default) or `esp-idf` frameworks. Those have totally independently upload TFT engines, so changing the framework may cause a significant change.
 In our experience, `esp-idf` have a better memory management and therefore is more efficient with uploading TFT, however the support to HTTPS is a bit better (although not indicated) with `arduino`.
 You can set the framework you want by adding this to your ESPHome yaml:
 #### ESP-IDF
@@ -55,15 +56,45 @@ esp32:
     type: arduino
 ```
 
-&nbsp;
-### Flash your panel again
-Remove all add-ons and non-essential customization, flash your panel again (you can do this over the air/wirelessly, although it is recommended to use serial when changing between frameworks), try to update the TFT, add the add-ons and removed customization back and then flash it again.
+### Check the File Size by Downloading to Your Computer
+- **Issue**: Ensuring the file size matches the GitHub version.
+- **Solution**: Use the same URL you provided to ESPHome to download the file on your computer and compare sizes.
+- **Verification Steps**: Download the file, then right-click and select 'Properties' to check the size. Compare this with the size listed on GitHub or from the file you downlodaded directly from GitHub.
 
-&nbsp;
-### Try an alternative http service. There are many options available for free to run under you local Windows, MAC or Linux machine.
-Just to name some:
-- NGINX
-- IIS
-- Apache
-- Xampp
-- etc.
+### Power Cycle Your Panel
+- **Issue**: General troubleshooting.
+- **Solution**: Turn off the power supply, wait a moment, and power it back on. If your panel is already installed in the wall, you probably can still power cycle using your electricity relay's panel and switching the relay connected to your panel.
+- **How Long to Wait**: Wait at least 30 seconds before turning the power back on. This ensures the system resets to a clean state.
+
+### Flash your panel again
+- **Issue**: Your firmware might be missing some important library, you may be using an outdated version or the ESP may be out of memory.
+- **Solution**: Remove all add-ons and non-essential customization and flash your panel again.
+- **Step-by-Step Guide**:
+    1. Look your yaml file and commment out all the customization (typically on a section name "My customizations") and any of the remote files other than `nspanel_esphome.yaml`.
+    2. Flash your panel with the new cleaner yaml. You can do this over the air/wirelessly, although it is recommended to use serial when changing between frameworks
+    3. Try to update the TFT file again
+    4. Add the add-ons and removed customization back and then flash it again.
+
+### Try an alternative http service
+- **Issue**: Your current http server may be overloaded.
+- **Solution**: Try another http server installed in your computer. There are many options available for free to run under you local Windows, MAC or Linux machine.
+- **Examples**: Just to name some:
+| Solution | Website | Supported OSs | Pros | Cons |
+|----------|---------|---------------|------|------|
+| NGINX    | [nginx.org](https://nginx.org/en/) | Linux, Windows, macOS | High performance, efficient for static content, good for high concurrency | Configuration can be complex for beginners |
+| IIS      | [Microsoft Web Platform](https://www.microsoft.com/web/downloads/platform.aspx) | Windows | Integrated with Windows, GUI for setup, good for Windows environments | Limited to Windows OS |
+| Apache   | [httpd.apache.org](https://httpd.apache.org/) | Linux, Windows, macOS | Highly reliable and flexible, wide OS compatibility, extensive customization | Can be less efficient under high load than NGINX |
+| XAMPP    | [apachefriends.org](https://www.apachefriends.org/index.html) | Linux, Windows, macOS | All-in-one package, easy to install, ideal for beginners | Not optimized for high-traffic sites, more suited for development than production |
+
+
+## Additional Tips and Resources
+After troubleshooting, if issues persist, consult the [Issues](/Blackymas/NSPanel_HA_Blueprint/issues) and feel free to create a new one asking for more personalized assistance.
+
+Please share as much info as possible, like:
+1. Describing (or a picture of) what is in your screen
+2. Are updating from a previous version of this same project, or coming from another NSPanel customization (which one?) or customizing for the first time a panel with original Sonoff settings?
+3. Please share the ESPHome logs from when your panel starts to the moment the upload fails.
+4. Describe what you have already tried.
+
+## Important note
+Remember, these steps are a guideline and might vary slightly based on your specific setup and previously installed system.
