@@ -1,54 +1,30 @@
-In this post we will collect all the important things about different topics that we notice over time.&nbsp;
 
-> ### _**NOTE! If you notice something during the configuration or you had some problem and could solve it, it would be great for us and everyone else in the community if you share your knowledge with us. You can write me a short message and I will include it in this post. 
+# Introduction
+In this document, we collect important information, tips, and solutions related to various topics noticed over time. This is a community-driven resource, and we encourage everyone to contribute their knowledge.
 
-&nbsp;  
+## Community Contribution
+If you have a solution or tip to share, please contribute! Your knowledge can significantly help others in the community. You can write a short message with your findings, and we'll include it here. 
 
-> ### IMPORTANT! If you have a problem with the setup or a feature and open an _**"Issue on Github "**_, please describe your problem as detailed as possible. Pictures can also help here.
+# Topics and Solutions
+Below are the topics covered in this document, each with relevant tips and solutions.
 
-&nbsp;  
-
-> ### IMPORTANT! When you open an _**"Issue "**_, follow the instructions bitterly see here [How to create "Issues"](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-HowTo---All-important-things-you-should-know#1-how-to-create-issues-when-I-have-a-problem).
-
-&nbsp;  
-&nbsp;  
-
-------
-
-&nbsp;   
-
-# Contents:
-
-1. [How do I create "Issues" when I have a problem ](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-HowTo---All-important-thing-you-should-know#1-how-do-I-create-issues-when-I-have-a-problem)
-2. [Update Blueprint](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-HowTo---All-important-thing-you-should-know#2-update-blueprint)
-3. [Update ESPHome](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-HowTo---All-important-thing-you-should-know#3-update-esphome)
-4. [Update TFT](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-HowTo---All-important-thing-you-should-know#4-update-tft)
-5. Manual TFT upload via local HA (coming soon)
-6. Upload TFT error and solution (coming soon)
-7. [Notification via HA](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-HowTo---All-important-thing-you-should-know#7-notification-via-ha)
-8. [Climate control with relays](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-HowTo---All-important-thing-you-should-know#8-climate-control-with-relays)
-9. [Display internal switches as lamp in HA](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-HowTo---All-important-thing-you-should-know#9-display-internal-switches-as-lamp-in-ha)
-10. Quick navigation (coming soon)
-11. [Call certain pages directly](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-HowTo---All-important-thing-you-should-know#11-call-certain-pages-directly)
-12. [Play RTTTL Sound](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-HowTo---All-important-thing-you-should-know#12-play-rtttl-sound)
-13. Advanced functions and automations (coming soon)
-14. [Start automations via Input_Boolean](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-HowTo---All-important-thing-you-should-know#14-start-automations-via-input_boolean)
+1. [How do I create "Issues" when I have a problem ](#How-do-I-create-issues-when-I-have-a-problem)
+1. [Update Blueprint](#Update-blueprint)
+1. [Update ESPHome](#Update-esphome)
+1. [Update TFT](#Update-tft)
+1. [Notification via HA](#notification-via-ha)
+1. [Climate control with relays](#climate-control-with-relays)
+1. [Call a page directly](#Call-a-page-directly)
+1. [Play RTTTL Sound](#play-rtttl-sound)
+1. [Start automations via Input_Boolean](#Start-automations-via-input_boolean)
 
 
-
-&nbsp;  
-
-***
-
-&nbsp; 
-
-## 1. How to create "issues" when I have a problem
+## How to create "issues" when I have a problem
 
 > _**To be able to solve your problem, it is important for us to have as much information as possible**_.
 
-* Issues can be created in DE or EN.
 * Describe your problem as detailed as possible.
-* Please write your ESPHome and Home Assistant version. 
+* Please write your ESPHome and Home Assistant version, as the version of files of this project (TFT, ESPHome and Blueprint).
 * Please go to your automation and then to the "3 dots" and then to _**Edit as YAML**_. Copy the complete code and attach it to the ticket
 * An important "helper" for solving problems is the trace of an automation. You can find the trace under _**Settings --> Automations & Scenes --> your NSPanel automation --> Traces (top right)**_
 
@@ -95,9 +71,7 @@ use_blueprint:
     left_button_name: Test 2
 ```
 
-------
-
-## 2. Update Blueprint
+## Update Blueprint
 
 >IMPORTANT: To install a new version of the NSPanel, the Blueprint, ESPHome and the TFT must be updated!
 
@@ -108,9 +82,7 @@ use_blueprint:
 5. The new Blueprint is now available. Settings that have already been made are adopted.
 6. Please review the blueprint settings (under Automations tab) for new settings available with the new version.
 
-------
-
-## 3. Update ESPHome
+## Update ESPHome
 
 ***IMPORTANT:***
 - *To install a new version of the NSPanel, the Blueprint, ESPHome and the TFT must be updated!*
@@ -135,9 +107,7 @@ The new firmware will be built and then flashed to your panel, which will restar
 ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/e63dcb4a-ef74-4665-9897-455e02950964)
 
 
-------
-
-## 4. Update TFT
+## Update TFT
 
 >IMPORTANT: To install a new version of the NSPanel, the Blueprint, ESPHome and the TFT must be updated!
 
@@ -151,21 +121,7 @@ The display can be updated via the UI:
 
    ![DisplayUpdate](./(DE)-HowTo---Alle-wichtigen-Dinge-die-man-wissen-sollte.assets/DisplayUpdate.PNG)
 
-------
-
-## 5. Manual TFT upload via local HA
-
-coming soon
-
-------
-
-## 6. Upload TFT error and solution 
-
-coming soon
-
-------
-
-## 7. Notification via HA
+## Notification via HA
 
 To show a notification on the NSPAnel, the following service call can be used:
 
@@ -202,14 +158,7 @@ trigger:
       text: Example for a Notification on the Panel Screen
 ```
 
-
-------
-
-## 
-
-------
-
-## 8. Climate control with Relays
+## Climate control with Relays
 > Attention!! Although these instructions are still valid, since v4.0 there is a better way to setup a climate control using the panel's relays: https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-Add%E2%80%90on:-Climate
 
 In order to use the NSPanel to control a radiator or underfloor heating, at least one Generic Thermostat must be created in the HA. More information can be found here: https://www.home-assistant.io/integrations/generic_thermostat/
@@ -239,27 +188,7 @@ climate:
 
 Afterwards, the climate.entity must be assigned accordingly in the panel configuration:![climate](./(DE)-HowTo---Alle-wichtigen-Dinge-die-man-wissen-sollte.assets/climate.PNG)
 
-------
-
-## 9. Display internal switches as lamp in HA
-
-In the world of Home Assistant, the relay in the NSPanel is a switch. And although this is generally correct, these relays are often used for a lamp or a fan, for example. If now e.g. a lamp is switched directly with the relay, it is desirable that also in the HA the switch is displayed as a lamp or that this "lamp" should be added to a light group.
-
-With the Switch as X integration, these switches can be converted into the entity types that best suit the use case: https://www.home-assistant.io/integrations/switch_as_x/ 
-
-![Swichasx](./(DE)-HowTo---Alle-wichtigen-Dinge-die-man-wissen-sollte.assets/Swichasx.png)
-
-
-
-------
-
-## 10. Quick Navigation
-
-coming soon
-
-------
-
-## 11. Call certain pages directly
+## Call a page directly
 
 Sometimes it can make sense to automatically show a certain side of the display. To do this, the following service can be used:
 
@@ -271,13 +200,21 @@ data:
 
 For example, to directly display button page 2, "home" must be replaced with "buttonpage02".
 
-The following pages are currently available:
+The following pages are currently available for a direct call:
+  - alarm
+  - buttonpage01
+  - buttonpage02
+  - buttonpage03
+  - buttonpage04
+  - climate
+  - entitypage01
+  - entitypage02
+  - entitypage03
+  - entitypage04
+  - home
+  - qrcode
 
-![img](./assets/Bildschirmfoto_2023-03-21_um_00.24.01.png)
-
-------
-
-## 12. Play RTTTL Sound
+## Play RTTTL Sound
 
 HA can send a RTTTL to the NSPanel, custom melodies are possible. 
 
@@ -297,15 +234,7 @@ More information: https://esphome.io/components/rtttl.html#common-beeps
 
 More songs: https://codebender.cc/sketch:109888#RTTTL%20Songs.ino
 
-------
-
-## 13. Advanced functions and automations
-
-coming soon
-
-------
-
-## 14. Start Automations via Input_Boolean
+## Start Automations via Input_Boolean
 
 Although the NSPanel can execute scripts directly over the buttons, there is also the possibility of starting automations directly by the means of Input_Boolean.
 
@@ -315,8 +244,3 @@ https://www.home-assistant.io/integrations/input_boolean/![Toggle1](./(EN)-HowTo
 Now add the created Input_Boolean as a trigger in the desired automation under State:![Toggle2](./(DE)-HowTo---Alle-wichtigen-Dinge-die-man-wissen-sollte.assets/Toggle2.PNG)
 
 In the last step, assign the trigger to a button in the Panel Config:![Toggle3](./(DE)-HowTo---Alle-wichtigen-Dinge-die-man-wissen-sollte.assets/Toggle3.PNG)
-
-
-
-------
-
