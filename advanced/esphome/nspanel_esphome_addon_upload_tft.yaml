@@ -19,20 +19,22 @@ substitutions:
   upload_tft_chunk_size_max: "32768"
   #############################
 
-external_components:
-  - source: github://pr#3256 # adds esp-idf support to http_request
-    components:
-      - http_request
-#  - source: github://pr#5484 # adds exit reparse to Nextion library
+#external_components:
+#  - source: github://pr#3256 # adds esp-idf support to http_request
+#    components:
+#      - http_request
+#  - source: github://pr#5910
 #    components:
 #      - nextion
+#      - uart
+#    refresh: 1s
 
 ##### HTTP REQUEST #####
 # Enables http client  #
 # for upload_tft.      #
 ########################
-http_request:
-  id: httpclient
+#http_request:
+#  id: httpclient
 
 api:
   services:
@@ -72,12 +74,12 @@ button:
           ESP_LOGD(TAG, "Update TFT display button pressed");
           upload_tft->execute(tft_list->state.c_str());
 
-#display:
-#  - id: !extend disp1
-#    tft_url: ${nextion_update_url}
+display:
+  - id: !extend disp1
+    tft_url: ${nextion_update_url}
 
 script:
-  - id: upload_tft_new #NOT IN USE FOR NOW
+  - id: upload_tft_nextion #NOT IN USE FOR NOW
     mode: single
     parameters:
       url: string
@@ -85,8 +87,7 @@ script:
       - lambda: |-
           static const char *const TAG = "script.upload_tft_new";
           ESP_LOGVV(TAG, "Starting...");
-
-          nextion_init->state = false;
+          nextion_status->execute();
 
           auto delay_seconds_ = [](int seconds) {
             ESP_LOGD(TAG, "Wait %i seconds", seconds);
@@ -100,38 +101,109 @@ script:
             }
           };
 
-          ESP_LOGV(TAG, "Setting TFT url: %s", url.c_str());
-          //disp1->set_tft_url(url.c_str());
-          unsigned int upload_tries = 0;
-          while (upload_tries < 3) {
-            upload_tries++;
-            ESP_LOGD(TAG, "Try #%i", upload_tries);
-            nextion_status->execute();
-            if (!disp1->is_setup()) {
-              ESP_LOGD(TAG, "Setting Nextion protocol reparse mode to passive");
-              exit_reparse->execute();
-              delay_seconds_(5);
-            }
-            ESP_LOGV(TAG, "Calling upload from Nextion component");
-            //if (disp1->upload_tft()) id(restart_nspanel).press();
-            ESP_LOGD(TAG, "Turn off Nextion");
-            screen_power->turn_off();
-            delay_seconds_(3);
-            ESP_LOGD(TAG, "Turn on Nextion");
-            screen_power->turn_on();
-            delay_seconds_(10);
+          std::string framework = "Unknown";
+          #ifdef ARDUINO
+          framework = "Arduino";
+          #elif defined(ESP_PLATFORM)
+          framework = "ESP-IDF";
+          #endif
+
+          if (disp1->is_setup()) {
+            disp1->set_backlight_brightness(1);
+            disp1->set_component_text_printf("confirm.title", "Upload TFT\\r%s", framework.c_str());
+            disp1->set_component_text_printf("confirm.body", "Preparing...");
+            disp1->goto_page("confirm");
+            disp1->hide_component("bt_close");
+            disp1->hide_component("bt_accept");
+            disp1->hide_component("bt_clear");
+            disp1->hide_component("bt_close");
+            App.feed_wdt();
+            delay_seconds_(1);
+            display_wrapped_text->execute("confirm.body", "Informing the blueprint that panel is unavailable...", 18);
+            disp1->hide_component("bt_close");
+            App.feed_wdt();
           }
-          ESP_LOGE(TAG, "TFT upload failed.");
+          nextion_init->publish_state(false);
+          App.feed_wdt();
+          if (disp1->is_setup()) {
+            delay_seconds_(1);
+            display_wrapped_text->execute("confirm.body", "Stopping scripts...", 18);
+            App.feed_wdt();
+          }
+          stop_all->execute();
+          if (disp1->is_setup()) delay_seconds_(1);
+          App.feed_wdt();
+
+          ESP_LOGD(TAG, "Try #1 at 921600 bps");
+          nextion_status->execute();
+          if (disp1->is_setup()) {
+            display_wrapped_text->execute("confirm.body", "Try #1 at 921600 bps", 18);
+            App.feed_wdt();
+            delay_seconds_(1);
+          }
+          //if (disp1->upload_tft(921600)) id(restart_nspanel).press();
+          ESP_LOGW(TAG, "Try #1 failed");
+          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", "Try #1 failed", 18);
+          App.feed_wdt();
+          delay_seconds_(5);
+          ESP_LOGD(TAG, "Try #2 at 921600 bps");
+          nextion_status->execute();
+          App.feed_wdt();
+          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", "Try #2 at 921600 bps", 18);
+          //if (disp1->upload_tft(921600)) id(restart_nspanel).press();
+          ESP_LOGW(TAG, "Try #2 failed");
+          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", "Try #2 failed", 18);
+          App.feed_wdt();
+          delay_seconds_(5);
+          ESP_LOGD(TAG, "Try #3 at 115200 bps");
+          nextion_status->execute();
+          App.feed_wdt();
+          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", "Try #3 at 115200 bps", 18);
+          //if (disp1->upload_tft(115200)) id(restart_nspanel).press();
+          ESP_LOGW(TAG, "Try #3 failed");
+          App.feed_wdt();
+          if (disp1->is_setup()) {
+            display_wrapped_text->execute("confirm.body", "Try #3 failed. Restarting display.", 18);
+            App.feed_wdt();
+            delay_seconds_(3);
+          }
           ESP_LOGD(TAG, "Turn off Nextion");
-          screen_power->turn_off();
+          id(screen_power).turn_off();
           delay_seconds_(2);
           ESP_LOGD(TAG, "Turn on Nextion");
-          screen_power->turn_on();
-          ESP_LOGD(TAG, "Restarting esphome");
-          delay_seconds_(1);
-          restart_nspanel->press();
-          nextion_init->state = true;
-          ESP_LOGV(TAG, "Finished!");
+          id(screen_power).turn_on();
+          delay_seconds_(10);
+          App.feed_wdt();
+          ESP_LOGD(TAG, "Try #4 at 115200 bps");
+          nextion_status->execute();
+          if (disp1->is_setup()) {
+            disp1->set_backlight_brightness(1);
+            disp1->set_component_text_printf("confirm.title", "Upload TFT\\r%s", framework.c_str());
+            display_wrapped_text->execute("confirm.body", "Try #4 at 115200 bps", 18);
+            disp1->goto_page("confirm");
+            disp1->hide_component("bt_close");
+            disp1->hide_component("bt_accept");
+            disp1->hide_component("bt_clear");
+            disp1->hide_component("bt_close");
+            App.feed_wdt();
+            delay_seconds_(1);
+          }
+          //if (disp1->upload_tft(115200)) id(restart_nspanel).press();
+          ESP_LOGE(TAG, "TFT upload failed");
+          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", "TFT upload failed", 18);
+          if (disp1->is_setup()) delay_seconds_(2);
+          ESP_LOGD(TAG, "Turn off Nextion");
+          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", "Restarting...", 18);
+          if (disp1->is_setup()) delay_seconds_(2);
+          id(screen_power).turn_off();
+          delay_seconds_(2);
+          ESP_LOGD(TAG, "Turn on Nextion");
+          id(screen_power).turn_on();
+          ESP_LOGD(TAG, "Restarting ESPHome");
+          delay_seconds_(2);
+          id(restart_nspanel).press();
+
+          ESP_LOGD(TAG, "Finished!");
 
   - id: upload_tft
     mode: single
