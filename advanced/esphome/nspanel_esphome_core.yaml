@@ -194,7 +194,7 @@ api:
           component: string
           foreground: int[]
         then:
-          - lambda: set_component_color->execute(component, foreground, {});
+          - lambda: set_component_color->execute(component, foreground);
 
       ##### Service to play a rtttl tones #####
       # Example tones : https://codebender.cc/sketch:109888#RTTTL%20Songs.ino
@@ -451,7 +451,7 @@ api:
                 {
                   if ((page_icon != std::string()) and (page_icon != ""))
                     disp1->set_component_text_printf("icon_state", "%s", page_icon.c_str());
-                  set_component_color->execute("icon_state", page_icon_color, {});
+                  set_component_color->execute("icon_state", page_icon_color);
                 }
 
       # Service to show a QR code on the display (ex. for WiFi password)
@@ -496,15 +496,12 @@ api:
         variables:
           page: string
           id: string
-          pic: int
-          bg: int[]
+          state: bool
           icon: string
           icon_color: int[]
           icon_font: int
           bri: string
-          bri_color: int[]
           label: string
-          label_color: int[]
         then:
           - lambda: |-
               static const char *const TAG = "service.set_button";
@@ -512,11 +509,16 @@ api:
                 std::string btnicon = id.c_str() + std::string("icon");
                 std::string btntext = id.c_str() + std::string("text");
                 std::string btnbri = id.c_str() + std::string("bri");
-                disp1->send_command_printf("%spic.pic=%" PRIu32, id.c_str(), pic);
+                uint8_t bg_pic = state ? 47 : 46;
+                uint16_t txt_color = state ? 10597 : 65535;
+                disp1->send_command_printf("%spic.picc=%u", id.c_str(), bg_pic);
+                disp1->send_command_printf("%sbri.picc=%u", id.c_str(), bg_pic);
+                disp1->send_command_printf("%stext.picc=%u", id.c_str(), bg_pic);
+                disp1->send_command_printf("%sicon.picc=%u", id.c_str(), bg_pic);
                 disp1->send_command_printf("%sicon.font=%" PRIu32, id.c_str(), icon_font);
-                set_component_color->execute(btnicon.c_str(), icon_color, bg);
-                set_component_color->execute(btntext.c_str(), label_color, bg);
-                set_component_color->execute(btnbri.c_str(), bri_color, bg);
+                disp1->send_command_printf("%sbri.pco=%u", id.c_str(), txt_color);
+                disp1->send_command_printf("%stext.pco=%u", id.c_str(), txt_color);
+                set_component_color->execute(btnicon.c_str(), icon_color);
                 disp1->set_component_text_printf(btnicon.c_str(), "%s", icon.c_str());
                 display_wrapped_text->execute(btntext.c_str(), label.c_str(), 10);
                 if (strcmp(bri.c_str(), "0") != 0)
@@ -605,7 +607,7 @@ api:
               ESP_LOGV(TAG, "Set Notification button");
               disp1->send_command_printf("is_notification=%i", (notification_text->state.empty() and notification_label->state.empty()) ? 0 : 1);
               disp1->set_component_text_printf("home.bt_notific", "%s", notification_icon.c_str());
-              set_component_color->execute("home.bt_notific", notification_unread->state ? notification_icon_color_unread : notification_icon_color_normal, {});
+              set_component_color->execute("home.bt_notific", notification_unread->state ? notification_icon_color_unread : notification_icon_color_normal);
               id(home_notify_icon_color_normal) = notification_icon_color_normal;
               id(home_notify_icon_color_unread) = notification_icon_color_unread;
 
@@ -613,14 +615,14 @@ api:
               ESP_LOGV(TAG, "Set QRCode button");
               disp1->send_command_printf("is_qrcode=%i", qrcode ? 1 : 0);
               disp1->set_component_text_printf("home.bt_qrcode", "%s", qrcode_icon.c_str());
-              set_component_color->execute("home.bt_qrcode", qrcode_icon_color, {});
+              set_component_color->execute("home.bt_qrcode", qrcode_icon_color);
 
               // Entities pages button
               ESP_LOGV(TAG, "Set Entities button");
               disp1->send_command_printf("is_entities=%i", entities_pages ? 1 : 0);
               disp1->set_component_text_printf("home.bt_entities", "%s", entities_pages_icon.c_str());
-              //set_component_color->execute("home.bt_entities", entities_pages_icon_color, {});
-              set_component_color->execute("home.bt_entities", entities_pages_icon_color, {});
+              //set_component_color->execute("home.bt_entities", entities_pages_icon_color);
+              set_component_color->execute("home.bt_entities", entities_pages_icon_color);
 
               // Alarm button
               ESP_LOGV(TAG, "Set Alarm button");
@@ -668,12 +670,12 @@ api:
                   // on/off button
                   if (supported_features & 128 and state == "off") //TURN_ON
                     {
-                      set_component_color->execute("bt_on_off", { 65535 }, {} );
+                      disp1->set_component_color("bt_on_off", 65535);
                       disp1->show_component("bt_on_off");
                     }
                   else if (supported_features & 256 and state != "off") //TURN_OFF
                     {
-                      set_component_color->execute("bt_on_off", { 10597 }, {} );
+                      disp1->set_component_color("bt_on_off", 10597);
                       disp1->show_component("bt_on_off");
                     }
                   else disp1->hide_component("bt_on_off");
@@ -1313,9 +1315,9 @@ switch:
     optimistic: true
     restore_mode: ALWAYS_OFF
     on_turn_on:
-      - lambda: set_component_color->execute("home.bt_notific", id(home_notify_icon_color_unread), {});
+      - lambda: set_component_color->execute("home.bt_notific", id(home_notify_icon_color_unread));
     on_turn_off:
-      - lambda: set_component_color->execute("home.bt_notific", id(home_notify_icon_color_normal), {});
+      - lambda: set_component_color->execute("home.bt_notific", id(home_notify_icon_color_normal));
 
   ##### Notification sound #####
   - name: ${device_name} Notification sound
@@ -2094,23 +2096,14 @@ script:
     parameters:
       component: string
       foreground: int32_t[]
-      background: int32_t[]
     then:
       - lambda: |-
           int fg565 = -1;
-          int bg565 = -1;
-
           // Foreground
           if (foreground.size() == 3 and foreground[0] >= 0 and foreground[1] >= 0 and foreground[2] >= 0) fg565 = ((foreground[0] & 0b11111000) << 8) | ((foreground[1] & 0b11111100) << 3) | (foreground[2] >> 3);
           else if (foreground.size() == 1) fg565 = foreground[0];
           else fg565 = -1;
           if (fg565 >= 0) disp1->set_component_font_color(component.c_str(), fg565);
-
-          // Background
-          if (background.size() == 3 and background[0] >= 0 and background[1] >= 0 and background[2] >= 0) bg565 = ((background[0] & 0b11111000) << 8) | ((background[1] & 0b11111100) << 3) | (background[2] >> 3);
-          else if (background.size() == 1) bg565 = background[0];
-          else bg565 = -1;
-          if (bg565 >= 0) disp1->set_component_background_color(component.c_str(), bg565);
 
   - id: display_wrapped_text
     mode: queued
@@ -2462,7 +2455,7 @@ script:
             refresh_relays->execute();
             refresh_wifi_icon->execute();
             disp1->send_command_printf("is_notification=%i", (notification_text->state.empty() and notification_label->state.empty()) ? 0 : 1);
-            set_component_color->execute("home.bt_notific", notification_unread->state ? id(home_notify_icon_color_unread) : id(home_notify_icon_color_normal), {});
+            set_component_color->execute("home.bt_notific", notification_unread->state ? id(home_notify_icon_color_unread) : id(home_notify_icon_color_normal));
             refresh_datetime->execute();
             addon_climate_update_page_home->execute();
           }

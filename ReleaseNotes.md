@@ -47,12 +47,14 @@ wifi:
 ##### My customization - End #####
 ```
 4. Default baud rate for advanced mode is back to 115200 bps, to avoid issues when creating buttons pages.
+5. ESPHome v2023.12.0 is now the minimum required version
 
 &nbsp;
 ## Overview of noteworthy changes
 1. Standardized entity's icons
 2. Additional custom buttons on Home page
 3. Outdoor temperature selectable font size
+4. Select icon size for button's pages
 
 &nbsp;
 ## Details of noteworthy changes
@@ -71,6 +73,13 @@ Now you can select the font size of your outdoor temperature display:
 ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/263f14d6-39f7-41d2-ae12-72f403d811fd)
 
 > Important: Long text with bigger fonts may exceed the limit of space reserved for this with incomplete information shown.
+
+&nbsp;
+### 4. Select icon size for button's pages
+You can also select the size of the icons on the buttos pages:
+
+<<add blueprint screenshot>>
+<<add page screenshot (US and EU)>>
 
 &nbsp;
 ## Next topics we are currently working on
