@@ -24,6 +24,7 @@ substitutions:
   wifi_password: !secret wifi_password
 
   nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"
+  nextion_blank_url: "http://homeassistant.local:8123/local/nspanel_blank.tft"
   
   ##### addon-configuration #####
   ## addon_climate ##
@@ -39,9 +40,13 @@ packages:
     files:
       - nspanel_esphome.yaml # Core package
       # - nspanel_esphome_addon_climate_cool.yaml # activate for local climate (cooling) control
-      - nspanel_esphome_addon_climate_heat.yaml # activate for local climate (heater) control
-      
-    refresh: 300s	
+      - nspanel_esphome_addon_climate_heat.yaml # activate for local climate (heater) control 
+    refresh: 300s
+
+esp32:
+  framework:
+    type: esp-idf
+
 ```
 &nbsp;
 ## Configuration

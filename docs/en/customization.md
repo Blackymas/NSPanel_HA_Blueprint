@@ -56,7 +56,8 @@ substitutions:
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
 
-  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_us.tft"
+  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"
+  nextion_blank_url: "http://homeassistant.local:8123/local/nspanel_blank.tft"
 
   ##### addon-configuration #####
   ## addon_climate ##
@@ -70,9 +71,9 @@ packages:
     ref: main
     files:
       - nspanel_esphome.yaml # Core package
-      # - advanced/esphome/nspanel_esphome_addon_climate_cool.yaml # activate for local climate (cooling) control
-      # - advanced/esphome/nspanel_esphome_addon_climate_heat.yaml # activate for local climate (heater) control
-    refresh: 1s
+      # - nspanel_esphome_addon_climate_cool.yaml # activate for local climate (cooling) control
+      # - nspanel_esphome_addon_climate_heat.yaml # activate for local climate (heater) control
+    refresh: 300s
 
 esp32:
   framework:
@@ -248,12 +249,12 @@ button:
           state: false
       - delay: 16ms
       - lambda: |-
-          id(disp1)->set_tft_url("${nextion_update_blank_url}");
+          id(disp1)->set_tft_url("${nextion_blank_url}");
           id(disp1).upload_tft();
 ```
 You also must add the url for the alternative tft in your substitutions, like this:
 ```yaml
-  nextion_update_blank_url: "http://homeassistant.local:8123/local/nspanel/dev/nspanel_blank.tft"
+  nextion_blank_url: "http://homeassistant.local:8123/local/nspanel_blank.tft"
 ```
 
 &nbsp;

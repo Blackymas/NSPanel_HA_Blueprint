@@ -146,12 +146,17 @@ substitutions:
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
 
-  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_us_land.tft"
+  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"
+  nextion_blank_url: "http://homeassistant.local:8123/local/nspanel_blank.tft"
 
   ##### CHANGE ME END #####
 
 packages:
   local_package: !include packages/nspanel_esphome.yaml
+
+esp32:
+  framework:
+    type: esp-idf
 ```
 > Note that a sub-folder was used in the example above in order to avoid that file to be added as an additional device in your ESPHome dashboard. You can also have the file in the same folder, but with it's name starting with `.`, so ESPHome dashboard understands that file should be ignored when listing devices.
 
@@ -161,6 +166,3 @@ packages:
 * additionally we provide the HMI files _**"nspanel_xx.HMI "**_ for the Nextion Editor to customize graphics and programming if needed.
 
 &nbsp;  
-&nbsp;  
-
-***

@@ -22,7 +22,8 @@ substitutions:
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
 
-  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_us.tft"
+  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"
+  nextion_blank_url: "http://homeassistant.local:8123/local/nspanel_blank.tft"
 
   ##### addon-configuration #####
   ## addon_climate ##
@@ -39,6 +40,10 @@ packages:
       # - nspanel_esphome_addon_climate_cool.yaml # activate for local climate (cooling) control
       # - nspanel_esphome_addon_climate_heat.yaml # activate for local climate (heater) control
     refresh: 300s
+
+esp32:
+  framework:
+    type: esp-idf
 ```
 
 This url will indicate where your panel will look for the `tft` file when you click the "Upload TFT" button (under device's page) or call the service `esphome.xxxxx_upload_tft`.
