@@ -166,12 +166,10 @@ Additionally there is the possibility to choose an icon of your choice for the E
 
 Of course there is also the possibility to enter a label for each of the 4 pages and the aligment for the values on the entities pages.
 
-Example Screenshots
+# Example Screenshots
 
-![image-20230317162851693](./assets/image-20230317162851693.png)
-
-![image-20230317162944247](./assets/image-20230317162944247.png)
-
-![image-20230317163012105](./assets/image-20230317163012105.png)
-
-![image-20230317163035519](./assets/image-20230317163035519.png)
+![Blueprint 01](/docs/pics/ha_blueprint_01.png)
+![Blueprint 02](/docs/pics/ha_blueprint_02.png)
+![Blueprint 03](/docs/pics/ha_blueprint_03.png)
+![Blueprint 04](/docs/pics/ha_blueprint_04.png)
+![Blueprint 05](/docs/pics/ha_blueprint_05.png)
