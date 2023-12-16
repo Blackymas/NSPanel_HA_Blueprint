@@ -55,6 +55,7 @@ wifi:
 2. Additional custom buttons on Home page
 3. Outdoor temperature selectable font size
 4. Select icon size for button's pages
+5. Support to Chinese (Taiwan) and prepared for other CJK languages
 
 &nbsp;
 ## Details of noteworthy changes
@@ -80,6 +81,12 @@ You can also select the size of the icons on the buttos pages:
 
 <<add blueprint screenshot>>
 <<add page screenshot (US and EU)>>
+
+&nbsp;
+### 5. Support to Chinese (Taiwan) and prepared for other CJK languages
+You will find 3 new TFT files on the repository for the CJK languages. These files are considerably bigger, as the fonts requires more memory, but it should work fine in your panel.
+Currently only translations to Chinese (Taiwan) are available, but as soon we get the strings for other languages we will be happy to add to the blueprint selection.
+<< Add screenshots of blueprint >>
 
 &nbsp;
 ## Next topics we are currently working on
