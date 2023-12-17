@@ -217,10 +217,6 @@ api:
           mui_alarm: string[] #std::vector<std::string> #std::map
         then:
           - lambda: |-
-              // set alarm icon on home page
-              disp1->send_command_printf("is_alarm=%i", (state == "" or state.empty()) ? 0 : 1);
-              update_alarm_icon->execute("home.bt_alarm", state.c_str());
-
               // Is page Alarm visible?
               if (current_page->state == "alarm") // To do: This page constructor should be moved to Blueprint
                 { // Update alarm page
@@ -578,7 +574,6 @@ api:
           entities_pages: bool
           entities_pages_icon: string
           entities_pages_icon_color: int[]
-          alarm_state: string
         then:
           - lambda: |-
               static const char *const TAG = "service.page_home";
@@ -622,11 +617,6 @@ api:
               disp1->set_component_text_printf("home.bt_entities", "%s", entities_pages_icon.c_str());
               //set_component_color->execute("home.bt_entities", entities_pages_icon_color);
               set_component_color->execute("home.bt_entities", entities_pages_icon_color);
-
-              // Alarm button
-              ESP_LOGV(TAG, "Set Alarm button");
-              disp1->send_command_printf("is_alarm=%i", (alarm_state == "" or alarm_state.empty()) ? 0 : 1);
-              update_alarm_icon->execute("home.bt_alarm", alarm_state.c_str());
 
       #### Service to populate the page Settings #####
       - service: page_settings
@@ -1513,28 +1503,22 @@ text_sensor:
             int embedded = doc["embedded"];
             std::string service = "";
 
-            // send event to Home Assistant
+            // send event to Home Assistant #DEBUG
             auto ha_event = new esphome::api::CustomAPIDevice();
-            if (event == "short_click" or event == "long_click") ha_button->execute(page.c_str(), component.c_str(), event.c_str());
-            else if (event == "click")
-              {
-                if (page == "home" and component == "climate")
-                  {
-                    detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
-                    disp1->set_component_value("climate.embedded", id(is_embedded_thermostat) ? 1 : 0);
-                  }
-                disp1->goto_page("climate");
-              }
-            else if (page == "light" or page == "climate" or page == "notification")// Generic event
-              {
-                ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-                  {
-                    {"type", "generic"},
-                    {"page", page},
-                    {"event", event},
-                    {"value", value},
-                    {"entity", entity}
-                  });
+            if (event == "short_click" or event == "long_click") {
+              ha_button->execute(page.c_str(), component.c_str(), event.c_str());
+            } else if (event == "click" and page == "home" and component == "climate") {
+              detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
+              disp1->set_component_value("climate.embedded", id(is_embedded_thermostat) ? 1 : 0);
+              disp1->goto_page("climate");
+            } else if (page == "light" or page == "climate" or page == "notification") { // Generic event
+                ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
+                  {"type", "generic"},
+                  {"page", page},
+                  {"event", event},
+                  {"value", value},
+                  {"entity", entity}
+                });
               }
 
             // page based actions
@@ -1968,7 +1952,7 @@ script:
               {"command", command}
             });
 
-  - id: update_alarm_icon
+  - id: update_alarm_icon #To do: Move to blueprint
     mode: restart
     parameters:
       component: string
@@ -2224,7 +2208,8 @@ script:
           // Go to boot page if not initiated
           if (page != "boot" and not nextion_init->state) disp1->goto_page("boot");
           // Reset globals
-          if (page != "climate" &&
+          if (page != "alarm" && //DEBOG
+              page != "climate" &&
               page != "cover" &&
               page != "fan" &&
               page != "light" &&

@@ -27,12 +27,10 @@ Updates may come with changes on the blueprint inputs and we highly recommend yo
 
 ### Instructions
  _You can find the update procedures following here:_
-- [(EN) How To - All important thing you should know - Update](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-HowTo---All-important-thing-you-should-know#2-update-blueprint)
-- [(DE) How To - Alle wichtigen Dinge die man wissen sollte - Update](https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(DE)-HowTo---Alle-wichtigen-Dinge-die-man-wissen-sollte#2-update-blueprint)
+- [How To - All important thing you should know - Update](docs/howto.md#update-blueprint)
 
 &nbsp;
 ## Breaking changes
-
 1. Service `esphome.xxxxx_set_component_color` parameter `background` is deprecated.
 2. Due to the additional custom buttons, the other buttons on home page changed their positions.
 3. The Wi-Fi power save mode is back to "NONE" as default.<br>
@@ -48,6 +46,7 @@ wifi:
 ```
 4. Default baud rate for advanced mode is back to 115200 bps, to avoid issues when creating buttons pages.
 5. ESPHome v2023.12.0 is now the minimum required version
+6. The Alarm section on the blueprint settings was removed and your previous selection was moved to custom button 07.
 
 &nbsp;
 ## Overview of noteworthy changes
@@ -57,6 +56,7 @@ wifi:
 4. Select icon size for button's pages
 5. Support to Chinese (Taiwan) and prepared for other CJK languages
 6. Upload baud rate selectable as substitution
+7. Multiple Alarm Control Panels
 
 &nbsp;
 ## Details of noteworthy changes
@@ -66,7 +66,7 @@ The engine for defining the icons to be shown and it's color was standardize bet
 
 &nbsp;
 ### 2. Additional custom buttons on Home page
-It's that simple, now you have 6 buttons where used to be 3. 😉
+It's that simple, now you have 7 buttons where used to be 3. Well, where used to be 4, as the space previously used by the Alarm button is now a custom button. 😉
 
 &nbsp;
 ### 3. Outdoor temperature selectable font size
@@ -102,6 +102,10 @@ To enable an alternative upload TFT baud rate, add the desired value in your sub
 If an invalid value is entered or this substitution is not present, the current baud rate will be used.
 
 The system will always fall back to the standard baud rate (115200 bps) if other tentatives fails.
+
+&nbsp;
+### 7. Multiple Alarm Control Panels
+Now alarm control panel entities can be assigned to chips and custom buttons in the Home page, but also to hardware buttons, any of the buttons pages or entities pages, similarly to other domains.
 
 &nbsp;
 ## What's Next?
