@@ -2,7 +2,7 @@
 
 When your panel starts, a number of different things needs to be set and the ESPHome must establish connection to the Nextion display used by your panel and also to your Home Assistant, which will provide the propper settings required by your panel. If everything goes right, the boot page will be shown for just a few seconds, then the wake-up page will be shown.
 
-If something happens during this process, your panel may get stuck on this page.
+If something happens during this process, your panel may get stuck on this page. In many cases, restarting your panel can resolve the issue, but if after a reboot it still showing the boot page, this guide may help you.
 
 Understanding what is shown on the boot page can be useful to find the cause of the problem or when you are looking for help.
 
