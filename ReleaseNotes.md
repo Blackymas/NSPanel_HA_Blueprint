@@ -56,6 +56,7 @@ wifi:
 3. Outdoor temperature selectable font size
 4. Select icon size for button's pages
 5. Support to Chinese (Taiwan) and prepared for other CJK languages
+6. Upload baud rate selectable as substitution
 
 &nbsp;
 ## Details of noteworthy changes
@@ -87,6 +88,20 @@ You can also select the size of the icons on the buttos pages:
 You will find 3 new TFT files on the repository for the CJK languages. These files are considerably bigger, as the fonts requires more memory, but it should work fine in your panel.
 Currently only translations to Chinese (Taiwan) are available, but as soon we get the strings for other languages we will be happy to add to the blueprint selection.
 << Add screenshots of blueprint >>
+
+&nbsp;
+### 6. Upload baud rate selectable as substitution
+You can select an alternative baud rate for your TFT uploads. This allows faster TFT uploads and also supports displays previously set with baud rates not supported by this project (currently 115200 bps and 921600 bps).
+
+To enable an alternative upload TFT baud rate, add the desired value in your substitutions like this:
+
+```yaml
+  upload_tft_baud_rate: "921600"
+```
+
+If an invalid value is entered or this substitution is not present, the current baud rate will be used.
+
+The system will always fall back to the standard baud rate (115200 bps) if other tentatives fails.
 
 &nbsp;
 ## Next topics we are currently working on

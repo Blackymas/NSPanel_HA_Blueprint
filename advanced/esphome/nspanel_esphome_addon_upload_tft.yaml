@@ -17,6 +17,7 @@ substitutions:
 
   ##### DON'T CHANGE THIS #####
   upload_tft_chunk_size_max: "32768"
+  upload_tft_baud_rate: "0"
   #############################
 
 #external_components:
@@ -831,7 +832,7 @@ script:
 
               std::string response;
               ESP_LOGD(TAG, "Waiting for upgrade response");
-              recv_ret_string_(response, 2000, true); // This can take some time to return
+              recv_ret_string_(response, 5000, true); // This can take some time to return
 
               // The Nextion display will, if it's ready to accept data, send a 0x05 byte.
               ESP_LOGD(TAG, "Upgrade response is [%s]",
@@ -871,24 +872,50 @@ script:
             };
           #endif
 
-          ESP_LOGD(TAG, "Try #1 at 921600 bps");
+          uint32_t supported_baud_rates[] = {2400, 4800, 9600, 19200, 31250, 38400, 57600, 115200, 230400, 250000, 256000, 512000, 921600};
+
+          auto is_baud_rate_supported = [supported_baud_rates](uint32_t baud_rate_requested) -> bool {
+            size_t size = sizeof(supported_baud_rates) / sizeof(supported_baud_rates[0]);
+            for (size_t i = 0; i < size; ++i) {
+                if (supported_baud_rates[i] == baud_rate_requested) {
+                    return true;
+                }
+            }
+            return false; // Return false if not found
+          };
+
+          uint32_t original_baud_rate_ = tf_uart->get_baud_rate();
+          if (!is_baud_rate_supported(original_baud_rate_)) original_baud_rate_ = 115200;
+
+          std::string upload_tft_baud_rate_string = "${upload_tft_baud_rate}";
+          uint32_t target_upload_baud_rate_ = stoi(upload_tft_baud_rate_string);
+          if (!is_baud_rate_supported(target_upload_baud_rate_)) target_upload_baud_rate_ = original_baud_rate_;
+
+          ESP_LOGD(TAG, "Target upload baud rate: %d", target_upload_baud_rate_);
+          ESP_LOGD(TAG, "Current baud rate:       %d", tf_uart->get_baud_rate());
+
+          char update_msg[128];
+          sprintf(update_msg, "Try #1 at %d bps", target_upload_baud_rate_);
+          ESP_LOGD(TAG, update_msg);
           if (disp1->is_setup()) {
-            display_wrapped_text->execute("confirm.body", "Try #1 at 921600 bps", 18);
+            display_wrapped_text->execute("confirm.body", update_msg, 18);
             delay_seconds_(1);
           }
-          if (upload_tft_(url, 921600)) id(restart_nspanel).press();
+          if (upload_tft_(url, target_upload_baud_rate_)) id(restart_nspanel).press();
           ESP_LOGW(TAG, "Try #1 failed");
           if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", "Try #1 failed", 18);
           delay_seconds_(5);
-          ESP_LOGD(TAG, "Try #2 at 921600 bps");
-          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", "Try #2 at 921600 bps", 18);
-          if (upload_tft_(url, 921600)) id(restart_nspanel).press();
+          sprintf(update_msg, "Try #2 at %d bps", target_upload_baud_rate_);
+          ESP_LOGD(TAG, update_msg);
+          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", update_msg, 18);
+          if (upload_tft_(url, target_upload_baud_rate_)) id(restart_nspanel).press();
           ESP_LOGW(TAG, "Try #2 failed");
           if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", "Try #2 failed", 18);
           delay_seconds_(5);
-          ESP_LOGD(TAG, "Try #3 at 115200 bps");
-          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", "Try #3 at 115200 bps", 18);
-          if (upload_tft_(url, 115200)) id(restart_nspanel).press();
+          sprintf(update_msg, "Try #3 at %d bps", original_baud_rate_);
+          ESP_LOGD(TAG, update_msg);
+          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", update_msg, 18);
+          if (upload_tft_(url, original_baud_rate_)) id(restart_nspanel).press();
           ESP_LOGW(TAG, "Try #3 failed");
           if (disp1->is_setup()) {
             display_wrapped_text->execute("confirm.body", "Try #3 failed. Restarting display.", 18);
@@ -900,11 +927,31 @@ script:
           ESP_LOGD(TAG, "Turn on Nextion");
           id(screen_power).turn_on();
           delay_seconds_(10);
-          ESP_LOGD(TAG, "Try #4 at 115200 bps");
+          sprintf(update_msg, "Try #4 at %d bps", original_baud_rate_);
+          ESP_LOGD(TAG, update_msg);
           if (disp1->is_setup()) {
             disp1->set_backlight_brightness(1);
             disp1->set_component_text_printf("confirm.title", "Upload TFT\\r%s", framework.c_str());
-            display_wrapped_text->execute("confirm.body", "Try #4 at 115200 bps", 18);
+            display_wrapped_text->execute("confirm.body", update_msg, 18);
+            disp1->goto_page("confirm");
+            disp1->hide_component("bt_close");
+            disp1->hide_component("bt_accept");
+            disp1->hide_component("bt_clear");
+            disp1->hide_component("bt_close");
+            delay_seconds_(1);
+          }
+          if (upload_tft_(url, original_baud_rate_)) id(restart_nspanel).press();
+          ESP_LOGW(TAG, "Try #4 failed");
+          if (disp1->is_setup()) {
+            display_wrapped_text->execute("confirm.body", "Try #4 failed.", 18);
+            delay_seconds_(3);
+          }
+          sprintf(update_msg, "Try #5 at %d bps", 115200);
+          ESP_LOGD(TAG, update_msg);
+          if (disp1->is_setup()) {
+            disp1->set_backlight_brightness(1);
+            disp1->set_component_text_printf("confirm.title", "Upload TFT\\r%s", framework.c_str());
+            display_wrapped_text->execute("confirm.body", update_msg, 18);
             disp1->goto_page("confirm");
             disp1->hide_component("bt_close");
             disp1->hide_component("bt_accept");
