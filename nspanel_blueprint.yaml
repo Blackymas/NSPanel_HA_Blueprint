@@ -5990,8 +5990,8 @@ variables:
       rgbww: "[<ColorMode.RGBWW: 'rgbww'>]"
       white: "[<ColorMode.WHITE: ''>]"
     states:
-      "on": ["on", "open", "opening", "true", "True", true, True, "playing", "heat", "cold", "dry", "armed_home", "armed_away", "armed_vacation", "armed_custom_bypass"]
-      "off": ["off", "closed", "closing", "false", "False", false, False, "standby", "paused", "idle", "disarmed"]
+      "on": ["on", "open", "opening", "true", "True", true, True, "playing", "heat", "cold", "dry", "armed_home", "armed_away", "armed_vacation", "armed_custom_bypass", "triggered", "pending", "arming"]
+      "off": ["off", "closed", "closing", "false", "False", false, False, "standby", "paused", "idle", "disarmed", "disarming"]
       unknown: ["unknown", "unavailable", None, none, ""]
 
 #############################################################
@@ -6757,6 +6757,10 @@ action:
             valid: '{{ entity_id_is_valid }}'
             has_value: '{{ has_value(entity_id) if entity_id_is_valid else false }}'
             state: '{{ entity_state }}'
+            state_is: #DEBUG
+              "on": '{{ entity_state in enum.states.on if entity_id_is_valid else false }}'
+              "off": '{{ entity_state in enum.states.off if entity_id_is_valid else false }}'
+              unknown: '{{ entity_state in enum.states.unknown if entity_id_is_valid else true }}'
             state_mui: > #DEBUG
               {{
                 entity_state
@@ -7395,7 +7399,7 @@ action:
                                 else:
                                   - *hide-home_page-climate_chip
 
-                          ###### Status / Chips bar ######
+                          ###### Status / Chips bar ###### #DEBUG
                           - &variables-home_page_status_bar
                             variables:
                               home_page_status_bar:
@@ -7434,35 +7438,26 @@ action:
                                   if: '{{ repeat.item.entity is defined and repeat.item.entity is string and repeat.item.entity | length > 0 }}'
                                   then:
                                     - variables:
-                                        repeat_item_state: '{{ states(repeat.item.entity) | default("unavailable") }}'
-                                        repeat_item_state_is_on: >
-                                          {{
-                                            (repeat_item_state is string and repeat_item_state in ["on", "open", "opening", "true", "True"]) or
-                                            (repeat_item_state is boolean and repeat_item_state)
-                                          }}
-                                        repeat_item_icon: >
-                                          {% if repeat_item_state_is_on and repeat.item.icon is string and repeat.item.icon | length > 0 %}
-                                            {{ all_icons[repeat.item.icon.split(":")[1]] | default(repeat.item.icon) }}
-                                          {% elif repeat_item_state_is_on and state_attr(repeat.item.entity, "icon") | default("") not in ["unavailable", "unknown", "", None] %}
-                                            {{ all_icons[state_attr(repeat.item.entity, "icon").split(":")[1]] | default(all_icons.blank) }}
-                                          {% else %}
-                                            {{ all_icons.unknown }}
-                                          {% endif %}
+                                        entity_id: '{{ repeat.item.entity }}'
+                                        overlap:
+                                          icon: '{{ repeat.item.icon }}'
+                                          icon_color: '{{ repeat.item.icon_color_rgb }}'
+                                    - *variable_entity
                                     - *delay-default
-                                    - if: '{{ repeat_item_state_is_on }}'
+                                    - if: '{{ entity.state_is.on }}'
                                       then:
                                         ### ICON Font Color ###
                                         - service: '{{ nextion.command.set_component_color }}'
                                           data:
                                             component: 'home.{{ repeat.item.component }}'
-                                            foreground: '{{ [ repeat.item.icon_color_rgb ] if is_number(repeat.item.icon_color_rgb) else repeat.item.icon_color_rgb }}'
+                                            foreground: '{{ [ entity.icon_color_rgb ] if is_number(entity.icon_color_rgb) else entity.icon_color_rgb }}'
                                           continue_on_error: true
                                         ### ICON Font ###
                                         - *delay-default
                                         - service: '{{ nextion.command.text_printf }}'
                                           data:
                                             component: 'home.{{ repeat.item.component }}'
-                                            message: '{{ repeat_item_icon }}'
+                                            message: '{{ entity.icon }}'
                                           continue_on_error: true
                                       else:
                                         - &hide-home_page-status_bar_chip
