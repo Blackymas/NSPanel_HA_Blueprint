@@ -5990,8 +5990,8 @@ variables:
       rgbww: "[<ColorMode.RGBWW: 'rgbww'>]"
       white: "[<ColorMode.WHITE: ''>]"
     states:
-      "on": ["on", "open", "opening", "true", "True", true, True, "playing", "heat", "cold", "dry", "armed_home", "armed_away", "armed_vacation", "armed_custom_bypass", "triggered", "pending", "arming"]
-      "off": ["off", "closed", "closing", "false", "False", false, False, "standby", "paused", "idle", "disarmed", "disarming"]
+      "on": ["on", "open", "opening", "true", "True", true, True, "playing", "heat", "cold", "dry", "armed_home", "armed_away", "armed_vacation", "armed_custom_bypass", "triggered", "pending", "arming", 1]
+      "off": ["off", "closed", "closing", "false", "False", false, False, "standby", "paused", "idle", "disarmed", "disarming", 0]
       unknown: ["unknown", "unavailable", None, none, ""]
 
 #############################################################
@@ -7268,7 +7268,7 @@ action:
                               - *delay-default
                               - service: '{{ nextion.command.printf }}'
                                 data:
-                                  cmd: home.left_bt_pic.val={{ 1 if left_button_state in ["on", "open", "opened", "opening", "true", true, 1] else 0 }}
+                                  cmd: home.left_bt_pic.val={{ 1 if left_button_state in enum.states.on else 0 }}
                                 continue_on_error: true
 
                           ##### NSPanel Right Button Name #####
@@ -7296,7 +7296,7 @@ action:
                               - *delay-default
                               - service: '{{ nextion.command.printf }}'
                                 data:
-                                  cmd: home.right_bt_pic.val={{ 1 if right_button_state in ["on", "open", "opened", "opening", "true", true, 1] else 0 }}
+                                  cmd: home.right_bt_pic.val={{ 1 if right_button_state in enum.states.on else 0 }}
                                 continue_on_error: true
 
                           ###### Custom buttons ######
@@ -8519,7 +8519,7 @@ action:
                       ## ENTITY PAGES 01 - 04 ##
                       - alias: Entity pages
                         conditions: '{{ nspanel_event.page in page.entitypages }}'
-                        sequence: &refresh-entity_pages
+                        sequence: &refresh_entity_pages
                           - &variables-entity_pages
                             variables:
                               ##### Entity pages #####
@@ -8715,11 +8715,17 @@ action:
                           ##### Entities #####
                           - repeat:
                               for_each: '{{ entity_pages_entities[first_entity:last_entity] }}'
-                              sequence: &update-entity_page_entity
+                              sequence: &update_entity_page_entity
                                 - if: '{{ repeat.item.entity is string and repeat.item.entity | length > 0 }}'
                                   then:
+                                    - variables: #DEBUG
+                                        entity_id: '{{ repeat.item.entity }}'
+                                        overlap:
+                                          icon: '{{ repeat.item.icon }}'
+                                          frendly_name: '{{ repeat.item.name }}'
+                                    - *variable_entity
                                     - variables:
-                                        repeat_item_state: '{{ states(repeat.item.entity, rounded=true) | default("unavailable") }}'
+                                        repeat_item_state: '{{ states(entity.entity_id, rounded=true) if entity.state_is_number else entity.state_mui }}'
                                         repeat_item_icon: >
                                           {% if repeat.item.icon is string and repeat.item.icon | length > 0 %}
                                             {{
@@ -8733,13 +8739,9 @@ action:
                                     - service: '{{ nextion.command.set_entity }}'
                                       data:
                                         ent_id: '{{ repeat.item.page }}.{{ repeat.item.component }}'
-                                        ent_icon: '{{ repeat_item_icon if repeat_item_icon else all_icons.blank }}'
-                                        ent_label: >-
-                                          {%- if repeat.item.name | length > 0 %} {{ repeat.item.name }}
-                                          {%- elif repeat_item_state in ["unavailable", "unknown", "", None] %} {{ repeat.item.entity }}
-                                          {%- else %} {{ state_attr(repeat.item.entity, "friendly_name") | default(mui[language].no_name) }}
-                                          {%- endif %}
-                                        ent_value: '{{ repeat_item_state ~ ((state_attr(repeat.item.entity, "unit_of_measurement") | default("")) if state_attr(repeat.item.entity, "unit_of_measurement") is string else "") }}'
+                                        ent_icon: '{{ entity.icon }}'
+                                        ent_label: '{{ entity.name }}'
+                                        ent_value: '{{ repeat_item_state ~ entity.unit_of_measurement }}'
                                         ent_value_xcen: '{{ entitypages_value_alignment }}'
                                       continue_on_error: true
 
@@ -9136,9 +9138,6 @@ action:
                                         conditions:
                                         - '{{ last_click_button.hold_select == "Default" }}'
                                         - '{{ entity.domain in ["alarm_control_panel", "climate", "cover", "light", "fan", "media_player"] }}'
-                                        #- '{{ entity.domain != "cover" or entity.supported_features | bitwise_and(4) > 0 }}'
-                                        #- '{{ entity.domain != "fan" or entity.supported_features | bitwise_and(1) > 0 }}'
-                                        #- '{{ entity.domain != "light" or state_attr(entity.id, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
                                         sequence:
                                           - variables:
                                               back_page: '{{ page.home }}'
@@ -9216,17 +9215,14 @@ action:
                             - alias: Long click
                               conditions:
                                 - '{{ nspanel_event.command == "long_click" or entity.domain in ["climate", "media_player"] }}'
-                                - '{{ entity.domain in ["climate", "cover", "light", "fan", "media_player"] }}'
-                                #- '{{ entity.domain != "cover" or entity.supported_features | bitwise_and(4) > 0 }}'
-                                #- '{{ entity.domain != "fan" or entity.supported_features | bitwise_and(1) > 0 }}'
-                                #- '{{ entity.domain != "light" or state_attr(entity_id, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
+                                - '{{ entity.domain in ["alarm_control_panel", "climate", "cover", "light", "fan", "media_player"] }}'
                               sequence:
                                 - variables:
                                     back_page: '{{ nspanel_event.page }}'
                                 - *open_entity_settings_page
                             - alias: Short click
                               conditions:
-                                - '{{ nspanel_event.command == "short_click" and entity.domain not in ["climate", "media_player"] }}'
+                                - '{{ nspanel_event.command == "short_click" and entity.domain not in ["alarm_control_panel", "climate", "media_player"] }}'
                                 - '{{ entity.domain not in ["unknown", "person", "binary_sensor", "sensor"] }}'
                               sequence:
                                 - *short_press-service_call
@@ -9283,10 +9279,7 @@ action:
                           - *variable_entity
                           - condition: '{{ entity.valid }}'
                           - if:
-                              - '{{ entity.domain in ["climate", "cover", "fan", "light", "media_player"] }}'
-                              #- '{{ entity.domain != "cover" or entity.supported_features | bitwise_and(4) > 0 }}'
-                              #- '{{ entity.domain != "fan" or entity.supported_features | bitwise_and(1) > 0 }}'
-                              #- '{{ entity.domain != "light" or state_attr(entity.id, "supported_color_modes") | default("unknown") | string not in ["unknown", "onoff", enum.color_mode.unknown, enum.color_mode.onoff, "", none] }}'
+                              - '{{ entity.domain in ["alarm_control_panel", "climate", "cover", "fan", "light", "media_player"] }}'
                             then:
                               - variables:
                                   back_page: '{{ page.home }}'
@@ -9468,7 +9461,7 @@ action:
 
               ## ENTITY PAGES ##
               - conditions: '{{ page.current in page.entitypages }}'
-                sequence: *refresh-entity_pages
+                sequence: *refresh_entity_pages
 
       ##### UPDATE BUTTONS PAGES - button page / light page / cover page  #####
       - alias: 'Buttons entity updated'
@@ -9589,7 +9582,7 @@ action:
                   | selectattr("entity", "eq", trigger.entity_id)
                   | list
                 }}
-              sequence: *update-entity_page_entity
+              sequence: *update_entity_page_entity
 
       ##### UPDATE CLIMATE PAGE VALUES #####
       - alias: 'Update climate page values'
@@ -9755,9 +9748,9 @@ action:
           ##### SET hardware Button PIC on Home Page ####
           - service: '{{ nextion.command.printf }}'
             data:
-              cmd: 'home.{{ "left" if trigger.id == "left_button_state" else "right"}}_bt_pic.val={{ 1 if trigger.to_state.state in ["on", "open", "opened", "opening", "true", true, 1] else 0 }}'
+              cmd: 'home.{{ "left" if trigger.id == "left_button_state" else "right"}}_bt_pic.val={{ 1 if trigger.to_state.state in enum.states.on else 0 }}'
             continue_on_error: true
-          - condition: '{{ trigger.to_state.state not in ["off", "closed", "closing", "on", "open", "closed"] }}'
+          - condition: '{{ trigger.to_state.state not in enum.states.off }}'
           - delay:
               milliseconds: 800
           - service: '{{ nextion.command.printf }}'
