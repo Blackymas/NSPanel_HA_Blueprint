@@ -31,10 +31,9 @@ Updates may come with changes on the blueprint inputs and we highly recommend yo
 
 &nbsp;
 ## Breaking changes
-1. Service `esphome.xxxxx_set_component_color` parameter `background` is deprecated.
-2. Due to the additional custom buttons, the other buttons on home page changed their positions.
-3. The Wi-Fi power save mode is back to "NONE" as default.<br>
-This was the default until v4.0, but we changed on v4.1 to support Bluetooth components, however as this is not used by the majority of users, we are reverting back to the original setting. You can (and should if you want use Bluetooth) enforce other mode as a customization, like in the example bellow:
+1. The `background` parameter in the `esphome.xxxxx_set_component_color` service is now deprecated.
+2. With the introduction of additional custom buttons, the layout of other buttons on the home page has been adjusted.
+3. Wi-Fi power save mode has been reset to `NONE` as the default setting.<br>This was the standard up to v4.0. We switched it in v4.1 to accommodate Bluetooth components. However, since this feature isn't widely used, we're reverting to the original setting. For Bluetooth usage, you should manually set a different mode, such as `LIGHT`, as shown in the customization example below:
 ```yaml
 ##### My customization - Start #####
 # Enable Bluetooth proxy
@@ -44,9 +43,10 @@ wifi:
   power_save_mode: LIGHT
 ##### My customization - End #####
 ```
-4. Default baud rate for advanced mode is back to 115200 bps, to avoid issues when creating buttons pages.
-5. ESPHome v2023.12.0 is now the minimum required version
-6. The Alarm section on the blueprint settings was removed and your previous selection was moved to custom button 07.
+4. The default baud rate for advanced mode has been reverted to 115200 bps to resolve issues that arise when rendering button pages.
+5. ESPHome v2023.12.0 has been established as the minimum required version to ensure optimal performance and compatibility, particularly with the recent developments in the Nextion component.
+6. The Alarm section in the blueprint settings has been removed. All configurations previously made in this section have been automatically transferred to custom button 07.
+7. Documentation in German is no longer maintained. This change allows us to more efficiently update and maintain the remaining documentation.
 
 &nbsp;
 ## Overview of noteworthy changes
