@@ -29,9 +29,9 @@ This innovative solution is designed to revolutionize how you interact with your
 
 ## 📚 Documentation & Resources
 
-- **Getting Started:** Dive into our comprehensive [Documentation and Setup Guide](/docs/en/README.md) for detailed instructions.
-- **Video Tutorial:** Prefer visual learning? Check out our [Step-by-Step Setup Video](/docs/en/README.md).
-- **Troubleshooting:** Encounter an issue? Here's how to report it: [WIKI HowTo](/docs/en/README.md).
+- **Getting Started:** Dive into our comprehensive [Documentation and Setup Guide](docs/README.md) for detailed instructions.
+- **Video Tutorial:** Prefer visual learning? Check out our [Step-by-Step Setup Video](docs/README.md).
+- **Troubleshooting:** Encounter an issue? Here's how to report it: [WIKI HowTo](docs/README.md).
 - **Feature Requests:** Got ideas? Share them [here](/Blackymas/NSPanel_HA_Blueprint/labels/new%20feature%20request).
 - **What's Next?:** Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=due_date)
 
@@ -43,7 +43,7 @@ This innovative solution is designed to revolutionize how you interact with your
 - Buttons show current brightness and cover position in the button itself
 - Buttons label can be assigned via blueprint
 - Weather + 5 days weather forecast
-- Thermostat + Touch + [Relay control for floor heating](/docs/en/addon_climate.md)
+- Thermostat + Touch + [Relay control for floor heating](docs/addon_climate.md)
 - Light control (brightness, color and temperature) - via long Press
 - Cover control (open, close and position) - via long press
 - Settings page (display brightness, display dim brightness, sleep mode, reboot NSPanel)
@@ -116,7 +116,7 @@ This innovative solution is designed to revolutionize how you interact with your
 - 4 user's selectable values (for water and external temperatures, etc.)
 - All the standard climate controls from Home Assistant (`heat`, `fan`, `cool`, `auto`, `dry`)
 - 2 user's selectable buttons
-- [Can be used for local control (even when Wi-Fi is unavailable) when your panel's relays are used to control your cooler/heater](/docs/en/addon_climate.md)
+- [Can be used for local control (even when Wi-Fi is unavailable) when your panel's relays are used to control your cooler/heater](docs/addon_climate.md)
 
 &nbsp;
 ### Fan speed

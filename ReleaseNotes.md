@@ -104,8 +104,8 @@ If an invalid value is entered or this substitution is not present, the current 
 The system will always fall back to the standard baud rate (115200 bps) if other tentatives fails.
 
 &nbsp;
-## Next topics we are currently working on
-See here: https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap
+## What's Next?
+Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=due_date)
 
 &nbsp;
 ## Special thanks to:

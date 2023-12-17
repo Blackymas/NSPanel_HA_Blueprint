@@ -168,8 +168,8 @@ Of course there is also the possibility to enter a label for each of the 4 pages
 
 # Example Screenshots
 
-![Blueprint 01](/docs/pics/ha_blueprint_01.png)
-![Blueprint 02](/docs/pics/ha_blueprint_02.png)
-![Blueprint 03](/docs/pics/ha_blueprint_03.png)
-![Blueprint 04](/docs/pics/ha_blueprint_04.png)
-![Blueprint 05](/docs/pics/ha_blueprint_05.png)
+![Blueprint 01](pics/ha_blueprint_01.png)
+![Blueprint 02](pics/ha_blueprint_02.png)
+![Blueprint 03](pics/ha_blueprint_03.png)
+![Blueprint 04](pics/ha_blueprint_04.png)
+![Blueprint 05](pics/ha_blueprint_05.png)

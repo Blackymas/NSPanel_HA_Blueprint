@@ -9,9 +9,9 @@ Understanding what is shown on the boot page can be useful to find the cause of 
 ## Understanding the boot page
 Your boot page probably looks like this:
 #### Before ESPHome is connected:
-![Boot page Initializing](/docs/pics/eu_boot_initializing.png)
+![Boot page Initializing](pics/eu_boot_initializing.png)
 #### When ESPHome is connected:
-![Boot page with IP](/docs/pics/eu_boot_with_ip_address.png)
+![Boot page with IP](pics/eu_boot_with_ip_address.png)
 
 ### What is shown on the screen
 #### Initializing or IP address
