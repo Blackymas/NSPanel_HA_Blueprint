@@ -60,6 +60,7 @@ wifi:
 8. Support to `remote`
 9. Home page chips now supports covers
 10. Chips can be inverted
+11. Add swipe control to screensaver page
 
 &nbsp;
 ## Details of noteworthy changes
@@ -124,6 +125,10 @@ Chips now include cover visualization, allowing for easy monitoring of covers di
 &nbsp;
 ### 10. Chips can be inverted
 Chips now have an 'invert' option on the blueprint settings, providing additional customization flexibility.
+
+&nbsp;
+### 11. Add swipe control to Screensaver page
+You can now navigate to button pages from the screensaver while your panel is in sleep mode. The swipe controls will function as they do on the Home page.
 
 &nbsp;
 ## What's Next?
