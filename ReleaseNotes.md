@@ -60,6 +60,8 @@ wifi:
     We understand that changes in default settings can impact your workflows. We appreciate your understanding as we strive to balance new features with the familiarity and stability of the user experience.
 9. **Advanced mode no longer enforces a specific framework.**<br>
     In the past, the enforcement of framework changes by the advanced mode could inadvertently result in users switching frameworks during OTA updates. This practice was not recommended due to the potential for errors.
+10. **Alarm page cannot be used as wake-up page.**<br>
+    As multiple alarms are supported now, the system don't know which one to show on the wake-up.
 
 &nbsp;
 ## Overview of noteworthy changes
