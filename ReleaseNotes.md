@@ -57,6 +57,7 @@ wifi:
 5. Support to Chinese (Taiwan) and prepared for other CJK languages
 6. Upload baud rate selectable as substitution
 7. Multiple Alarm Control Panels
+8. Support to `remote`
 
 &nbsp;
 ## Details of noteworthy changes
@@ -106,6 +107,12 @@ The system will always fall back to the standard baud rate (115200 bps) if other
 &nbsp;
 ### 7. Multiple Alarm Control Panels
 Now alarm control panel entities can be assigned to chips and custom buttons in the Home page, but also to hardware buttons, any of the buttons pages or entities pages, similarly to other domains.
+
+&nbsp;
+### 8. Support to `remote`
+Entities from the `remote` domain can now be assigned to buttons (hardware and buttons pages) and custom buttons (home and climate pages).
+
+The service `remote.toggle` will be called when the button is pressed.
 
 &nbsp;
 ## What's Next?
