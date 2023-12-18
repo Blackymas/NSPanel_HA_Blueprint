@@ -31,9 +31,9 @@ Updates may come with changes on the blueprint inputs and we highly recommend yo
 
 &nbsp;
 ## Breaking changes
-1. The `background` parameter in the `esphome.xxxxx_set_component_color` service is now deprecated.
-2. With the introduction of additional custom buttons, the layout of other buttons on the home page has been adjusted.
-3. Wi-Fi power save mode has been reset to `NONE` as the default setting.<br>This was the standard up to v4.0. We switched it in v4.1 to accommodate Bluetooth components. However, since this feature isn't widely used, we're reverting to the original setting. For Bluetooth usage, you should manually set a different mode, such as `LIGHT`, as shown in the customization example below:
+1. **The `background` parameter in the `esphome.xxxxx_set_component_color` service is now deprecated.**
+2. With the introduction of additional custom buttons, the **layout of other buttons on the home page has been adjusted**.
+3. **Wi-Fi power save mode has been reset to `NONE` as the default setting.**<br>This was the standard up to v4.0. We switched it in v4.1 to accommodate Bluetooth components. However, since this feature isn't widely used, we're reverting to the original setting. For Bluetooth usage, you should manually set a different mode, such as `LIGHT`, as shown in the customization example below:
 ```yaml
 ##### My customization - Start #####
 # Enable Bluetooth proxy
@@ -43,10 +43,22 @@ wifi:
   power_save_mode: LIGHT
 ##### My customization - End #####
 ```
-4. The default baud rate for advanced mode has been reverted to 115200 bps to resolve issues that arise when rendering button pages.
-5. ESPHome v2023.12.0 has been established as the minimum required version to ensure optimal performance and compatibility, particularly with the recent developments in the Nextion component.
-6. The Alarm section in the blueprint settings has been removed. All configurations previously made in this section have been automatically transferred to custom button 07.
-7. Documentation in German is no longer maintained. This change allows us to more efficiently update and maintain the remaining documentation.
+4. **The default baud rate for advanced mode has been reverted to 115200 bps** to resolve issues that arise when rendering button pages.
+5. **ESPHome v2023.12.0 has been established as the minimum required version** to ensure optimal performance and compatibility, particularly with the recent developments in the Nextion component.
+6. **The Alarm section in the blueprint settings has been removed.** All configurations previously made in this section have been automatically transferred to custom button 07.
+7. **Documentation in German is no longer maintained.** This change allows us to more efficiently update and maintain the remaining documentation.
+8. **Reversion to "Toggle" as default action for automation entities on buttons.**
+
+    In this update, we have reverted the default action for button presses on automation. entities back to "Toggle." This change reverses the adjustment made in version 4.1, where "Trigger" was set as the default action.
+
+    **Impact:**
+
+    - **Default Behavior:** With this reversion, pressing a button linked to an automation entity will now enable or disable the automation, as it did prior to version 4.1.
+    - **Consistency and Familiarity:** This change aims to align with user expectations and maintain consistency in the user experience.
+    - **Customization Still Available:** Users still have the option to manually set "Trigger" as the action for their automation. entities, as per their preference.
+
+    We understand that changes in default settings can impact your workflows. We appreciate your understanding as we strive to balance new features with the familiarity and stability of the user experience.
+9.
 
 &nbsp;
 ## Overview of noteworthy changes
@@ -61,6 +73,7 @@ wifi:
 9. Home page chips now supports covers
 10. Chips can be inverted
 11. Add swipe control to screensaver page
+12. Enhanced control for automation entities on buttons
 
 &nbsp;
 ## Details of noteworthy changes
@@ -130,6 +143,21 @@ Chips now have an 'invert' option on the blueprint settings, providing additiona
 ### 11. Add swipe control to Screensaver page
 You can now navigate to button pages from the screensaver while your panel is in sleep mode. The swipe controls will function as they do on the Home page.
 
+&nbsp;
+### 12. Enhanced control for automation entities on buttons
+We're pleased to announce a new feature that offers users enhanced control over their smart home setups. Now, you can globally select between **Toggle** and **Trigger** actions for button presses on automation entities. This update allows for a more personalized and efficient control experience, tailored to your unique preferences.
+
+#### Key features:
+- **Toggle:** This action will enable or disable the automation. It is set as the default option.
+- **Trigger:** This action will execute the automation regardless of its current state, providing more flexibility.
+
+#### How to use:
+1. Access your configuration for automation under **Services** > **Automations & Scenes**. Select the automation associated with your panel setup.
+1. Scroll to the **ADVANCED SETTINGS** section at the end.
+1. From the menu, select your desired action - either **Toggle** or **Trigger**.
+1. Apply the setting. This will then be effective across all relevant entities.
+
+This update is specially designed to cater to diverse user needs, ensuring a more intuitive and responsive smart home experience.
 &nbsp;
 ## What's Next?
 Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=due_date)
