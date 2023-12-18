@@ -59,6 +59,7 @@ wifi:
 7. Multiple Alarm Control Panels
 8. Support to `remote`
 9. Home page chips now supports covers
+10. Chips can be inverted
 
 &nbsp;
 ## Details of noteworthy changes
@@ -119,6 +120,10 @@ The service `remote.toggle` will be called when the button is pressed.
 ### 9. Home page chips now supports covers
 That's it!
 Chips now include cover visualization, allowing for easy monitoring of covers directly from the Home page.
+
+&nbsp;
+### 10. Chips can be inverted
+Chips now have an 'invert' option on the blueprint settings, providing additional customization flexibility.
 
 &nbsp;
 ## What's Next?
