@@ -40,6 +40,7 @@ packages:
       - nspanel_esphome.yaml # Core package
       # - nspanel_esphome_addon_climate_cool.yaml # activate for local climate (cooling) control
       - nspanel_esphome_addon_climate_heat.yaml # activate for local climate (heater) control 
+      # - nspanel_esphome_addon_climate_dual.yaml # activate for local climate (dual) control 
     refresh: 300s
 
 esp32:
@@ -54,14 +55,16 @@ The following keys are available to be used in your `substitutions`:
 
 Key|Required|Supported values|Default|Description
 :-|:-:|:-:|:-:|:-
-cooler_relay|Mandatory for `cool`|`1` or `2`|`0` (disabled)|Relay used for control the cooler. User `1` for "Relay 1" or `2` for "Relay 2".
-heater_relay|Mandatory for `heat`|`1` or `2`|`0` (disabled)|Relay used for control the heater. User `1` for "Relay 1" or `2` for "Relay 2".
+cooler_relay|Mandatory for *cool* and *dual*|`1` or `2`|`0` (disabled)|Relay used for control the cooler. User `1` for "Relay 1" or `2` for "Relay 2".
+heater_relay|Mandatory for *heat* and *dual*|`1` or `2`|`0` (disabled)|Relay used for control the heater. User `1` for "Relay 1" or `2` for "Relay 2".
 temp_units|Optional|`°C` or `°F`|`°C`|Temperature unit.
 min_off_time|Optional|Positive integer representing the number of seconds|`300`|Minimum duration (in seconds) the cooling/heating action must be disengaged before it may be engaged.
 min_run_time|Optional|Positive integer representing the number of seconds|`300`|Minimum duration (in seconds) the cooling/heating action must be engaged before it may be disengaged.
 min_idle_time|Optional|Positive integer representing the number of seconds|`30`|Minimum duration (in seconds) the idle action must be active before calling another climate action.
-temp_min|Optional|Number representing a temperature in the selected unit|`15` for `cool`, `5` for `heat`|The minimum temperature the climate device can reach. Used to set the range of the frontend gauge.
-temp_max|Optional|Number representing a temperature in the selected unit|`45` for `cool`, `25` for `heat`|The maximum temperature the climate device can reach. Used to set the range of the frontend gauge.
+target_low|Optional|Number representing a temperature in the selected unit|`18`|The initial lower treshold for the target temperature.
+target_high|Optional|Number representing a temperature in the selected unit|`24`|The initial higher treshold for the target temperature.
+temp_min|Optional|Number representing a temperature in the selected unit|*cool: `15`*<br>*heat: `5`*<br>*dual: `5`* |The minimum temperature the climate device can reach. Used to set the range of the frontend gauge.
+temp_max|Optional|Number representing a temperature in the selected unit|*cool: `45`*<br>*heat: `25`*<br>*dual: `45`* |The maximum temperature the climate device can reach. Used to set the range of the frontend gauge.
 temp_step|Optional|Number representing a temperature in the selected unit|`0.5`|The granularity with which the target temperature can be controlled.
 
 - All values must be delimited with `""`
