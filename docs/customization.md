@@ -73,6 +73,7 @@ packages:
       - nspanel_esphome.yaml # Core package
       # - nspanel_esphome_addon_climate_cool.yaml # activate for local climate (cooling) control
       # - nspanel_esphome_addon_climate_heat.yaml # activate for local climate (heater) control
+      # - nspanel_esphome_addon_climate_dual.yaml # activate for local climate (dual) control
     refresh: 300s
 
 esp32:

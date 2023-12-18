@@ -77,6 +77,7 @@ wifi:
 10. Chips can be inverted
 11. Add swipe control to screensaver page
 12. Enhanced control for automation entities on buttons
+13. Dual thermostat controller support (add-on)
 
 &nbsp;
 ## Details of noteworthy changes
@@ -161,6 +162,25 @@ We're pleased to announce a new feature that offers users enhanced control over 
 1. Apply the setting. This will then be effective across all relevant entities.
 
 This update is specially designed to cater to diverse user needs, ensuring a more intuitive and responsive smart home experience.
+
+&nbsp;
+### 13. Dual thermostat controller support (add-on)
+This new add-on enables the NSPanel to manage both heating and cooling systems simultaneously, utilizing its dual relay functionality.
+
+#### Key Benefits:
+- **Versatility:** Users can now configure their NSPanel to control both a heater and a cooler, offering increased flexibility in home temperature management.
+- **Efficiency:** With the ability to control both heating and cooling systems, the NSPanel can more effectively maintain desired temperatures, potentially leading to energy savings.
+- **User Experience:** This update simplifies the user interface by integrating control of both systems into one panel, making it easier to manage home climate.
+
+#### Implementation Details:
+- The dual thermostat controller functionality allows the NSPanel to utilize both of its relays for separate heating and cooling control.<br>
+Users can configure their heating and cooling settings independently, providing a tailored climate control experience.
+- The update is designed to be intuitive and user-friendly, ensuring a seamless transition for existing NSPanel users.
+- Additional Documentation: For detailed instructions and configurations, refer to the updated [add-on climate documentation](docs/addon_climate.md).
+
+#### Note to Users:
+This feature enhances the capabilities of the NSPanel without compromising its existing functionalities. Users who previously used the NSPanel for single-mode (either heating or cooling) control can now explore dual-mode options for a more comprehensive climate control solution.
+
 &nbsp;
 ## What's Next?
 Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=due_date)

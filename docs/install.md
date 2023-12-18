@@ -84,7 +84,8 @@ packages:
       # - advanced/esphome/nspanel_esphome_advanced.yaml # activate advanced (legacy) elements - can be useful for troubleshooting
       # - nspanel_esphome_addon_climate_cool.yaml # activate for local climate (cooling) control
       # - nspanel_esphome_addon_climate_heat.yaml # activate for local climate (heater) control
-    refresh: 1s
+      # - nspanel_esphome_addon_climate_dual.yaml # activate for local climate (dual) control
+    refresh: 300s
 
 esp32:
   framework:
@@ -164,5 +165,3 @@ esp32:
 * Blueprint file _**"nspanel_blueprint.yaml "**_ can also be installed manually.
 * There is also the possibility to upload the TFT file _**"nspanel_us.tft "**_ manually. The whole thing can also be combined with a _**"Folder Watcher "**_.
 * additionally we provide the HMI files _**"nspanel_xx.HMI "**_ for the Nextion Editor to customize graphics and programming if needed.
-
-&nbsp;  
