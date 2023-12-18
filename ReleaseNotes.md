@@ -58,7 +58,8 @@ wifi:
     - **Customization Still Available:** Users still have the option to manually set "Trigger" as the action for their automation. entities, as per their preference.
 
     We understand that changes in default settings can impact your workflows. We appreciate your understanding as we strive to balance new features with the familiarity and stability of the user experience.
-9.
+9. **Advanced mode no longer enforces a specific framework.**<br>
+    In the past, the enforcement of framework changes by the advanced mode could inadvertently result in users switching frameworks during OTA updates. This practice was not recommended due to the potential for errors.
 
 &nbsp;
 ## Overview of noteworthy changes
