@@ -58,6 +58,7 @@ wifi:
 6. Upload baud rate selectable as substitution
 7. Multiple Alarm Control Panels
 8. Support to `remote`
+9. Home page chips now supports covers
 
 &nbsp;
 ## Details of noteworthy changes
@@ -113,6 +114,11 @@ Now alarm control panel entities can be assigned to chips and custom buttons in 
 Entities from the `remote` domain can now be assigned to buttons (hardware and buttons pages) and custom buttons (home and climate pages).
 
 The service `remote.toggle` will be called when the button is pressed.
+
+&nbsp;
+### 9. Home page chips now supports covers
+That's it!
+Chips now include cover visualization, allowing for easy monitoring of covers directly from the Home page.
 
 &nbsp;
 ## What's Next?
