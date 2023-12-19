@@ -78,6 +78,7 @@ wifi:
 11. Add swipe control to screensaver page
 12. Enhanced control for automation entities on buttons
 13. Dual thermostat controller support (add-on)
+14. Enhanced timeout flexibility for Sleep, Page fallback, and Dimming settings
 
 &nbsp;
 ## Details of noteworthy changes
@@ -180,6 +181,10 @@ Users can configure their heating and cooling settings independently, providing 
 
 #### Note to Users:
 This feature enhances the capabilities of the NSPanel without compromising its existing functionalities. Users who previously used the NSPanel for single-mode (either heating or cooling) control can now explore dual-mode options for a more comprehensive climate control solution.
+
+&nbsp;
+### 14. Enhanced timeout flexibility for Sleep, Page fallback, and Dimming settings
+We have improved the functionality of our system by enhancing the timeout flexibility for Sleep, Page Fallback, and Dimming settings. The previous timeout limit of 300 seconds has been significantly expanded, offering users more control and customization options for these specific features. This enhancement allows for a wider range of use cases, catering to the needs of those who require extended periods for these settings, while still maintaining the option for shorter durations.
 
 &nbsp;
 ## What's Next?
