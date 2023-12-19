@@ -430,15 +430,6 @@ api:
         - lambda: |-
             static const char *const TAG = "service.open_entity_settings_page";
 
-            auto pageIndex = [](const std::string& page_name) -> uint8_t {
-              for (uint8_t i = 0; i < id(page_names).size(); ++i) {
-                  if (id(page_names)[i] == page_name) {
-                      return i;  // Return the index if found
-                  }
-              }
-              return 0u;  // Return 0 (home page) if not found
-            };
-
             detailed_entity->publish_state(entity);
             if (page == "alarm_control_panel") page = "alarm";
             std::string cmd_page = std::string("page ") + page.c_str();
@@ -447,7 +438,7 @@ api:
               page_label = page_label.replace(page_label.find("\\r"), 2, " ");
             }
             disp1->set_component_text_printf("page_label", "%s", page_label.c_str());
-            disp1->send_command_printf("back_page_id=%i", pageIndex(back_page.c_str()));
+            set_page_id->execute("back_page_id", back_page.c_str());
             if (page == "climate")
               {
                 if (entity == "embedded_climate") addon_climate_set_climate_friendly_name->execute(page_label.c_str());
@@ -2448,21 +2439,7 @@ script:
     mode: restart
     then:
       - lambda: |-
-          static const char *const TAG = "script.page_screensaver";
-
-          auto pageIndex = [](const std::string& page_name) -> uint8_t {
-              for (uint8_t i = 0; i < id(page_names).size(); ++i) {
-                  if (id(page_names)[i] == page_name) {
-                      return i; // Return the index if found
-                  }
-              }
-              return 0u; // Return 0 (home page) if not found
-          };
-
-          if (current_page->state == "screensaver") {  // Is screensaver page visible?
-            ESP_LOGV(TAG, "Update screensaver page");
-            disp1->set_component_value("orign", pageIndex(wakeup_page_name->state));
-          }
+          set_page_id->execute("back_page_id", wakeup_page_name->state.c_str());
 
   - id: page_settings
     mode: restart
@@ -2509,6 +2486,23 @@ script:
       - script.execute:
           id: page_weather
           page_number: 5
+
+  - id: set_page_id
+    mode: queued
+    parameters:
+      variable: string
+      page: string
+    then:
+      - lambda: |-
+          auto pageIndex = [](const std::string& page_name) -> uint8_t {
+              for (uint8_t i = 0; i < id(page_names).size(); ++i) {
+                  if (id(page_names)[i] == page_name) {
+                      return i;  // Return the index if found
+                  }
+              }
+              return 0u;  // Return 0 (home page) if not found
+          };
+          disp1->send_command_printf("%s=%i", variable.c_str(), pageIndex(page.c_str()));
 
   - id: exit_reparse
     mode: restart
