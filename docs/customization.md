@@ -27,6 +27,7 @@ Table of contents:
   - [Bluetooth proxy](#bluetooth-proxy)
   - [Logger via UART](#logger-via-uart)
   - [Climate custom presets](#climate-custom-presets)
+  - [Push button / Momentary switch](#push-button-momentary-switch)
 
 &nbsp;
 &nbsp;
@@ -542,4 +543,31 @@ climate:
       - name: Sleep
         default_target_temperature_low: 17.5 ${temp_units}
         mode: "heat"
+```
+
+&nbsp;
+### Push button / Momentary switch
+You can set the physical relays to be `on` only while the hardware buttons are pressed, and then back to `off` when the buttons are released:
+
+```yaml
+binary_sensor:
+  # Left button custom action: Push button / Momentary switch - Relay 1
+  - id: !extend left_button
+    on_click:
+      then:
+    on_press:
+      then:
+        switch.turn_on: relay_1
+    on_release:
+        switch.turn_off: relay_1
+
+  # Right button custom action: Push button / Momentary switch - Relay 2
+  - id: !extend right_button
+    on_click:
+      then:
+    on_press:
+      then:
+        switch.turn_on: relay_2
+    on_release:
+        switch.turn_off: relay_2
 ```
