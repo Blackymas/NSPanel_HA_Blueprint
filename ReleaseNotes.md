@@ -187,8 +187,7 @@ Discover what's next and what we are working on right now in our [Milestones](ht
 
 &nbsp;
 ## Special thanks to:
-
-## New Contributors
+- @bluefoxlee - For the CJK fonts and all the support with #1359.
 
 ## Previous releases
 - [v4.1.4 - Support to Home Assistant 2023.12.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.4)
