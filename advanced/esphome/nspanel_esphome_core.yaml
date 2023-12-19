@@ -1603,169 +1603,574 @@ text_sensor:
 
 ### Scripts ######
 script:
-  ###### Timers ######
-  ## Global timer reset - Triggered with a touch on the screen
-  - id: timer_reset_all
+  - id: addon_climate_service_call
     mode: restart
     parameters:
-      page: string
-    then:
-      - lambda: |-
-          ESP_LOGV("script.timer_reset_all", "Reset timers");
-          timer_page->execute(page.c_str(), int(timeout_page->state));
-          timer_dim->execute(page.c_str(), int(timeout_dim->state));
-          timer_sleep->execute(page.c_str(), int(timeout_sleep->state));
-
-  - id: timer_page  # Handles the fallback to home page after a timeout
+      key: string
+      value: string
+    then:  # Reserved for Add-on Climate
+  - id: addon_climate_set_climate
     mode: restart
     parameters:
-      page: string
-      timeout: uint
-    then:
-      - lambda: |-
-          ESP_LOGV("script.timer_page", "Reset timer: %is", timeout);
-      - if:
-          condition:
-            - lambda: |-
-                return (timeout >= 1 and
-                        page != "boot" and
-                        page != "confirm" and
-                        page != "home" and
-                        page != "notification" and
-                        page != "screensaver");
-          then:
-            - delay: !lambda return (timeout *1000);
-            - lambda: |-
-                ESP_LOGV("script.timer_page", "Timed out on page: %s", current_page->state.c_str());
-                if (timeout >= 1 and
-                    current_page->state != "boot" and
-                    current_page->state != "confirm" and
-                    current_page->state != "home" and
-                    current_page->state != "notification" and
-                    current_page->state != "screensaver")
-                  {
-                    ESP_LOGD("script.timer_page", "Fallback to page Home");
-                    disp1->goto_page("home");
-                  }
-  - id: timer_dim  # Handles the brightness dimming after a timeout
-    mode: restart
-    parameters:
-      page: string
-      timeout: uint
-    then:
-      - lambda: |-
-          ESP_LOGV("script.timer_dim", "Reset timer: %is", timeout);
-          if (id(display_last_brightness) <= id(display_dim_brightness_global)
-              and page != "screensaver"
-              and page != "boot"
-              and page != "blank-screensaver") {
-            ESP_LOGD("script.timer_dim", "Waking up on page: %s", page.c_str());
-            set_brightness->execute(id(display_brightness_global));
-          }
-      - if:
-          condition:
-            - lambda: !lambda return (timeout >= 1);
-          then:
-            - delay: !lambda return (timeout *1000);
-            - lambda: |-
-                if (current_page->state != "screensaver" and
-                    current_page->state != "blank-screensaver" and
-                    current_page->state != "boot" and
-                    timeout >= 1) {
-                  set_brightness->execute(id(display_dim_brightness_global));
-                }
-  - id: timer_sleep  # Handles the sleep (go to screensaver page) after a timeout
-    mode: restart
-    parameters:
-      page: string
-      timeout: uint
-    then:
-      - lambda: |-
-          ESP_LOGV("script.timer_sleep", "Reset timer: %is", timeout);
-      - if:
-          condition:
-            - lambda: |-
-                return (timeout >= 1 and current_page->state != "screensaver" and current_page->state != "boot");
-          then:
-            - delay: !lambda return (timeout *1000);
-            - lambda: |-
-                if (current_page->state != "screensaver" and
-                    current_page->state != "boot" and
-                    timeout >= 1) {
-                  ESP_LOGD("script.timer_sleep", "Going to sleep from page %s", current_page->state.c_str());
-                  disp1->goto_page("screensaver");
-                  set_brightness->execute(0);
-                }
-
-  - id: set_brightness
-    mode: restart
-    parameters:
-      brightness: uint
-    then:
-      - lambda: |-
-          ESP_LOGD("script.set_brightness", "brightness: %i%%", brightness);
-          if (current_page->state != "screensaver") {
-            if (brightness == id(display_brightness_global)) {
-              disp1->send_command_printf("wakeup_timer.en=1");
-            } else {
-              disp1->set_backlight_brightness(static_cast<float>(brightness) / 100.0f);
-            }
-          id(display_last_brightness) = brightness;
-          }
-
-  - id: set_climate
-    mode: restart
-    parameters:
-      current_temp: float
-      target_temp: float
-      temp_step: uint
-      total_steps: uint
-      temp_offset: int
-      climate_icon: string
       embedded_climate: bool
+    then:  # Reserved for Add-on Climate
+  - id: addon_climate_set_climate_friendly_name
+    mode: restart
+    parameters:
+      friendly_name: string
+    then:  # Reserved for Add-on Climate
+  - id: addon_climate_update_page_home
+    mode: restart
+    then:  # Reserved for Add-on Climate
+
+  - id: boot_sequence
+    mode: restart
     then:
       - lambda: |-
-          static const char *const TAG = "script.set_climate";
-          ESP_LOGV(TAG, "Starting");
-          ESP_LOGV(TAG, "  current_temp:     %f", current_temp);
-          ESP_LOGV(TAG, "  target_temp:      %f", target_temp);
-          ESP_LOGV(TAG, "  temp_step:        %d", temp_step);
-          ESP_LOGV(TAG, "  total_steps:      %d", total_steps);
-          ESP_LOGV(TAG, "  temp_offset:      %i", temp_offset);
-          ESP_LOGV(TAG, "  climate_icon:     %s", climate_icon.c_str());
-          ESP_LOGV(TAG, "  embedded_climate: %s", embedded_climate ? "True" : "False");
-          if (current_page->state == "climate") {
-            ESP_LOGV(TAG, "Page climate is visible");
-            addon_climate_set_climate->execute(embedded_climate);
-            disp1->send_command_printf("climateslider.maxval=%i", total_steps);
-            disp1->set_component_value("temp_offset", temp_offset);
-            disp1->set_component_value("temp_step", temp_step);
-            disp1->set_component_text_printf("current_temp", "%.1f°", current_temp);
-            disp1->show_component("current_temp");
-            disp1->show_component("current_icon");
-            if (target_temp > -999)
-              {
-                float slider_val = round(((10*target_temp) - temp_offset) / temp_step);
-                disp1->set_component_value("climateslider", slider_val);
-                disp1->set_component_text_printf("target_temp", "%.1f°", target_temp);
-                disp1->set_component_text_printf("target_icon", "%s", climate_icon.c_str());
-                disp1->show_component("target_icon");
-                disp1->show_component("target_temp");
-                disp1->show_component("climateslider");
-                disp1->show_component("decrease_temp");
-                disp1->show_component("increase_temp");
-              }
-            else
-              {
-                disp1->hide_component("target_icon");
-                disp1->hide_component("target_temp");
-                disp1->hide_component("climateslider");
-                disp1->hide_component("decrease_temp");
-                disp1->hide_component("increase_temp");
-              }
-            disp1->set_component_value("embedded", (embedded_climate) ? 1 : 0);
+          static const char *const TAG = "script.boot_sequence";
+          ESP_LOGD(TAG, "Starting boot sequence");
+          ESP_LOGD(TAG, "Wait for TFT version");
+      - wait_until:
+          - lambda: !lambda return !id(version_tft).empty();
+      - lambda: |-
+          static const char *const TAG = "script.boot_sequence";
+          ESP_LOGD(TAG, "TFT version: %s", id(version_tft).c_str());
+          if (current_page->state == "boot") {
+            disp1->send_command_printf("tm_esphome.en=0");
+            disp1->send_command_printf("tm_pageid.en=0");
+            page_boot->execute();
           }
+          timer_reset_all->execute("boot");
+      - lambda: |-
+          static const char *const TAG = "script.boot_sequence";
+          ESP_LOGD(TAG, "Wait for API");
+      - wait_until:
+          api.connected
+      - lambda: |-
+          static const char *const TAG = "script.boot_sequence";
+          if (current_page->state == "boot") {
+            ESP_LOGD(TAG, "Publish IP address");
+            disp1->set_component_text_printf("boot.ip_addr", "%s", network::get_ip_address().str().c_str());
+            set_brightness->execute(100);
+          }
+          ESP_LOGD(TAG, "Report to Home Assistant");
+          auto ha_event = new esphome::api::CustomAPIDevice();
+          ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+            {
+              {"type", "boot"},
+              {"step", "start"}
+            });
+          if (!id(boot_sequence_completed)) delay(1000);
+          // Set dimming values
+          display_brightness->publish_state(id(display_brightness_global));
+          display_dim_brightness->publish_state(id(display_dim_brightness_global));
+          disp1->send_command_printf("brightness=%i", id(display_brightness_global));
+          disp1->send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
+          disp1->send_command_printf("brightness_dim=%i", id(display_dim_brightness_global));
+          disp1->send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
+          set_brightness->execute(id(display_brightness_global));
+          ESP_LOGD(TAG, "Report to Home Assistant");
+          nextion_init->publish_state(true);
+          //auto ha_event = new esphome::api::CustomAPIDevice();
+          ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+            {
+              {"type", "boot"},
+              {"step", "nextion_init"}
+            });
+          // Chips icon size
+          ESP_LOGV(TAG, "Chips size");
+          for (int i = 1; i <= 10; ++i) {
+            disp1->send_command_printf("home.icon_top_%02d.font=%i", i, id(home_chip_font_size));
+          }
+          disp1->send_command_printf("home.wifi_icon.font=%i", id(home_chip_font_size));
+          disp1->set_component_text_printf("home.icon_top_01", "%s", id(home_relay1_icon).c_str());
+          disp1->set_component_text_printf("home.icon_top_02", "%s", id(home_relay2_icon).c_str());
+          timer_reset_all->execute("boot");
+          notification_clear->execute();
+          id(boot_sequence_completed) = true;
+      - wait_until:
+          condition:
+            - not:
+                - text_sensor.state:  # Is boot page visible?
+                    id: current_page
+                    state: 'boot'
+          timeout: 15s
+      - lambda: |-
+          static const char *const TAG = "script.boot_sequence";
+          if (current_page->state == "boot") disp1->goto_page(wakeup_page_name->state.c_str());
+          ESP_LOGD(TAG, "Boot sequence finished!");
+
+  - id: check_versions
+    mode: restart
+    then:
+      - wait_until:
+          condition:
+            - lambda: |-
+                auto compareVersions = [](const char* version1, const char* version2) -> bool
+                  {
+                    int major1 = 0, minor1 = 0;
+                    int major2 = 0, minor2 = 0;
+
+                    sscanf(version1, "%d.%d", &major1, &minor1);
+                    sscanf(version2, "%d.%d", &major2, &minor2);
+
+                    return (major1 == major2) && (minor1 == minor2);
+                  };
+                return (compareVersions("${version}", id(version_tft).c_str()) and compareVersions("${version}", id(version_blueprint).c_str()));
+          timeout: 60s
+      - lambda: |-
+          static const char *const TAG = "script.check_versions";
+          auto compareVersions = [](const char* version1, const char* version2) -> bool
+            {
+                int major1 = 0, minor1 = 0;
+                int major2 = 0, minor2 = 0;
+
+                sscanf(version1, "%d.%d", &major1, &minor1);
+                sscanf(version2, "%d.%d", &major2, &minor2);
+
+                return (major1 == major2) && (minor1 == minor2);
+            };
+          ESP_LOGD(TAG, "ESPHome version: ${version}");
+          ESP_LOGD(TAG, "TFT version: %s", id(version_tft).c_str());
+          if (not compareVersions("${version}", id(version_tft).c_str())) ESP_LOGE(TAG, "TFT version mismatch!");
+          ESP_LOGD(TAG, "Blueprint version: %s", id(version_blueprint).c_str());
+          if (not compareVersions("${version}", id(version_blueprint).c_str())) ESP_LOGE(TAG, "Blueprint version mismatch!");
+
+          std::string framework = "unknown";
+          #ifdef ARDUINO
+          framework = "arduino";
+          #elif defined(USE_ESP_IDF)
+          framework = "esp-idf";
+          #endif
+          ESP_LOGD(TAG, "Framework: %s", framework.c_str());
+          ESP_LOGD(TAG, "Baud rate: %" PRIu32, id(tf_uart).get_baud_rate());
+
+          auto ha_event = new esphome::api::CustomAPIDevice();
+          ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+            {
+              {"type", "version"},
+              {"tft", id(version_tft).c_str()},
+              {"esphome", "${version}"},
+              {"blueprint", id(version_blueprint).c_str()},
+              {"framework", framework.c_str()},
+              {"baud_rate", to_string(id(tf_uart).get_baud_rate())}
+            });
+
+  - id: display_embedded_temp
+    mode: restart
+    then:
+      - if:
+          condition:
+            - or:
+                - lambda: return id(embedded_indoor_temp);
+                - not:
+                    - api.connected:
+                - not:
+                    - wifi.connected:
+          then:
+            - lambda: |-
+                if (id(temp_unit_fahrenheit)) disp1->set_component_text_printf("home.current_temp", "%.0f°F", ((temp_nspanel->state * 9.0 / 5.0) + 32.0)); // °F = (°C × 9/5) + 32
+                else disp1->set_component_text_printf("home.current_temp", "%.1f°C", temp_nspanel->state);
+
+  - id: display_wrapped_text
+    mode: queued
+    parameters:
+      component: string
+      text_to_display: string
+      line_length_limit: uint
+    then:
+      - lambda: |-
+          int startPos = 0;
+          int endPos = 0;
+          std::string wrappedText = "";
+          if (text_to_display.find("\\r") != std::string::npos) {
+            wrappedText = text_to_display;
+          } else {
+            while (startPos < text_to_display.length()) {
+              while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
+              int endPos = startPos + line_length_limit;
+              if (endPos >= text_to_display.length()) endPos = text_to_display.length();
+              else
+                {
+                  while (endPos > startPos && text_to_display[endPos] != ' ') { endPos--; }
+                  if (endPos == startPos) endPos = startPos + line_length_limit; // Handle case of long word
+                }
+              wrappedText += text_to_display.substr(startPos, endPos-startPos);
+              if (endPos < text_to_display.length())
+                {
+                  while (text_to_display[endPos] == ' ') { endPos--; }
+                  if (endPos >= startPos) wrappedText += "\\r";
+                }
+              startPos = endPos + 1; // Skip the space
+              while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
+            }
+          }
+          disp1->set_component_text_printf(component.c_str(), "%s", wrappedText.c_str());
+
+  - id: exit_reparse
+    mode: restart
+    then:
+      - logger.log: "Exit reparse"
+      - uart.write:
+          id: tf_uart
+          data: "DRAKJHSUYDGBNCJHGJKSHBDN"
+      - uart.write:
+          id: tf_uart
+          data: [0xFF, 0xFF, 0xFF]
+
+  - id: ha_button
+    mode: parallel
+    parameters:
+      page: string
+      component: string
+      command: string
+    then:
+      - lambda: |-
+          timer_reset_all->execute(page.c_str());
+          auto ha_event = new esphome::api::CustomAPIDevice();
+          ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+            {
+              {"type", "button_click"},
+              {"page", page},
+              {"component", component},
+              {"command", command}
+            });
+
+  - id: ha_call_service
+    mode: restart
+    parameters:
+      service: string
+      key: string
+      value: string
+      entity: string
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.ha_call_service";
+          ESP_LOGV(TAG, "Calling Home Assisant service");
+          ESP_LOGV(TAG, "  Type: service_call");
+          ESP_LOGV(TAG, "  Service: %s", service.c_str());
+          ESP_LOGV(TAG, "  Entity:  %s", entity.c_str());
+          ESP_LOGV(TAG, "  Key:     %s", key.c_str());
+          ESP_LOGV(TAG, "  Value:   %s", value.c_str());
+          if (service != "" and not service.empty())
+            {
+              auto ha_event = new esphome::api::CustomAPIDevice();
+              ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+                {
+                  {"type", "service_call"},
+                  {"service", service},
+                  {"entity", entity},
+                  {"key", key},
+                  {"value", value}
+                });
+            }
           ESP_LOGV(TAG, "Finished");
+
+  - id: nextion_status
+    mode: restart
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.nextion_status";
+          ESP_LOGD(TAG, "Nextion status:");
+          ESP_LOGD(TAG, "  Is detected: %s", disp1->is_detected() ? "True" : "False");
+          ESP_LOGD(TAG, "  Is setup:    %s", disp1->is_setup() ? "True" : "False");
+
+  - id: notification_clear
+    mode: restart
+    then:
+      - lambda: |-
+          disp1->send_command_printf("is_notification=0");
+          if (current_page->state == "notification") disp1->goto_page("home");
+          notification_label->publish_state("");
+          notification_text->publish_state("");
+          notification_unread->turn_off();
+          if (current_page->state == "home") disp1->hide_component("bt_notific");
+
+  - id: page_alarm
+    mode: restart
+    then:  # There's nothing here so far
+
+  - id: page_blank
+    mode: restart
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.page_blank";
+          ESP_LOGV(TAG, "Construct blank page");
+          std::string framework = "unknown";
+          #ifdef ARDUINO
+          framework = "arduino";
+          #elif defined(USE_ESP_IDF)
+          framework = "esp-idf";
+          #endif
+          disp1->set_component_text_printf("esp_version", "ESP: ${version}");  // ESPHome version
+          disp1->set_component_text_printf("framework", framework.c_str());    // ESPHome framework
+          disp1->send_command_printf("tm_esphome.en=0");
+          disp1->send_command_printf("tm_pageid.en=0");
+
+  - id: page_boot
+    mode: restart
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.page_boot";
+          ESP_LOGV(TAG, "Construct boot page");
+          set_brightness->execute(100);
+
+          std::string framework = "unknown";
+          #ifdef ARDUINO
+          framework = "arduino";
+          #elif defined(USE_ESP_IDF)
+          framework = "esp-idf";
+          #endif
+          disp1->set_component_text_printf("esph_version", "${version}");    // ESPHome version
+          disp1->set_component_text_printf("framework", framework.c_str());  // ESPHome framework
+          disp1->show_component("bt_reboot");
+
+  - id: page_buttonpage
+    mode: restart
+    parameters:
+      page_number: uint
+    then:  # There's nothing here so far
+  - id: page_buttonpage01
+    mode: restart
+    then:
+      - script.execute:
+          id: page_buttonpage
+          page_number: 1
+  - id: page_buttonpage02
+    mode: restart
+    then:
+      - script.execute:
+          id: page_buttonpage
+          page_number: 2
+  - id: page_buttonpage03
+    mode: restart
+    then:
+      - script.execute:
+          id: page_buttonpage
+          page_number: 3
+  - id: page_buttonpage04
+    mode: restart
+    then:
+      - script.execute:
+          id: page_buttonpage
+          page_number: 4
+
+  - id: page_changed
+    mode: restart
+    parameters:
+      page: string
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.page_changed";
+
+          // Go to boot page if not initiated
+          if (page != "boot" and not nextion_init->state) disp1->goto_page("boot");
+          // Reset globals
+          if (page != "alarm" && //DEBOG
+              page != "climate" &&
+              page != "cover" &&
+              page != "fan" &&
+              page != "light" &&
+              page != "media_player" &&
+              page != "confirm" &&
+              page != "keyb_num") {
+              detailed_entity->publish_state("");
+              disp1->send_command_printf("back_page_id=0");
+          }
+          if (page != "media_player") {
+            id(last_volume_level) = 0;
+            id(last_media_duration) = 0;
+            id(last_media_position) = 0;
+          }
+
+          // Report new page to logs
+          ESP_LOGD(TAG, "New page: %s", page.c_str());
+          if (!detailed_entity->state.empty()) ESP_LOGD(TAG, "Entity shown: %s", detailed_entity->state.c_str());
+
+          // Reset timers
+          timer_reset_all->execute(page.c_str());
+
+          // Report new page to Home Assistant
+          ESP_LOGV(TAG, "Trigger HA event");
+          auto ha_event = new esphome::api::CustomAPIDevice();
+          ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+            {
+              {"type", "page_changed"},
+              {"page", page.c_str()},
+              {"entity", detailed_entity->state.c_str()}
+            });
+
+          // Report new page to add-ons
+          ESP_LOGV(TAG, "Call add-ons scripts for new page");
+          addon_climate_set_climate->execute(page == "climate" and detailed_entity->state == "embedded_climate");
+
+          // Call page constructor
+          if (page == "alarm") page_alarm->execute();
+          else if (page == "blank") page_blank->execute();
+          else if (page == "boot") page_boot->execute();
+          else if (page == "buttonpage01") page_buttonpage01->execute();
+          else if (page == "buttonpage02") page_buttonpage02->execute();
+          else if (page == "buttonpage03") page_buttonpage03->execute();
+          else if (page == "buttonpage04") page_buttonpage04->execute();
+          else if (page == "climate") page_climate->execute();
+          else if (page == "confirm") page_confirm->execute();
+          else if (page == "cover") page_cover->execute();
+          else if (page == "entitypage01") page_entitypage01->execute();
+          else if (page == "entitypage02") page_entitypage02->execute();
+          else if (page == "entitypage03") page_entitypage03->execute();
+          else if (page == "entitypage04") page_entitypage04->execute();
+          else if (page == "fan") page_fan->execute();
+          else if (page == "home") page_home->execute();
+          else if (page == "keyb_num") page_keyb_num->execute();
+          else if (page == "light") page_light->execute();
+          else if (page == "media_player") page_media_player->execute();
+          else if (page == "notification") page_notification->execute();
+          else if (page == "qrcode") page_qrcode->execute();
+          else if (page == "screensaver") page_screensaver->execute();
+          else if (page == "settings") page_settings->execute();
+          else if (page == "weather01") page_weather01->execute();
+          else if (page == "weather02") page_weather02->execute();
+          else if (page == "weather03") page_weather03->execute();
+          else if (page == "weather04") page_weather04->execute();
+          else if (page == "weather05") page_weather05->execute();
+
+  - id: page_climate
+    mode: restart
+    then:  # There's nothing here so far
+
+  - id: page_confirm
+    mode: restart
+    then:  # There's nothing here so far
+
+  - id: page_cover
+    mode: restart
+    then:  # There's nothing here so far
+
+  - id: page_entitypage
+    mode: restart
+    parameters:
+      page_number: uint
+    then:  # There's nothing here so far
+  - id: page_entitypage01
+    mode: restart
+    then:
+      - script.execute:
+          id: page_entitypage
+          page_number: 1
+  - id: page_entitypage02
+    mode: restart
+    then:
+      - script.execute:
+          id: page_entitypage
+          page_number: 2
+  - id: page_entitypage03
+    mode: restart
+    then:
+      - script.execute:
+          id: page_entitypage
+          page_number: 3
+  - id: page_entitypage04
+    mode: restart
+    then:
+      - script.execute:
+          id: page_entitypage
+          page_number: 4
+
+  - id: page_fan
+    mode: restart
+    then:  # There's nothing here so far
+
+  - id: page_home
+    mode: restart
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.page_home";
+          if (current_page->state == "home") {  // Is home page visible?
+            ESP_LOGV(TAG, "Update home page");
+            refresh_relays->execute();
+            refresh_wifi_icon->execute();
+            disp1->send_command_printf("is_notification=%i", (notification_text->state.empty() and notification_label->state.empty()) ? 0 : 1);
+            set_component_color->execute("home.bt_notific", notification_unread->state ? id(home_notify_icon_color_unread) : id(home_notify_icon_color_normal));
+            refresh_datetime->execute();
+            addon_climate_update_page_home->execute();
+          }
+
+  - id: page_keyb_num
+    mode: restart
+    then:  # There's nothing here so far
+
+  - id: page_light
+    mode: restart
+    then:  # There's nothing here so far
+
+  - id: page_media_player
+    mode: restart
+    then:  # There's nothing here so far
+
+  - id: page_notification
+    mode: restart
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.page_notification";
+          ESP_LOGV(TAG, "Updating notification page");
+          disp1->set_component_text_printf("notification.notifi_label", "%s", notification_label->state.c_str());
+          display_wrapped_text->execute("notification.notifi_text01", notification_text->state.c_str(), id(display_mode) == 2 ? 23 : 32);
+
+  - id: page_qrcode
+    mode: restart
+    then:  # There's nothing here so far
+
+  - id: page_screensaver
+    mode: restart
+    then:
+      - lambda: |-
+          set_page_id->execute("back_page_id", wakeup_page_name->state.c_str());
+
+  - id: page_settings
+    mode: restart
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.page_settings";
+          ESP_LOGV(TAG, "Construct settings page");
+          //disp1->set_component_text_printf("bt_sleep", "%s", (id(sleep_mode).state) ? "\uEA19" : "\uEA18"); //mdi:toggle-switch-outline or mdi:toggle-switch-off-outline
+          disp1->hide_component("lbl_sleep");
+          disp1->hide_component("bt_sleep");
+
+  - id: page_weather
+    mode: restart
+    parameters:
+      page_number: uint
+    then:  # There's nothing here so far
+  - id: page_weather01
+    mode: restart
+    then:
+      - script.execute:
+          id: page_weather
+          page_number: 1
+  - id: page_weather02
+    mode: restart
+    then:
+      - script.execute:
+          id: page_weather
+          page_number: 2
+  - id: page_weather03
+    mode: restart
+    then:
+      - script.execute:
+          id: page_weather
+          page_number: 3
+  - id: page_weather04
+    mode: restart
+    then:
+      - script.execute:
+          id: page_weather
+          page_number: 4
+  - id: page_weather05
+    mode: restart
+    then:
+      - script.execute:
+          id: page_weather
+          page_number: 5
 
   - id: refresh_datetime
     mode: restart
@@ -1906,53 +2311,270 @@ script:
             ha_call_service->execute("climate.set_hvac_mode", key.c_str(), value.c_str(), entity.c_str());
           ESP_LOGV(TAG, "Finished");
 
-  - id: ha_call_service
+  - id: set_brightness
     mode: restart
     parameters:
-      service: string
-      key: string
-      value: string
-      entity: string
+      brightness: uint
     then:
       - lambda: |-
-          static const char *const TAG = "script.ha_call_service";
-          ESP_LOGV(TAG, "Calling Home Assisant service");
-          ESP_LOGV(TAG, "  Type: service_call");
-          ESP_LOGV(TAG, "  Service: %s", service.c_str());
-          ESP_LOGV(TAG, "  Entity:  %s", entity.c_str());
-          ESP_LOGV(TAG, "  Key:     %s", key.c_str());
-          ESP_LOGV(TAG, "  Value:   %s", value.c_str());
-          if (service != "" and not service.empty())
-            {
-              auto ha_event = new esphome::api::CustomAPIDevice();
-              ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-                {
-                  {"type", "service_call"},
-                  {"service", service},
-                  {"entity", entity},
-                  {"key", key},
-                  {"value", value}
-                });
+          ESP_LOGD("script.set_brightness", "brightness: %i%%", brightness);
+          if (current_page->state != "screensaver") {
+            if (brightness == id(display_brightness_global)) {
+              disp1->send_command_printf("wakeup_timer.en=1");
+            } else {
+              disp1->set_backlight_brightness(static_cast<float>(brightness) / 100.0f);
             }
+          id(display_last_brightness) = brightness;
+          }
+
+  - id: set_climate
+    mode: restart
+    parameters:
+      current_temp: float
+      target_temp: float
+      temp_step: uint
+      total_steps: uint
+      temp_offset: int
+      climate_icon: string
+      embedded_climate: bool
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.set_climate";
+          ESP_LOGV(TAG, "Starting");
+          ESP_LOGV(TAG, "  current_temp:     %f", current_temp);
+          ESP_LOGV(TAG, "  target_temp:      %f", target_temp);
+          ESP_LOGV(TAG, "  temp_step:        %d", temp_step);
+          ESP_LOGV(TAG, "  total_steps:      %d", total_steps);
+          ESP_LOGV(TAG, "  temp_offset:      %i", temp_offset);
+          ESP_LOGV(TAG, "  climate_icon:     %s", climate_icon.c_str());
+          ESP_LOGV(TAG, "  embedded_climate: %s", embedded_climate ? "True" : "False");
+          if (current_page->state == "climate") {
+            ESP_LOGV(TAG, "Page climate is visible");
+            addon_climate_set_climate->execute(embedded_climate);
+            disp1->send_command_printf("climateslider.maxval=%i", total_steps);
+            disp1->set_component_value("temp_offset", temp_offset);
+            disp1->set_component_value("temp_step", temp_step);
+            disp1->set_component_text_printf("current_temp", "%.1f°", current_temp);
+            disp1->show_component("current_temp");
+            disp1->show_component("current_icon");
+            if (target_temp > -999)
+              {
+                float slider_val = round(((10*target_temp) - temp_offset) / temp_step);
+                disp1->set_component_value("climateslider", slider_val);
+                disp1->set_component_text_printf("target_temp", "%.1f°", target_temp);
+                disp1->set_component_text_printf("target_icon", "%s", climate_icon.c_str());
+                disp1->show_component("target_icon");
+                disp1->show_component("target_temp");
+                disp1->show_component("climateslider");
+                disp1->show_component("decrease_temp");
+                disp1->show_component("increase_temp");
+              }
+            else
+              {
+                disp1->hide_component("target_icon");
+                disp1->hide_component("target_temp");
+                disp1->hide_component("climateslider");
+                disp1->hide_component("decrease_temp");
+                disp1->hide_component("increase_temp");
+              }
+            disp1->set_component_value("embedded", (embedded_climate) ? 1 : 0);
+          }
           ESP_LOGV(TAG, "Finished");
 
-  - id: ha_button
-    mode: parallel
+  - id: set_component_color
+    mode: queued
     parameters:
-      page: string
       component: string
-      command: string
+      foreground: int32_t[]
     then:
       - lambda: |-
-          timer_reset_all->execute(page.c_str());
-          auto ha_event = new esphome::api::CustomAPIDevice();
-          ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-            {
-              {"type", "button_click"},
-              {"page", page},
-              {"component", component},
-              {"command", command}
-            });
+          int fg565 = -1;
+          // Foreground
+          if (foreground.size() == 3 and
+              foreground[0] >= 0 and
+              foreground[1] >= 0 and
+              foreground[2] >= 0)
+            fg565 = ((foreground[0] & 0b11111000) << 8) | ((foreground[1] & 0b11111100) << 3) | (foreground[2] >> 3);
+          else if (foreground.size() == 1) fg565 = foreground[0];
+          else fg565 = -1;
+          if (fg565 >= 0) disp1->set_component_font_color(component.c_str(), fg565);
+
+  - id: set_page_id
+    mode: queued
+    parameters:
+      variable: string
+      page: string
+    then:
+      - lambda: |-
+          auto pageIndex = [](const std::string& page_name) -> uint8_t {
+              for (uint8_t i = 0; i < id(page_names).size(); ++i) {
+                  if (id(page_names)[i] == page_name) {
+                      return i;  // Return the index if found
+                  }
+              }
+              return 0u;  // Return 0 (home page) if not found
+          };
+          disp1->send_command_printf("%s=%i", variable.c_str(), pageIndex(page.c_str()));
+
+  - id: stop_all
+    mode: restart
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.stop_all";
+          ESP_LOGD(TAG, "Stopping scripts...");
+          addon_climate_service_call->stop();
+          addon_climate_set_climate->stop();
+          addon_climate_set_climate_friendly_name->stop();
+          addon_climate_update_page_home->stop();
+          boot_sequence->stop();
+          check_versions->stop();
+          display_embedded_temp->stop();
+          display_wrapped_text->stop();
+          exit_reparse->stop();
+          ha_button->stop();
+          ha_call_service->stop();
+          nextion_status->stop();
+          notification_clear->stop();
+          page_alarm->stop();
+          page_blank->stop();
+          page_boot->stop();
+          page_buttonpage01->stop();
+          page_buttonpage02->stop();
+          page_buttonpage03->stop();
+          page_buttonpage04->stop();
+          page_buttonpage->stop();
+          page_climate->stop();
+          page_changed->stop();
+          page_confirm->stop();
+          page_cover->stop();
+          page_entitypage01->stop();
+          page_entitypage02->stop();
+          page_entitypage03->stop();
+          page_entitypage04->stop();
+          page_entitypage->stop();
+          page_fan->stop();
+          page_home->stop();
+          page_keyb_num->stop();
+          page_light->stop();
+          page_media_player->stop();
+          page_notification->stop();
+          page_qrcode->stop();
+          page_screensaver->stop();
+          page_settings->stop();
+          page_weather01->stop();
+          page_weather02->stop();
+          page_weather03->stop();
+          page_weather04->stop();
+          page_weather05->stop();
+          page_weather->stop();
+          refresh_datetime->stop();
+          refresh_relays->stop();
+          refresh_wifi_icon->stop();
+          service_call_alarm_control_panel->stop();
+          service_call_climate->stop();
+          set_brightness->stop();
+          set_climate->stop();
+          set_component_color->stop();
+          set_page_id->stop();
+          timer_dim->stop();
+          timer_page->stop();
+          timer_reset_all->stop();
+          timer_sleep->stop();
+          update_alarm_icon->stop();
+          update_climate_icon->stop();
+          ESP_LOGD(TAG, "Finished");
+
+  ###### Timers ######
+  - id: timer_reset_all  # Global timer reset - Triggered with a touch on the screen
+    mode: restart
+    parameters:
+      page: string
+    then:
+      - lambda: |-
+          ESP_LOGV("script.timer_reset_all", "Reset timers");
+          timer_page->execute(page.c_str(), int(timeout_page->state));
+          timer_dim->execute(page.c_str(), int(timeout_dim->state));
+          timer_sleep->execute(page.c_str(), int(timeout_sleep->state));
+  - id: timer_page       # Handles the fallback to home page after a timeout
+    mode: restart
+    parameters:
+      page: string
+      timeout: uint
+    then:
+      - lambda: |-
+          ESP_LOGV("script.timer_page", "Reset timer: %is", timeout);
+      - if:
+          condition:
+            - lambda: |-
+                return (timeout >= 1 and
+                        page != "boot" and
+                        page != "confirm" and
+                        page != "home" and
+                        page != "notification" and
+                        page != "screensaver");
+          then:
+            - delay: !lambda return (timeout *1000);
+            - lambda: |-
+                ESP_LOGV("script.timer_page", "Timed out on page: %s", current_page->state.c_str());
+                if (timeout >= 1 and
+                    current_page->state != "boot" and
+                    current_page->state != "confirm" and
+                    current_page->state != "home" and
+                    current_page->state != "notification" and
+                    current_page->state != "screensaver")
+                  {
+                    ESP_LOGD("script.timer_page", "Fallback to page Home");
+                    disp1->goto_page("home");
+                  }
+  - id: timer_dim        # Handles the brightness dimming after a timeout
+    mode: restart
+    parameters:
+      page: string
+      timeout: uint
+    then:
+      - lambda: |-
+          ESP_LOGV("script.timer_dim", "Reset timer: %is", timeout);
+          if (id(display_last_brightness) <= id(display_dim_brightness_global)
+              and page != "screensaver"
+              and page != "boot"
+              and page != "blank-screensaver") {
+            ESP_LOGD("script.timer_dim", "Waking up on page: %s", page.c_str());
+            set_brightness->execute(id(display_brightness_global));
+          }
+      - if:
+          condition:
+            - lambda: !lambda return (timeout >= 1);
+          then:
+            - delay: !lambda return (timeout *1000);
+            - lambda: |-
+                if (current_page->state != "screensaver" and
+                    current_page->state != "blank-screensaver" and
+                    current_page->state != "boot" and
+                    timeout >= 1) {
+                  set_brightness->execute(id(display_dim_brightness_global));
+                }
+  - id: timer_sleep      # Handles the sleep (go to screensaver page) after a timeout
+    mode: restart
+    parameters:
+      page: string
+      timeout: uint
+    then:
+      - lambda: |-
+          ESP_LOGV("script.timer_sleep", "Reset timer: %is", timeout);
+      - if:
+          condition:
+            - lambda: |-
+                return (timeout >= 1 and current_page->state != "screensaver" and current_page->state != "boot");
+          then:
+            - delay: !lambda return (timeout *1000);
+            - lambda: |-
+                if (current_page->state != "screensaver" and
+                    current_page->state != "boot" and
+                    timeout >= 1) {
+                  ESP_LOGD("script.timer_sleep", "Going to sleep from page %s", current_page->state.c_str());
+                  disp1->goto_page("screensaver");
+                  set_brightness->execute(0);
+                }
 
   - id: update_alarm_icon  # To do: Move to blueprint
     mode: restart
@@ -2075,642 +2697,3 @@ script:
                 disp1->set_component_font_color(component.c_str(), 1530); // cyan
                 break;
             }
-
-  - id: set_component_color
-    mode: queued
-    parameters:
-      component: string
-      foreground: int32_t[]
-    then:
-      - lambda: |-
-          int fg565 = -1;
-          // Foreground
-          if (foreground.size() == 3 and
-              foreground[0] >= 0 and
-              foreground[1] >= 0 and
-              foreground[2] >= 0)
-            fg565 = ((foreground[0] & 0b11111000) << 8) | ((foreground[1] & 0b11111100) << 3) | (foreground[2] >> 3);
-          else if (foreground.size() == 1) fg565 = foreground[0];
-          else fg565 = -1;
-          if (fg565 >= 0) disp1->set_component_font_color(component.c_str(), fg565);
-
-  - id: display_wrapped_text
-    mode: queued
-    parameters:
-      component: string
-      text_to_display: string
-      line_length_limit: uint
-    then:
-      - lambda: |-
-          int startPos = 0;
-          int endPos = 0;
-          std::string wrappedText = "";
-          if (text_to_display.find("\\r") != std::string::npos) {
-            wrappedText = text_to_display;
-          } else {
-            while (startPos < text_to_display.length()) {
-              while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
-              int endPos = startPos + line_length_limit;
-              if (endPos >= text_to_display.length()) endPos = text_to_display.length();
-              else
-                {
-                  while (endPos > startPos && text_to_display[endPos] != ' ') { endPos--; }
-                  if (endPos == startPos) endPos = startPos + line_length_limit; // Handle case of long word
-                }
-              wrappedText += text_to_display.substr(startPos, endPos-startPos);
-              if (endPos < text_to_display.length())
-                {
-                  while (text_to_display[endPos] == ' ') { endPos--; }
-                  if (endPos >= startPos) wrappedText += "\\r";
-                }
-              startPos = endPos + 1; // Skip the space
-              while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
-            }
-          }
-          disp1->set_component_text_printf(component.c_str(), "%s", wrappedText.c_str());
-
-  - id: display_embedded_temp
-    mode: restart
-    then:
-      - if:
-          condition:
-            - or:
-                - lambda: return id(embedded_indoor_temp);
-                - not:
-                    - api.connected:
-                - not:
-                    - wifi.connected:
-          then:
-            - lambda: |-
-                if (id(temp_unit_fahrenheit)) disp1->set_component_text_printf("home.current_temp", "%.0f°F", ((temp_nspanel->state * 9.0 / 5.0) + 32.0)); // °F = (°C × 9/5) + 32
-                else disp1->set_component_text_printf("home.current_temp", "%.1f°C", temp_nspanel->state);
-
-  - id: check_versions
-    mode: restart
-    then:
-      - wait_until:
-          condition:
-            - lambda: |-
-                auto compareVersions = [](const char* version1, const char* version2) -> bool
-                  {
-                    int major1 = 0, minor1 = 0;
-                    int major2 = 0, minor2 = 0;
-
-                    sscanf(version1, "%d.%d", &major1, &minor1);
-                    sscanf(version2, "%d.%d", &major2, &minor2);
-
-                    return (major1 == major2) && (minor1 == minor2);
-                  };
-                return (compareVersions("${version}", id(version_tft).c_str()) and compareVersions("${version}", id(version_blueprint).c_str()));
-          timeout: 60s
-      - lambda: |-
-          static const char *const TAG = "script.check_versions";
-          auto compareVersions = [](const char* version1, const char* version2) -> bool
-            {
-                int major1 = 0, minor1 = 0;
-                int major2 = 0, minor2 = 0;
-
-                sscanf(version1, "%d.%d", &major1, &minor1);
-                sscanf(version2, "%d.%d", &major2, &minor2);
-
-                return (major1 == major2) && (minor1 == minor2);
-            };
-          ESP_LOGD(TAG, "ESPHome version: ${version}");
-          ESP_LOGD(TAG, "TFT version: %s", id(version_tft).c_str());
-          if (not compareVersions("${version}", id(version_tft).c_str())) ESP_LOGE(TAG, "TFT version mismatch!");
-          ESP_LOGD(TAG, "Blueprint version: %s", id(version_blueprint).c_str());
-          if (not compareVersions("${version}", id(version_blueprint).c_str())) ESP_LOGE(TAG, "Blueprint version mismatch!");
-
-          std::string framework = "unknown";
-          #ifdef ARDUINO
-          framework = "arduino";
-          #elif defined(USE_ESP_IDF)
-          framework = "esp-idf";
-          #endif
-          ESP_LOGD(TAG, "Framework: %s", framework.c_str());
-          ESP_LOGD(TAG, "Baud rate: %" PRIu32, id(tf_uart).get_baud_rate());
-
-          auto ha_event = new esphome::api::CustomAPIDevice();
-          ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-            {
-              {"type", "version"},
-              {"tft", id(version_tft).c_str()},
-              {"esphome", "${version}"},
-              {"blueprint", id(version_blueprint).c_str()},
-              {"framework", framework.c_str()},
-              {"baud_rate", to_string(id(tf_uart).get_baud_rate())}
-            });
-
-  - id: page_changed
-    mode: restart
-    parameters:
-      page: string
-    then:
-      - lambda: |-
-          static const char *const TAG = "script.page_changed";
-
-          // Go to boot page if not initiated
-          if (page != "boot" and not nextion_init->state) disp1->goto_page("boot");
-          // Reset globals
-          if (page != "alarm" && //DEBOG
-              page != "climate" &&
-              page != "cover" &&
-              page != "fan" &&
-              page != "light" &&
-              page != "media_player" &&
-              page != "confirm" &&
-              page != "keyb_num") {
-              detailed_entity->publish_state("");
-              disp1->send_command_printf("back_page_id=0");
-          }
-          if (page != "media_player") {
-            id(last_volume_level) = 0;
-            id(last_media_duration) = 0;
-            id(last_media_position) = 0;
-          }
-
-          // Report new page to logs
-          ESP_LOGD(TAG, "New page: %s", page.c_str());
-          if (!detailed_entity->state.empty()) ESP_LOGD(TAG, "Entity shown: %s", detailed_entity->state.c_str());
-
-          // Reset timers
-          timer_reset_all->execute(page.c_str());
-
-          // Report new page to Home Assistant
-          ESP_LOGV(TAG, "Trigger HA event");
-          auto ha_event = new esphome::api::CustomAPIDevice();
-          ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-            {
-              {"type", "page_changed"},
-              {"page", page.c_str()},
-              {"entity", detailed_entity->state.c_str()}
-            });
-
-          // Report new page to add-ons
-          ESP_LOGV(TAG, "Call add-ons scripts for new page");
-          addon_climate_set_climate->execute(page == "climate" and detailed_entity->state == "embedded_climate");
-
-          // Call page constructor
-          if (page == "alarm") page_alarm->execute();
-          else if (page == "blank") page_blank->execute();
-          else if (page == "boot") page_boot->execute();
-          else if (page == "buttonpage01") page_buttonpage01->execute();
-          else if (page == "buttonpage02") page_buttonpage02->execute();
-          else if (page == "buttonpage03") page_buttonpage03->execute();
-          else if (page == "buttonpage04") page_buttonpage04->execute();
-          else if (page == "climate") page_climate->execute();
-          else if (page == "confirm") page_confirm->execute();
-          else if (page == "cover") page_cover->execute();
-          else if (page == "entitypage01") page_entitypage01->execute();
-          else if (page == "entitypage02") page_entitypage02->execute();
-          else if (page == "entitypage03") page_entitypage03->execute();
-          else if (page == "entitypage04") page_entitypage04->execute();
-          else if (page == "fan") page_fan->execute();
-          else if (page == "home") page_home->execute();
-          else if (page == "keyb_num") page_keyb_num->execute();
-          else if (page == "light") page_light->execute();
-          else if (page == "media_player") page_media_player->execute();
-          else if (page == "notification") page_notification->execute();
-          else if (page == "qrcode") page_qrcode->execute();
-          else if (page == "screensaver") page_screensaver->execute();
-          else if (page == "settings") page_settings->execute();
-          else if (page == "weather01") page_weather01->execute();
-          else if (page == "weather02") page_weather02->execute();
-          else if (page == "weather03") page_weather03->execute();
-          else if (page == "weather04") page_weather04->execute();
-          else if (page == "weather05") page_weather05->execute();
-
-  - id: page_alarm
-    mode: restart
-    then:  # There's nothing here so far
-
-  - id: page_blank
-    mode: restart
-    then:
-      - lambda: |-
-          static const char *const TAG = "script.page_blank";
-          ESP_LOGV(TAG, "Construct blank page");
-          std::string framework = "unknown";
-          #ifdef ARDUINO
-          framework = "arduino";
-          #elif defined(USE_ESP_IDF)
-          framework = "esp-idf";
-          #endif
-          disp1->set_component_text_printf("esp_version", "ESP: ${version}");  // ESPHome version
-          disp1->set_component_text_printf("framework", framework.c_str());    // ESPHome framework
-          disp1->send_command_printf("tm_esphome.en=0");
-          disp1->send_command_printf("tm_pageid.en=0");
-
-  - id: page_boot
-    mode: restart
-    then:
-      - lambda: |-
-          static const char *const TAG = "script.page_boot";
-          ESP_LOGV(TAG, "Construct boot page");
-          set_brightness->execute(100);
-
-          std::string framework = "unknown";
-          #ifdef ARDUINO
-          framework = "arduino";
-          #elif defined(USE_ESP_IDF)
-          framework = "esp-idf";
-          #endif
-          disp1->set_component_text_printf("esph_version", "${version}");    // ESPHome version
-          disp1->set_component_text_printf("framework", framework.c_str());  // ESPHome framework
-          disp1->show_component("bt_reboot");
-
-  - id: page_buttonpage
-    mode: restart
-    parameters:
-      page_number: uint
-    then:  # There's nothing here so far
-  - id: page_buttonpage01
-    mode: restart
-    then:
-      - script.execute:
-          id: page_buttonpage
-          page_number: 1
-  - id: page_buttonpage02
-    mode: restart
-    then:
-      - script.execute:
-          id: page_buttonpage
-          page_number: 2
-  - id: page_buttonpage03
-    mode: restart
-    then:
-      - script.execute:
-          id: page_buttonpage
-          page_number: 3
-  - id: page_buttonpage04
-    mode: restart
-    then:
-      - script.execute:
-          id: page_buttonpage
-          page_number: 4
-
-  - id: page_climate
-    mode: restart
-    then:  # There's nothing here so far
-
-  - id: page_confirm
-    mode: restart
-    then:  # There's nothing here so far
-
-  - id: page_cover
-    mode: restart
-    then:  # There's nothing here so far
-
-  - id: page_entitypage
-    mode: restart
-    parameters:
-      page_number: uint
-    then:  # There's nothing here so far
-  - id: page_entitypage01
-    mode: restart
-    then:
-      - script.execute:
-          id: page_entitypage
-          page_number: 1
-  - id: page_entitypage02
-    mode: restart
-    then:
-      - script.execute:
-          id: page_entitypage
-          page_number: 2
-  - id: page_entitypage03
-    mode: restart
-    then:
-      - script.execute:
-          id: page_entitypage
-          page_number: 3
-  - id: page_entitypage04
-    mode: restart
-    then:
-      - script.execute:
-          id: page_entitypage
-          page_number: 4
-
-  - id: page_fan
-    mode: restart
-    then:  # There's nothing here so far
-
-  - id: page_home
-    mode: restart
-    then:
-      - lambda: |-
-          static const char *const TAG = "script.page_home";
-          if (current_page->state == "home") {  // Is home page visible?
-            ESP_LOGV(TAG, "Update home page");
-            refresh_relays->execute();
-            refresh_wifi_icon->execute();
-            disp1->send_command_printf("is_notification=%i", (notification_text->state.empty() and notification_label->state.empty()) ? 0 : 1);
-            set_component_color->execute("home.bt_notific", notification_unread->state ? id(home_notify_icon_color_unread) : id(home_notify_icon_color_normal));
-            refresh_datetime->execute();
-            addon_climate_update_page_home->execute();
-          }
-
-  - id: page_keyb_num
-    mode: restart
-    then:  # There's nothing here so far
-
-  - id: page_light
-    mode: restart
-    then:  # There's nothing here so far
-
-  - id: page_media_player
-    mode: restart
-    then:  # There's nothing here so far
-
-  - id: page_notification
-    mode: restart
-    then:
-      - lambda: |-
-          static const char *const TAG = "script.page_notification";
-          ESP_LOGV(TAG, "Updating notification page");
-          disp1->set_component_text_printf("notification.notifi_label", "%s", notification_label->state.c_str());
-          display_wrapped_text->execute("notification.notifi_text01", notification_text->state.c_str(), id(display_mode) == 2 ? 23 : 32);
-
-  - id: page_qrcode
-    mode: restart
-    then:  # There's nothing here so far
-
-  - id: page_screensaver
-    mode: restart
-    then:
-      - lambda: |-
-          set_page_id->execute("back_page_id", wakeup_page_name->state.c_str());
-
-  - id: page_settings
-    mode: restart
-    then:
-      - lambda: |-
-          static const char *const TAG = "script.page_settings";
-          ESP_LOGV(TAG, "Construct settings page");
-          //disp1->set_component_text_printf("bt_sleep", "%s", (id(sleep_mode).state) ? "\uEA19" : "\uEA18"); //mdi:toggle-switch-outline or mdi:toggle-switch-off-outline
-          disp1->hide_component("lbl_sleep");
-          disp1->hide_component("bt_sleep");
-
-  - id: page_weather
-    mode: restart
-    parameters:
-      page_number: uint
-    then:  # There's nothing here so far
-  - id: page_weather01
-    mode: restart
-    then:
-      - script.execute:
-          id: page_weather
-          page_number: 1
-  - id: page_weather02
-    mode: restart
-    then:
-      - script.execute:
-          id: page_weather
-          page_number: 2
-  - id: page_weather03
-    mode: restart
-    then:
-      - script.execute:
-          id: page_weather
-          page_number: 3
-  - id: page_weather04
-    mode: restart
-    then:
-      - script.execute:
-          id: page_weather
-          page_number: 4
-  - id: page_weather05
-    mode: restart
-    then:
-      - script.execute:
-          id: page_weather
-          page_number: 5
-
-  - id: set_page_id
-    mode: queued
-    parameters:
-      variable: string
-      page: string
-    then:
-      - lambda: |-
-          auto pageIndex = [](const std::string& page_name) -> uint8_t {
-              for (uint8_t i = 0; i < id(page_names).size(); ++i) {
-                  if (id(page_names)[i] == page_name) {
-                      return i;  // Return the index if found
-                  }
-              }
-              return 0u;  // Return 0 (home page) if not found
-          };
-          disp1->send_command_printf("%s=%i", variable.c_str(), pageIndex(page.c_str()));
-
-  - id: exit_reparse
-    mode: restart
-    then:
-      - logger.log: "Exit reparse"
-      - uart.write:
-          id: tf_uart
-          data: "DRAKJHSUYDGBNCJHGJKSHBDN"
-      - uart.write:
-          id: tf_uart
-          data: [0xFF, 0xFF, 0xFF]
-
-  - id: boot_sequence
-    mode: restart
-    then:
-      - lambda: |-
-          static const char *const TAG = "script.boot_sequence";
-          ESP_LOGD(TAG, "Starting boot sequence");
-          ESP_LOGD(TAG, "Wait for TFT version");
-      - wait_until:
-          - lambda: !lambda return !id(version_tft).empty();
-      - lambda: |-
-          static const char *const TAG = "script.boot_sequence";
-          ESP_LOGD(TAG, "TFT version: %s", id(version_tft).c_str());
-          if (current_page->state == "boot") {
-            disp1->send_command_printf("tm_esphome.en=0");
-            disp1->send_command_printf("tm_pageid.en=0");
-            page_boot->execute();
-          }
-          timer_reset_all->execute("boot");
-      - lambda: |-
-          static const char *const TAG = "script.boot_sequence";
-          ESP_LOGD(TAG, "Wait for API");
-      - wait_until:
-          api.connected
-      - lambda: |-
-          static const char *const TAG = "script.boot_sequence";
-          if (current_page->state == "boot") {
-            ESP_LOGD(TAG, "Publish IP address");
-            disp1->set_component_text_printf("boot.ip_addr", "%s", network::get_ip_address().str().c_str());
-            set_brightness->execute(100);
-          }
-          ESP_LOGD(TAG, "Report to Home Assistant");
-          auto ha_event = new esphome::api::CustomAPIDevice();
-          ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-            {
-              {"type", "boot"},
-              {"step", "start"}
-            });
-          if (!id(boot_sequence_completed)) delay(1000);
-          // Set dimming values
-          display_brightness->publish_state(id(display_brightness_global));
-          display_dim_brightness->publish_state(id(display_dim_brightness_global));
-          disp1->send_command_printf("brightness=%i", id(display_brightness_global));
-          disp1->send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
-          disp1->send_command_printf("brightness_dim=%i", id(display_dim_brightness_global));
-          disp1->send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
-          set_brightness->execute(id(display_brightness_global));
-          ESP_LOGD(TAG, "Report to Home Assistant");
-          nextion_init->publish_state(true);
-          //auto ha_event = new esphome::api::CustomAPIDevice();
-          ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-            {
-              {"type", "boot"},
-              {"step", "nextion_init"}
-            });
-          // Chips icon size
-          ESP_LOGV(TAG, "Chips size");
-          for (int i = 1; i <= 10; ++i) {
-            disp1->send_command_printf("home.icon_top_%02d.font=%i", i, id(home_chip_font_size));
-          }
-          disp1->send_command_printf("home.wifi_icon.font=%i", id(home_chip_font_size));
-          disp1->set_component_text_printf("home.icon_top_01", "%s", id(home_relay1_icon).c_str());
-          disp1->set_component_text_printf("home.icon_top_02", "%s", id(home_relay2_icon).c_str());
-          timer_reset_all->execute("boot");
-          notification_clear->execute();
-          id(boot_sequence_completed) = true;
-      - wait_until:
-          condition:
-            - not:
-                - text_sensor.state:  # Is boot page visible?
-                    id: current_page
-                    state: 'boot'
-          timeout: 15s
-      - lambda: |-
-          static const char *const TAG = "script.boot_sequence";
-          if (current_page->state == "boot") disp1->goto_page(wakeup_page_name->state.c_str());
-          ESP_LOGD(TAG, "Boot sequence finished!");
-
-  - id: notification_clear
-    mode: restart
-    then:
-      - lambda: |-
-          disp1->send_command_printf("is_notification=0");
-          if (current_page->state == "notification") disp1->goto_page("home");
-          notification_label->publish_state("");
-          notification_text->publish_state("");
-          notification_unread->turn_off();
-          if (current_page->state == "home") disp1->hide_component("bt_notific");
-
-  - id: nextion_status
-    mode: restart
-    then:
-      - lambda: |-
-          static const char *const TAG = "script.nextion_status";
-          ESP_LOGD(TAG, "Nextion status:");
-          ESP_LOGD(TAG, "  Is detected: %s", disp1->is_detected() ? "True" : "False");
-          ESP_LOGD(TAG, "  Is setup:    %s", disp1->is_setup() ? "True" : "False");
-
-  ##### ADD-ONS ############################################################
-  ##### Add-on - Climate #####
-  - id: addon_climate_service_call
-    mode: restart
-    parameters:
-      key: string
-      value: string
-    then:
-      # Reserved for Add-on Climate
-      - lambda: |-
-          ESP_LOGV("script.addon_climate_service_call", "Check for addon_climate");
-  - id: addon_climate_update_page_home
-    mode: restart
-    then:
-      # Reserved for Add-on Climate
-      - lambda: |-
-          ESP_LOGV("script.addon_climate_update_page_home", "Check for addon_climate");
-  - id: addon_climate_set_climate
-    mode: restart
-    parameters:
-      embedded_climate: bool
-    then:
-      # Reserved for Add-on Climate
-      - lambda: |-
-          ESP_LOGV("script.addon_climate_set_climate", "Check for addon_climate");
-          ESP_LOGV("script.addon_climate_set_climate", "embedded_climate: %s", embedded_climate ? "True" : "False");
-  - id: addon_climate_set_climate_friendly_name
-    mode: restart
-    parameters:
-      friendly_name: string
-    then:
-      # Reserved for Add-on Climate
-      - lambda: |-
-          ESP_LOGV("script.addon_climate_set_climate_friendly_name", "Check for addon_climate");
-          ESP_LOGV("script.addon_climate_set_climate_friendly_name", "friendly_name: %s", friendly_name.c_str());
-
-  - id: stop_all
-    mode: restart
-    then:
-      - lambda: |-
-          static const char *const TAG = "script.stop_all";
-          ESP_LOGD(TAG, "Stopping scripts...");
-          timer_reset_all->stop();
-          timer_page->stop();
-          timer_dim->stop();
-          timer_sleep->stop();
-          set_brightness->stop();
-          set_climate->stop();
-          refresh_datetime->stop();
-          refresh_relays->stop();
-          refresh_wifi_icon->stop();
-          service_call_alarm_control_panel->stop();
-          service_call_climate->stop();
-          ha_call_service->stop();
-          ha_button->stop();
-          update_alarm_icon->stop();
-          update_climate_icon->stop();
-          set_component_color->stop();
-          display_wrapped_text->stop();
-          display_embedded_temp->stop();
-          check_versions->stop();
-          page_changed->stop();
-          page_alarm->stop();
-          page_blank->stop();
-          page_boot->stop();
-          page_buttonpage01->stop();
-          page_buttonpage02->stop();
-          page_buttonpage03->stop();
-          page_buttonpage04->stop();
-          page_buttonpage->stop();
-          page_climate->stop();
-          page_confirm->stop();
-          page_cover->stop();
-          page_entitypage01->stop();
-          page_entitypage02->stop();
-          page_entitypage03->stop();
-          page_entitypage04->stop();
-          page_entitypage->stop();
-          page_fan->stop();
-          page_home->stop();
-          page_keyb_num->stop();
-          page_light->stop();
-          page_media_player->stop();
-          page_notification->stop();
-          page_qrcode->stop();
-          page_screensaver->stop();
-          page_settings->stop();
-          page_weather01->stop();
-          page_weather02->stop();
-          page_weather03->stop();
-          page_weather04->stop();
-          page_weather05->stop();
-          page_weather->stop();
-          exit_reparse->stop();
-          boot_sequence->stop();
-          notification_clear->stop();
-          nextion_status->stop();
-          addon_climate_service_call->stop();
-          addon_climate_update_page_home->stop();
-          addon_climate_set_climate->stop();
-          addon_climate_set_climate_friendly_name->stop();
-          ESP_LOGD(TAG, "Finished");
