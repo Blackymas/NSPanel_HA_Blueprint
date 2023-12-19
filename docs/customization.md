@@ -27,7 +27,7 @@ Table of contents:
   - [Bluetooth proxy](#bluetooth-proxy)
   - [Logger via UART](#logger-via-uart)
   - [Climate custom presets](#climate-custom-presets)
-  - [Push button / Momentary switch](#push-button-momentary-switch)
+  - [Push button / Momentary switch](#push-button--momentary-switch)
 
 &nbsp;
 &nbsp;
