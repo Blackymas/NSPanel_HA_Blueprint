@@ -428,6 +428,17 @@ api:
         back_page: string
       then:
         - lambda: |-
+            static const char *const TAG = "service.open_entity_settings_page";
+
+            auto pageIndex = [](const std::string& page_name) -> uint8_t {
+              for (uint8_t i = 0; i < id(page_names).size(); ++i) {
+                  if (id(page_names)[i] == page_name) {
+                      return i;  // Return the index if found
+                  }
+              }
+              return 0u;  // Return 0 (home page) if not found
+            };
+
             detailed_entity->publish_state(entity);
             if (page == "alarm_control_panel") page = "alarm";
             std::string cmd_page = std::string("page ") + page.c_str();
@@ -436,7 +447,7 @@ api:
               page_label = page_label.replace(page_label.find("\\r"), 2, " ");
             }
             disp1->set_component_text_printf("page_label", "%s", page_label.c_str());
-            disp1->set_component_text_printf("back_page", "%s", back_page.c_str());
+            disp1->send_command_printf("back_page_id=%i", pageIndex(back_page.c_str()));
             if (page == "climate")
               {
                 if (entity == "embedded_climate") addon_climate_set_climate_friendly_name->execute(page_label.c_str());
@@ -1445,7 +1456,7 @@ text_sensor:
             std::string component = doc["component"];
             if (not (component == "currentpage" and (page == "screensaver" or page == "home"))) timer_reset_all->execute(page.c_str());
             std::string value = doc["value"];
-            std::string entity = detailed_entity->state.c_str(); //doc["entity"];
+            std::string entity = detailed_entity->state.c_str();  // doc["entity"];
             ESP_LOGE(TAG, "page: %s", page.c_str());
             ESP_LOGE(TAG, "component: %s", component.c_str());
             ESP_LOGE(TAG, "value: %s", value.c_str());
@@ -1483,11 +1494,11 @@ text_sensor:
             std::string component = doc["component"];
             std::string key = doc["key"];
             std::string value = doc["value"];
-            std::string entity = detailed_entity->state.c_str(); //doc["entity"];
+            std::string entity = detailed_entity->state.c_str();  // doc["entity"];
             int embedded = doc["embedded"];
             std::string service = "";
 
-            // send event to Home Assistant #DEBUG
+            // Send event to Home Assistant
             auto ha_event = new esphome::api::CustomAPIDevice();
             if (event == "short_click" or event == "long_click") {
               ha_button->execute(page.c_str(), component.c_str(), event.c_str());
@@ -1495,7 +1506,7 @@ text_sensor:
               detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
               disp1->set_component_value("climate.embedded", id(is_embedded_thermostat) ? 1 : 0);
               disp1->goto_page("climate");
-            } else if (page == "light" or page == "climate" or page == "notification") { // Generic event
+            } else if (page == "light" or page == "climate" or page == "notification") {  // Generic event
                 ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
                   {"type", "generic"},
                   {"page", page},
@@ -2219,6 +2230,7 @@ script:
               page != "confirm" &&
               page != "keyb_num") {
               detailed_entity->publish_state("");
+              disp1->send_command_printf("back_page_id=0");
           }
           if (page != "media_player") {
             id(last_volume_level) = 0;
