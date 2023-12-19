@@ -46,12 +46,12 @@ climate:
     on_boot_restore_from: memory
     internal: false
     on_state:
-      - logger.log: Climate state changed - Start
-      - script.execute:
-          id: page_climate
-          construct_page: false
-      - script.execute: addon_climate_update_page_home
-      - logger.log: Climate state changed - End
+      - lambda: |-
+          static const char *const TAG = "climate.thermostat_embedded.on_state";
+          ESP_LOGD(TAG, "Starting");
+          page_climate->execute();
+          page_home->execute();
+          ESP_LOGD(TAG, "Finished");
 
 globals:
   ##### Is embedded thermostat visible on climate page? #####
@@ -75,17 +75,6 @@ switch:
     optimistic: true
 
 script:
-  - id: !extend addon_climate_update_page_home
-    mode: restart
-    then:
-      - lambda: |-
-          // Update home.climate_entity variable
-          detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
-          disp1->set_component_value("climate.embedded", (id(is_embedded_thermostat)) ? 1 : 0);
-          // Update chips
-          if (id(is_embedded_thermostat))
-            id(update_climate_icon).execute("home.icon_top_03", int(thermostat_embedded->action), int(thermostat_embedded->mode));
-
   - id: !extend addon_climate_service_call
     then:
       - lambda: |-
@@ -98,10 +87,16 @@ script:
             call.set_mode(value);
           call.perform();
 
-  - id: !extend addon_climate_set_climate
+  - id: !extend global_settings
     then:
       - lambda: |-
-          id(is_addon_climate_visible) = embedded_climate;
+          id(addon_climate_friendly_name) = embedded_climate_friendly_name;
+
+  - id: !extend open_entity_settings_page
+    then:
+      - lambda: |-
+          if (page == "climate" and entity == "embedded_climate")
+            id(addon_climate_friendly_name) = page_label;
 
   - id: !extend page_climate
     then:
@@ -146,7 +141,23 @@ script:
                 disp1->set_component_font_color("climate.button07", (thermostat_embedded->mode==climate::CLIMATE_MODE_OFF) ? 10597 : 35921);
             }
 
-  - id: !extend addon_climate_set_climate_friendly_name
+  - id: !extend page_changed
     then:
       - lambda: |-
-          id(addon_climate_friendly_name) = friendly_name;
+          id(is_addon_climate_visible) = (page == "climate" and detailed_entity->state == "embedded_climate");
+
+  - id: !extend page_home
+    then:
+      - lambda: |-
+          // Update home.climate_entity variable
+          detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
+          disp1->set_component_value("climate.embedded", (id(is_embedded_thermostat)) ? 1 : 0);
+          // Update chips
+          if (id(is_embedded_thermostat))
+            id(update_climate_icon).execute("home.icon_top_03", int(thermostat_embedded->action), int(thermostat_embedded->mode));
+
+  - id: !extend set_climate
+    then:
+      - lambda: |-
+          if (current_page->state == "climate")
+            id(is_addon_climate_visible) = embedded_climate;

@@ -312,83 +312,22 @@ api:
         temperature_unit_is_fahrenheit: bool
         mui_please_confirm: string
       then:
-        - lambda: |-
-            static const char *const TAG = "service.global_settings";
-            // Blueprint version
-            ESP_LOGV(TAG, "Check Blueprint version");
-            id(version_blueprint) = blueprint_version;
-            check_versions->execute();
-
-            // Relays
-            ESP_LOGV(TAG, "Setup relays");
-            relay1_local->publish_state(relay1_local_control);
-            relay2_local->publish_state(relay2_local_control);
-            id(relay_1_fallback) = relay1_fallback;
-            id(relay_2_fallback) = relay2_fallback;
-            disp1->set_component_font_color("home.icon_top_01", relay1_icon_color);
-            disp1->set_component_font_color("home.icon_top_02", relay2_icon_color);
-            disp1->set_component_text_printf("home.icon_top_01", "%s", relay1_icon.c_str());
-            disp1->set_component_text_printf("home.icon_top_02", "%s", relay2_icon.c_str());
-            id(home_relay1_icon) = relay1_icon.c_str();
-            id(home_relay2_icon) = relay2_icon.c_str();
-            id(home_relay1_icon_color) = relay1_icon_color;
-            id(home_relay2_icon_color) = relay2_icon_color;
-
-            // Embedded thermostat
-            ESP_LOGV(TAG, "Load embedded thermostat");
-            id(is_embedded_thermostat) = embedded_climate;
-            addon_climate_set_climate_friendly_name->execute(embedded_climate_friendly_name.c_str());
-
-            // Indoor temperature
-            ESP_LOGV(TAG, "Set indoor temperature");
-            id(embedded_indoor_temp) = embedded_indoor_temperature;
-            id(temp_unit_fahrenheit) = temperature_unit_is_fahrenheit;
-            display_embedded_temp->execute();
-
-            // Confirm page
-            ESP_LOGV(TAG, "Setup confirm page");
-            display_wrapped_text->execute("confirm.title", mui_please_confirm.c_str(), 15);
-
-            // Update home page
-            ESP_LOGV(TAG, "Update home page");
-            page_home->execute();
-
-            ESP_LOGV(TAG, "Current page: %s", current_page->state.c_str());
-
-        - if:
-            condition:
-              - text_sensor.state:  # Is boot page visible?
-                  id: current_page
-                  state: boot
-            then:
-              - lambda: |-
-                  ESP_LOGV("service.global_settings", "Boot page is visible");
-                  disp1->set_component_text_printf("boot.bluep_version", "%s", blueprint_version.c_str());
-              - wait_until:
-                  condition:
-                    - not:
-                        - text_sensor.state:  # Is boot page visible?
-                            id: current_page
-                            state: 'boot'
-                  timeout: 2s
-              - if:
-                  condition:
-                    - text_sensor.state:  # Avoid this being called twice by multiple boot triggers
-                        id: current_page
-                        state: 'boot'
-                  then:
-                    - lambda: |-
-                        ESP_LOGV("service.global_settings", "Boot page still visible");
-                    - if:
-                        condition:
-                          switch.is_on: notification_sound
-                        then:
-                          - rtttl.play:
-                              rtttl: 'two short:d=4,o=5,b=100:16e6,16e6'
-                    - lambda: |-
-                        ESP_LOGD("service.global_settings", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
-                        disp1->goto_page(wakeup_page_name->state.c_str());
-                        timer_reset_all->execute(wakeup_page_name->state.c_str());
+        - script.execute:
+            id: global_settings
+            blueprint_version: !lambda "return blueprint_version;"
+            relay1_local_control: !lambda "return relay1_local_control;"
+            relay1_icon: !lambda "return relay1_icon;"
+            relay1_icon_color: !lambda "return relay1_icon_color;"
+            relay1_fallback: !lambda "return relay1_fallback;"
+            relay2_local_control: !lambda "return relay2_local_control;"
+            relay2_icon: !lambda "return relay2_icon;"
+            relay2_icon_color: !lambda "return relay2_icon_color;"
+            relay2_fallback: !lambda "return relay2_fallback;"
+            embedded_climate: !lambda "return embedded_climate;"
+            embedded_climate_friendly_name: !lambda "return embedded_climate_friendly_name;"
+            embedded_indoor_temperature: !lambda "return embedded_indoor_temperature;"
+            temperature_unit_is_fahrenheit: !lambda "return temperature_unit_is_fahrenheit;"
+            mui_please_confirm: !lambda "return mui_please_confirm;"
 
     ##### Service to show a notification-message on the screen #####
     - service: notification_show
@@ -427,29 +366,14 @@ api:
         entity: string
         back_page: string
       then:
-        - lambda: |-
-            static const char *const TAG = "service.open_entity_settings_page";
-
-            detailed_entity->publish_state(entity);
-            if (page == "alarm_control_panel") page = "alarm";
-            std::string cmd_page = std::string("page ") + page.c_str();
-            disp1->send_command_printf(cmd_page.c_str());
-            if (page_label.find("\\r") != std::string::npos) {
-              page_label = page_label.replace(page_label.find("\\r"), 2, " ");
-            }
-            disp1->set_component_text_printf("page_label", "%s", page_label.c_str());
-            set_page_id->execute("back_page_id", back_page.c_str());
-            if (page == "climate")
-              {
-                if (entity == "embedded_climate") addon_climate_set_climate_friendly_name->execute(page_label.c_str());
-                disp1->set_component_value("embedded", (entity == "embedded_climate") ? 1 : 0);
-              }
-            else
-              {
-                if ((page_icon != std::string()) and (page_icon != ""))
-                  disp1->set_component_text_printf("icon_state", "%s", page_icon.c_str());
-                set_component_color->execute("icon_state", page_icon_color);
-              }
+        - script.execute:
+            id: open_entity_settings_page
+            page: !lambda "return page;"
+            page_label: !lambda "return page_label;"
+            page_icon: !lambda "return page_icon;"
+            page_icon_color: !lambda "return page_icon_color;"
+            entity: !lambda "return entity;"
+            back_page: !lambda "return back_page;"
 
     # Service to show a QR code on the display (ex. for WiFi password)
     - service: qrcode
@@ -1440,7 +1364,7 @@ text_sensor:
       then:
         - lambda: |-
             static const char *const TAG = "text_sensor.disp1_nspanel_event";
-            ESP_LOGE(TAG, "Starting");
+            ESP_LOGW(TAG, "Starting");
             DynamicJsonDocument doc(1024);
             deserializeJson(doc, x);
             std::string page = doc["page"];
@@ -1448,10 +1372,10 @@ text_sensor:
             if (not (component == "currentpage" and (page == "screensaver" or page == "home"))) timer_reset_all->execute(page.c_str());
             std::string value = doc["value"];
             std::string entity = detailed_entity->state.c_str();  // doc["entity"];
-            ESP_LOGE(TAG, "page: %s", page.c_str());
-            ESP_LOGE(TAG, "component: %s", component.c_str());
-            ESP_LOGE(TAG, "value: %s", value.c_str());
-            ESP_LOGE(TAG, "entity: %s", entity.c_str());
+            ESP_LOGW(TAG, "page: %s", page.c_str());
+            ESP_LOGW(TAG, "component: %s", component.c_str());
+            ESP_LOGW(TAG, "value: %s", value.c_str());
+            ESP_LOGW(TAG, "entity: %s", entity.c_str());
             auto ha_event = new esphome::api::CustomAPIDevice();
             ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
               {
@@ -1615,19 +1539,6 @@ script:
     parameters:
       key: string
       value: string
-    then:  # Reserved for Add-on Climate
-  - id: addon_climate_set_climate
-    mode: restart
-    parameters:
-      embedded_climate: bool
-    then:  # Reserved for Add-on Climate
-  - id: addon_climate_set_climate_friendly_name
-    mode: restart
-    parameters:
-      friendly_name: string
-    then:  # Reserved for Add-on Climate
-  - id: addon_climate_update_page_home
-    mode: restart
     then:  # Reserved for Add-on Climate
 
   - id: boot_sequence
@@ -1825,6 +1736,104 @@ script:
           id: tf_uart
           data: [0xFF, 0xFF, 0xFF]
 
+  - id: global_settings
+    mode: restart
+    parameters:
+      blueprint_version: string
+      relay1_local_control: bool
+      relay1_icon: string
+      relay1_icon_color: int
+      relay1_fallback: bool
+      relay2_local_control: bool
+      relay2_icon: string
+      relay2_icon_color: int
+      relay2_fallback: bool
+      embedded_climate: bool
+      embedded_climate_friendly_name: string
+      embedded_indoor_temperature: bool
+      temperature_unit_is_fahrenheit: bool
+      mui_please_confirm: string
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.global_settings";
+          // Blueprint version
+          ESP_LOGV(TAG, "Check Blueprint version");
+          id(version_blueprint) = blueprint_version;
+          check_versions->execute();
+
+          // Relays
+          ESP_LOGV(TAG, "Setup relays");
+          relay1_local->publish_state(relay1_local_control);
+          relay2_local->publish_state(relay2_local_control);
+          id(relay_1_fallback) = relay1_fallback;
+          id(relay_2_fallback) = relay2_fallback;
+          disp1->set_component_font_color("home.icon_top_01", relay1_icon_color);
+          disp1->set_component_font_color("home.icon_top_02", relay2_icon_color);
+          disp1->set_component_text_printf("home.icon_top_01", "%s", relay1_icon.c_str());
+          disp1->set_component_text_printf("home.icon_top_02", "%s", relay2_icon.c_str());
+          id(home_relay1_icon) = relay1_icon.c_str();
+          id(home_relay2_icon) = relay2_icon.c_str();
+          id(home_relay1_icon_color) = relay1_icon_color;
+          id(home_relay2_icon_color) = relay2_icon_color;
+
+          // Embedded thermostat
+          ESP_LOGV(TAG, "Load embedded thermostat");
+          id(is_embedded_thermostat) = embedded_climate;
+
+          // Indoor temperature
+          ESP_LOGV(TAG, "Set indoor temperature");
+          id(embedded_indoor_temp) = embedded_indoor_temperature;
+          id(temp_unit_fahrenheit) = temperature_unit_is_fahrenheit;
+          display_embedded_temp->execute();
+
+          // Confirm page
+          ESP_LOGV(TAG, "Setup confirm page");
+          display_wrapped_text->execute("confirm.title", mui_please_confirm.c_str(), 15);
+
+          // Update home page
+          ESP_LOGV(TAG, "Update home page");
+          page_home->execute();
+
+          ESP_LOGV(TAG, "Current page: %s", current_page->state.c_str());
+
+      - if:
+          condition:
+            - text_sensor.state:  # Is boot page visible?
+                id: current_page
+                state: boot
+          then:
+            - lambda: |-
+                ESP_LOGV("script.global_settings", "Boot page is visible");
+                disp1->set_component_text_printf("boot.bluep_version", "%s", blueprint_version.c_str());
+            - wait_until:
+                condition:
+                  - not:
+                      - text_sensor.state:  # Is boot page visible?
+                          id: current_page
+                          state: 'boot'
+                timeout: 2s
+            - if:
+                condition:
+                  - text_sensor.state:  # Avoid this being called twice by multiple boot triggers
+                      id: current_page
+                      state: 'boot'
+                then:
+                  - lambda: |-
+                      ESP_LOGV("script.global_settings", "Boot page still visible");
+                  - if:
+                      condition:
+                        switch.is_on: notification_sound
+                      then:
+                        - rtttl.play:
+                            rtttl: 'two short:d=4,o=5,b=100:16e6,16e6'
+                  - lambda: |-
+                      ESP_LOGD("script.global_settings", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
+                      disp1->goto_page(wakeup_page_name->state.c_str());
+                      timer_reset_all->execute(wakeup_page_name->state.c_str());
+
+      - lambda: |-
+          ESP_LOGV("script.global_settings", "Finished");
+
   - id: ha_button
     mode: parallel
     parameters:
@@ -1892,6 +1901,34 @@ script:
           notification_text->publish_state("");
           notification_unread->turn_off();
           if (current_page->state == "home") disp1->hide_component("bt_notific");
+
+  - id: open_entity_settings_page
+    mode: restart
+    parameters:
+      page: string
+      page_label: string
+      page_icon: string
+      page_icon_color: int[]
+      entity: string
+      back_page: string
+    then:
+      - lambda: |-
+          detailed_entity->publish_state(entity);
+          if (page == "alarm_control_panel") page = "alarm";
+          std::string cmd_page = std::string("page ") + page.c_str();
+          disp1->send_command_printf(cmd_page.c_str());
+          if (page_label.find("\\r") != std::string::npos)
+            page_label = page_label.replace(page_label.find("\\r"), 2, " ");
+          disp1->set_component_text_printf("page_label", "%s", page_label.c_str());
+          set_page_id->execute("back_page_id", back_page.c_str());
+          if (page == "climate")
+              disp1->set_component_value("embedded", (entity == "embedded_climate") ? 1 : 0);
+          else
+            {
+              if ((page_icon != std::string()) and (page_icon != ""))
+                disp1->set_component_text_printf("icon_state", "%s", page_icon.c_str());
+              set_component_color->execute("icon_state", page_icon_color);
+            }
 
   - id: page_alarm
     mode: restart
@@ -2007,10 +2044,6 @@ script:
               {"entity", detailed_entity->state.c_str()}
             });
 
-          // Report new page to add-ons
-          ESP_LOGV(TAG, "Call add-ons scripts for new page");
-          addon_climate_set_climate->execute(page == "climate" and detailed_entity->state == "embedded_climate");
-
           // Call page constructor
           if (page == "alarm") page_alarm->execute();
           else if (page == "blank") page_blank->execute();
@@ -2099,7 +2132,6 @@ script:
             disp1->send_command_printf("is_notification=%i", (notification_text->state.empty() and notification_label->state.empty()) ? 0 : 1);
             set_component_color->execute("home.bt_notific", notification_unread->state ? id(home_notify_icon_color_unread) : id(home_notify_icon_color_normal));
             refresh_datetime->execute();
-            addon_climate_update_page_home->execute();
           }
 
   - id: page_keyb_num
@@ -2338,7 +2370,6 @@ script:
           ESP_LOGV(TAG, "  embedded_climate: %s", embedded_climate ? "True" : "False");
           if (current_page->state == "climate") {
             ESP_LOGV(TAG, "Page climate is visible");
-            addon_climate_set_climate->execute(embedded_climate);
             disp1->send_command_printf("climateslider.maxval=%i", total_steps);
             disp1->set_component_value("temp_offset", temp_offset);
             disp1->set_component_value("temp_step", temp_step);
@@ -2411,18 +2442,17 @@ script:
           static const char *const TAG = "script.stop_all";
           ESP_LOGD(TAG, "Stopping scripts...");
           addon_climate_service_call->stop();
-          addon_climate_set_climate->stop();
-          addon_climate_set_climate_friendly_name->stop();
-          addon_climate_update_page_home->stop();
           boot_sequence->stop();
           check_versions->stop();
           display_embedded_temp->stop();
           display_wrapped_text->stop();
           exit_reparse->stop();
+          global_settings->stop();
           ha_button->stop();
           ha_call_service->stop();
           nextion_status->stop();
           notification_clear->stop();
+          open_entity_settings_page->stop();
           page_alarm->stop();
           page_blank->stop();
           page_boot->stop();
