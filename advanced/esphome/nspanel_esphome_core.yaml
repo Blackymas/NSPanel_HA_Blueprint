@@ -80,6 +80,7 @@ esp32:
 
 ##### WIFI SETUP #####
 wifi:
+  id: wifi_network
   power_save_mode: NONE
   networks:
     - id: wifi_default
@@ -1824,30 +1825,32 @@ script:
   - id: refresh_wifi_icon
     mode: restart
     then:
-      - if:
-          condition:
-            - binary_sensor.is_on: nextion_init
-          then:
-            # Update Wi-Fi icon
-            - if:
-                condition:
-                  wifi.connected:
-                then:
-                  - if:
-                      condition:
-                        api.connected:
-                      then:
-                        - lambda: disp1->send_command_printf("api=1");
-                        - lambda: disp1->set_component_text_printf("home.wifi_icon", "%s", "\uE5A8");
-                        - lambda: disp1->set_component_font_color("home.wifi_icon", 33808);
-                      else:
-                        - lambda: disp1->send_command_printf("api=0");
-                        - lambda: disp1->set_component_text_printf("home.wifi_icon", "%s", "\uF256");
-                        - lambda: disp1->set_component_font_color("home.wifi_icon", 63488);
-                else:
-                  - lambda: disp1->send_command_printf("api=0");
-                  - lambda: disp1->set_component_text_printf("home.wifi_icon", "%s", "\uE5A9");
-                  - lambda: disp1->set_component_font_color("home.wifi_icon", 63488);
+      - lambda: |-
+          static const char *const TAG = "script.refresh_wifi_icon";
+          bool wifi_connected = wifi_network->is_connected();
+          bool api_connected = api_server->is_connected();
+          bool blueprint_connected = (not id(version_blueprint).empty());
+          uint8_t api_val = (wifi_connected and api_connected and blueprint_connected) ? 1 : 0;
+          ESP_LOGV(TAG, "Wifi:        %s", wifi_connected ? "Connected" : "DISCONNECTED");
+          ESP_LOGV(TAG, "API:         %s", api_connected ? "Connected" : "DISCONNECTED");
+          ESP_LOGV(TAG, "Blueprint:   %s", blueprint_connected ? id(version_blueprint).c_str() : "DISCONNECTED");
+          ESP_LOGV(TAG, "Init:        %s", nextion_init->state ? "True" : "False");
+          ESP_LOGV(TAG, "Nextion api: %i", api_val);
+
+          if (nextion_init->state) {
+            // Update api value on Nextion
+            disp1->send_command_printf("api=%i", api_val);
+            // Update Wi-Fi icon color
+            disp1->set_component_font_color("home.wifi_icon", (api_val > 0) ? 33808 : 63488);
+            // Update Wi-Fi icon
+            disp1->set_component_text_printf("home.wifi_icon", "%s",
+                                              wifi_connected ? 
+                                                (api_connected ?
+                                                  (blueprint_connected ? "\uE5A8" :  // mdi:wifi - All right!
+                                                  "\uE7CF") :                        // mdi:home-assistant - Blueprint is out
+                                                "\uF256") :                          // mdi:api-off
+                                              "\uE5A9");                             // mdi:wifi-off
+          }
 
   - id: service_call_alarm_control_panel
     mode: restart
