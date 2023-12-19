@@ -267,8 +267,15 @@ During this time, nothing will be shown, the screen will be off and therefore no
 ```yaml
 # Define the wake-up button. Use pin 14 for left button or pin 27 for right button
 deep_sleep:
-  wakeup_pin: 14
+  wakeup_pin:
+    number: 14
+    allow_other_uses: true
   wakeup_pin_mode: INVERT_WAKEUP
+
+binary_sensor:
+  - id: !extend left_button
+    pin:
+      allow_other_uses: true
 
 time:
   - id: !extend time_provider
