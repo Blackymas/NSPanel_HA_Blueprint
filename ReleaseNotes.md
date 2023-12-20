@@ -79,6 +79,7 @@ wifi:
 12. Enhanced control for automation entities on buttons
 13. Dual thermostat controller support (add-on)
 14. Enhanced timeout flexibility for Sleep, Page fallback, and Dimming settings
+15. Display time on the `screensaver` page
 
 &nbsp;
 ## Details of noteworthy changes
@@ -185,6 +186,12 @@ This feature enhances the capabilities of the NSPanel without compromising its e
 &nbsp;
 ### 14. Enhanced timeout flexibility for Sleep, Page fallback, and Dimming settings
 We have improved the functionality of our system by enhancing the timeout flexibility for Sleep, Page Fallback, and Dimming settings. The previous timeout limit of 300 seconds has been significantly expanded, offering users more control and customization options for these specific features. This enhancement allows for a wider range of use cases, catering to the needs of those who require extended periods for these settings, while still maintaining the option for shorter durations.
+
+&nbsp;
+### 15. Display time on the `screensaver` page
+In this release, we're excited to introduce a new feature that adds a display time function to the Screensaver page. With this update, our screensaver not only serves its primary purpose of saving screen energy but also doubles as an informative display, reflecting our commitment to creating practical, user-friendly solutions.
+
+You can enable this feature on the bueprint settings, at the **CUSTOM CONFIGURATION** section (almost at the end). You also have to set **Display Brightness Sleep** at the device's page (**Settings** > **Devices & Services** > **ESPHome**).
 
 &nbsp;
 ## What's Next?

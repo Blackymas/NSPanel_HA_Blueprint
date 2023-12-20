@@ -311,6 +311,8 @@ api:
         embedded_indoor_temperature: bool
         temperature_unit_is_fahrenheit: bool
         mui_please_confirm: string
+        screensaver_time: bool
+        screensaver_time_color: int[]
       then:
         - script.execute:
             id: global_settings
@@ -328,6 +330,8 @@ api:
             embedded_indoor_temperature: !lambda "return embedded_indoor_temperature;"
             temperature_unit_is_fahrenheit: !lambda "return temperature_unit_is_fahrenheit;"
             mui_please_confirm: !lambda "return mui_please_confirm;"
+            screensaver_time: !lambda "return screensaver_time;"
+            screensaver_time_color: !lambda "return screensaver_time_color;"
 
     ##### Service to show a notification-message on the screen #####
     - service: notification_show
@@ -834,6 +838,16 @@ globals:
     type: std::vector<int32_t>
     restore_value: false
 
+  ##### Screensaver #####
+  - id: screensaver_display_time
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: screensaver_display_time_color
+    type: std::vector<int32_t>
+    restore_value: false
+    initial_value: '{64, 64, 64}'
+
   ##### Versions #####
   - id: version_blueprint
     type: std::string
@@ -1024,6 +1038,7 @@ number:
     unit_of_measurement: '%'
     min_value: 1
     max_value: 100
+    initial_value: 100
     step: 1
     restore_value: true
     optimistic: true
@@ -1049,6 +1064,7 @@ number:
     unit_of_measurement: '%'
     min_value: 1
     max_value: 100
+    initial_value: 25
     step: 1
     restore_value: true
     optimistic: true
@@ -1065,15 +1081,34 @@ number:
                 if (current_page->state == "settings") disp1->set_component_text_printf("dim_text", "%i%%", int(x));
               }
 
+  ##### SCREEN BRIGHTNESS SLEEP #####
+  - name: ${device_name} Display Brightness Sleep
+    id: display_sleep_brightness
+    platform: template
+    entity_category: config
+    unit_of_measurement: '%'
+    min_value: 0
+    max_value: 100
+    initial_value: 0
+    step: 1
+    restore_value: true
+    optimistic: true
+    set_action:
+      then:
+        - lambda: |-
+            id(display_dim_brightness_global) = int(x);
+            disp1->send_command_printf("brightness_sleep=%i", int(x));
+            if (current_page->state == "screensaver") set_brightness->execute(x);
+
   ##### Temperature Correction #####
   - name: ${device_name} Temperature Correction
     platform: template
     id: temperature_correction
     entity_category: config
     unit_of_measurement: ${temp_units}
-    initial_value: 0
     min_value: -10
     max_value: 10
+    initial_value: 0
     step: 0.1
     mode: box
     restore_value: true
@@ -1592,6 +1627,7 @@ script:
           disp1->send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
           disp1->send_command_printf("brightness_dim=%i", id(display_dim_brightness_global));
           disp1->send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
+          disp1->send_command_printf("brightness_sleep=%i", int(display_sleep_brightness->state));
           set_brightness->execute(id(display_brightness_global));
           ESP_LOGD(TAG, "Report to Home Assistant");
           nextion_init->publish_state(true);
@@ -1759,6 +1795,8 @@ script:
       embedded_indoor_temperature: bool
       temperature_unit_is_fahrenheit: bool
       mui_please_confirm: string
+      screensaver_time: bool
+      screensaver_time_color: int[]
     then:
       - lambda: |-
           static const char *const TAG = "script.global_settings";
@@ -1795,6 +1833,11 @@ script:
           // Confirm page
           ESP_LOGV(TAG, "Setup confirm page");
           display_wrapped_text->execute("confirm.title", mui_please_confirm.c_str(), 15);
+
+          // Screen saver page (sleep)
+          ESP_LOGV(TAG, "Setup screensaver page");
+          id(screensaver_display_time) = screensaver_time;
+          id(screensaver_display_time_color) = screensaver_time_color;
 
           // Update home page
           ESP_LOGV(TAG, "Update home page");
@@ -2170,6 +2213,7 @@ script:
     then:
       - lambda: |-
           set_page_id->execute("back_page_id", wakeup_page_name->state.c_str());
+          set_component_color->execute("screensaver.text",id(screensaver_display_time_color));
 
   - id: page_settings
     mode: restart
@@ -2222,44 +2266,30 @@ script:
     then:
       - lambda: |-
           std::string time_format_str = id(mui_time_format);
-          if (time_format_str.find("%p") != std::string::npos)
-            {
-              std::string meridiem_text = (id(time_provider).now().hour<12) ? id(mui_meridiem)[0] : id(mui_meridiem)[1];
-              disp1->set_component_text_printf("home.meridiem", "%s", meridiem_text.c_str());
-            }
-          else { disp1->set_component_text_printf("home.meridiem", " "); }
           if (time_format_str.find("%-H") != std::string::npos) {
-            time_format_str = time_format_str.replace(time_format_str.find("%-H"),
-                                                      sizeof("%-H")-1,
-                                                      to_string((int)(id(time_provider).now().hour))
-                                                     );
+            time_format_str = time_format_str.replace(time_format_str.find("%-H"), sizeof("%-H")-1,
+                                                      to_string((int)(id(time_provider).now().hour)));
           }
-          if (time_format_str.find("%-I") != std::string::npos)
-            {
-              if (id(time_provider).now().hour>12)
-                {
-                  time_format_str = time_format_str.replace(time_format_str.find("%-I"),
-                                                            sizeof("%-I")-1,
-                                                            to_string((int)(id(time_provider).now().hour-12))
-                                                           );
-                }
-              else if (id(time_provider).now().hour==0)
-                {
-                  time_format_str = time_format_str.replace(time_format_str.find("%-I"),
-                                                            sizeof("%-I")-1,
-                                                            "12"
-                                                           );
-                }
-              else
-                {
-                  time_format_str = time_format_str.replace(time_format_str.find("%-I"),
-                                                            sizeof("%-I")-1,
-                                                            to_string((int)(id(time_provider).now().hour))
-                                                           );
-                }
+          if (time_format_str.find("%-I") != std::string::npos) {
+            if (id(time_provider).now().hour>12) {
+              time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1,
+                                                        to_string((int)(id(time_provider).now().hour-12)));
+            } else if (id(time_provider).now().hour==0) {
+              time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1, "12");
+            } else {
+              time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1,
+                                                        to_string((int)(id(time_provider).now().hour)));
             }
-          std::string time_text = id(time_provider).now().strftime(time_format_str);
-          disp1->set_component_text_printf("home.time", "%s", time_text.c_str());
+          }
+          if (current_page->state == "screensaver" and id(screensaver_display_time)) {
+              std::string time_format_str_sleep = time_format_str.replace(time_format_str.find("%p"), sizeof("%p")-1,
+                                                        (id(time_provider).now().hour<12) ? id(mui_meridiem)[0] : id(mui_meridiem)[1]);
+              disp1->set_component_text_printf("screensaver.text", "%s", id(time_provider).now().strftime(time_format_str_sleep).c_str());
+          } else if (time_format_str.find("%p") != std::string::npos) {
+            std::string meridiem_text = (id(time_provider).now().hour<12) ? id(mui_meridiem)[0] : id(mui_meridiem)[1];
+            disp1->set_component_text_printf("home.meridiem", "%s", meridiem_text.c_str());
+          } else disp1->set_component_text_printf("home.meridiem", " ");
+          disp1->set_component_text_printf("home.time", "%s", id(time_provider).now().strftime(time_format_str).c_str());
 
   - id: refresh_relays
     mode: restart
