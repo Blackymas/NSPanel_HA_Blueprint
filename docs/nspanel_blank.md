@@ -57,4 +57,24 @@ The most popular way to switch between the `nspanel_blank.tft` and `nspanel_xx.t
 
 Once you have sucessfully installed any of the `tft` files from this project, the `nspanel_blank.tft` file shouldn't be necessary anymore and you should be able to always install the final `tft` file.
 
-Just make sure you flashed your panel with `nextion_update_url` pointing to one of the final files (`nspanel_eu.tft`, `nspanel_us.tft` or `nspanel_us_land.tft`) and click "Upload TFT" in the device's page (Settings > Devices & Services > ESPHome).
+Make sure you have one of the following final TFT files in your local http server (typically Home Assistant on ***www*** folder):
+- [`nspanel_eu.tft`](../nspanel_eu.tft)
+- [`nspanel_us.tft`](../nspanel_us.tft)
+- [`nspanel_us_land.tft`](../nspanel_us_land.tft)
+
+Now Flash your panel with `nextion_update_url` pointing to one of the final TFT files and press **Upload TFT** in the device's page (**Settings** > **Devices & Services** > **ESPHome**).
+
+## Additional Tips and Resources
+We have an useful guide for [troubleshooting TFT transfer issues](tft_upload.md). Please take a look there first.
+
+After troubleshooting, if issues persist, consult the [Issues](/Blackymas/NSPanel_HA_Blueprint/issues) and feel free to create a new one asking for more personalized assistance.
+
+Please share as much info as possible, like:
+1. Describing (or a picture of) what is in your screen
+2. Are updating from a previous version of this same project, or coming from another NSPanel customization (which one?) or customizing for the first time a panel with original Sonoff settings?
+3. Please share the ESPHome logs from when your panel starts to the moment the upload fails.
+4. Describe what you have already tried.
+
+## Important note
+Remember, these steps are a guideline and might vary slightly based on your specific setup and previously installed system.
+

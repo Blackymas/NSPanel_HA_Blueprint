@@ -1,18 +1,61 @@
-> _**in the version "nspanel-lovelace-ui" from joBr99 are a few special features built in, which make it not so easy to flash a new version and TFT on the NSPanel. But since we already had this problem, we have of course already a solution for you ;)**_
+# Migrating from **NsPanel Lovelace UI**
 
-### _**It is necessary to upload a "Blank TFT" file while "Lovelace ui" is still installed on the NSPanel.**_
+This document applies to users trying to migrate from **NsPanel Lovelace UI**, which is another customization for NSPanel which is available for Tasmota or ESPHome.
 
-> IMPORTANT! If you have already installed the NSPanel with my version, you must first fully install "Lovelace ui" again.
+If you are coming from there, you have to chose one of the 3 options:
 
-### The following steps are necessary:
+- [Upload TFT using **NsPanel Lovelace UI** tools - ESPHome version](#upload-tft-using-nspanel-lovelace-ui-tools---esphome-version)
+- [Upload TFT using **NsPanel Lovelace UI** tools - Tasmota version](#upload-tft-using-nspanel-lovelace-ui-tools---tasmota-version)
+- [Upload TFT using this project's tools](#upload-tft-using-this-projects-tools)
 
-1. download the file _**"nspanel_blank.tft"**_ from the folder _**custom_configuration**_.
-2. now upload the TFT file _**"nspanel_blank.tft"**_ to the folder _**"www"**_ in Home Assistant
-3. now go to the item _**"Developer tools --> Services"**_ and search there for the services
-&nbsp;  
-_**"ESPHome: DEVICE_NAME_upload_tft"**_  --> (esphome.device_name_upload_tft)
-4. under URL you have to enter the path to your file _**nspanel_blank.tft**_. This could look like this
-_**"http://homeassistan.local:8123/local/nspanel_blank.tft"**_
-5. now the TFT file should be played on the NSPanel. It may take a moment until it is ready
-6. If everything worked, you should see only a QR code on the NSPanel.
-7. now you can continue with the setup and configuration of my version. For this see [Short version of the setup of Esphome and Blueprint](intall.md#1-short-version-of-the-setup-of-esphome-and-blueprint) 
+### Common steps
+1. Download the file [`nspanel_blank.tft`](../nspanel_blank.tft) from our GitHub repository.
+2. Upload the same file (`nspanel_blank.tft`) to the folder _**"www"**_ in your Home Assistant
+3. Double check if the file is available by trying to download it using your local url (typically [`http://homeassistant.local:8123/local/nspanel_blank.tft`](http://homeassistant.local:8123/local/nspanel_blank.tft)).
+
+### Upload TFT using **NsPanel Lovelace UI** tools - ESPHome version
+
+After following the [**Common steps**](#common-steps), follow the additional steps:
+
+4. On Home Assistant, go to _**"Developer tools --> Services"**_ and search there for the service named "**ESPHome: DEVICE_NAME_upload_tft**" or `esphome.<<device_name>>_upload_tft`.
+5. On the field `URL`, enter the url for your local `nspanel_blank.tft` file (typically `http://homeassistant.local:8123/local/nspanel_blank.tft`).
+6. Press the button **CALL SERVICE**
+
+If everything goes right, you will see the progress bar indicating the file transfer an you will end up with a black screen showing a QR code. Then please follow the instructions from [here](nspanel_blank.md#what-to-do-after-installing-nspanel_blanktft).
+
+### Upload TFT using **NsPanel Lovelace UI** tools - Tasmota version
+
+After following the [**Common steps**](#common-steps), use the instructions from [**NsPanel Lovelace UI** - Flash Firmware to Nextion Screen](https://docs.nspanel.pky.eu/stable/prepare_nspanel/#flash-firmware-to-nextion-screen) website to upload TFT, just replacing the file url by the one you have locally (typically `http://homeassistant.local:8123/local/nspanel_blank.tft`).
+
+If everything goes right, you will see the progress bar indicating the file transfer an you will end up with a black screen showing a QR code. Then please follow the instructions from [here](nspanel_blank.md#what-to-do-after-installing-nspanel_blanktft).
+
+### Upload TFT using this project's tools
+
+If you have already installed the ESPHome firmware from this project, this is probably your better option now.
+
+After following the [**Common steps**](#common-steps), follow the additional steps:
+
+4. On your panel's screen showing a ring and a message "Wait for content...", click 9 times in the center of the ring.<br>![Lovelace Startup page](pics/lovelace-ui_startup.png)
+5. You should get to this page:<br>![Lovelace Test page](pics/lovelace-ui_pageTest.png)
+6. Click on the button "disable recmod"
+7. Click on the button "bauds=115200"
+4. On Home Assistant, go to _**"Developer tools --> Services"**_ and search there for the service named "**ESPHome: DEVICE_NAME_upload_tft**" or `esphome.<<device_name>>_upload_tft`.
+5. On the field `URL`, enter the url for your local `nspanel_blank.tft` file (typically `http://homeassistant.local:8123/local/nspanel_blank.tft`).
+6. Press the button **CALL SERVICE**
+
+If everything goes right, you will see the progress bar indicating the file transfer an you will end up with a black screen showing a QR code. Then please follow the instructions from [here](nspanel_blank.md#what-to-do-after-installing-nspanel_blanktft).
+
+
+## Additional Tips and Resources
+We have an useful guide for [troubleshooting TFT transfer issues](tft_upload.md). Please take a look there first.
+
+After troubleshooting, if issues persist, consult the [Issues](/Blackymas/NSPanel_HA_Blueprint/issues) and feel free to create a new one asking for more personalized assistance.
+
+Please share as much info as possible, like:
+1. Describing (or a picture of) what is in your screen
+2. Are updating from a previous version of this same project, or coming from another NSPanel customization (which one?) or customizing for the first time a panel with original Sonoff settings?
+3. Please share the ESPHome logs from when your panel starts to the moment the upload fails.
+4. Describe what you have already tried.
+
+## Important note
+Remember, these steps are a guideline and might vary slightly based on your specific setup and previously installed system.
