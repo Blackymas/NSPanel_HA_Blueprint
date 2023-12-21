@@ -11,6 +11,12 @@ substitutions:
   temp_units: "°C"
   #############################
 
+##### External components #####
+external_components:
+  - source: github://pr#5979  # Remove this when that PR is released (Hopefully v2024.1.0)
+    components:
+      - nextion
+
 ##### ESPHOME CONFIGURATION #####
 esphome:
   name: ${device_name}
@@ -29,13 +35,17 @@ esphome:
       - wait_until:
           condition:
             - lambda: !lambda return disp1->is_detected();
-          timeout: 45s
+          timeout: 10s
       - lambda: |-
-          if (!disp1->is_setup()) exit_reparse->execute();
+          if (!disp1->is_setup()) {
+            lovelace_custom_command->execute("pageType~popupNotify");
+            lovelace_custom_command->execute("entityUpdateDetail~~Unsupported TFT file~65535~~0~~0~Please upload a\r\ncompatible TFT file.~65535~10000~3~~~");
+            exit_reparse->execute();
+          }
       - wait_until:
           condition:
             - lambda: !lambda return disp1->is_setup();
-          timeout: 20s
+          timeout: 10s
       - lambda: |-
           static const char *const TAG = "on_boot";
 
@@ -70,6 +80,8 @@ esphome:
           static const char *const TAG = "on_boot";
           nextion_status->execute();
           if (not disp1->is_setup()) {
+            lovelace_custom_command->execute("pageType~popupNotify");
+            lovelace_custom_command->execute("entityUpdateDetail~~Unsupported TFT file~65535~~0~~0~Please upload a\r\ncompatible TFT file.~65535~10000~3~~~");
             ESP_LOGE(TAG, "No response from Nextion display");
           }
           ESP_LOGD(TAG, "Finished");
@@ -353,7 +365,7 @@ api:
             disp1->goto_page("notification");
             disp1->set_component_text_printf("notification.notifi_label", "%s", label.c_str());
 
-            display_wrapped_text->execute("notification.notifi_text01", message.c_str(), id(display_mode) == 2 ? 23 : 32);
+            display_wrapped_text->execute("notification.notifi_text01", message.c_str(), display_mode->state == 2 ? 23 : 32);
 
             notification_label->publish_state(label.c_str());
             notification_text->publish_state(message.c_str());
@@ -567,8 +579,8 @@ api:
         - lambda: |-
             if (not reboot.empty()) disp1->set_component_text_printf("settings.lbl_reboot", " %s", reboot.c_str());
             disp1->set_component_text_printf("settings.lbl_brightness", " %s", brightness.c_str());
-            display_wrapped_text->execute("settings.lbl_bright", bright.c_str(), id(display_mode) == 2 ? 25 : 10);
-            display_wrapped_text->execute("settings.lbl_dim", dim.c_str(), id(display_mode) == 2 ? 25 : 10);
+            display_wrapped_text->execute("settings.lbl_bright", bright.c_str(), display_mode->state == 2 ? 25 : 10);
+            display_wrapped_text->execute("settings.lbl_dim", dim.c_str(), display_mode->state == 2 ? 25 : 10);
 
     #### Service to populate the media player page #####
     - service: media_player
@@ -590,8 +602,8 @@ api:
               {
                 detailed_entity->publish_state(entity);
                 disp1->set_component_text_printf("page_label", "%s", friendly_name.c_str());
-                display_wrapped_text->execute("track", media_title.c_str(), id(display_mode) == 2 ? 16 : 27);
-                display_wrapped_text->execute("artist", media_artist.c_str(), id(display_mode) == 2 ? 26 : 40);
+                display_wrapped_text->execute("track", media_title.c_str(), display_mode->state == 2 ? 16 : 27);
+                display_wrapped_text->execute("artist", media_artist.c_str(), display_mode->state == 2 ? 26 : 40);
 
                 // on/off button
                 if (supported_features & 128 and state == "off") //TURN_ON
@@ -693,14 +705,17 @@ display:
     uart_id: tf_uart
     start_up_page: 8
     on_setup:
-      - script.execute: boot_sequence
+      - script.execute: setup_sequence
     on_page:
       lambda: |-
         static const char *const TAG = "display.disp1.on_page";
         ESP_LOGD(TAG, "Nextion page changed");
         ESP_LOGD(TAG, "New page: %s (%i)" , id(page_names)[x].c_str(), x);
-        current_page->publish_state(id(page_names)[x].c_str());
-        page_changed->execute(id(page_names)[x].c_str());
+        page_id->update();
+        if (current_page->state != id(page_names)[x].c_str()) {
+          current_page->publish_state(id(page_names)[x].c_str());
+          page_changed->execute(id(page_names)[x].c_str());
+        }
     on_touch:
       lambda: |-
         static const char *const TAG = "display.disp1.on_touch";
@@ -714,7 +729,7 @@ display:
 globals:
 
   ##### Is boot sequence completed? #####
-  - id: boot_sequence_completed
+  - id: setup_sequence_completed
     type: bool
     restore_value: false
     initial_value: 'false'
@@ -746,18 +761,6 @@ globals:
     type: bool
     restore_value: true
     initial_value: 'false'
-
-  ##### Display mode (1 = EU, 2 = US, 3 = US Landscape)
-  - id: display_mode
-    type: uint
-    restore_value: true
-    initial_value: '0'
-
-  ##### Charset (1 = International (original), 2 = CJK languages)
-  - id: display_charset
-    type: uint
-    restore_value: true
-    initial_value: '0'
 
   ##### Is embedded thermostat set as main climate entity? #####
   - id: is_embedded_thermostat
@@ -860,10 +863,6 @@ globals:
     type: std::string
     restore_value: false
     initial_value: ''
-  - id: version_tft
-    type: std::string
-    restore_value: false
-    initial_value: ''
 
   - id: page_names
     type: std::vector<std::string>
@@ -950,7 +949,7 @@ binary_sensor:
           - delay: 2s
           - lambda: disp1->soft_reset();
           - delay: 2s
-          - script.execute: boot_sequence
+          - script.execute: setup_sequence
 
   ##### RIGHT BUTTON BELOW DISPLAY TO TOGGLE RELAY #####
   - name: ${device_name} Right Button
@@ -1266,6 +1265,39 @@ sensor:
         - lambda: |-
             timer_reset_all->execute("settings");
 
+  - id: page_id
+    name: ${device_name} Page Id
+    platform: nextion
+    variable_name: dp
+    precision: 0
+    internal: true
+    entity_category: diagnostic
+    on_value:
+      then:
+        - lambda: |-
+            if (current_page->state != id(page_names)[x].c_str()) {
+              current_page->publish_state(id(page_names)[x].c_str());
+              page_changed->execute(id(page_names)[x].c_str());
+            }
+
+  ##### Display mode (1 = EU, 2 = US, 3 = US Landscape)
+  - id: display_mode
+    name: ${device_name} Display mode
+    platform: nextion
+    variable_name: display_mode
+    precision: 0
+    internal: true
+    entity_category: diagnostic
+
+  ##### Charset (1 = International (original), 2 = CJK languages)
+  - id: display_charset
+    name: ${device_name} Display charset
+    platform: nextion
+    variable_name: charset
+    precision: 0
+    internal: true
+    entity_category: diagnostic
+
 ##### START - SWITCH CONFIGURATION #####
 switch:
 
@@ -1337,7 +1369,7 @@ switch:
             - lambda: !lambda return disp1->is_setup();
           timeout: 20s
       - lambda: |-
-          if (id(boot_sequence_completed)) {
+          if (id(setup_sequence_completed)) {
             nextion_init->publish_state(true);
             disp1->goto_page(wakeup_page_name->state.c_str());
           }
@@ -1500,33 +1532,11 @@ text_sensor:
             else if (page == "blank") page_blank->execute();
             else if (page == "boot")
               {
-                // Detect display mode
-                if (doc.containsKey("display_mode"))
-                  {
-                    std::string display_mode_str = doc["display_mode"];
-                    ESP_LOGV(TAG, "display_mode: %s", display_mode_str.c_str());
-                    float display_mode_float = stof(display_mode_str);
-                    if (display_mode_float > 0) id(display_mode) = int(display_mode_float);
-                  }
-
-                // Detect display charset
-                if (doc.containsKey("charset"))
-                  {
-                    std::string charset_str = doc["charset"];
-                    ESP_LOGV(TAG, "charset: %s", charset_str.c_str());
-                    float charset_float = stof(charset_str);
-                    if (charset_float > 0) id(display_charset) = int(charset_float);
-                  }
-
                 // Contruct page boot
                 page_boot->execute();
 
                 // Detect TFT version
-                if (doc.containsKey("version"))
-                  {
-                    std::string version_tmp = doc["version"];
-                    id(version_tft) = version_tmp;
-                  }
+                version_tft->update();
                 check_versions->execute();
 
                 // Detect timeout
@@ -1580,6 +1590,24 @@ text_sensor:
                 else if (not key.empty()) ha_call_service->execute((std::string("media_player.") + key.c_str()), "", "", entity.c_str());
               }
 
+  - id: version_tft
+    name: ${device_name} TFT version
+    platform: nextion
+    component_name: boot.tft_version
+    entity_category: diagnostic
+    internal: true
+    on_value:
+      - lambda: |-
+          static const char *const TAG = "text_sensor.version_tft";
+          ESP_LOGD(TAG, "TFT version: %s", version_tft->state.c_str());
+          if (current_page->state == "boot") {
+            disp1->send_command_printf("tm_esphome.en=0");
+            disp1->send_command_printf("tm_pageid.en=0");
+            page_boot->execute();
+            timer_reset_all->execute("boot");
+          }
+          check_versions->execute();
+
 ### Scripts ######
 script:
   - id: addon_climate_service_call
@@ -1588,84 +1616,6 @@ script:
       key: string
       value: string
     then:  # Reserved for Add-on Climate
-
-  - id: boot_sequence
-    mode: restart
-    then:
-      - lambda: |-
-          static const char *const TAG = "script.boot_sequence";
-          ESP_LOGD(TAG, "Starting boot sequence");
-          ESP_LOGD(TAG, "Wait for TFT version");
-      - wait_until:
-          - lambda: !lambda return !id(version_tft).empty();
-      - lambda: |-
-          static const char *const TAG = "script.boot_sequence";
-          ESP_LOGD(TAG, "TFT version: %s", id(version_tft).c_str());
-          if (current_page->state == "boot") {
-            disp1->send_command_printf("tm_esphome.en=0");
-            disp1->send_command_printf("tm_pageid.en=0");
-            page_boot->execute();
-          }
-          timer_reset_all->execute("boot");
-      - lambda: |-
-          static const char *const TAG = "script.boot_sequence";
-          ESP_LOGD(TAG, "Wait for API");
-      - wait_until:
-          api.connected
-      - lambda: |-
-          static const char *const TAG = "script.boot_sequence";
-          if (current_page->state == "boot") {
-            ESP_LOGD(TAG, "Publish IP address");
-            disp1->set_component_text_printf("boot.ip_addr", "%s", network::get_ip_address().str().c_str());
-            set_brightness->execute(100);
-          }
-          ESP_LOGD(TAG, "Report to Home Assistant");
-          auto ha_event = new esphome::api::CustomAPIDevice();
-          ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-            {
-              {"type", "boot"},
-              {"step", "start"}
-            });
-          if (!id(boot_sequence_completed)) delay(1000);
-          // Set dimming values
-          display_brightness->publish_state(id(display_brightness_global));
-          display_dim_brightness->publish_state(id(display_dim_brightness_global));
-          disp1->send_command_printf("brightness=%i", id(display_brightness_global));
-          disp1->send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
-          disp1->send_command_printf("brightness_dim=%i", id(display_dim_brightness_global));
-          disp1->send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
-          disp1->send_command_printf("brightness_sleep=%i", int(display_sleep_brightness->state));
-          set_brightness->execute(id(display_brightness_global));
-          ESP_LOGD(TAG, "Report to Home Assistant");
-          nextion_init->publish_state(true);
-          //auto ha_event = new esphome::api::CustomAPIDevice();
-          ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-            {
-              {"type", "boot"},
-              {"step", "nextion_init"}
-            });
-          // Chips icon size
-          ESP_LOGV(TAG, "Chips size");
-          for (int i = 1; i <= 10; ++i) {
-            disp1->send_command_printf("home.icon_top_%02d.font=%i", i, id(home_chip_font_size));
-          }
-          disp1->send_command_printf("home.wifi_icon.font=%i", id(home_chip_font_size));
-          disp1->set_component_text_printf("home.icon_top_01", "%s", id(home_relay1_icon).c_str());
-          disp1->set_component_text_printf("home.icon_top_02", "%s", id(home_relay2_icon).c_str());
-          timer_reset_all->execute("boot");
-          notification_clear->execute();
-          id(boot_sequence_completed) = true;
-      - wait_until:
-          condition:
-            - not:
-                - text_sensor.state:  # Is boot page visible?
-                    id: current_page
-                    state: 'boot'
-          timeout: 15s
-      - lambda: |-
-          static const char *const TAG = "script.boot_sequence";
-          if (current_page->state == "boot") disp1->goto_page(wakeup_page_name->state.c_str());
-          ESP_LOGD(TAG, "Boot sequence finished!");
 
   - id: check_versions
     mode: restart
@@ -1683,7 +1633,7 @@ script:
 
                     return (major1 == major2) && (minor1 == minor2);
                   };
-                return (compareVersions("${version}", id(version_tft).c_str()) and compareVersions("${version}", id(version_blueprint).c_str()));
+                return (compareVersions("${version}", version_tft->state.c_str()) and compareVersions("${version}", id(version_blueprint).c_str()));
           timeout: 60s
       - lambda: |-
           static const char *const TAG = "script.check_versions";
@@ -1698,8 +1648,8 @@ script:
                 return (major1 == major2) && (minor1 == minor2);
             };
           ESP_LOGD(TAG, "ESPHome version: ${version}");
-          ESP_LOGD(TAG, "TFT version: %s", id(version_tft).c_str());
-          if (not compareVersions("${version}", id(version_tft).c_str())) ESP_LOGE(TAG, "TFT version mismatch!");
+          ESP_LOGD(TAG, "TFT version: %s", version_tft->state.c_str());
+          if (not compareVersions("${version}", version_tft->state.c_str())) ESP_LOGE(TAG, "TFT version mismatch!");
           ESP_LOGD(TAG, "Blueprint version: %s", id(version_blueprint).c_str());
           if (not compareVersions("${version}", id(version_blueprint).c_str())) ESP_LOGE(TAG, "Blueprint version mismatch!");
 
@@ -1716,7 +1666,7 @@ script:
           ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
             {
               {"type", "version"},
-              {"tft", id(version_tft).c_str()},
+              {"tft", version_tft->state.c_str()},
               {"esphome", "${version}"},
               {"blueprint", id(version_blueprint).c_str()},
               {"framework", framework.c_str()},
@@ -1793,6 +1743,12 @@ script:
       - uart.write:
           id: tf_uart
           data: "recmod=0"
+      - uart.write:
+          id: tf_uart
+          data: [0xFF, 0xFF, 0xFF]
+      - uart.write:
+          id: tf_uart
+          data: "connect"
       - uart.write:
           id: tf_uart
           data: [0xFF, 0xFF, 0xFF]
@@ -1926,6 +1882,40 @@ script:
                 });
             }
           ESP_LOGV(TAG, "Finished");
+
+  - id: lovelace_custom_command
+    mode: queued
+    parameters:
+      command: string
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.lovelace_custom_command";
+          ESP_LOGV(TAG, "Sending command: %s", command.c_str());
+
+          auto crc16 = [](const uint8_t *data, uint16_t len) -> uint16_t {
+            uint16_t crc = 0xFFFF;
+            while (len--) {
+              crc ^= *data++;
+              for (uint8_t i = 0; i < 8; i++) {
+                if ((crc & 0x01) != 0) {
+                  crc >>= 1;
+                  crc ^= 0xA001;
+                } else {
+                  crc >>= 1;
+                }
+              }
+            }
+            return crc;
+          };
+
+          std::vector<uint8_t> data = {0x55, 0xBB};
+          data.push_back(command.length() & 0xFF);
+          data.push_back((command.length() >> 8) & 0xFF);
+          data.insert(data.end(), command.begin(), command.end());
+          auto crc = crc16(data.data(), data.size());
+          data.push_back(crc & 0xFF);
+          data.push_back((crc >> 8) & 0xFF);
+          tf_uart->write_array(data.data(), data.size());
 
   - id: nextion_status
     mode: restart
@@ -2198,7 +2188,7 @@ script:
           static const char *const TAG = "script.page_notification";
           ESP_LOGV(TAG, "Updating notification page");
           disp1->set_component_text_printf("notification.notifi_label", "%s", notification_label->state.c_str());
-          display_wrapped_text->execute("notification.notifi_text01", notification_text->state.c_str(), id(display_mode) == 2 ? 23 : 32);
+          display_wrapped_text->execute("notification.notifi_text01", notification_text->state.c_str(), display_mode->state == 2 ? 23 : 32);
 
   - id: page_qrcode
     mode: restart
@@ -2497,6 +2487,152 @@ script:
           };
           disp1->send_command_printf("%s=%i", variable.c_str(), pageIndex(page.c_str()));
 
+  - id: setup_sequence
+    mode: restart
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.setup_sequence";
+          ESP_LOGD(TAG, "Starting Nextion setup sequence");
+          ESP_LOGD(TAG, "Fetching page id");
+          page_id->update();
+      - wait_until:
+          condition:
+            - lambda: !lambda return (page_id->state > 0);
+          timeout: 5s
+      - lambda: |-
+          static const char *const TAG = "script.setup_sequence";
+          ESP_LOGD(TAG, "Fetching charset");
+          display_charset->update();
+      - wait_until:
+          condition:
+            - lambda: !lambda return (display_charset->state > 0);
+          timeout: 5s
+      - lambda: |-
+          static const char *const TAG = "script.setup_sequence";
+          ESP_LOGD(TAG, "Fetching display mode");
+          display_mode->update();
+      - wait_until:
+          condition:
+            - lambda: !lambda return (display_mode->state > 0);
+          timeout: 5s
+      - if:
+          condition:
+            - lambda: !lambda return (display_mode->state > 0);
+          then:  # Project's TFT detected
+            - lambda: |-
+                static const char *const TAG = "script.setup_sequence";
+                ESP_LOGD(TAG, "Goto page Boot");
+                disp1->goto_page("boot");
+                ESP_LOGD(TAG, "Fetching TFT version");
+                version_tft->update();
+            - wait_until:
+                condition:
+                  - lambda: !lambda return (not version_tft->state.empty());
+                timeout: 5s
+            - lambda: |-
+                static const char *const TAG = "script.setup_sequence";
+                ESP_LOGD(TAG, "Wait for Wi-Fi");
+            - wait_until:
+                condition:
+                  - lambda: !lambda return (wifi_component->is_connected());
+                timeout: 10s
+            - if:
+                condition:
+                  - lambda: !lambda return (wifi_component->is_connected());
+                then:  # Wi-Fi connected
+                  - lambda: |-
+                      static const char *const TAG = "script.setup_sequence";
+                      if (current_page->state == "boot") {
+                        ESP_LOGD(TAG, "Publish IP address on screen");
+                        disp1->set_component_text_printf("boot.ip_addr", "%s", network::get_ip_address().str().c_str());
+                        set_brightness->execute(100);
+                      }
+                      ESP_LOGD(TAG, "Wait for API");
+                  - wait_until:
+                      condition:
+                        - lambda: !lambda return (api_server->is_connected());
+                      timeout: 10s
+                  - if:
+                      condition:
+                        - lambda: !lambda return (api_server->is_connected());
+                      then:  # API connected
+                        - lambda: |-
+                            static const char *const TAG = "script.setup_sequence";
+                            ESP_LOGD(TAG, "Publish IP address on screen");
+                            ESP_LOGD(TAG, "Report setup to Home Assistant");
+                            auto ha_event = new esphome::api::CustomAPIDevice();
+                            ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+                              {
+                                {"type", "boot"},
+                                {"step", "start"}
+                              });
+                      else:  # API not connected
+                        - lambda: |-
+                            static const char *const TAG = "script.setup_sequence";
+                            ESP_LOGE(TAG, "API not available");
+                else:  # Wi-Fi not connected
+                  - lambda: |-
+                      static const char *const TAG = "script.setup_sequence";
+                      ESP_LOGE(TAG, "Wi-Fi not available");
+                  - lambda: |-
+                      static const char *const TAG = "script.setup_sequence";
+                      ESP_LOGE(TAG, "Wi-Fi not available");
+            - wait_until:
+                condition:
+                  - lambda: !lambda return id(setup_sequence_completed);
+                timeout: 1s
+            - lambda: |-
+                static const char *const TAG = "script.setup_sequence";
+                ESP_LOGD(TAG, "Set dimming values");
+                display_brightness->publish_state(id(display_brightness_global));
+                display_dim_brightness->publish_state(id(display_dim_brightness_global));
+                set_brightness->execute(id(display_brightness_global));
+                ESP_LOGD(TAG, "Set page Settings");
+                disp1->send_command_printf("brightness=%i", id(display_brightness_global));
+                disp1->send_command_printf("settings.brightslider.val=%i", id(display_brightness_global));
+                disp1->send_command_printf("brightness_dim=%i", id(display_dim_brightness_global));
+                disp1->send_command_printf("settings.dimslider.val=%i", id(display_dim_brightness_global));
+                disp1->send_command_printf("brightness_sleep=%i", int(display_sleep_brightness->state));
+                ESP_LOGD(TAG, "Report to Home Assistant");
+                nextion_init->publish_state(true);
+                if (api_server->is_connected()) {
+                  auto ha_event = new esphome::api::CustomAPIDevice();
+                  ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+                    {
+                      {"type", "boot"},
+                      {"step", "nextion_init"}
+                    });
+                }
+                // Chips icon size
+                ESP_LOGV(TAG, "Adjusting icon's sizes");
+                for (int i = 1; i <= 10; ++i) {
+                  disp1->send_command_printf("home.icon_top_%02d.font=%i", i, id(home_chip_font_size));
+                }
+                disp1->send_command_printf("home.wifi_icon.font=%i", id(home_chip_font_size));
+                ESP_LOGV(TAG, "Restoring relay's icons");
+                disp1->set_component_text_printf("home.icon_top_01", "%s", id(home_relay1_icon).c_str());
+                disp1->set_component_text_printf("home.icon_top_02", "%s", id(home_relay2_icon).c_str());
+                timer_reset_all->execute("boot");
+                notification_clear->execute();
+                id(setup_sequence_completed) = true;
+                ESP_LOGD(TAG, "Wait for leaving boot page");
+            - wait_until:
+                condition:
+                  - not:
+                      - text_sensor.state:  # Is boot page visible?
+                          id: current_page
+                          state: boot
+                timeout: 10s
+            - lambda: |-
+                if (current_page->state == "boot") disp1->goto_page(wakeup_page_name->state.c_str());
+          else:  # Unknown TFT
+            - lambda: |-
+                static const char *const TAG = "script.setup_sequence";
+                ESP_LOGE(TAG, "A non-compatible TFT is installed");
+      - lambda: |-
+          static const char *const TAG = "script.setup_sequence";
+          ESP_LOGD(TAG, "Nextion setup sequence finished!");
+
   - id: stop_all
     mode: restart
     then:
@@ -2504,7 +2640,6 @@ script:
           static const char *const TAG = "script.stop_all";
           ESP_LOGD(TAG, "Stopping scripts...");
           addon_climate_service_call->stop();
-          boot_sequence->stop();
           check_versions->stop();
           display_embedded_temp->stop();
           display_wrapped_text->stop();
@@ -2512,6 +2647,7 @@ script:
           global_settings->stop();
           ha_button->stop();
           ha_call_service->stop();
+          lovelace_custom_command->stop();
           nextion_status->stop();
           notification_clear->stop();
           open_entity_settings_page->stop();
@@ -2556,6 +2692,7 @@ script:
           set_climate->stop();
           set_component_color->stop();
           set_page_id->stop();
+          setup_sequence->stop();
           timer_dim->stop();
           timer_page->stop();
           timer_reset_all->stop();

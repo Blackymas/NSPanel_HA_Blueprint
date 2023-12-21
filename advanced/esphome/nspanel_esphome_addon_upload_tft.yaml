@@ -197,6 +197,7 @@ script:
       - lambda: |-
           static const char *const TAG = "script.upload_tft";
           ESP_LOGD(TAG, "Starting...");
+          char update_msg[128];
 
           auto delay_seconds_ = [](int seconds) {
             ESP_LOGD(TAG, "Wait %i seconds", seconds);
@@ -210,23 +211,25 @@ script:
             }
           };
 
-          auto send_nextion_command = [](const std::string &command) -> bool
-            {
-              static const char *const TAG = "script.upload_tft.send_nextion_command";
-              ESP_LOGD(TAG, "Sending: %s", command.c_str());
-              id(tf_uart).write_str(command.c_str());
-              const uint8_t to_send[3] = {0xFF, 0xFF, 0xFF};
-              id(tf_uart).write_array(to_send, sizeof(to_send));
-              return true;
-            };
+          uint32_t supported_baud_rates[] = {2400, 4800, 9600, 19200, 31250, 38400, 57600, 115200, 230400, 250000, 256000, 512000, 921600};
 
-          auto disable_boot_timers_ = [send_nextion_command]() {
-            ESP_LOGD(TAG, "Disabling timers on boot page");
-            send_nextion_command("timer.en=0");
-            send_nextion_command("tm_esphome.en=0");
-            send_nextion_command("tm_pageid.en=0");
-            send_nextion_command("wakeup_timer.en=0");
-            send_nextion_command("dim=1");
+          auto is_baud_rate_supported = [supported_baud_rates](uint32_t baud_rate_requested) -> bool {
+            size_t size = sizeof(supported_baud_rates) / sizeof(supported_baud_rates[0]);
+            for (size_t i = 0; i < size; ++i) {
+                if (supported_baud_rates[i] == baud_rate_requested) {
+                    return true;
+                }
+            }
+            return false; // Return false if not found
+          };
+
+          auto send_nextion_command = [](const std::string &command) -> bool {
+            static const char *const TAG = "script.upload_tft.send_nextion_command";
+            ESP_LOGD(TAG, "Sending: %s", command.c_str());
+            id(tf_uart).write_str(command.c_str());
+            const uint8_t to_send[3] = {0xFF, 0xFF, 0xFF};
+            id(tf_uart).write_array(to_send, sizeof(to_send));
+            return true;
           };
 
           std::string framework = "Unknown";
@@ -235,28 +238,6 @@ script:
           #elif defined(ESP_PLATFORM)
           framework = "ESP-IDF";
           #endif
-
-          disable_boot_timers_();
-          if (disp1->is_setup()) {
-            disp1->set_backlight_brightness(1);
-            disp1->set_component_text_printf("confirm.title", "Upload TFT\\r%s", framework.c_str());
-            disp1->set_component_text_printf("confirm.body", "Preparing...");
-            disp1->goto_page("confirm");
-            disp1->hide_component("bt_close");
-            disp1->hide_component("bt_accept");
-            disp1->hide_component("bt_clear");
-            disp1->hide_component("bt_close");
-            delay_seconds_(1);
-            display_wrapped_text->execute("confirm.body", "Informing the blueprint that panel is unavailable...", 18);
-            disp1->hide_component("bt_close");
-          }
-          nextion_init->publish_state(false);
-          if (disp1->is_setup()) {
-            delay_seconds_(1);
-            display_wrapped_text->execute("confirm.body", "Stopping scripts...", 18);
-          }
-          stop_all->execute();
-          if (disp1->is_setup()) delay_seconds_(1);
 
           std::vector<uint8_t> buffer_;
 
@@ -276,6 +257,20 @@ script:
             #endif
             uart->set_baud_rate(baud_rate);
             uart->setup();
+          };
+
+          auto disable_boot_timers_ = [send_nextion_command]() {
+            ESP_LOGD(TAG, "Disabling timers on boot page");
+            send_nextion_command("timer.en=0");
+            send_nextion_command("tm_esphome.en=0");
+            send_nextion_command("tm_pageid.en=0");
+            send_nextion_command("wakeup_timer.en=0");
+            // Set Lovelace UI - Just in case
+            send_nextion_command("tmSleep.en=0");
+            send_nextion_command("tMsg1.txt=""Upload TFT""");
+            send_nextion_command("tMsg2.txt=""""");
+            send_nextion_command("tMsg3.txt=""""");
+            send_nextion_command("dim=1");
           };
 
           auto recv_ret_string_ = [](std::string &response, uint32_t timeout, bool recv_flag) -> uint16_t
@@ -480,10 +475,12 @@ script:
                 return upload_end_(false);
               }
 
-              if (!disp1->is_setup()) {
+              if (not display_mode->state > 0) {
                 ESP_LOGD(TAG, "Setting Nextion protocol reparse mode to passive");
                 exit_reparse->execute();
+                disable_boot_timers_();
                 delay_seconds_(5);
+                disable_boot_timers_();
               }
 
               is_updating_ = true;
@@ -746,10 +743,12 @@ script:
                 return upload_end_(false);
               }
 
-              if (!disp1->is_setup()) {
+              if (not display_mode->state > 0) {
                 ESP_LOGD(TAG, "Setting Nextion protocol reparse mode to passive");
                 exit_reparse->execute();
+                disable_boot_timers_();
                 delay_seconds_(5);
+                disable_boot_timers_();
               }
 
               is_updating_ = true;
@@ -864,17 +863,30 @@ script:
             };
           #endif
 
-          uint32_t supported_baud_rates[] = {2400, 4800, 9600, 19200, 31250, 38400, 57600, 115200, 230400, 250000, 256000, 512000, 921600};
-
-          auto is_baud_rate_supported = [supported_baud_rates](uint32_t baud_rate_requested) -> bool {
-            size_t size = sizeof(supported_baud_rates) / sizeof(supported_baud_rates[0]);
-            for (size_t i = 0; i < size; ++i) {
-                if (supported_baud_rates[i] == baud_rate_requested) {
-                    return true;
-                }
-            }
-            return false; // Return false if not found
-          };
+          // The upload process starts here
+          disable_boot_timers_();
+          nextion_init->publish_state(false);
+          if (display_mode->state > 0) {
+            disp1->set_backlight_brightness(1);
+            disp1->set_component_text_printf("confirm.title", "Upload TFT\\r%s", framework.c_str());
+            disp1->set_component_text_printf("confirm.body", "Preparing...");
+            disp1->goto_page("confirm");
+            disp1->hide_component("bt_close");
+            disp1->hide_component("bt_accept");
+            disp1->hide_component("bt_clear");
+            disp1->hide_component("bt_close");
+            delay_seconds_(1);
+            display_wrapped_text->execute("confirm.body", "Informing the blueprint that panel is unavailable...", 18);
+            disp1->hide_component("bt_close");
+            delay_seconds_(1);
+            display_wrapped_text->execute("confirm.body", "Stopping scripts...", 18);
+          } else {
+            lovelace_custom_command->execute("pageType~popupNotify");
+            sprintf(update_msg, "entityUpdateDetail~~Upload TFT - %s~65535~~0~~0~Preparing to upload      TFT file...~65535~10000~3~~~", framework.c_str());
+            lovelace_custom_command->execute(update_msg);
+          }
+          stop_all->execute();
+          if (display_mode->state > 0) delay_seconds_(1);
 
           uint32_t original_baud_rate_ = tf_uart->get_baud_rate();
           if (!is_baud_rate_supported(original_baud_rate_)) original_baud_rate_ = 115200;
@@ -886,35 +898,56 @@ script:
           ESP_LOGD(TAG, "Target upload baud rate: %d", target_upload_baud_rate_);
           ESP_LOGD(TAG, "Current baud rate:       %d", tf_uart->get_baud_rate());
 
-          char update_msg[128];
           sprintf(update_msg, "Try #1 at %d bps", target_upload_baud_rate_);
           ESP_LOGD(TAG, update_msg);
-          if (disp1->is_setup()) {
+          if (display_mode->state > 0) {
             display_wrapped_text->execute("confirm.body", update_msg, 18);
-            delay_seconds_(1);
+          } else {
+            lovelace_custom_command->execute("pageType~popupNotify");
+            sprintf(update_msg, "entityUpdateDetail~~Upload TFT - %s~65535~~0~~0~Try #1 at %d bps~65535~10000~3~~~", framework.c_str(), target_upload_baud_rate_);
+            lovelace_custom_command->execute(update_msg);
           }
+          delay_seconds_(1);
           if (upload_tft_(url, target_upload_baud_rate_)) id(restart_nspanel).press();
           ESP_LOGW(TAG, "Try #1 failed");
-          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", "Try #1 failed", 18);
+          if (display_mode->state > 0) display_wrapped_text->execute("confirm.body", "Try #1 failed", 18);
           delay_seconds_(5);
           disable_boot_timers_();
           sprintf(update_msg, "Try #2 at %d bps", target_upload_baud_rate_);
           ESP_LOGD(TAG, update_msg);
-          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", update_msg, 18);
+          if (display_mode->state > 0) {
+            display_wrapped_text->execute("confirm.body", update_msg, 18);
+          } else {
+            lovelace_custom_command->execute("pageType~popupNotify");
+            sprintf(update_msg, "entityUpdateDetail~~Upload TFT - %s~65535~~0~~0~Try #2 at %d bps~65535~10000~3~~~", framework.c_str(), target_upload_baud_rate_);
+            lovelace_custom_command->execute(update_msg);
+          }
+          delay_seconds_(1);
           if (upload_tft_(url, target_upload_baud_rate_)) id(restart_nspanel).press();
           ESP_LOGW(TAG, "Try #2 failed");
-          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", "Try #2 failed", 18);
+          if (display_mode->state > 0) display_wrapped_text->execute("confirm.body", "Try #2 failed", 18);
           delay_seconds_(5);
           disable_boot_timers_();
           sprintf(update_msg, "Try #3 at %d bps", original_baud_rate_);
           ESP_LOGD(TAG, update_msg);
-          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", update_msg, 18);
+          if (display_mode->state > 0) {
+            display_wrapped_text->execute("confirm.body", update_msg, 18);
+          } else {
+            lovelace_custom_command->execute("pageType~popupNotify");
+            sprintf(update_msg, "entityUpdateDetail~~Upload TFT - %s~65535~~0~~0~Try #3 at %d bps~65535~10000~3~~~", framework.c_str(), original_baud_rate_);
+            lovelace_custom_command->execute(update_msg);
+          }
+          delay_seconds_(1);
           if (upload_tft_(url, original_baud_rate_)) id(restart_nspanel).press();
           ESP_LOGW(TAG, "Try #3 failed");
-          if (disp1->is_setup()) {
+          if (display_mode->state > 0) {
             display_wrapped_text->execute("confirm.body", "Try #3 failed. Restarting display.", 18);
-            delay_seconds_(3);
+          } else {
+            lovelace_custom_command->execute("pageType~popupNotify");
+            sprintf(update_msg, "entityUpdateDetail~~Upload TFT - %s~65535~~0~~0~Power cycle display~65535~10000~3~~~", framework.c_str(), original_baud_rate_);
+            lovelace_custom_command->execute(update_msg);
           }
+          delay_seconds_(3);
           ESP_LOGD(TAG, "Turn off Nextion");
           id(screen_power).turn_off();
           delay_seconds_(2);
@@ -931,7 +964,7 @@ script:
           disable_boot_timers_();
           sprintf(update_msg, "Try #4 at %d bps", original_baud_rate_);
           ESP_LOGD(TAG, update_msg);
-          if (disp1->is_setup()) {
+          if (display_mode->state > 0) {
             disp1->set_backlight_brightness(1);
             disp1->set_component_text_printf("confirm.title", "Upload TFT\\r%s", framework.c_str());
             display_wrapped_text->execute("confirm.body", update_msg, 18);
@@ -940,19 +973,23 @@ script:
             disp1->hide_component("bt_accept");
             disp1->hide_component("bt_clear");
             disp1->hide_component("bt_close");
-            delay_seconds_(1);
+          } else {
+            lovelace_custom_command->execute("pageType~popupNotify");
+            sprintf(update_msg, "entityUpdateDetail~~Upload TFT - %s~65535~~0~~0~Try #4 at %d bps~65535~10000~3~~~", framework.c_str(), original_baud_rate_);
+            lovelace_custom_command->execute(update_msg);
           }
+          delay_seconds_(1);
           if (upload_tft_(url, original_baud_rate_)) id(restart_nspanel).press();
           ESP_LOGW(TAG, "Try #4 failed");
           disable_boot_timers_();
-          if (disp1->is_setup()) {
+          if (display_mode->state > 0) {
             display_wrapped_text->execute("confirm.body", "Try #4 failed.", 18);
             delay_seconds_(3);
           }
           disable_boot_timers_();
           sprintf(update_msg, "Try #5 at %d bps", 115200);
           ESP_LOGD(TAG, update_msg);
-          if (disp1->is_setup()) {
+          if (display_mode->state > 0) {
             disp1->set_backlight_brightness(1);
             disp1->set_component_text_printf("confirm.title", "Upload TFT\\r%s", framework.c_str());
             display_wrapped_text->execute("confirm.body", update_msg, 18);
@@ -961,15 +998,19 @@ script:
             disp1->hide_component("bt_accept");
             disp1->hide_component("bt_clear");
             disp1->hide_component("bt_close");
-            delay_seconds_(1);
+          } else {
+            lovelace_custom_command->execute("pageType~popupNotify");
+            sprintf(update_msg, "entityUpdateDetail~~Upload TFT - %s~65535~~0~~0~TFT upload failed.~65535~10000~3~~~", framework.c_str());
+            lovelace_custom_command->execute(update_msg);
           }
+          delay_seconds_(1);
           if (upload_tft_(url, 115200)) id(restart_nspanel).press();
           ESP_LOGE(TAG, "TFT upload failed");
-          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", "TFT upload failed", 18);
-          if (disp1->is_setup()) delay_seconds_(2);
+          if (display_mode->state > 0) display_wrapped_text->execute("confirm.body", "TFT upload failed", 18);
+          if (display_mode->state > 0) delay_seconds_(2);
           ESP_LOGD(TAG, "Turn off Nextion");
-          if (disp1->is_setup()) display_wrapped_text->execute("confirm.body", "Restarting...", 18);
-          if (disp1->is_setup()) delay_seconds_(2);
+          if (display_mode->state > 0) display_wrapped_text->execute("confirm.body", "Restarting...", 18);
+          if (display_mode->state > 0) delay_seconds_(2);
           id(screen_power).turn_off();
           delay_seconds_(2);
           ESP_LOGD(TAG, "Turn on Nextion");
