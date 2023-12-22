@@ -7166,7 +7166,8 @@ action:
           overlap:
             icon: '{{ None }}'
             icon_color: '{{ None }}'
-            frendly_name: '{{ None }}'
+            name: '{{ None }}'
+          force_icon: true
       - &variable_entity
         variables:
           entity_id_is_valid: '{{ entity_id is defined and entity_id is string and entity_id.split(".") | count == 2 }}'
@@ -7174,7 +7175,12 @@ action:
           entity_domain: '{{ entity_id.split(".")[0] if entity_id_is_valid else None }}'
           entity_hvac_action: '{{ state_attr(entity_id, "hvac_action") | default(None) if entity_id_is_valid else None }}'
           entity_climate_action: '{{ (entity_hvac_action if entity_hvac_action not in ["unavailable", "unknown", "", None] else entity_state) if entity_domain == "climate" else None }}'
-          entity_rgb_color: '{{ state_attr(entity_id, "rgb_color") | default(None) if entity_id_is_valid else None }}'
+          entity_rgb_color: >
+            {{
+              overlap.icon_color
+              if overlap.icon_color is defined and overlap.icon_color is sequence
+              else (state_attr(entity_id, "rgb_color") | default(None) if entity_id_is_valid else None)
+            }}
           entity_brightness: '{{ state_attr(entity_id, "brightness") | default(None) if entity_id_is_valid else None }}'
           entity_brightness_index: '{{ (entity_brightness | int(255))/255 if entity_brightness else 1 }}'
           entity_icon: '{{ state_attr(entity_id, "icon") | default(None) if entity_id_is_valid else None }}'
@@ -7199,12 +7205,14 @@ action:
               if entity_icon_color is sequence and entity_icon_color | count == 3
               else entity_icon_color
             }}
-          entity_state_is_number: '{{ is_number(entity_state) }}'
+          entity_friendly_name: '{{ state_attr(entity_id, "friendly_name") | default("") if entity_id_is_valid else None }}'
+          entity_state_is_number: '{{ is_number(entity_state) if entity_id_is_valid else false }}'
           entity:
             id: '{{ entity_id }}'
             valid: '{{ entity_id_is_valid }}'
             has_value: '{{ has_value(entity_id) if entity_id_is_valid else false }}'
             state: '{{ entity_state }}'
+            state_rounded: '{{ states(entity_id, rounded=true) if entity_state_is_number else entity_state }}'
             state_is:
               "on": '{{ entity_state in enum.states.on if entity_id_is_valid else false }}'
               "off": '{{ entity_state in enum.states.off if entity_id_is_valid else false }}'
@@ -7217,23 +7225,21 @@ action:
               }}
             state_is_number: '{{ entity_state_is_number }}'
             domain: '{{ entity_domain }}'
-            unit_of_measurement: '{{ state_attr(entity_id, "unit_of_measurement") | default(None) if entity_id_is_valid and entity_state_is_number else None }}'
-            friendly_name: >
+            unit_of_measurement: '{{ state_attr(entity_id, "unit_of_measurement") | default("") if entity_id_is_valid and entity_state_is_number else "" }}'
+            friendly_name: '{{ entity_friendly_name }}'
+            name: >
               {{
-                overlap.frendly_name
-                if overlap is defined and overlap.frendly_name is defined and overlap.frendly_name is string
-                else
-                  (
-                    state_attr(entity_id, "friendly_name") | default(None)
-                    if entity_id_is_valid
-                    else None
-                  )
+                overlap.name
+                if overlap is defined and overlap.name is defined and overlap.name is string and overlap.name | length > 0
+                else (entity_friendly_name if entity_friendly_name is string and entity_friendly_name | length > 0 else entity_id)
               }}
             supported_features: '{{ state_attr(entity_id, "supported_features") | default(None) if entity_id_is_valid else None }}'
             icon: >
-              {% set icon_domain = nextion.icon.domain[entity_domain] | default(all_icons.blank) if entity_domain else all_icons.blank %}
-              {% if overlap is defined and overlap.icon is defined and overlap.icon is string and overlap.icon.split(":") | count == 2 %}
-                {{ all_icons[overlap.icon[1]] | default(icon_domain) }}
+              {% set icon_domain = nextion.icon.domain[entity_domain] | default(all_icons.unknown if force_icon is defined and force_icon else all_icons.blank)
+                                    if entity_domain
+                                    else (all_icons.unknown if force_icon is defined and force_icon else all_icons.blank) %}
+              {% if overlap is defined and overlap.icon is defined and overlap.icon is string and overlap.icon | length > 0 %}
+                {{ all_icons[overlap.icon.split(":")[1]] | default(icon_domain) if overlap.icon.split(":") | count == 2 else overlap.icon }}
               {% elif entity_domain == "climate" %}
                 {% if "off" in entity_climate_action %}{{ all_icons.blank }}
                 {% elif "heating" in entity_climate_action or "heat" in entity_climate_action %}{{ all_icons["thermometer-lines"] }}
@@ -7257,7 +7263,7 @@ action:
                 {% endif %}
               {% else %}
                 {{
-                  all_icons[entity_icon[1]] | default(icon_domain)
+                  all_icons[entity_icon.split(":")[1]] | default(icon_domain)
                   if entity_id_is_valid and entity_icon is string and entity_icon.split(":") | count == 2
                   else icon_domain
                 }}
@@ -7908,7 +7914,7 @@ action:
                           - repeat:
                               for_each: '{{ home_page_status_bar }}'
                               sequence:
-                                - &display-home_page_status_bar
+                                - &display-home_page_status_bar #DEBUG
                                   if: '{{ repeat.item.entity is defined and repeat.item.entity is string and repeat.item.entity | length > 0 }}'
                                   then:
                                     - variables:
@@ -7916,6 +7922,7 @@ action:
                                         overlap:
                                           icon: '{{ repeat.item.icon }}'
                                           icon_color: '{{ repeat.item.icon_color_rgb }}'
+                                        force_icon: true
                                     - *variable_entity
                                     - *delay-default
                                     - if: '{{ (entity.state_is.on and not repeat.item.inverted) or (entity.state_is.off and repeat.item.inverted) }}'
@@ -7924,7 +7931,7 @@ action:
                                         - service: '{{ nextion.command.set_component_color }}'
                                           data:
                                             component: 'home.{{ repeat.item.component }}'
-                                            foreground: '{{ [ entity.icon_color_rgb ] if is_number(entity.icon_color_rgb) else entity.icon_color_rgb }}'
+                                            foreground: '{{ [ entity.icon_color ] if is_number(entity.icon_color) else entity.icon_color }}'
                                           continue_on_error: true
                                         ### ICON Font ###
                                         - *delay-default
@@ -8792,7 +8799,7 @@ action:
                               - condition: '{{ entity.supported_features > 0 }}'
                               - service: '{{ nextion.command.alarm_settings }}'
                                 data:
-                                  page_title: '{{ entity.friendly_name }}'
+                                  page_title: '{{ entity.name }}'
                                   state: '{{ entity.state }}'
                                   supported_features: '{{ entity.supported_features }}'
                                   code_format: '{{ entity.code_format if entity.code_format else "none" }}'
@@ -9221,26 +9228,14 @@ action:
                                         entity_id: '{{ repeat.item.entity }}'
                                         overlap:
                                           icon: '{{ repeat.item.icon }}'
-                                          frendly_name: '{{ repeat.item.name }}'
+                                          name: '{{ repeat.item.name }}'
                                     - *variable_entity
-                                    - variables:
-                                        repeat_item_state: '{{ states(entity.id, rounded=true) if entity.state_is_number else entity.state_mui }}'
-                                        repeat_item_icon: >
-                                          {% if repeat.item.icon is string and repeat.item.icon | length > 0 %}
-                                            {{
-                                              all_icons[repeat.item.icon.split(":")[1]] | default(all_icons.unknown)
-                                              if repeat.item.icon.split(":") | count > 0
-                                              else repeat.item.icon
-                                            }}
-                                          {% elif state_attr(repeat.item.entity, "icon") | default("") not in ["unavailable", "unknown", "", None] %}
-                                            {{ all_icons[state_attr(repeat.item.entity, "icon").split(":")[1]] | default(None) }}
-                                          {% endif %}
                                     - service: '{{ nextion.command.set_entity }}'
                                       data:
                                         ent_id: '{{ repeat.item.page }}.{{ repeat.item.component }}'
-                                        ent_icon: '{{ repeat_item_icon }}'
-                                        ent_label: '{{ repeat.item.name if repeat.item.name is string and repeat.item.name | length > 0 else state_attr(entity.id, "friendly_name") | default("") }}'
-                                        ent_value: '{{ repeat_item_state ~ entity.unit_of_measurement }}'
+                                        ent_icon: '{{ entity.icon }}'
+                                        ent_label: '{{ entity.name }}'
+                                        ent_value: '{{ entity.state_rounded ~ entity.unit_of_measurement }}'
                                         ent_value_xcen: '{{ entitypages_value_alignment }}'
                                       continue_on_error: true
 
@@ -9781,7 +9776,7 @@ action:
                                             service: '{{ nextion.command.open_entity_settings_page }}'
                                             data:
                                               page: '{{ entity.domain }}'
-                                              page_label: '{{ entity.friendly_name }}'
+                                              page_label: '{{ entity.name }}'
                                               page_icon: '{{ entity.icon }}'
                                               page_icon_color: '{{ entity.icon_color }}'
                                               entity: '{{ "embedded_climate" if entity.id == thermostat_embedded else entity.id }}'
@@ -9854,7 +9849,7 @@ action:
                               entity_id: '{{ last_click_button.entity }}'
                               overlap:
                                 icon: '{{ last_click_button.icon }}'
-                                friendly_name: '{{ last_click_button.name }}'
+                                name: '{{ last_click_button.name }}'
                           - *variable_entity
                           - condition: '{{ entity.valid }}'
                           - choose:
@@ -9921,7 +9916,7 @@ action:
                               entity_id: '{{ last_click_button.entity }}'
                               overlap:
                                 icon: '{{ last_click_button.icon }}'
-                                friendly_name: '{{ last_click_button.name }}'
+                                name: '{{ last_click_button.name }}'
                           - *variable_entity
                           - condition: '{{ entity.valid }}'
                           - if:
