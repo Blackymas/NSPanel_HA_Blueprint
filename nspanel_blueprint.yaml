@@ -3943,7 +3943,7 @@ variables:
       green: [19818]              # rgb(76, 175, 80)
       orange: [64704]             # rgb(255, 152, 0)
       cyan: [1530]                # rgb(0, 188, 212)
-      deep-orange: [64164]        # rgb(255, 87, 34)
+      deep_orange: [64164]        # rgb(255, 87, 34)
       amber: [65024]              # rgb(255, 193, 7)
       "on": [65535]               # rgb(255, 255, 255)
       "off": [35921]              # 8a8a8a
@@ -6435,7 +6435,7 @@ variables:
           component: button02
         - mode: heat
           icon: fire
-          color: deep-orange
+          color: deep_orange
           component: button03
         - mode: cool
           icon: snowflake
@@ -7205,7 +7205,7 @@ condition:
 ##### START - Action #####
 #############################################################
 action:
-  - if: '{{ false }}'  #### Global anchor repository ####
+  - if: '{{ false }}'  #### Global anchor repository #### #DEBUG
     then:
       - variables:
           entity_id: '{{ None }}'
@@ -7217,38 +7217,21 @@ action:
         variables:
           entity_id_is_valid: '{{ entity_id is defined and entity_id is string and entity_id.split(".") | count == 2 }}'
           entity_state: '{{ states(entity_id) | default(None) if entity_id_is_valid else None }}'
+          entity_state_is:
+            "on": '{{ entity_state in enum.states.on if entity_id_is_valid else false }}'
+            "off": '{{ entity_state in enum.states.off if entity_id_is_valid else false }}'
+            unknown: '{{ entity_state in enum.states.unknown if entity_id_is_valid else true }}'
           entity_domain: '{{ entity_id.split(".")[0] if entity_id_is_valid else None }}'
-          entity_hvac_action: '{{ state_attr(entity_id, "hvac_action") | default(None) if entity_id_is_valid else None }}'
-          entity_climate_action: '{{ (entity_hvac_action if entity_hvac_action not in ["unavailable", "unknown", "", None] else entity_state) if entity_domain == "climate" else None }}'
-          entity_rgb_color: >
-            {{
-              overlap.icon_color
-              if overlap is defined and overlap.icon_color is defined and overlap.icon_color is sequence
-              else (state_attr(entity_id, "rgb_color") | default(None) if entity_id_is_valid else None)
-            }}
-          entity_brightness: '{{ state_attr(entity_id, "brightness") | default(None) if entity_id_is_valid else None }}'
-          entity_brightness_index: '{{ (entity_brightness | int(255))/255 if entity_brightness else 1 }}'
           entity_icon: '{{ state_attr(entity_id, "icon") | default(None) if entity_id_is_valid else None }}'
           entity_icon_color: >
             {{
-              entity_rgb_color | list
-              if entity_rgb_color is sequence
-              else
-                (
-                  nextion.color.on
-                  if entity_state in enum.states.on
-                  else nextion.color.off
-                )
-            }}
-          entity_icon_color_adjusted: >
-            {{
-              [
-                min(255,entity_icon_color[0] * entity_brightness_index) | round(0),
-                min(255,entity_icon_color[1] * entity_brightness_index) | round(0),
-                min(255,entity_icon_color[2] * entity_brightness_index) | round(0)
-              ]
-              if entity_icon_color is sequence and entity_icon_color | count == 3
-              else entity_icon_color
+              (
+                overlap.icon_color
+                if overlap is defined and overlap.icon_color is defined and overlap.icon_color is sequence
+                else nextion.color.on
+              )
+              if entity_state_is.on
+              else nextion.color.off
             }}
           entity_friendly_name: '{{ state_attr(entity_id, "friendly_name") | default("") if entity_id_is_valid else None }}'
           entity_state_is_number: '{{ is_number(entity_state) if entity_id_is_valid else false }}'
@@ -7258,10 +7241,7 @@ action:
             has_value: '{{ has_value(entity_id) if entity_id_is_valid else false }}'
             state: '{{ entity_state }}'
             state_rounded: '{{ states(entity_id, rounded=true) if entity_state_is_number else entity_state }}'
-            state_is:
-              "on": '{{ entity_state in enum.states.on if entity_id_is_valid else false }}'
-              "off": '{{ entity_state in enum.states.off if entity_id_is_valid else false }}'
-              unknown: '{{ entity_state in enum.states.unknown if entity_id_is_valid else true }}'
+            state_is: '{{ entity_state_is }}'
             state_mui: >
               {{
                 entity_state
@@ -7284,6 +7264,8 @@ action:
               {% if overlap is defined and overlap.icon is defined and overlap.icon is string and overlap.icon | length > 0 %}
                 {{ all_icons[overlap.icon.split(":")[1]] | default(icon_domain) if overlap.icon.split(":") | count == 2 else overlap.icon }}
               {% elif entity_domain == "climate" %}
+                {% set entity_hvac_action = state_attr(entity_id, "hvac_action") | default(None) %}
+                {% set entity_climate_action = (entity_hvac_action if entity_hvac_action not in ["unavailable", "unknown", "", None] else entity_state) %}
                 {% if "off" in entity_climate_action %}{{ all_icons.blank }}
                 {% elif "heating" in entity_climate_action or "heat" in entity_climate_action %}{{ all_icons["thermometer-lines"] }}
                 {% elif "cooling" in entity_climate_action or "cool" in entity_climate_action %}{{ all_icons.snowflake }}
@@ -7312,31 +7294,43 @@ action:
                 }}
               {% endif %}
             icon_color: >
-              {% if entity_domain == "climate" %}
-                {% if "off" in entity_climate_action %}{{ nextion.color["off"] }}
-                {% elif "heating" in entity_climate_action or "heat" in entity_climate_action %}{{ nextion.color["deep-orange"]}}
-                {% elif "cooling" in entity_climate_action or "cool" in entity_climate_action %}{{ nextion.color["blue"] }}
-                {% elif "drying" in entity_climate_action or "dry" in entity_climate_action %}{{ nextion.color["orange"] }}
-                {% elif "fan" in entity_climate_action or "fan_only" in entity_climate_action %}{{ nextion.color["cyan"] }}
-                {% elif "heat_cool" in entity_climate_action %}{{ nextion.color["amber"] }}
-                {% elif "auto" in entity_climate_action %}{{ nextion.color["off"] }}
-                {% elif "idle" in entity_climate_action %}{{ nextion.color["off"] }}
-                {% else %}{{ nextion.color["off"] }}
-                {% endif %}
-              {% elif entity_domain == "alarm_control_panel" %}
-                {% if entity_state == "disarmed" %}{{ nextion.color["off"] }}
+              {% if entity_domain == "alarm_control_panel" %}
+                {% if entity_state == "disarmed" %}{{ nextion.color.off }}
                 {% elif entity_state in ["armed_home", "armed_away", "armed_night", "armed_vacation", "armed_bypass"] %}{{ nextion.color.green }}
                 {% elif entity_state in ["pending", "arming", "disarming"] %}{{ nextion.color.amber }}
                 {% elif entity_state == "triggered" %}{{ nextion.color.red }}
-                {% else %}{{ nextion.color["off"] }}
+                {% else %}{{ nextion.color.on if entity_state in enum.states.on else nextion.color.off }}
                 {% endif %}
-              {% else %}{{ entity_icon_color_adjusted }}
+              {% elif entity_domain == "climate" %}
+                {% set entity_hvac_action = state_attr(entity_id, "hvac_action") | default(None) %}
+                {% set entity_climate_action = (entity_hvac_action if entity_hvac_action not in ["unavailable", "unknown", "", None] else entity_state) %}
+                {% if "off" in entity_climate_action %}{{ nextion.color.off }}
+                {% elif "heating" in entity_climate_action or "heat" in entity_climate_action %}{{ nextion.color.deep_orange}}
+                {% elif "cooling" in entity_climate_action or "cool" in entity_climate_action %}{{ nextion.color.blue }}
+                {% elif "drying" in entity_climate_action or "dry" in entity_climate_action %}{{ nextion.color.orange }}
+                {% elif "fan" in entity_climate_action or "fan_only" in entity_climate_action %}{{ nextion.color.cyan }}
+                {% elif "heat_cool" in entity_climate_action %}{{ nextion.color.amber }}
+                {% elif "auto" in entity_climate_action %}{{ nextion.color.off }}
+                {% elif "idle" in entity_climate_action %}{{ nextion.color.off }}
+                {% else %}{{ nextion.color.on if entity_state in enum.states.on else nextion.color.off }}
+                {% endif %}
+              {% elif entity_domain == "light" %}
+                {% if not entity_state_is.on %}{{ nextion.color.off }}
+                {% else %}
+                  {% set entity_rgb_color_attr = state_attr(entity_id, "rgb_color") | default(None) %}
+                  {% set entity_rgb_color = entity_rgb_color_attr if entity_rgb_color_attr is sequence else entity_icon_color %}
+                  {% set entity_brightness = state_attr(entity_id, "brightness") | default(None) %}
+                  {% set entity_brightness_index = (entity_brightness | int(255))/255 if entity_brightness else 1 %}
+                  {{
+                    [
+                      min(255,entity_rgb_color[0] * entity_brightness_index) | round(0),
+                      min(255,entity_rgb_color[1] * entity_brightness_index) | round(0),
+                      min(255,entity_rgb_color[2] * entity_brightness_index) | round(0)
+                    ]
+                  }}
+                {% endif %}
+              {% else %}{{ entity_icon_color }}
               {% endif %}
-            rgb_color: '{{ entity_rgb_color }}'
-            hvac_action: '{{ entity_hvac_action }}'
-            climate_action: '{{ entity_climate_action }}'
-            code_format: '{{ state_attr(entity_id, "code_format") if entity_domain == "alarm_control_panel" else None }}'
-            code_arm_required: '{{ state_attr(entity_id, "code_arm_required") | default(true) if entity_domain == "alarm_control_panel" else None }}'
 
   - alias: Main choices
     choose:
@@ -7851,7 +7845,7 @@ action:
                                         - variables:
                                             entity_id: '{{ repeat.item.entity }}'
                                             overlap:
-                                              icon: '{{ repeat.item.icon }}'
+                                              icon: '{{ repeat.item.icon if repeat.item.icon is defined else None }}'
                                         - *variable_entity
                                         - service: '{{ nextion.command.set_component_color }}'
                                           data:
@@ -7888,8 +7882,11 @@ action:
                               - *variable_entity
                               - if: '{{ entity.has_value }}'
                                 then:
+                                  - variables:
+                                      entity_hvac_action: '{{ state_attr(entity_id, "hvac_action") | default(None) }}'
+                                      entity_climate_action: '{{ (entity_hvac_action if entity_hvac_action not in ["unavailable", "unknown", "", None] else entity_state) }}'
                                   - *delay-default
-                                  - if: '{{ entity.climate_action in ["off", "heating", "heat", "cooling", "cool", "dry", "fan", "fan_only", "heat_cool", "auto", "idle"] }}'
+                                  - if: '{{ entity_climate_action in ["off", "heating", "heat", "cooling", "cool", "dry", "drying", "fan", "fan_only", "heat_cool", "auto", "idle"] }}'
                                     then:
                                       ### ICON Font Color ###
                                       - service: '{{ nextion.command.set_component_color }}'
@@ -7956,14 +7953,14 @@ action:
                           - repeat:
                               for_each: '{{ home_page_status_bar }}'
                               sequence:
-                                - &display-home_page_status_bar #DEBUG
+                                - &display-home_page_status_bar
                                   if: '{{ repeat.item.entity is defined and repeat.item.entity is string and repeat.item.entity | length > 0 }}'
                                   then:
                                     - variables:
                                         entity_id: '{{ repeat.item.entity }}'
                                         overlap:
-                                          icon: '{{ repeat.item.icon }}'
-                                          icon_color: '{{ repeat.item.icon_color_rgb }}'
+                                          icon: '{{ repeat.item.icon if repeat.item.icon is defined else None }}'
+                                          icon_color: '{{ repeat.item.icon_color_rgb if repeat.item.icon_color_rgb is defined else None }}'
                                     - *variable_entity
                                     - *delay-default
                                     - if: '{{ (entity.state_is.on and not repeat.item.inverted) or (entity.state_is.off and repeat.item.inverted) }}'
@@ -8023,8 +8020,8 @@ action:
                                     - variables:
                                         entity_id: '{{ repeat.item.entity }}'
                                         overlap:
-                                          icon: '{{ repeat.item.icon }}'
-                                          icon_color: '{{ repeat.item.icon_color_rgb }}'
+                                          icon: '{{ repeat.item.icon if repeat.item.icon is defined else None }}'
+                                          icon_color: '{{ repeat.item.icon_color_rgb if repeat.item.icon_color_rgb is defined else None }}'
                                     - *variable_entity
                                     - if: '{{ entity.has_value }}'
                                       then:
@@ -8064,7 +8061,7 @@ action:
                       - alias: Button pages
                         conditions: '{{ nspanel_event.page in page.buttonpages }}'
                         sequence: &refresh_page_buttonpage
-                          - &variables-page_buttons
+                          - &variables_page_buttons
                             variables:
                               event_page: '{{ nspanel_event.page if nspanel_event is defined and nspanel_event.page is defined else page.current }}'
                               button_page_index: '{{ (event_page[-2:] | int(-1)) - 1 }}'
@@ -8350,106 +8347,47 @@ action:
 
                               ##### NSPanel build Button page ##### #DEBUG
                               - repeat:
-                                  for_each: '{{ button_pages_buttons[first_button:last_button] }}'
+                                  for_each: >
+                                    {{
+                                      button_pages_buttons
+                                      | selectattr("page", "defined")
+                                      | selectattr("page", "eq", page.current)
+                                      | selectattr("entity", "defined")
+                                      | list
+                                    }}
                                   sequence: &display_button_page_button
-                                    - if: >
-                                        {{
-                                          repeat.item.entity is string and
-                                          repeat.item.entity | length > 0 and
-                                          repeat.item.entity.split(".") | default([]) | count > 0 and
-                                          repeat.item.page == states(currentpage)
-                                        }}
+                                    - variables:
+                                        entity_id: '{{ repeat.item.entity }}'
+                                        overlap:
+                                          icon: '{{ repeat.item.icon if repeat.item.icon is defined else None }}'
+                                          icon_color: '{{ repeat.item.icon_color_rgb if repeat.item.icon_color_rgb is defined else None }}'
+                                          name: '{{ repeat.item.name if repeat.item.name is defined else None }}'
+                                    - *variable_entity
+                                    - if: '{{ entity.valid }}'
                                       then:
                                         - variables:
-                                            item_domain: '{{ repeat.item.entity.split(".")[0] | default("unknown") }}'
-                                            current_entity_state: '{{ states(repeat.item.entity) | default("unavailable") }}'
-                                            current_entity_state_available: '{{ current_entity_state not in ["unavailable"] }}'
+                                            current_entity_state_available: '{{ entity.state not in ["unavailable"] }}'
                                             btn_state: >  # Button state (on = true or off = false)
                                               {{
-                                                (current_entity_state in ["on", "open", "opening", "home", "playing"] and item_domain not in ["automation"])
-                                                or (item_domain == "climate" and current_entity_state != "off")
-                                                or (item_domain in ["button","input_button","scene","automation", "remote"] and trigger.id is match "current_state_entity")
+                                                (entity.state in enum.states.on and entity.domain not in ["automation"])
+                                                or (entity.domain == "climate" and entity.state != "off")
+                                                or (entity.domain in ["button","input_button","scene","automation","remote"] and trigger.id is match "current_state_entity")
                                               }}
-                                            btn_icon_font: >  # Foreground color for icon
-                                              {% if not current_entity_state_available %}
-                                                {{ nextion.color.red }}
-                                              {% elif item_domain in ["light"] %}
-                                                {% set rgb_color = state_attr(repeat.item.entity, "rgb_color") | default(None) %}
-                                                {% set brightness = (state_attr(repeat.item.entity, "brightness") | int(255))/255 %}
-                                                {% set icon_color_raw =
-                                                  rgb_color | list
-                                                  if rgb_color is sequence
-                                                  else
-                                                    (
-                                                      (repeat.item.icon_color_rgb if repeat.item.icon_color_rgb is sequence else nextion.color.on)
-                                                      if current_entity_state in enum.states.on
-                                                      else nextion.color.off
-                                                    ) %}
-                                                {{
-                                                  [
-                                                    min(255,icon_color_raw[0] * brightness) | round(0),
-                                                    min(255,icon_color_raw[1] * brightness) | round(0),
-                                                    min(255,icon_color_raw[2] * brightness) | round(0)
-                                                  ]
-                                                  if icon_color_raw is sequence and icon_color_raw | count == 3
-                                                  else icon_color_raw
-                                                }}
-                                              {% elif current_entity_state in ["off", "closed", "closing"] or (item_domain == "person" and current_entity_state != "home") %}
-                                                {{ nextion.color.grey_light }}
-                                              {% elif item_domain in ["button", "input_button", "scene", "automation", "remote"] and trigger.id is match "current_state_entity" %}
-                                                {{ [ repeat.item.icon_color_rgb ] if is_number(repeat.item.icon_color_rgb) else repeat.item.icon_color_rgb }}
-                                              {% elif item_domain in ["button", "input_button", "scene", "automation", "remote"] %}
-                                                {{ nextion.color.grey_light }}
-                                              {% elif current_entity_state in ["on", "open", "opening", "home"] or (item_domain == "climate" and current_entity_state != "off") %}
-                                                {{ [ repeat.item.icon_color_rgb ] if is_number(repeat.item.icon_color_rgb) else repeat.item.icon_color_rgb }}
-                                              {% else %}{{ nextion.color.red }}
-                                              {% endif %}
-                                            btn_icon: >  # Button's icon
-                                              {% if not current_entity_state_available %}{{ nextion.icon.domain.unknown }}
-                                              {% elif repeat.item.icon | length > 0 %}
-                                                {{
-                                                  all_icons[repeat.item.icon.split(":")[1]] | default(all_icons.unknown)
-                                                  if repeat.item.icon.split(":") | count > 0
-                                                  else repeat.item.icon
-                                                }}
+                                            btn_bri_txt: >  # Buttons value (brightness, temperature, etc.)  #DEBUG
+                                              {% if not entity.has_value %} 0
+                                              {% elif entity.domain == "light" and entity.state == "on" %}
+                                                {% set entity_brightness = state_attr(entity.id, "brightness") | default(None) %}
+                                                {% set entity_brightness_index = entity_brightness/255 if is_number(entity_brightness) else 0 %}
+                                                {{ (entity_brightness_index*100) | round(0) }}%
+                                              {% elif entity.domain == "fan" and entity.state == "on" and state_attr(entity.id, "percentage") != None %}
+                                                {{ state_attr(entity.id, "percentage") | round(0, default=0) }}%
                                               {% elif
-                                                      state_attr(repeat.item.entity, "icon") | default("") not in ["unavailable", "unknown", "", None] and
-                                                      all_icons[state_attr(repeat.item.entity, "icon").split(":")[1]] != null %}
-                                                {{ all_icons[state_attr(repeat.item.entity, "icon").split(":")[1]] | default(all_icons.unknown) }}
-                                              {% elif repeat.item.entity and repeat.item.entity.split(".") | count > 1 %}
-                                                {{ nextion.icon.domain[repeat.item.entity.split(".")[0] if repeat.item.entity else "unknown"] }}
-                                              {% else %}{{ nextion.icon.domain.unknown }}
-                                              {% endif %}
-                                            btn_label_tmp: >  # Button's label (aux)
-                                              {{
-                                                repeat.item.name
-                                                if repeat.item.name is string and repeat.item.name | length > 0
-                                                else state_attr(repeat.item.entity, "friendly_name")
-                                              }}
-                                            btn_label: >  # Button's label
-                                              {{
-                                                btn_label_tmp
-                                                if btn_label_tmp is string and btn_label_tmp | length > 0
-                                                else
-                                                  (
-                                                    item_domain
-                                                    if item_domain is string and item_domain | length > 0
-                                                    else ""
-                                                  )
-                                              }}
-                                            btn_bri_txt: >  # Buttons's value (brightness, temperature, etc.)
-                                              {% if not current_entity_state_available %} 0
-                                              {% elif item_domain == "light" and current_entity_state == "on" and state_attr(repeat.item.entity, "brightness") != None %}
-                                                {{ (state_attr(repeat.item.entity, "brightness") | int * 100 /255) | round(0) }}%
-                                              {% elif item_domain == "fan" and current_entity_state == "on" and state_attr(repeat.item.entity, "percentage") != None %}
-                                                {{ state_attr(repeat.item.entity, "percentage") | round(0, default=0) }}%
-                                              {% elif
-                                                      item_domain == "cover" and
-                                                      current_entity_state in ["open", "opening", "closing"] and
-                                                      state_attr(repeat.item.entity, "current_position") != None %}
-                                                {{ (state_attr(repeat.item.entity, "current_position") | int(100)) | round(0) }}%
-                                              {% elif item_domain == "climate" and state_attr(repeat.item.entity, 'current_temperature') != None %}
-                                                {% set current_temperature = state_attr(repeat.item.entity, 'current_temperature') | float %}
+                                                      entity.domain == "cover" and
+                                                      entity.state in ["open", "opening", "closing"] and
+                                                      state_attr(entity.id, "current_position") != None %}
+                                                {{ (state_attr(entity.id, "current_position") | int(100)) | round(0) }}%
+                                              {% elif entity.domain == "climate" and state_attr(entity.id, 'current_temperature') != None %}
+                                                {% set current_temperature = state_attr(entity.id, 'current_temperature') | float %}
                                                 {{
                                                   current_temperature | round(0)
                                                   if current_temperature >= 100 or temperature_units in ["F", "f", "°F", "°f", "K", "k"]
@@ -8463,16 +8401,16 @@ action:
                                             page: '{{ repeat.item.page }}'
                                             id: '{{ repeat.item.component }}'
                                             state: '{{ btn_state if btn_state else false }}'
-                                            icon: '{{ btn_icon }}'
-                                            icon_color: '{{ [ btn_icon_font ] if is_number(btn_icon_font) else btn_icon_font }}'
+                                            icon: '{{ entity.icon }}'
+                                            icon_color: '{{ entity.icon_color }}'
                                             icon_font: '{{ button_pages_icon_size if is_number(button_pages_icon_size) else 8 }}'
                                             bri: '{{ btn_bri_txt }}'
-                                            label: '{{ btn_label }}'
+                                            label: '{{ entity.name }}'
                                           continue_on_error: true
                                         - if: >
                                             {{
-                                              (item_domain in ["button","input_button","scene"] and trigger.id is match "current_state_entity")
-                                              or item_domain in ["automation", "remote"]
+                                              (entity.domain in ["button","input_button","scene"] and trigger.id is match "current_state_entity")
+                                              or entity.domain in ["automation", "remote"]
                                             }}
                                           then:
                                             - delay:
@@ -8482,11 +8420,11 @@ action:
                                                 page: '{{ repeat.item.page }}'
                                                 id: '{{ repeat.item.component }}'
                                                 state: false
-                                                icon: '{{ btn_icon }}'
+                                                icon: '{{ entity.icon }}'
                                                 icon_color: '{{ nextion.color.grey_light }}'
                                                 icon_font: '{{ button_pages_icon_size if is_number(button_pages_icon_size) else 8 }}'
                                                 bri: '{{ btn_bri_txt }}'
-                                                label: '{{ btn_label }}'
+                                                label: '{{ entity.name }}'
                                               continue_on_error: true
                               ###### SHOW All component when page loading done #####
                               - if: '{{ not show_while_loading }}'
@@ -8509,7 +8447,12 @@ action:
                         conditions: '{{ nspanel_event.page == page.light }}'
                         sequence: &refresh_page_light
                           - variables:
-                              light_entity: '{{ nspanel_event.entity if nspanel_event is defined and nspanel_event.entity is defined else trigger.entity_id }}'
+                              light_entity: >
+                                {{
+                                  nspanel_event.entity
+                                  if nspanel_event is defined and nspanel_event.entity is defined
+                                  else (trigger.entity_id if trigger.entity_id is defined else trigger.event.data.entity_id)
+                                }}
                               supported_color_modes: '{{ state_attr(light_entity, "supported_color_modes") | default("unknown") }}'
                               color_mode_color: >
                                 {{
@@ -8620,7 +8563,12 @@ action:
                         conditions: '{{ nspanel_event.page == page.cover }}'
                         sequence: &refresh_page_cover
                           - variables:
-                              cover_entity: '{{ nspanel_event.entity if nspanel_event is defined and nspanel_event.entity is defined else trigger.entity_id }}'
+                              cover_entity: >
+                                {{
+                                  nspanel_event.entity
+                                  if nspanel_event is defined and nspanel_event.entity is defined
+                                  else (trigger.entity_id if trigger.entity_id is defined else trigger.event.data.entity_id)
+                                }}
                           ##### COVER State
                           - service: '{{ nextion.command.value }}'
                             data:
@@ -8689,7 +8637,12 @@ action:
                         conditions: '{{ nspanel_event.page == page.fan }}'
                         sequence: &refresh_page_fan
                           - variables:
-                              fan_entity: '{{ nspanel_event.entity if nspanel_event is defined and nspanel_event.entity is defined else trigger.entity_id }}'
+                              fan_entity: >
+                                {{
+                                  nspanel_event.entity
+                                  if nspanel_event is defined and nspanel_event.entity is defined
+                                  else (trigger.entity_id if trigger.entity_id is defined else trigger.event.data.entity_id)
+                                }}
                               fan:
                                 supported_features: '{{ state_attr(fan_entity, "supported_features") | int(0) }}'
                                 percentage: >
@@ -8746,7 +8699,12 @@ action:
                         conditions: '{{ nspanel_event.page == page.media_player }}'
                         sequence: &refresh_page_media_player
                           - variables:
-                              media_player_entity: '{{ nspanel_event.entity if nspanel_event is defined and nspanel_event.entity is defined else trigger.entity_id }}'
+                              media_player_entity: >
+                                {{
+                                  nspanel_event.entity
+                                  if nspanel_event is defined and nspanel_event.entity is defined
+                                  else (trigger.entity_id if trigger.entity_id is defined else trigger.event.data.entity_id)
+                                }}
                               wait_completed: false
                           - alias: Refresh page in a loop
                             repeat:
@@ -8843,8 +8801,8 @@ action:
                                   page_title: '{{ entity.name }}'
                                   state: '{{ entity.state }}'
                                   supported_features: '{{ entity.supported_features }}'
-                                  code_format: '{{ entity.code_format if entity.code_format else "none" }}'
-                                  code_arm_required: '{{ entity.code_arm_required if entity.code_arm_required else false }}'
+                                  code_format: '{{ state_attr(entity.id, "code_format") | default("none") }}'
+                                  code_arm_required: '{{ state_attr(entity.id, "code_arm_required") | default(true) }}'
                                   entity: '{{ entity.id }}'
                                   mui_alarm: '{{ dict.values(mui[language].alarm) | list }}'
                                 continue_on_error: true
@@ -9268,8 +9226,8 @@ action:
                                     - variables:
                                         entity_id: '{{ repeat.item.entity }}'
                                         overlap:
-                                          icon: '{{ repeat.item.icon }}'
-                                          name: '{{ repeat.item.name }}'
+                                          icon: '{{ repeat.item.icon if repeat.item.icon is defined else None }}'
+                                          name: '{{ repeat.item.name if repeat.item.name is defined else None }}'
                                     - *variable_entity
                                     - service: '{{ nextion.command.set_entity }}'
                                       data:
@@ -9873,7 +9831,7 @@ action:
                         conditions:
                           - '{{ nspanel_event.page in page.buttonpages }}'
                         sequence:
-                          - *variables-page_buttons
+                          - *variables_page_buttons
                           - variables:
                               last_click_button: >
                                 {{
@@ -9882,6 +9840,7 @@ action:
                                   | selectattr("page", "eq", nspanel_event.page)
                                   | selectattr("component", "defined")
                                   | selectattr("component", "eq", nspanel_event.component)
+                                  | selectattr("entity", "defined")
                                   | list
                                 }}
                           - condition: '{{ last_click_button | count >= 0 }}'
@@ -9889,8 +9848,8 @@ action:
                               last_click_button: '{{ last_click_button[0] }}'
                               entity_id: '{{ last_click_button.entity }}'
                               overlap:
-                                icon: '{{ last_click_button.icon }}'
-                                name: '{{ last_click_button.name }}'
+                                icon: '{{ last_click_button.icon if last_click_button.icon is defined else None }}'
+                                name: '{{ last_click_button.name if last_click_button.name is defined else None }}'
                           - *variable_entity
                           - condition: '{{ entity.valid }}'
                           - choose:
@@ -9956,8 +9915,8 @@ action:
                               last_click_button: '{{ last_click_button[0] }}'
                               entity_id: '{{ last_click_button.entity }}'
                               overlap:
-                                icon: '{{ last_click_button.icon }}'
-                                name: '{{ last_click_button.name }}'
+                                icon: '{{ last_click_button.icon if last_click_button.icon is defined else None }}'
+                                name: '{{ last_click_button.name if last_click_button.name is defined else None }}'
                           - *variable_entity
                           - condition: '{{ entity.valid }}'
                           - if:
@@ -10189,11 +10148,11 @@ action:
               - '{{ page.current in [page.light, page.cover, page.climate, page.fan, page.alarm] and trigger.entity_id == states(detailed_entity) }}'
         sequence:
           - choose:
-              - alias: "Button pages"
+              - alias: Button pages
                 conditions:
                   - '{{ page.current in page.buttonpages }}'
                 sequence:
-                  - *variables-page_buttons
+                  - *variables_page_buttons
                   - repeat:
                       for_each: >
                         {{
@@ -10327,7 +10286,7 @@ action:
               - home_custom_buttons
         sequence:
           - variables:
-              trigger_entity_id: '{{ trigger.event.data.entity_id }}'
+              trigger_entity_id: '{{ trigger.entity_id if trigger.entity_id is defined else trigger.event.data.entity_id }}'
           - choose:
               - alias: "Home page"
                 conditions:
@@ -10342,37 +10301,37 @@ action:
                 conditions:
                   - '{{ page.current == page.light }}'
                   - '{{ trigger_entity_id is match "light." }}'
-                  - '{{ trigger.entity_id == states(detailed_entity) }}'
+                  - '{{ trigger_entity_id == states(detailed_entity) }}'
                 sequence: *refresh_page_light
               - alias: 'Cover settings page'
                 conditions:
                   - '{{ page.current == page.cover }}'
                   - '{{ trigger_entity_id is match "cover." }}'
-                  - '{{ trigger.entity_id == states(detailed_entity) }}'
+                  - '{{ trigger_entity_id == states(detailed_entity) }}'
                 sequence: *refresh_page_cover
               - alias: 'Climate page'
                 conditions:
                   - '{{ page.current == page.climate }}'
                   - '{{ trigger_entity_id is match "climate." }}'
-                  - '{{ trigger.entity_id == states(detailed_entity) }}'
+                  - '{{ trigger_entity_id == states(detailed_entity) }}'
                 sequence: *refresh_page_climate
               - alias: 'Fan page'
                 conditions:
                   - '{{ page.current == page.fan }}'
                   - '{{ trigger_entity_id is match "fan." }}'
-                  - '{{ trigger.entity_id == states(detailed_entity) }}'
+                  - '{{ trigger_entity_id == states(detailed_entity) }}'
                 sequence: *refresh_page_fan
               - alias: 'Media player page'
                 conditions:
                   - '{{ page.current == page.media_player }}'
                   - '{{ trigger_entity_id is match "media_player." }}'
-                  - '{{ trigger.entity_id == states(detailed_entity) }}'
+                  - '{{ trigger_entity_id == states(detailed_entity) }}'
                 sequence: *refresh_page_media_player
               - alias: 'Alarm page'
                 conditions:
                   - '{{ page.current == page.alarm }}'
-                  - '{{ trigger.entity_id is match "alarm_control_panel." }}'
-                  - '{{ trigger.entity_id == states(detailed_entity) }}'
+                  - '{{ trigger_entity_id is match "alarm_control_panel." }}'
+                  - '{{ trigger_entity_id == states(detailed_entity) }}'
                 sequence: *refresh_page_alarm
 
       ##### HOME PAGE - Values #####
