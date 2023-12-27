@@ -25,62 +25,65 @@ esphome:
     build_flags:
       - -Wno-missing-field-initializers
   on_boot:
-    priority: 200.0
-    then:
-      - logger.log: After boot check-up
-      - wait_until:
-          condition:
-            - api.connected:
-          timeout: 60s
-      - wait_until:
-          condition:
-            - lambda: !lambda return disp1->is_detected();
-          timeout: 10s
-      - lambda: |-
-          if (!disp1->is_setup()) {
-            exit_reparse->execute();
-          }
-      - wait_until:
-          condition:
-            - lambda: !lambda return disp1->is_setup();
-          timeout: 10s
-      - lambda: |-
-          static const char *const TAG = "on_boot";
-
-          auto delay_seconds_ = [](int seconds) {
-            ESP_LOGD(TAG, "Wait %i seconds", seconds);
-            for (int i = 0; i < (seconds*4); i++) {
-              #ifdef ARDUINO
-              delay(250);
-              #elif defined(USE_ESP_IDF)
-              vTaskDelay(pdMS_TO_TICKS(250));
-              #endif
-              App.feed_wdt();
+    - priority: 600.0  # This is where most sensors are set up.
+      then:
+        - lambda: |-
+            static const char *const TAG = "on_boot";
+            ESP_LOGD(TAG, "After boot check-up starting");
+            set_baud_rate->execute(stoi(baud_rate->state), true);
+        - wait_until:
+            condition:
+              - api.connected:
+            timeout: 60s
+        - wait_until:
+            condition:
+              - lambda: !lambda return disp1->is_detected();
+            timeout: 10s
+        - lambda: |-
+            if (!disp1->is_setup()) {
+              exit_reparse->execute();
             }
-          };
+        - wait_until:
+            condition:
+              - lambda: !lambda return disp1->is_setup();
+            timeout: 10s
+        - lambda: |-
+            static const char *const TAG = "on_boot";
 
-          nextion_status->execute();
-          if (not disp1->is_setup()) {
-            ESP_LOGE(TAG, "No response from Nextion display");
-            ESP_LOGD(TAG, "Turn off Nextion");
-            screen_power->turn_off();
-            delay_seconds_(2);
-            ESP_LOGD(TAG, "Turn on Nextion");
-            screen_power->turn_on();
-            delay_seconds_(5);
+            auto delay_seconds_ = [](int seconds) {
+              ESP_LOGD(TAG, "Wait %i seconds", seconds);
+              for (int i = 0; i < (seconds*4); i++) {
+                #ifdef ARDUINO
+                delay(250);
+                #elif defined(USE_ESP_IDF)
+                vTaskDelay(pdMS_TO_TICKS(250));
+                #endif
+                App.feed_wdt();
+              }
+            };
+
             nextion_status->execute();
-          }
-      - wait_until:
-          condition:
-            - lambda: !lambda return disp1->is_setup();
-          timeout: 20s
-      - lambda: |-
-          static const char *const TAG = "on_boot";
-          nextion_status->execute();
-          if (not disp1->is_setup()) {
-            ESP_LOGE(TAG, "No response from Nextion display");
-          }
-          ESP_LOGD(TAG, "Finished");
+            if (not disp1->is_setup()) {
+              ESP_LOGE(TAG, "No response from Nextion display");
+              ESP_LOGD(TAG, "Turn off Nextion");
+              screen_power->turn_off();
+              delay_seconds_(2);
+              ESP_LOGD(TAG, "Turn on Nextion");
+              screen_power->turn_on();
+              delay_seconds_(5);
+              nextion_status->execute();
+            }
+        - wait_until:
+            condition:
+              - lambda: !lambda return disp1->is_setup();
+            timeout: 20s
+        - lambda: |-
+            static const char *const TAG = "on_boot";
+            nextion_status->execute();
+            if (not disp1->is_setup()) {
+              ESP_LOGE(TAG, "No response from Nextion display");
+            }
+            ESP_LOGD(TAG, "Finished");
   on_shutdown:
     then:
       - switch.turn_off: screen_power
@@ -1192,6 +1195,33 @@ number:
 
 ##### START - SELECT CONFIGURATION #####
 select:
+  - id: baud_rate
+    name: ${device_name} Baud rate
+    platform: template
+    options:
+      - "2400"
+      - "4800"
+      - "9600"
+      - "19200"
+      - "31250"
+      - "38400"
+      - "57600"
+      - "115200"
+      - "230400"
+      - "250000"
+      - "256000"
+      - "512000"
+      - "921600"
+    initial_option: "115200"
+    optimistic: true
+    restore_value: true
+    internal: false
+    entity_category: config
+    disabled_by_default: true
+    icon: mdi:swap-horizontal
+    set_action:
+      - lambda: set_baud_rate->execute(stoi(x), true);
+
   - name: ${device_name} Wake-up page
     id: wakeup_page_name
     platform: template
@@ -2334,6 +2364,42 @@ script:
               api_server->send_homeassistant_service_call(resp);
             }
 
+  - id: set_baud_rate
+    mode: restart
+    parameters:
+      baud_rate: int
+      definitive: bool
+    then:
+      - if:
+          condition:
+            - lambda: !lambda return (tf_uart->get_baud_rate() != baud_rate);
+          then:
+            - lambda: |-
+                static const char *const TAG = "script.set_baud_rate";
+                ESP_LOGW(TAG, "Baud rate changing from %i to %i bps", tf_uart->get_baud_rate(), baud_rate);
+                ESP_LOGW(TAG, "Flush UART");
+            - wait_until:
+                condition:
+                  - lambda: !lambda return (tf_uart->available() < 1);
+                timeout: 3s
+            - lambda: |-
+                tf_uart->flush();
+                static const char *const TAG = "script.set_baud_rate";
+                ESP_LOGW(TAG, "Sending instruction '%s=%i' to Nextion", definitive ? "bauds" : "baud", baud_rate);
+                disp1->send_command_printf("%s=%i", definitive ? "bauds" : "baud", baud_rate);
+                ESP_LOGW(TAG, "Flush UART");
+            - wait_until:
+                condition:
+                  - lambda: !lambda return (tf_uart->available() < 1);
+                timeout: 3s
+            - lambda: |-
+                tf_uart->flush();
+                static const char *const TAG = "script.set_baud_rate";
+                ESP_LOGW(TAG, "Set ESPHome new baud rate to %i bps", baud_rate);
+                tf_uart->set_baud_rate(baud_rate);
+                tf_uart->load_settings();
+                ESP_LOGW(TAG, "Baud rate is changet to %i bps", baud_rate);
+
   - id: set_brightness
     mode: restart
     parameters:
@@ -2638,6 +2704,7 @@ script:
           refresh_wifi_icon->stop();
           relay_settings->stop();
           service_call_alarm_control_panel->stop();
+          set_baud_rate->stop();
           set_brightness->stop();
           set_climate->stop();
           set_component_color->stop();
