@@ -74,19 +74,28 @@ This innovative solution is designed to revolutionize how you interact with your
 - Up to 3 user's selectable entities
 
 &nbsp;
-### Button Page
+### Buttons Pages
 ![3 Buttonpage](https://user-images.githubusercontent.com/41958506/203654022-c6d81263-ce56-4a84-917a-9d4911f19f55.png)
 ![NEW Domains](https://user-images.githubusercontent.com/41958506/206879659-3aea30c1-b126-4d52-a869-abf6adfc8fa1.png)
 
-- Up to 32 buttons
-- 4 Button pages
+- Up to 8 buttons per page, across 4 different pages, totaling 32 buttons
 - Button design is automatically generated based on the selected entity
-- Buttons show current brightness and cover position in the button itself
-- Buttons label can be assigned via blueprint
-- All buttons with long press function
-- Automatic detection by long press if it is a light, cover or climate for submenu
+- Buttons display current brightness and cover position directly on the button
+- Button labels can be assigned via blueprint
+- All buttons feature a long-press function
+- Automatic detection of light, cover, fan, media player, alarm or climate entities for submenus through long press
 - Swipe between all pages 
-- Swipe also down and up for fast access to certain pages
+- Swipe up and down for quick access to specific pages
+
+&nbsp;
+### Entities Pages
+![Entities EU](docs/pics/eu_entities.png)
+<br>
+![Entities US](docs/pics/us_entities.png)
+
+- Up to 8 entities per page, across 4 different pages, totaling 32 entities
+- Icons and labels can be individually configured via blueprint or automatically detected for each entity
+- Flexible alignment options for values as per user preference
 
 &nbsp;
 ### Light Settings

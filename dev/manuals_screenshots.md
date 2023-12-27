@@ -142,3 +142,68 @@ button06text.picc=46
 button06icon.picc=46
 button06bri.picc=46
 ```
+
+### Entities pages
+#### EU version
+```
+api=1
+page entitypage01
+entity01_label.txt="Power monitoring"
+value01_pic.txt=""
+value01_label.txt="Kitchen"
+value01.txt="1123.1 W"
+value01.xcen=2
+value02_pic.txt=""
+value02_label.txt="Living room"
+value02.txt="233.1 W"
+value02.xcen=2
+value03_pic.txt=""
+value03_label.txt="Total (entire home)"
+value03.txt="2345.6 W"
+value03.xcen=2
+value05_pic.txt=""
+value05_label.txt="Electricity price"
+value05.txt="1.21 €/kWh"
+value05.xcen=2
+value07_pic.txt=""
+value07_label.txt="Electricity cost rate"
+value07.txt="1.84 €/h"
+value07.xcen=2
+```
+#### US version
+```
+api=1
+page entitypage01
+entity01_label.txt="Power monitoring"
+value01_pic.txt=""
+value01_label.txt="Kitchen"
+value01.txt="1123.1 W"
+value01.xcen=2
+value02_pic.txt=""
+value02_label.txt="Living room"
+value02.txt="233.1 W"
+value02.xcen=2
+value03_pic.txt=""
+value03_label.txt="Total (home)"
+value03.txt="2345.6 W"
+value03.xcen=2
+value05_pic.txt=""
+value05_label.txt="Price"
+value05.txt="1.21 $/kWh"
+value05.xcen=2
+value07_pic.txt=""
+value07_label.txt="Cost rate"
+value07.txt="1.84 $/h"
+value07.xcen=2
+```
+
+### Sensor page (mockup)
+```
+api=1
+page notification
+vis bt_accept,0
+vis bt_clear,0
+notifi_label.txt="My sensor name"
+notifi_text01.txt="1115.4 kWh"
+notifi_text01.font=6
+```
