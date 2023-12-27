@@ -8,7 +8,6 @@ Table of contents:
   - [Custom OTA password](#custom-ota-password)
   - [Web server credentials](#web-server-credentials)
   - [Reboot when API fails](#reboot-when-api-fails)
-  - [Change UART's baud rate](#change-uarts-baud-rate)
   - [Manual IP](#manual-ip)
   - [Hidden Wi-Fi](#hidden-wi-fi)
   - [Connect to multiple networks](#connect-to-multiple-networks)
@@ -143,18 +142,6 @@ To support long times without Wi-Fi, this is disabled by default in this project
 # Reboot if HA is not connected for 15 minutes
 api:
   reboot_timeout: 15min
-```
-&nbsp;
-### Change UART's baud rate
-Use this to change the baud rate on the communication between ESPHome and Nextion display.<br>
-> This project uses 115200 bps as default, but will automatically try to change to 921600 bps when uploading TFT, so you shouldn't need this customization in normal situations.
-
-> Higher baud rates might cause issues when upload some pages.
-```yaml
-# Set Nextion comms baud rate to 921600 bps
-uart:
-  - id: !extend tf_uart
-    baud_rate: 921600
 ```
 &nbsp;
 ### Manual IP
