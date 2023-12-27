@@ -111,8 +111,10 @@ First, you need to change the default password using this code.
 # change OTA password, remove after flashing
 esphome:
   on_boot:
-    - lambda: |-
-        id(my_ota).set_auth_password("New password");
+    - priority: 601.0
+      then:
+        - lambda: |-
+            id(my_ota).set_auth_password("New password");
 ota:
   password: !secret wifi_password
   id: my_ota
