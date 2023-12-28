@@ -14,7 +14,7 @@ substitutions:
 
 ##### External components #####
 external_components:
-  - source: github://pr#5979  # Remove this when that PR is released (Hopefully v2024.1.0)
+  - source: github://pr#6029  # Remove this when that PR is released (Hopefully v2024.1.0)
     components:
       - nextion
 
@@ -2994,22 +2994,50 @@ script:
               else if (rssi > -80) ESP_LOGW(TAG, "Wi-Fi:         %s (%.0f dBm)", rssi_status.c_str(), rssi);
               else ESP_LOGE(TAG, "Wi-Fi:         %s (%.0f dBm)", rssi_status.c_str(), rssi);
             }
-            else
+            else {
               ESP_LOGW(TAG, "Wi-Fi:         DISCONNECTED");
+              if (id(wifi_timeout) > 0) {
+                id(wifi_timeout)--;
+                ESP_LOGD(TAG, "Retrying Wi-Fi connection");
+                wifi_component->retry_connect();
+              } else {
+                ESP_LOGE(TAG, "Restarting ESP due to a Wi-Fi timeout...");
+                App.safe_reboot();
+              }
+            }
 
             // report API status
             bool api_connected = api_server->is_connected();
-            if (api_connected)
+            if (api_connected) {
               ESP_LOGD(TAG, "API:           Connected");
-            else
+            } else {
               ESP_LOGW(TAG, "API:           DISCONNECTED");
+              id(is_blueprint_updated) = false;
+              if (current_page->state != "blank" and
+                  current_page->state != "boot" and
+                  current_page->state != "home" and
+                  current_page->state != "screensaver" and
+                  current_page->state != "settings" and
+                  current_page->state != "qrcode") {
+                ESP_LOGD(TAG, "Fallback to page Home");
+                disp1->goto_page("home");
+              }
+            }
 
             // Report blueprint version
             id(is_blueprint_updated) = id(is_blueprint_updated) and wifi_connected and api_connected and (not id(version_blueprint).empty());
             if (id(is_blueprint_updated))
               ESP_LOGD(TAG, "Blueprint:     %s", id(version_blueprint).c_str());
-            else
+            else {
               ESP_LOGW(TAG, "Blueprint:     %s", (wifi_connected and api_connected) ? "Pending" : "DISCONNECTED");
+              ESP_LOGD(TAG, "Requesting blueprint settings");
+              auto ha_event = new esphome::api::CustomAPIDevice();
+              ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+                {
+                  {"type", "boot"},
+                  {"step", "timeout"}
+                });
+            }
 
             refresh_wifi_icon->execute();
 
@@ -3031,11 +3059,13 @@ script:
             // Report Nextion status
             nextion_init->publish_state(nextion_init->state and disp1->is_setup());
             ESP_LOGD(TAG, "Nextion:");
+            ESP_LOGD(TAG, "  Queue size:  %d", disp1->queue_size());
             if (disp1->is_setup())
               ESP_LOGD(TAG, "  Is setup:    True");
             else {
               ESP_LOGW(TAG, "  Is setup:    False");
               ESP_LOGW(TAG, "  Is detected: %s", disp1->is_detected() ? "True" : "False");
+              exit_reparse->execute();
             }
             if (nextion_init->state)
               ESP_LOGD(TAG, "  Init:        True");
@@ -3047,38 +3077,5 @@ script:
               ESP_LOGD(TAG, "  TFT:         %s", version_tft->state.c_str());
             // Update api value on Nextion
             disp1->send_command_printf("api=%i", id(is_blueprint_updated) ? 1 : 0);
-
-            if (!wifi_connected) {
-              if (id(wifi_timeout) > 0) {
-                id(wifi_timeout)--;
-                ESP_LOGD(TAG, "Retrying Wi-Fi connection");
-                wifi_component->retry_connect();
-              } else {
-                ESP_LOGE(TAG, "Restarting ESP due to a Wi-Fi timeout...");
-                App.safe_reboot();
-              }
-            }
-            if (api_connected) {
-              if (not id(is_blueprint_updated)) {
-                ESP_LOGD(TAG, "Requesting blueprint settings");
-                auto ha_event = new esphome::api::CustomAPIDevice();
-                ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-                  {
-                    {"type", "boot"},
-                    {"step", "timeout"}
-                  });
-              }
-            } else {
-              id(is_blueprint_updated) = false;
-              if (current_page->state != "blank" and
-                  current_page->state != "boot" and
-                  current_page->state != "home" and
-                  current_page->state != "screensaver" and
-                  current_page->state != "settings" and
-                  current_page->state != "qrcode") {
-                ESP_LOGD(TAG, "Fallback to page Home");
-                disp1->goto_page("home");
-              }
-            }
           }
           ESP_LOGV(TAG, "Finished");
