@@ -37,59 +37,59 @@ esphome:
             static const char *const TAG = "on_boot";
             ESP_LOGD(TAG, "After boot check-up starting");
             set_baud_rate->execute(stoi(baud_rate->state), true);
-        - wait_until:
-            condition:
-              - api.connected:
-            timeout: 60s
-        - wait_until:
-            condition:
-              - lambda: !lambda return disp1->is_detected();
-            timeout: 10s
-        - lambda: |-
-            if (!disp1->is_setup()) {
-              exit_reparse->execute();
-            }
-        - wait_until:
-            condition:
-              - lambda: !lambda return disp1->is_setup();
-            timeout: 10s
-        - lambda: |-
-            static const char *const TAG = "on_boot";
+        #- wait_until:
+        #    condition:
+        #      - api.connected:
+        #    timeout: 60s
+        #- wait_until:
+        #    condition:
+        #      - lambda: !lambda return disp1->is_detected();
+        #    timeout: 10s
+        #- lambda: |-
+        #    if (!disp1->is_setup()) {
+        #      exit_reparse->execute();
+        #    }
+        #- wait_until:
+        #    condition:
+        #      - lambda: !lambda return disp1->is_setup();
+        #    timeout: 10s
+        #- lambda: |-
+        #    static const char *const TAG = "on_boot";
 
-            auto delay_seconds_ = [](int seconds) {
-              ESP_LOGD(TAG, "Wait %i seconds", seconds);
-              for (int i = 0; i < (seconds*4); i++) {
-                #ifdef ARDUINO
-                delay(250);
-                #elif defined(USE_ESP_IDF)
-                vTaskDelay(pdMS_TO_TICKS(250));
-                #endif
-                App.feed_wdt();
-              }
-            };
+        #    auto delay_seconds_ = [](int seconds) {
+        #      ESP_LOGD(TAG, "Wait %i seconds", seconds);
+        #      for (int i = 0; i < (seconds*4); i++) {
+        #        #ifdef ARDUINO
+        #        delay(250);
+        #        #elif defined(USE_ESP_IDF)
+        #        vTaskDelay(pdMS_TO_TICKS(250));
+        #        #endif
+        #        App.feed_wdt();
+        #      }
+        #    };
 
-            nextion_status->execute();
-            if (not disp1->is_setup()) {
-              ESP_LOGE(TAG, "No response from Nextion display");
-              ESP_LOGD(TAG, "Turn off Nextion");
-              screen_power->turn_off();
-              delay_seconds_(2);
-              ESP_LOGD(TAG, "Turn on Nextion");
-              screen_power->turn_on();
-              delay_seconds_(5);
-              nextion_status->execute();
-            }
-        - wait_until:
-            condition:
-              - lambda: !lambda return disp1->is_setup();
-            timeout: 20s
-        - lambda: |-
-            static const char *const TAG = "on_boot";
-            nextion_status->execute();
-            if (not disp1->is_setup()) {
-              ESP_LOGE(TAG, "No response from Nextion display");
-            }
-            ESP_LOGD(TAG, "Finished");
+        #    nextion_status->execute();
+        #    if (not disp1->is_setup()) {
+        #      ESP_LOGE(TAG, "No response from Nextion display");
+        #      ESP_LOGD(TAG, "Turn off Nextion");
+        #      screen_power->turn_off();
+        #      delay_seconds_(2);
+        #      ESP_LOGD(TAG, "Turn on Nextion");
+        #      screen_power->turn_on();
+        #      delay_seconds_(5);
+        #      nextion_status->execute();
+        #    }
+        #- wait_until:
+        #    condition:
+        #      - lambda: !lambda return disp1->is_setup();
+        #    timeout: 20s
+        #- lambda: |-
+        #    static const char *const TAG = "on_boot";
+        #    nextion_status->execute();
+        #    if (not disp1->is_setup()) {
+        #      ESP_LOGE(TAG, "No response from Nextion display");
+        #    }
+        #    ESP_LOGD(TAG, "Finished");
   on_shutdown:
     then:
       - switch.turn_off: screen_power
@@ -160,6 +160,8 @@ time:
       - seconds: 0
         then:
           - script.execute: refresh_datetime
+      - seconds: 30
+        then:
           - script.execute: watchdog
 
     on_time_sync:
@@ -731,18 +733,23 @@ display:
   - id: disp1
     platform: nextion
     uart_id: tf_uart
-    start_up_page: 8
     on_setup:
       - script.execute: setup_sequence
     on_page:
       lambda: |-
         static const char *const TAG = "display.disp1.on_page";
-        ESP_LOGD(TAG, "Nextion page changed");
-        ESP_LOGD(TAG, "New page: %s (%i)" , id(page_names)[x].c_str(), x);
-        page_id->update();
-        if (current_page->state != id(page_names)[x].c_str()) {
-          current_page->publish_state(id(page_names)[x].c_str());
-          page_changed->execute(id(page_names)[x].c_str());
+        if (id(is_uploading_tft)) {
+          ESP_LOGD(TAG, "Page changed ignored as a TFT upload is in progress");
+        } else if (x > id(page_names).size()) {
+          ESP_LOGW(TAG, "Invalid page index: %i", int(x));
+        } else {
+          ESP_LOGD(TAG, "Nextion page changed");
+          ESP_LOGD(TAG, "New page: %s (%i)" , id(page_names)[x].c_str(), x);
+          page_id->update();
+          if (current_page->state != id(page_names)[x].c_str()) {
+            current_page->publish_state(id(page_names)[x].c_str());
+            page_changed->execute(id(page_names)[x].c_str());
+          }
         }
     on_touch:
       lambda: |-
@@ -1257,8 +1264,8 @@ select:
     set_action:
       - lambda: set_baud_rate->execute(stoi(x), true);
 
-  - name: ${device_name} Wake-up page
-    id: wakeup_page_name
+  - id: wakeup_page_name
+    name: ${device_name} Wake-up page
     platform: template
     options:
       - buttonpage01
@@ -1300,9 +1307,9 @@ sensor:
     resistor: 11.2kOhm
 
   ##### INTERNAL TEMPERATURE SENSOR, resistance to temperature (calculation) #####
-  - name: ${device_name} Temperature
+  - id: temp_nspanel
+    name: ${device_name} Temperature
     platform: ntc
-    id: temp_nspanel
     sensor: resistance_sensor
     unit_of_measurement: ${temp_units}
     calibration:
@@ -1322,9 +1329,9 @@ sensor:
         - lambda: display_embedded_temp->execute();
 
   ###### Display Brightness GET VALUE FROM NSPanel SLIDER #####
-  - name: ${device_name} brightness Slider
+  - id: brightslider
+    name: ${device_name} brightness Slider
     platform: nextion
-    id: brightslider
     variable_name: brightslider
     internal: true
     on_value:
@@ -1336,9 +1343,9 @@ sensor:
             timer_reset_all->execute("settings");
 
   ###### Display DIM Brightness GET VALUE FROM NSPanel SLIDER #####
-  - name: ${device_name} dim brightness slider
+  - id: dimslider
+    name: ${device_name} dim brightness slider
     platform: nextion
-    id: dimslider
     variable_name: dimslider
     internal: true
     on_value:
@@ -1349,8 +1356,8 @@ sensor:
         - lambda: |-
             timer_reset_all->execute("settings");
 
-  - name: ${device_name} Page Id
-    id: page_id
+  - id: page_id
+    name: ${device_name} Page Id
     platform: nextion
     variable_name: dp
     precision: 0
@@ -1359,14 +1366,20 @@ sensor:
     on_value:
       then:
         - lambda: |-
-            if (current_page->state != id(page_names)[x].c_str()) {
+            static const char *const TAG = "sensor.page_id";
+            ESP_LOGD(TAG, "New page Id: %i", int(x));
+            if (id(is_uploading_tft)) {
+              ESP_LOGD(TAG, "Skipping actions as a TFT upload is in progress");
+            } else if (x > id(page_names).size()) {
+              ESP_LOGW(TAG, "Invalid page index: %i", int(x));
+            } else if (current_page->state != id(page_names)[x].c_str()) {
               current_page->publish_state(id(page_names)[x].c_str());
               page_changed->execute(id(page_names)[x].c_str());
             }
 
   ##### Display mode (1 = EU, 2 = US, 3 = US Landscape)
-  - name: ${device_name} Display mode
-    id: display_mode
+  - id: display_mode
+    name: ${device_name} Display mode
     platform: nextion
     variable_name: display_mode
     precision: 0
@@ -1798,14 +1811,16 @@ script:
       - logger.log: "Exit reparse"
       - uart.write: "DRAKJHSUYDGBNCJHGJKSHBDN"
       - uart.write: [0xFF, 0xFF, 0xFF]
+      - uart.write: "recmod=0"
+      - uart.write: [0xFF, 0xFF, 0xFF]
+      - uart.write: "recmod=0"
+      - uart.write: [0xFF, 0xFF, 0xFF]
       - uart.write: "connect"
       - uart.write: [0xFF, 0xFF, 0xFF]
       - uart.write: [0xFF, 0xFF]
       - uart.write: "connect"
       - uart.write: [0xFF, 0xFF, 0xFF]
-      - uart.write: "recmod=0"
-      - uart.write: [0xFF, 0xFF, 0xFF]
-      - uart.write: "recmod=0"
+      - uart.write: "bkcmd=3"
       - uart.write: [0xFF, 0xFF, 0xFF]
 
   - id: global_settings
@@ -1847,6 +1862,7 @@ script:
           id(screensaver_display_time_color) = screensaver_time_color;
 
           id(is_blueprint_updated) = true;
+          disp1->send_command_printf("api=1");
 
           // Update home page
           ESP_LOGV(TAG, "Update home page");
@@ -3013,6 +3029,7 @@ script:
             }
 
             // report API status
+            bool previous_blueprint_status = id(is_blueprint_updated);
             bool api_connected = api_server->is_connected();
             if (api_connected) {
               ESP_LOGD(TAG, "API:           Connected");
@@ -3071,17 +3088,18 @@ script:
             else {
               ESP_LOGW(TAG, "  Is setup:    False");
               ESP_LOGW(TAG, "  Is detected: %s", disp1->is_detected() ? "True" : "False");
-              exit_reparse->execute();
+              //exit_reparse->execute();
             }
             if (nextion_init->state)
               ESP_LOGD(TAG, "  Init:        True");
+              // Update api value on Nextion
+              if (id(is_blueprint_updated) != previous_blueprint_status) disp1->send_command_printf("api=%i", id(is_blueprint_updated) ? 1 : 0);
             else
               ESP_LOGW(TAG, "  Init:        False");
             if (version_tft->state.empty())
               ESP_LOGW(TAG, "  TFT:         UNKNOWN");
             else
               ESP_LOGD(TAG, "  TFT:         %s", version_tft->state.c_str());
-            // Update api value on Nextion
-            disp1->send_command_printf("api=%i", id(is_blueprint_updated) ? 1 : 0);
+
           }
           ESP_LOGV(TAG, "Finished");
