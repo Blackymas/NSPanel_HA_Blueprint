@@ -2229,8 +2229,11 @@ script:
     mode: restart
     then:
       - lambda: |-
+          static const char *const TAG = "script.page_screensaver";
+          ESP_LOGV(TAG, "Updating screensaver page");
           set_page_id->execute("back_page_id", wakeup_page_name->state.c_str());
           set_component_color->execute("screensaver.text",id(screensaver_display_time_color));
+          refresh_datetime->execute();
 
   - id: page_settings
     mode: restart
@@ -2282,6 +2285,8 @@ script:
     mode: restart
     then:
       - lambda: |-
+          static const char *const TAG = "script.refresh_datetime";
+          ESP_LOGV(TAG, "Updating time display");
           std::string time_format_str = id(mui_time_format);
           if (time_format_str.find("%-H") != std::string::npos) {
             time_format_str = time_format_str.replace(time_format_str.find("%-H"), sizeof("%-H")-1,
@@ -2298,14 +2303,17 @@ script:
                                                         to_string((int)(id(time_provider).now().hour)));
             }
           }
+          std::string meridiem_text = (id(time_provider).now().hour<12) ? id(mui_meridiem)[0] : id(mui_meridiem)[1];
           if (current_page->state == "screensaver" and id(screensaver_display_time)) {
-              std::string time_format_str_sleep = time_format_str.replace(time_format_str.find("%p"), sizeof("%p")-1,
-                                                        (id(time_provider).now().hour<12) ? id(mui_meridiem)[0] : id(mui_meridiem)[1]);
+              ESP_LOGV(TAG, "Updating time on screensaver page");
+              std::string time_format_str_sleep = time_format_str;
+              if (time_format_str_sleep.find("%p") != std::string::npos)
+                time_format_str_sleep.replace(time_format_str_sleep.find("%p"), sizeof("%p")-1, meridiem_text.c_str());
               disp1->set_component_text_printf("screensaver.text", "%s", id(time_provider).now().strftime(time_format_str_sleep).c_str());
-          } else if (time_format_str.find("%p") != std::string::npos) {
-            std::string meridiem_text = (id(time_provider).now().hour<12) ? id(mui_meridiem)[0] : id(mui_meridiem)[1];
-            disp1->set_component_text_printf("home.meridiem", "%s", meridiem_text.c_str());
-          } else disp1->set_component_text_printf("home.meridiem", " ");
+          }
+          ESP_LOGV(TAG, "Updating home page meridiem");
+          disp1->set_component_text_printf("home.meridiem", "%s", (time_format_str.find("%p") != std::string::npos) ? meridiem_text.c_str() : " ");
+          ESP_LOGV(TAG, "Updating home page time");
           disp1->set_component_text_printf("home.time", "%s", id(time_provider).now().strftime(time_format_str).c_str());
 
   - id: refresh_notification
@@ -2458,15 +2466,13 @@ script:
       brightness: uint
     then:
       - lambda: |-
-          ESP_LOGD("script.set_brightness", "brightness: %i%%", brightness);
-          if (current_page->state != "screensaver") {
-            if (brightness == id(display_brightness_global)) {
-              disp1->send_command_printf("wakeup_timer.en=1");
-            } else {
-              disp1->set_backlight_brightness(static_cast<float>(brightness) / 100.0f);
-            }
+          static const char *const TAG = "script.set_brightness";
+          ESP_LOGD(TAG, "brightness: %i%%", brightness);
+          if (brightness == id(display_brightness_global) and current_page->state != "screensaver")
+            disp1->send_command_printf("wakeup_timer.en=1");
+          else
+            disp1->set_backlight_brightness(static_cast<float>(brightness) / 100.0f);
           id(display_last_brightness) = brightness;
-          }
 
   - id: set_climate
     mode: restart
@@ -2528,15 +2534,25 @@ script:
       foreground: int32_t[]
     then:
       - lambda: |-
+          static const char *const TAG = "script.set_component_color";
+          ESP_LOGVV(TAG, "Starting:");
+          ESP_LOGVV(TAG, "  Component:  %s", component.c_str());
           int fg565 = -1;
           // Foreground
           if (foreground.size() == 3 and
               foreground[0] >= 0 and
               foreground[1] >= 0 and
-              foreground[2] >= 0)
+              foreground[2] >= 0) {
+            ESP_LOGVV(TAG, "  Foreground: {%i, %i, %i}", foreground[0], foreground[1], foreground[2]);
             fg565 = ((foreground[0] & 0b11111000) << 8) | ((foreground[1] & 0b11111100) << 3) | (foreground[2] >> 3);
+          }
           else if (foreground.size() == 1) fg565 = foreground[0];
-          else fg565 = -1;
+          else {
+            ESP_LOGW(TAG, "  Component:       %s", component.c_str());
+            ESP_LOGW(TAG, "  Foreground size: %i", foreground.size());
+            fg565 = -1;
+          }
+          ESP_LOGVV(TAG, "  Foreground: %i", fg565);
           if (fg565 >= 0) disp1->set_component_font_color(component.c_str(), fg565);
 
   - id: set_page_id
@@ -2546,6 +2562,11 @@ script:
       page: string
     then:
       - lambda: |-
+          static const char *const TAG = "script.set_page_id";
+          ESP_LOGV(TAG, "Starting:");
+          ESP_LOGV(TAG, "  Variable: %s", variable.c_str());
+          ESP_LOGV(TAG, "  Page:     %s", page.c_str());
+
           auto pageIndex = [](const std::string& page_name) -> uint8_t {
               for (uint8_t i = 0; i < id(page_names).size(); ++i) {
                   if (id(page_names)[i] == page_name) {
@@ -2554,7 +2575,10 @@ script:
               }
               return 0u;  // Return 0 (home page) if not found
           };
-          disp1->send_command_printf("%s=%i", variable.c_str(), pageIndex(page.c_str()));
+
+          uint detected_page_id = pageIndex(page.c_str());
+          ESP_LOGV(TAG, "%s=%i", variable.c_str(), detected_page_id);
+          disp1->send_command_printf("%s=%i", variable.c_str(), detected_page_id);
 
   - id: setup_sequence
     mode: restart
@@ -3090,11 +3114,11 @@ script:
               ESP_LOGW(TAG, "  Is detected: %s", disp1->is_detected() ? "True" : "False");
               //exit_reparse->execute();
             }
-            if (nextion_init->state)
+            if (nextion_init->state) {
               ESP_LOGD(TAG, "  Init:        True");
               // Update api value on Nextion
               if (id(is_blueprint_updated) != previous_blueprint_status) disp1->send_command_printf("api=%i", id(is_blueprint_updated) ? 1 : 0);
-            else
+            } else
               ESP_LOGW(TAG, "  Init:        False");
             if (version_tft->state.empty())
               ESP_LOGW(TAG, "  TFT:         UNKNOWN");
