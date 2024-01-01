@@ -71,7 +71,6 @@ sensor:
 ```
 
 or:
-
 ```yaml
 sensor:
   - id: my_sensor
@@ -85,4 +84,15 @@ sensor:
           } else {
             // Your code here
           }
+```
+
+or if you are setting up a script (largely used in this project) it can just kill itself if `is_uploading_tft`:
+```yaml
+scripts:
+  - id: my_new_script_id
+    ...
+    then:
+      - lambda: |-
+          if (id(is_uploading_tft)) my_new_script_id->stop();
+          // Your code here
 ```

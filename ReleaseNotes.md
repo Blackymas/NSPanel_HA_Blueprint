@@ -32,7 +32,7 @@ Updates may come with changes on the blueprint inputs and we highly recommend yo
 &nbsp;
 ## Breaking changes
 1. **The `background` parameter in the `esphome.xxxxx_set_component_color` service is now deprecated.**
-2. With the introduction of additional custom buttons, the **layout of other buttons on the home page has been adjusted**.
+2. **On the home and climate pages, the button layout has changed.** This adjustment was made to incorporate additional custom buttons on the home page and new target temperature indicators on the climate page.
 3. **Wi-Fi power save mode has been reset to `NONE` as the default setting.**<br>This was the standard up to v4.0. We switched it in v4.1 to accommodate Bluetooth components. However, since this feature isn't widely used, we're reverting to the original setting. For Bluetooth usage, you should manually set a different mode, such as `LIGHT`, as shown in the customization example below:
 ```yaml
 ##### My customization - Start #####
@@ -78,8 +78,9 @@ wifi:
 11. Add swipe control to screensaver page
 12. Enhanced control for automation entities on buttons
 13. Dual thermostat controller support (add-on)
-14. Enhanced timeout flexibility for Sleep, Page fallback, and Dimming settings
-15. Display time on the `screensaver` page
+14. Dual thermostat display
+15. Enhanced timeout flexibility for Sleep, Page fallback, and Dimming settings
+16. Display time on the `screensaver` page
 
 &nbsp;
 ## Details of noteworthy changes
@@ -184,11 +185,15 @@ Users can configure their heating and cooling settings independently, providing 
 This feature enhances the capabilities of the NSPanel without compromising its existing functionalities. Users who previously used the NSPanel for single-mode (either heating or cooling) control can now explore dual-mode options for a more comprehensive climate control solution.
 
 &nbsp;
-### 14. Enhanced timeout flexibility for Sleep, Page fallback, and Dimming settings
+### 14. Enhanced Climate Page for Dual Thermostat Control
+Leveraging the capabilities introduced with the Dual Thermostat Controller add-on, the existing climate page has been upgraded to support systems with dual temperature settings. This enhancement allows users to effectively manage thermostats that require both heating and cooling target temperatures, directly from the NSPanel's interface. While originally developed to complement the new add-on, this refined climate page also seamlessly extends its functionality to existing thermostats with dual set capabilities, offering a more versatile and comprehensive climate control experience.
+
+&nbsp;
+### 15. Enhanced timeout flexibility for Sleep, Page fallback, and Dimming settings
 We have improved the functionality of our system by enhancing the timeout flexibility for Sleep, Page Fallback, and Dimming settings. The previous timeout limit of 300 seconds has been significantly expanded, offering users more control and customization options for these specific features. This enhancement allows for a wider range of use cases, catering to the needs of those who require extended periods for these settings, while still maintaining the option for shorter durations.
 
 &nbsp;
-### 15. Display time on the `screensaver` page
+### 16. Display time on the `screensaver` page
 In this release, we're excited to introduce a new feature that adds a display time function to the Screensaver page. With this update, our screensaver not only serves its primary purpose of saving screen energy but also doubles as an informative display, reflecting our commitment to creating practical, user-friendly solutions.
 
 You can enable this feature on the bueprint settings, at the **CUSTOM CONFIGURATION** section (almost at the end). You also have to set **Display Brightness Sleep** at the device's page (**Settings** > **Devices & Services** > **ESPHome**).
