@@ -703,7 +703,7 @@ display:
           ESP_LOGD(TAG, "Nextion page changed");
           ESP_LOGD(TAG, "New page: %s (%i)" , id(page_names)[x].c_str(), x);
           page_id->update();
-          if (current_page->state != id(page_names)[x].c_str()) {
+          if (current_page->state != id(page_names)[x].c_str() or x == 9) {
             current_page->publish_state(id(page_names)[x].c_str());
             page_changed->execute(id(page_names)[x].c_str());
           }
@@ -1135,7 +1135,7 @@ number:
         - lambda: |-
             id(display_dim_brightness_global) = int(x);
             disp1->send_command_printf("brightness_sleep=%i", int(x));
-            if (current_page->state == "screensaver") set_brightness->execute(x);
+            page_screensaver->execute();
 
   ##### Temperature Correction #####
   - name: ${device_name} Temperature Correction
@@ -1253,9 +1253,7 @@ select:
     entity_category: config
     icon: mdi:page-next-outline
     set_action:
-      - script.execute:
-          id: page_screensaver
-          construct_page: false
+      - script.execute: page_screensaver
 
 ##### START - SENSOR CONFIGURATION #####
 sensor:
@@ -1828,6 +1826,7 @@ script:
           ESP_LOGV(TAG, "Setup screensaver page");
           id(screensaver_display_time) = screensaver_time;
           id(screensaver_display_time_color) = screensaver_time_color;
+          page_screensaver->execute();
 
           id(is_blueprint_updated) = true;
           disp1->send_command_printf("api=1");
@@ -2200,11 +2199,13 @@ script:
     mode: restart
     then:
       - lambda: |-
-          static const char *const TAG = "script.page_screensaver";
-          ESP_LOGV(TAG, "Updating screensaver page");
-          set_page_id->execute("back_page_id", wakeup_page_name->state.c_str());
-          set_component_color->execute("screensaver.text",id(screensaver_display_time_color));
-          refresh_datetime->execute();
+          if (current_page->state == "screensaver" and not id(is_uploading_tft)) {
+            static const char *const TAG = "script.page_screensaver";
+            ESP_LOGV(TAG, "Updating screensaver page");
+            set_page_id->execute("back_page_id", wakeup_page_name->state.c_str());
+            set_component_color->execute("screensaver.text",id(screensaver_display_time_color));
+            refresh_datetime->execute();
+          }
 
   - id: page_settings
     mode: restart
@@ -2886,7 +2887,7 @@ script:
                     timeout >= 1) {
                   ESP_LOGD("script.timer_sleep", "Going to sleep from page %s", current_page->state.c_str());
                   disp1->goto_page("screensaver");
-                  set_brightness->execute(0);
+                  set_brightness->execute(display_sleep_brightness->state);
                 }
 
   - id: update_alarm_icon  # To do: Move to blueprint
