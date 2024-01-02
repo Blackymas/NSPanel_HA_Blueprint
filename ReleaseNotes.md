@@ -62,10 +62,12 @@ wifi:
     In the past, the enforcement of framework changes by the advanced mode could inadvertently result in users switching frameworks during OTA updates. This practice was not recommended due to the potential for errors.
 10. **Alarm page cannot be used as wake-up page.**<br>
     As multiple alarms are supported now, the system don't know which one to show on the wake-up.
+11. **Changes in icon presentation.**<br>
+    As part of our efforts to standardize icons across various pages, you might notice some differences in how they appear and behave. This includes new colors for lights and climate icons, as well as the introduction of new icon designs. While many aspects can still be customized through blueprint settings, the default presentation will now adhere to this new standardized format. These changes might be a departure from what you're accustomed to in previous versions, but they aim to enhance overall consistency and user experience.
 
 &nbsp;
 ## Overview of noteworthy changes
-1. Standardized entity's icons
+1. Standardized entity icons
 2. Additional custom buttons on Home page
 3. Outdoor temperature selectable font size
 4. Select icon size for button's pages
@@ -85,8 +87,9 @@ wifi:
 &nbsp;
 ## Details of noteworthy changes
 
-### 1. Standardized entity's icons
+### 1. Standardized entity icons
 The engine for defining the icons to be shown and it's color was standardize between all the pages, so now you may see a more consistent User's Interface.
+We've upgraded the icon definition engine to standardize the appearance and color of icons across all pages. This enhancement leads to a more consistent and harmonious user interface. Expect a unified visual experience that aligns the look and feel of icons throughout the system, contributing to improved navigation and aesthetic appeal.
 
 &nbsp;
 ### 2. Additional custom buttons on Home page
