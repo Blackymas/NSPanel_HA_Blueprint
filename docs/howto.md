@@ -17,7 +17,7 @@ Below are the topics covered in this document, each with relevant tips and solut
 1. [Call a page directly](#Call-a-page-directly)
 1. [Play RTTTL Sound](#play-rtttl-sound)
 1. [Start automations via Input_Boolean](#Start-automations-via-input_boolean)
-
+1. [Updating Wi-Fi and OTA passwords in ESPHome with this project](#updating-wi-fi-and-ota-passwords-in-esphome-with-this-project)
 
 ## How to create "issues" when I have a problem
 
@@ -244,3 +244,54 @@ https://www.home-assistant.io/integrations/input_boolean/![Toggle1](./(EN)-HowTo
 Now add the created Input_Boolean as a trigger in the desired automation under State:![Toggle2](./(DE)-HowTo---Alle-wichtigen-Dinge-die-man-wissen-sollte.assets/Toggle2.PNG)
 
 In the last step, assign the trigger to a button in the Panel Config:![Toggle3](./(DE)-HowTo---Alle-wichtigen-Dinge-die-man-wissen-sollte.assets/Toggle3.PNG)
+
+## Updating Wi-Fi and OTA Passwords in ESPHome with This Project
+
+#### Overview
+When you update your Wi-Fi password in a device with firmware from our project, it's important to remember that the `wifi_password` substitution is used for both Wi-Fi and OTA updates (and a few more places that are not relevant now). Failing to update both simultaneously can lead to connection issues.
+
+#### Step-by-Step Guide
+
+1. **Prepare Your Device for Update**
+   - Ensure your device is connected to your computer and is accessible via your current Wi-Fi network.
+
+2. **Update OTA Password First**
+   - Open your panel's YAML.
+   - Add the following in the customization area:
+     ```yaml
+     esphome:
+       on_boot:
+         - priority: 600
+           then:
+             - lambda: |-
+                 id(my_ota).set_auth_password("Your new Wi-Fi password");
+     ota:
+       password: "Your current Wi-Fi password"
+       id: my_ota
+     ```
+   - Flash your device. It will use the current password for this flash and will inform your device to start using the new password for the next OTA.
+   - When your device starts, **remove the lines above**.
+   - Find the `wifi_password` key in the `substitutions` area (usually at the beginning of the file) and change it to your new Wi-Fi password.
+   - Flash your device again with the updated YAML. It will use the current Wi-Fi to connect to your device and the new Wi-Fi password as the OTA password, then will inform your device to connect to the Wi-Fi with the new password.
+
+3. **Update Wi-Fi Password in Your Access Point**
+
+#### Important Notes
+- The device will still be using the old Wi-Fi password for this update. If you've already changed your Wi-Fi network password, this step will fail.
+- **Troubleshooting: Unable to Connect via Wi-Fi**
+  - If your device cannot connect to Wi-Fi due to a password change, you will need to flash the device via a serial connection.
+  - Connect your device to your computer using a USB-to-Serial adapter.
+  - Use the ESPHome flasher tool to upload the new configuration.
+  - In this case, don't worry about the OTA password, as it's not required when flashing via serial.
+
+#### Verify the Update
+- Once the new configuration is uploaded, your device should automatically connect to your Wi-Fi network with the new password.
+- Verify that OTA updates are working with the new password.
+
+#### Additional Tips
+- **Backup Your Configuration:** Always keep a backup of your ESPHome configuration files.
+- **Network Accessibility:** Ensure your device remains within your Wi-Fi network's range during the update process.
+- **Serial Flashing:** Familiarize yourself with the process of flashing via serial, as it's a reliable fallback method.
+
+#### Conclusion
+By carefully updating both your Wi-Fi and OTA passwords in your ESPHome configuration, you can avoid connection issues. Remember to always back up your configuration and be prepared to use a serial connection if Wi-Fi connectivity is lost.
