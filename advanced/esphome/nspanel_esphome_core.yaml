@@ -37,6 +37,9 @@ esphome:
             static const char *const TAG = "on_boot";
             ESP_LOGD(TAG, "After boot check-up starting");
             set_baud_rate->execute(stoi(baud_rate->state), true);
+        - select.set:
+            id: wakeup_page_name
+            option: !lambda return id(page_names)[id(wakeup_page_id)].c_str();
   on_shutdown:
     then:
       - switch.turn_off: screen_power
@@ -455,12 +458,12 @@ api:
         reset_timer: bool
       then:
         - lambda: |-
-            if (current_page->state == "screensaver") disp1->goto_page(wakeup_page_name->state.c_str());
+            if (current_page->state == "screensaver") disp1->goto_page(id(wakeup_page_id));
             if (reset_timer)
-              timer_reset_all->execute(wakeup_page_name->state.c_str());
+              timer_reset_all->execute(id(page_names)[id(wakeup_page_id)].c_str());
             else {
-              timer_sleep->execute(wakeup_page_name->state.c_str(), int(timeout_sleep->state));
-              timer_dim->execute(wakeup_page_name->state.c_str(), int(timeout_dim->state));
+              timer_sleep->execute(id(page_names)[id(wakeup_page_id)].c_str(), int(timeout_sleep->state));
+              timer_dim->execute(id(page_names)[id(wakeup_page_id)].c_str(), int(timeout_dim->state));
             }
 
     #### Service to set the entities ####
@@ -719,6 +722,11 @@ display:
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
+  ##### Wake-up page id #####
+  - id: wakeup_page_id
+    type: uint
+    restore_value: true
+    initial_value: '0'
 
   ##### Wi-Fi timeout #####
   - id: wifi_timeout
@@ -1248,11 +1256,15 @@ select:
       - qrcode
     initial_option: home
     optimistic: true
-    restore_value: true
+    restore_value: false
     internal: false
     entity_category: config
     icon: mdi:page-next-outline
     set_action:
+      - lambda: |-
+          static const char *const TAG = "select.wakeup_page_name";
+          ESP_LOGD(TAG, "New wake-up page selected: %s", x.c_str());
+          set_page_id->execute("wakeup_page_id", x.c_str());
       - script.execute: page_screensaver
 
 ##### START - SENSOR CONFIGURATION #####
@@ -1441,7 +1453,7 @@ switch:
       - lambda: |-
           if (id(setup_sequence_completed)) {
             nextion_init->publish_state(disp1->is_setup());
-            disp1->goto_page(wakeup_page_name->state.c_str());
+            disp1->goto_page(id(wakeup_page_id));
           }
     on_turn_off:
       - lambda: |-
@@ -1869,9 +1881,9 @@ script:
                         - rtttl.play:
                             rtttl: 'two short:d=4,o=5,b=100:16e6,16e6'
                   - lambda: |-
-                      ESP_LOGD("script.global_settings", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
-                      disp1->goto_page(wakeup_page_name->state.c_str());
-                      timer_reset_all->execute(wakeup_page_name->state.c_str());
+                      ESP_LOGD("script.global_settings", "Jump to wake-up page: %s", id(page_names)[id(wakeup_page_id)].c_str());
+                      disp1->goto_page(id(wakeup_page_id));
+                      timer_reset_all->execute(id(page_names)[id(wakeup_page_id)].c_str());
 
       - lambda: |-
           ESP_LOGV("script.global_settings", "Finished");
@@ -2202,7 +2214,7 @@ script:
           if (current_page->state == "screensaver" and not id(is_uploading_tft)) {
             static const char *const TAG = "script.page_screensaver";
             ESP_LOGV(TAG, "Updating screensaver page");
-            set_page_id->execute("back_page_id", wakeup_page_name->state.c_str());
+            disp1->send_command_printf("back_page_id=%i", id(wakeup_page_id));
             set_component_color->execute("screensaver.text",id(screensaver_display_time_color));
             refresh_datetime->execute();
           }
@@ -2573,7 +2585,10 @@ script:
 
           uint detected_page_id = pageIndex(page.c_str());
           ESP_LOGV(TAG, "%s=%i", variable.c_str(), detected_page_id);
-          disp1->send_command_printf("%s=%i", variable.c_str(), detected_page_id);
+          if (variable == "wakeup_page_id")
+            id(wakeup_page_id) = detected_page_id;
+          else
+            disp1->send_command_printf("%s=%i", variable.c_str(), detected_page_id);
 
   - id: setup_sequence
     mode: restart
@@ -2720,7 +2735,7 @@ script:
                           state: boot
                 timeout: 10s
             - lambda: |-
-                if (current_page->state == "boot") disp1->goto_page(wakeup_page_name->state.c_str());
+                if (current_page->state == "boot") disp1->goto_page(id(wakeup_page_id));
           else:  # Unknown TFT
             - lambda: |-
                 static const char *const TAG = "script.setup_sequence";

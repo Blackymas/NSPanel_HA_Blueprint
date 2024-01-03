@@ -78,6 +78,8 @@ wifi:
     As multiple alarms are supported now, the system don't know which one to show on the wake-up.
 11. **Changes in icon presentation.**<br>
     As part of our efforts to standardize icons across various pages, you might notice some differences in how they appear and behave. This includes new colors for lights and climate icons, as well as the introduction of new icon designs. While many aspects can still be customized through blueprint settings, the default presentation will now adhere to this new standardized format. These changes might be a departure from what you're accustomed to in previous versions, but they aim to enhance overall consistency and user experience.
+12. ***Action required:* Reset your wake-up page selection.**<br>
+    We've enhanced the wake-up page functionality for improved consistency after power cycles. Previously, the system didn't remember your selection following a power outage. With our latest update, this issue has been resolved. However, this improvement requires you to reselect your wake-up page one more time. Thanks for your cooperation in making these settings more reliable for everyday use.
 
 &nbsp;
 ## Overview of noteworthy changes
