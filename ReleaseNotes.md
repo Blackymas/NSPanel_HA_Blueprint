@@ -9,23 +9,24 @@
 &nbsp;
 ## General
 
-On this version we again improved the TFT upload process with a tentative to make it less painful for new and existing users. Please take a look on the new file selectors before you press the **Upload TFT** button for your new version.
+Hello everyone! In our latest update, we've made some great strides to enhance your experience. We've fine-tuned the TFT upload process, making it smoother and more user-friendly for both newbies and veterans.
 
-You will also be able to set multiple alarm control panels and support to dual target temperature thermostats (including a new add-on for this).
+Exciting news – we've introduced multiple alarm control panels and added support for dual target temperature thermostats, complete with a handy new add-on.
 
-And you can set more custom buttons on the Home page, set the icon size in different places, and even a clock display while sleeping. And the presentation of icons is also standardize on all the different places, improvint the usability.
+On top of that, you've got more customization freedom now. Play around with additional custom buttons and icon size settings on your Home and button pages. Oh, and don't miss the new clock feature on the sleep page – it's a small but nifty addition!
 
-### Important: Default framework to be changed by March 2024
+Dive into the details below and see how these improvements can upgrade your day-to-day. Looking forward to your feedback!
 
-We are planning to set `ESP-IDF`as the default framework from March 2024. This will allow more memory on the ESP available for new features to come and for your customizations.'
+### Upcoming Change: Switching to ESP-IDF Framework by March 2024
+Exciting news for our community – in just a couple of months, by March 2024, we'll be transitioning to the **ESP-IDF** as our default framework. This upgrade is designed to significantly increase the available memory on the ESP, making more room for new features and your customizations.
 
-In order to change the framework, you will have to flash your device using the serial cable just like you have done when you first installed a custom firmware into your panel.
+While the change is around the corner, there's no need to rush. You have time to get ready for this transition. When it's time to switch, you’ll need to flash your device using a serial cable, similar to what you did for your first custom firmware installation.
 
-If for some reason you have to install a firmware via serial, please anticipate to this change and manually set `esp-idf` sooner. It's already supported.
+If you happen to need a serial firmware installation before March, consider giving `esp-idf` a try earlier. It’s already supported and a good step towards future-proofing your setup.
 
-And if for some reason you cannot flash via serial with the update on March, don't worry, as you will still be able to enforce the `arduino` framework on your device and flash it wirelessly (OTA).
+And if you're not able to make the switch by March or can't flash via serial, don't worry. You’ll still have the option to use the `arduino` framework and update your device wirelessly (OTA).
 
-More information about customizing the framework can be found in the [customization docs](docs/customization.md).
+For all the details on customizing the framework, our [customization docs](/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md#framework-esp-idf) are there to help. We're committed to making this transition as smooth as possible, so reach out if you have any concerns or need assistance.
 
 &nbsp;
 ## Updating
@@ -40,7 +41,7 @@ Updates may come with changes on the blueprint inputs and we highly recommend yo
 
 ### Instructions
  _You can find the update procedures following here:_
-- [How To - All important thing you should know - Update](docs/howto.md#update-blueprint)
+- [How To - All important thing you should know - Update](/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/howto.md#update-blueprint)
 
 &nbsp;
 ## Breaking changes
@@ -120,9 +121,9 @@ Now you can select the font size of your outdoor temperature display:
 ### 4. Select icon size for button's pages
 You can also select the size of the icons on the buttos pages:
 
-![HA Blueprint - Buttons pages icon's size](docs/pics/ha_blueprint_buttons_pages_icon_size.png)<br>
-![EU Buttons pages - Small icons](docs/pics/eu_buttonpages_icon_small.png)<br>
-![EU Buttons pages - Large icons](docs/pics/eu_buttonpages_icon_large.png)
+![HA Blueprint - Buttons pages icon's size](/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/pics/ha_blueprint_buttons_pages_icon_size.png)<br>
+![EU Buttons pages - Small icons](/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/pics/eu_buttonpages_icon_small.png)<br>
+![EU Buttons pages - Large icons](/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/pics/eu_buttonpages_icon_large.png)
 &nbsp;
 ### 5. Support to CJK languages (experimental)
 You will find 3 new TFT files on the repository for the CJK languages. These files are considerably bigger, as the fonts requires more memory, but it should work fine in your panel.
@@ -134,7 +135,7 @@ You will find 3 new TFT files on the repository for the CJK languages. These fil
 #### TFT file selectors
 We still working on the Upload TFT engine to make it easier for new and for experienced users. Now, together with the **Update TFT Display** button, you will find also **Update TFT Display - Model** and **Update TFT Display - Branch** (disabled by default) where you can select the different model you are using and the upload URL will be automatically adjusted to donwload the file directly from the repository on GitHub, making this process much easier and removing the need of flashing your device every time you want to play with another TFT file or install the `nspanel_blank.tft`.
 
-![HA Blueprint - Update TFT controls](docs/pics/ha_blueprint_upload_tft_controls.png)
+![HA Blueprint - Update TFT controls](/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/pics/ha_blueprint_upload_tft_controls.png)
 
 If you have issues with the remote file and want to transfer it from your local server just as before, simply select **Use nextion_update_url** in **Update TFT Display - Model**.
 
@@ -207,7 +208,7 @@ This new add-on enables the NSPanel to manage both heating and cooling systems s
 - The dual thermostat controller functionality allows the NSPanel to utilize both of its relays for separate heating and cooling control.<br>
 Users can configure their heating and cooling settings independently, providing a tailored climate control experience.
 - The update is designed to be intuitive and user-friendly, ensuring a seamless transition for existing NSPanel users.
-- Additional Documentation: For detailed instructions and configurations, refer to the updated [add-on climate documentation](docs/addon_climate.md).
+- Additional Documentation: For detailed instructions and configurations, refer to the updated [add-on climate documentation](/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/addon_climate.md).
 
 #### Note to Users:
 This feature enhances the capabilities of the NSPanel without compromising its existing functionalities. Users who previously used the NSPanel for single-mode (either heating or cooling) control can now explore dual-mode options for a more comprehensive climate control solution.
