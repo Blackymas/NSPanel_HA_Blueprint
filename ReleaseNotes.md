@@ -1,4 +1,4 @@
-# v4.2 <= pending update
+# v4.2 - Multiple alarms and dual target thermostat
 
 ## Support this project
 
@@ -7,12 +7,25 @@
 [![Paypal](https://user-images.githubusercontent.com/41958506/212499642-b2fd097a-0938-4bfc-b37b-74df64592c58.png)](https://www.paypal.com/donate/?hosted_button_id=S974SWQMB8PB2)
 
 &nbsp;
-## General <= pending update
-The focus this time was on making easier to transfer the TFT files.
+## General
 
-As this project grows with features, it becomes more hungry of resources from all sides (ESPHome, your Home Assistant server and even the Nextion display) and with that the chances of something going wrong when updating increased.
+On this version we again improved the TFT upload process with a tentative to make it less painful for new and existing users. Please take a look on the new file selectors before you press the **Upload TFT** button for your new version.
 
-So at this release we concentrated on cleaning up de code everywhere and shave some unnecessary elements, making the system easier to install and opening some space for future features. But you still can find a couple of nice new things not related to the cleaning.
+You will also be able to set multiple alarm control panels and support to dual target temperature thermostats (including a new add-on for this).
+
+And you can set more custom buttons on the Home page, set the icon size in different places, and even a clock display while sleeping. And the presentation of icons is also standardize on all the different places, improvint the usability.
+
+### Important: Default framework to be changed by March 2024
+
+We are planning to set `ESP-IDF`as the default framework from March 2024. This will allow more memory on the ESP available for new features to come and for your customizations.'
+
+In order to change the framework, you will have to flash your device using the serial cable just like you have done when you first installed a custom firmware into your panel.
+
+If for some reason you have to install a firmware via serial, please anticipate to this change and manually set `esp-idf` sooner. It's already supported.
+
+And if for some reason you cannot flash via serial with the update on March, don't worry, as you will still be able to enforce the `arduino` framework on your device and flash it wirelessly (OTA).
+
+More information about customizing the framework can be found in the [customization docs](docs/customization.md).
 
 &nbsp;
 ## Updating
@@ -71,8 +84,8 @@ wifi:
 2. Additional custom buttons on Home page
 3. Outdoor temperature selectable font size
 4. Select icon size for button's pages
-5. Support to Chinese (Taiwan) and prepared for other CJK languages
-6. Upload baud rate selectable as substitution
+5. Support to CJK languages (experimental)
+6. Improved TFT transfer
 7. Multiple Alarm Control Panels
 8. Support to `remote`
 9. Home page chips now supports covers
@@ -107,28 +120,40 @@ Now you can select the font size of your outdoor temperature display:
 ### 4. Select icon size for button's pages
 You can also select the size of the icons on the buttos pages:
 
-<<add blueprint screenshot>>
-<<add page screenshot (US and EU)>>
-
+![HA Blueprint - Buttons pages icon's size](docs/pics/ha_blueprint_buttons_pages_icon_size.png)<br>
+![EU Buttons pages - Small icons](docs/pics/eu_buttonpages_icon_small.png)<br>
+![EU Buttons pages - Large icons](docs/pics/eu_buttonpages_icon_large.png)
 &nbsp;
-### 5. Support to Chinese (Taiwan) and prepared for other CJK languages
+### 5. Support to CJK languages (experimental)
 You will find 3 new TFT files on the repository for the CJK languages. These files are considerably bigger, as the fonts requires more memory, but it should work fine in your panel.
-Currently only translations to Chinese (Taiwan) are available, but as soon we get the strings for other languages we will be happy to add to the blueprint selection.
-<< Add screenshots of blueprint >>
+
+**ATTENTION:** This is an experimental feature and may contain bugs or some areas missing translations. Please report if you find anything.
 
 &nbsp;
-### 6. Upload baud rate selectable as substitution
+### 6. Improved TFT transfer
+#### TFT file selectors
+We still working on the Upload TFT engine to make it easier for new and for experienced users. Now, together with the **Update TFT Display** button, you will find also **Update TFT Display - Model** and **Update TFT Display - Branch** (disabled by default) where you can select the different model you are using and the upload URL will be automatically adjusted to donwload the file directly from the repository on GitHub, making this process much easier and removing the need of flashing your device every time you want to play with another TFT file or install the `nspanel_blank.tft`.
+
+![HA Blueprint - Update TFT controls](docs/pics/ha_blueprint_upload_tft_controls.png)
+
+If you have issues with the remote file and want to transfer it from your local server just as before, simply select **Use nextion_update_url** in **Update TFT Display - Model**.
+
+#### Alternative baud rate for TFT uploads
 You can select an alternative baud rate for your TFT uploads. This allows faster TFT uploads and also supports displays previously set with baud rates not supported by this project (currently 115200 bps and 921600 bps).
 
-To enable an alternative upload TFT baud rate, add the desired value in your substitutions like this:
 
+In most cases, this would be set for a higher value to enable faster TFT transfer. The default is 921600 bps, the maximum supported by Nextion displays.
+
+You can also use this if you have issues with TFT transfer and want to try a lower baud rate as in some rare cases Nextion will automatically set itself to 9600 bps.
+
+To enable an alternative upload TFT baud rate, add the desired value in your substitutions like this:
 ```yaml
-  upload_tft_baud_rate: "921600"
+  upload_tft_baud_rate: "9600"
 ```
 
-If an invalid value is entered or this substitution is not present, the current baud rate will be used.
+If an invalid value is entered, 115200 bps will be used. The default value for this substitution (in case it is not set by users) will be 921600 bps.
 
-The system will always fall back to the standard baud rate (115200 bps) if other tentatives fails.
+During a TFT transfer, the system will always fall back to the standard baud rate (115200 bps) if other tentatives fails.
 
 &nbsp;
 ### 7. Multiple Alarm Control Panels

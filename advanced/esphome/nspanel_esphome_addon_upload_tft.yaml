@@ -10,16 +10,27 @@
 substitutions:
   ################## Defaults ##################
   # Just in case user forgets to set something #
-  nextion_update_url: "http://github.com/Blackymas/NSPanel_HA_Blueprint/raw/main/custom_configuration/nspanel_eu.tft"
-  nextion_blank_url: "http://github.com/Blackymas/NSPanel_HA_Blueprint/raw/main/custom_configuration/nspanel_blank.tft"
+  nextion_update_url: "https://raw.githubusercontent.com/Blackymas/NSPanel_HA_Blueprint/main/nspanel_eu.tft"
+  nextion_update_base_url: "https://raw.githubusercontent.com/Blackymas/NSPanel_HA_Blueprint/"
   ##############################################
 
   ##### DON'T CHANGE THIS #####
   upload_tft_chunk_size_max: "32768"
-  upload_tft_baud_rate: "0"
+  upload_tft_baud_rate: "921600"
   #############################
 
 api:
+  on_client_connected:
+    - delay: 15s
+    - lambda: |-
+        static const char *const TAG = "addon_upload_tft.esphome.on_boot";
+        ESP_LOGI(TAG, "TFT URL: %s", id(tft_url).c_str());
+        ESP_LOGI(TAG, "Substitutions:");
+        ESP_LOGI(TAG, "  nextion_update_url:        ${nextion_update_url}");
+        ESP_LOGI(TAG, "  nextion_update_base_url:   ${nextion_update_base_url}");
+        ESP_LOGI(TAG, "  upload_tft_chunk_size_max: ${upload_tft_chunk_size_max}");
+        ESP_LOGI(TAG, "  upload_tft_baud_rate:      ${upload_tft_baud_rate}");
+
   services:
     ##### SERVICE TO UPDATE THE TFT FILE from URL #####
     ##### It will use the default url if url is empty or "default"
@@ -28,7 +39,7 @@ api:
         url: string
       then:
         - lambda: |-
-            static const char *const TAG = "service.upload_tft_url";
+            static const char *const TAG = "addon_upload_tft.service.upload_tft_url";
             ESP_LOGVV(TAG, "Starting...");
 
             std::string clean_url = url;
@@ -41,7 +52,7 @@ api:
               clean_url = clean_url.substr(0, endPos + 1);
             }
 
-            if (clean_url.empty() or clean_url == "default") url = "${nextion_update_url}";
+            if (clean_url.empty() or clean_url == "default") url = id(tft_url);
             upload_tft->execute(url.c_str());
 
 button:
@@ -53,9 +64,9 @@ button:
     entity_category: config
     on_press:
       - lambda: |-
-          static const char *const TAG = "button.tft_update.on_press";
+          static const char *const TAG = "addon_upload_tft.button.tft_update.on_press";
           ESP_LOGD(TAG, "Update TFT display button pressed");
-          upload_tft->execute("${nextion_update_url}");
+          upload_tft->execute(id(tft_url).c_str());
 
 display:
   - id: !extend disp1
@@ -83,6 +94,11 @@ globals:
     restore_value: false
     initial_value: '0'
 
+  - id: tft_url
+    type: std::string
+    restore_value: false
+    initial_value: '"${nextion_update_url}"'
+
 script:
   - id: exit_reparse_v414
     mode: restart
@@ -101,7 +117,7 @@ script:
       command: string
     then:
       - lambda: |-
-          static const char *const TAG = "script.nextion_uart_command";
+          static const char *const TAG = "addon_upload_tft.script.nextion_uart_command";
           if (disp1->is_setup()) {
             ESP_LOGD(TAG, "Sending `%s` directly to Nextion", command.c_str());
             disp1->send_command_printf(command.c_str());
@@ -113,28 +129,11 @@ script:
           }
           App.feed_wdt();
 
-  - id: report_upload_progress
-    mode: restart
-    parameters:
-      message: string
-    then:
-      - lambda: |-
-          static const char *const TAG = "script.report_upload_progress";
-          ESP_LOGD(TAG, "%s", message.c_str());
-          if (id(tft_is_valid)) {
-            if (page_id->state != 26) {
-              open_upload_dialog->execute();
-            }
-            display_wrapped_text->execute("confirm.body", message.c_str(), 18);
-            disp1->set_backlight_brightness(1);
-            App.feed_wdt();
-          }
-
   - id: nextion_upload
     mode: single
     then:
       - lambda: |-
-          static const char *const TAG = "script.nextion_upload";
+          static const char *const TAG = "addon_upload_tft.script.nextion_upload";
           ESP_LOGD(TAG, "Waiting for empty UART and Nextion queues");
       - wait_until:
           condition:
@@ -143,7 +142,7 @@ script:
           timeout: 10s
       - delay: 2s
       - lambda: |-
-          static const char *const TAG = "script.nextion_upload";
+          static const char *const TAG = "addon_upload_tft.script.nextion_upload";
           ESP_LOGD(TAG, "Starting TFT upload...");
           if (disp1->upload_tft()) App.safe_reboot();
 
@@ -151,7 +150,7 @@ script:
     mode: restart
     then:
       - lambda: |-
-          static const char *const TAG = "script.open_upload_dialog";
+          static const char *const TAG = "addon_upload_tft.script.open_upload_dialog";
           ESP_LOGD(TAG, "Showing upload dialog page");
           disp1->goto_page("confirm");
           disp1->hide_component("bt_close");
@@ -165,6 +164,63 @@ script:
           #endif
           page_id->update();
 
+  - id: report_upload_progress
+    mode: restart
+    parameters:
+      message: string
+    then:
+      - lambda: |-
+          static const char *const TAG = "addon_upload_tft.script.report_upload_progress";
+          ESP_LOGD(TAG, "%s", message.c_str());
+          if (id(tft_is_valid)) {
+            if (page_id->state != 26) {
+              open_upload_dialog->execute();
+            }
+            display_wrapped_text->execute("confirm.body", message.c_str(), 18);
+            disp1->set_backlight_brightness(1);
+            App.feed_wdt();
+          }
+
+  - id: set_tft_file
+    mode: restart
+    parameters:
+      model: string
+      branch: string
+    then:
+      - lambda: |-
+          static const char *const TAG = "addon_upload_tft.script.set_tft_file";
+          ESP_LOGD(TAG, "A new TFT was selected:");
+          ESP_LOGD(TAG, "  Model:  %s", model.c_str());
+          ESP_LOGD(TAG, "  Branch: %s", branch.c_str());
+          if (id(is_uploading_tft))
+            ESP_LOGW(TAG, "TFT Upload in progress.");
+          else {
+            std::string url;
+            std::string file_name;
+            if (model == "NSPanel Blank") file_name = "nspanel_blank.tft";
+            else if (model == "NSPanel EU") file_name = "nspanel_eu.tft";
+            else if (model == "NSPanel US") file_name = "nspanel_us.tft";
+            else if (model == "NSPanel US Landscape") file_name = "nspanel_us_land.tft";
+            else if (model == "NSPanel EU (CJK languages)") file_name = "advanced/hmi/nspanel_CJK_eu.tft";
+            else if (model == "NSPanel US (CJK languages)") file_name = "advanced/hmi/nspanel_CJK_us.tft";
+            else if (model == "NSPanel US Landscape (CJK languages)") file_name = "advanced/hmi/nspanel_CJK_us_land.tft";
+            if (file_name.empty()) url = "${nextion_update_url}";
+            else {
+              std::string base_url("${nextion_update_base_url}");
+              url = base_url + branch + "/" + file_name;
+
+              // Remove trailing slashes or spaces
+              auto endPos = url.find_last_not_of(" /");
+              if (std::string::npos != endPos) {
+                  url = url.substr(0, endPos + 1);
+              }
+
+              ESP_LOGD(TAG, "Full URL: %s", url.c_str());
+              id(tft_url) = url;
+              disp1->set_tft_url(url.c_str());
+            }
+          }
+
   - id: upload_tft  # I've changed this to use ESPHome commands to avoid the parallelism from lambdas
     mode: single
     parameters:
@@ -177,9 +233,11 @@ script:
           then:
             - switch.turn_on: screen_power
             - delay: 5s
+      # Wait for recent changes to TFT url
+      - script.wait: set_tft_file
       # Then start the upload
       - lambda: |-
-          static const char *const TAG = "script.upload_tft";
+          static const char *const TAG = "addon_upload_tft.script.upload_tft";
           ESP_LOGD(TAG, "Starting...");
 
           id(is_uploading_tft) = true;
@@ -449,7 +507,7 @@ script:
       ### This code should never run
       - delay: 2s
       - lambda: |-
-          static const char *const TAG = "script.upload_tft";
+          static const char *const TAG = "addon_upload_tft.script.upload_tft";
           ESP_LOGD(TAG, "Finishing...");
           id(is_uploading_tft) = false;
           screen_power->publish_state(true);
@@ -461,7 +519,7 @@ script:
       url: string
     then:
       - lambda: |-
-          static const char *const TAG = "script.upload_tft_v414";
+          static const char *const TAG = "addon_upload_tft.script.upload_tft_v414";
           ESP_LOGD(TAG, "Trying to upload TFT");
           id(tft_upload_try)++;
           char update_msg[128];
@@ -473,7 +531,7 @@ script:
             - lambda: !lambda return (!id(tft_is_valid));
           timeout: 1s
       - lambda: |-
-          static const char *const TAG = "script.upload_tft_v414";
+          static const char *const TAG = "addon_upload_tft.script.upload_tft_v414";
           ESP_LOGD(TAG, "Starting...");
           std::vector<uint8_t> buffer_;
 
@@ -509,7 +567,7 @@ script:
 
           auto send_nextion_command = [](const std::string &command) -> bool
             {
-              static const char *const TAG = "script.upload_tft.send_nextion_command";
+              static const char *const TAG = "addon_upload_tft.script.upload_tft.send_nextion_command";
               ESP_LOGD(TAG, "Sending: %s", command.c_str());
               id(tf_uart).write_str(command.c_str());
               const uint8_t to_send[3] = {0xFF, 0xFF, 0xFF};
@@ -704,7 +762,7 @@ script:
             };
           auto upload_tft_ = [&](const std::string &url, unsigned int update_baud_rate_) -> bool
             {
-              static const char *const TAG = "script.upload_tft.upload_tft_arduino";
+              static const char *const TAG = "addon_upload_tft.script.upload_tft.upload_tft_arduino";
               ESP_LOGD(TAG, "Nextion TFT upload requested");
               ESP_LOGD(TAG, "  url: %s", url.c_str());
               ESP_LOGD(TAG, "  baud_rate: %i", update_baud_rate_);
@@ -864,7 +922,7 @@ script:
             };
           #elif defined(ESP_PLATFORM) // esp-idf # To do: Move to Nextion component on ESPHome
           auto upload_range_esp_idf_ = [&](const std::string &url, int range_start) -> int {
-              static const char *const TAG = "script.upload_tft.upload_range_esp_idf_";
+              static const char *const TAG = "addon_upload_tft.script.upload_tft.upload_range_esp_idf_";
               ESP_LOGVV(TAG, "url: %s", url.c_str());
               uint range_size_ = tft_size_ - range_start;
               ESP_LOGVV(TAG, "tft_size_: %i", tft_size_);
@@ -970,7 +1028,7 @@ script:
               return range_end + 1;
             };
           auto upload_tft_ = [&](const std::string &url, unsigned int update_baud_rate_) -> bool {
-              static const char *const TAG = "script.upload_tft.upload_tft_esp_idf";
+              static const char *const TAG = "addon_upload_tft.script.upload_tft.upload_tft_esp_idf";
               ESP_LOGD(TAG, "Nextion TFT upload requested");
               ESP_LOGD(TAG, "  url: %s", url.c_str());
               ESP_LOGD(TAG, "  baud_rate: %i", update_baud_rate_);
@@ -1131,6 +1189,48 @@ script:
           sprintf(update_msg, "Try #%d at %d bps failed!", id(tft_upload_try), tf_uart->get_baud_rate());
           report_upload_progress->execute(update_msg);
       - script.wait: report_upload_progress
+
+select:
+  - id: tft_file
+    name: ${device_name} Update TFT display - Model
+    platform: template
+    options:
+      - "Use nextion_update_url"
+      - "NSPanel Blank"
+      - "NSPanel EU"
+      - "NSPanel US"
+      - "NSPanel US Landscape"
+      - "NSPanel EU (CJK languages)"
+      - "NSPanel US (CJK languages)"
+      - "NSPanel US Landscape (CJK languages)"
+    initial_option: "Use nextion_update_url"
+    optimistic: false
+    restore_value: true
+    internal: false
+    entity_category: config
+    disabled_by_default: false
+    icon: mdi:file-sync
+    set_action:
+      - lambda: set_tft_file->execute(x.c_str(), tft_file_branch->state.c_str());
+      - script.wait: set_tft_file
+
+  - id: tft_file_branch
+    name: ${device_name} Update TFT display - Branch
+    platform: template
+    options:
+      - "main"
+      - "beta"
+      - "dev"
+    initial_option: "main"
+    optimistic: false
+    restore_value: true
+    internal: false
+    entity_category: config
+    disabled_by_default: true
+    icon: mdi:file-sync
+    set_action:
+      - lambda: set_tft_file->execute(tft_file->state.c_str(), x.c_str());
+      - script.wait: set_tft_file
 
 sensor:
   - id: !extend display_mode

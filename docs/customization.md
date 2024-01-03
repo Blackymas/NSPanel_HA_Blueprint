@@ -13,7 +13,6 @@ Table of contents:
   - [Connect to multiple networks](#connect-to-multiple-networks)
   - [SNTP (time) server](#sntp-time-server)
   - [Sensor for display awake vs sleeping](#sensor-for-display-awake-vs-sleeping)
-  - [Button to upload `nspanel_blank.tft`](#button-to-upload-nspanel_blanktft)
   - [Deep sleep](#deep-sleep)
   - [Enforce time zone](#enforce-time-zone)
   - [Compiling ESPHome on lower powered machines](#compiling-esphome-on-lower-powered-machines)
@@ -219,33 +218,6 @@ binary_sensor:
     platform: template
     lambda: |-
       return (id(current_page).state == "screensaver");
-```
-
-&nbsp;
-### Button to upload `nspanel_blank.tft`
-This can also be used for any other alternative tft file you might want to use frequently:
-
-```yaml
-button:
-  ##### UPDATE TFT BLANK DISPLAY #####
-  - name: ${device_name} Update TFT display (blank)
-    platform: template
-    icon: mdi:file-sync
-    id: tft_update_blank
-    entity_category: config
-    on_press:
-      - logger.log: "Button pressed: Update TFT display (blank)"
-      - binary_sensor.template.publish:
-          id: nextion_init
-          state: false
-      - delay: 16ms
-      - lambda: |-
-          id(disp1)->set_tft_url("${nextion_blank_url}");
-          id(disp1).upload_tft();
-```
-You also must add the url for the alternative tft in your substitutions, like this:
-```yaml
-  nextion_blank_url: "http://homeassistant.local:8123/local/nspanel_blank.tft"
 ```
 
 &nbsp;
@@ -478,7 +450,7 @@ time:
 
 The `arduino` protocol still more popular and therefore more components are available, but as `esp-idf` is maintained by EspressIF and is kept updated, more boards are supported and the memory management is better, making it ideal if you wanna customize your panel to support memory consumption functionalities, like `bluetooth_proxy` or [Improv](https://www.improv-wifi.com/).
 
-This project uses `arduino` as default framework. The advanced package changes it to `esp-idf`. In any case, you can overlap the settings with this customization.
+This project currently uses `arduino` as default framework, but we are planning to set `esp-idf` as default from March 2024. In any case, you can overlap the settings with this customization.
 
 For more info about frameworks, please visit [ESPHome docs](https://esphome.io/components/esp32).
 
