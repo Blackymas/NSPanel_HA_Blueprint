@@ -1,4 +1,4 @@
-# v4.2 - Multiple alarms and dual target thermostat
+# v4.2 - Multi-Alarm Control, Dual Thermostat Functionality, and More!
 
 ## Support this project
 
