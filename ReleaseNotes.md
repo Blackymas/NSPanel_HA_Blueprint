@@ -26,7 +26,7 @@ If you happen to need a serial firmware installation before March, consider givi
 
 And if you're not able to make the switch by March or can't flash via serial, don't worry. You’ll still have the option to use the `arduino` framework and update your device wirelessly (OTA).
 
-For all the details on customizing the framework, our [customization docs](/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md#framework-esp-idf) are there to help. We're committed to making this transition as smooth as possible, so reach out if you have any concerns or need assistance.
+For all the details on customizing the framework, our [customization docs](docs/customization.md#framework-esp-idf) are there to help. We're committed to making this transition as smooth as possible, so reach out if you have any concerns or need assistance.
 
 &nbsp;
 ## Updating
@@ -41,7 +41,7 @@ Updates may come with changes on the blueprint inputs and we highly recommend yo
 
 ### Instructions
  _You can find the update procedures following here:_
-- [How To - All important thing you should know - Update](/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/howto.md#update-blueprint)
+- [How To - All important thing you should know - Update](docs/howto.md#update-blueprint)
 
 &nbsp;
 ## Breaking changes
@@ -121,9 +121,9 @@ Now you can select the font size of your outdoor temperature display:
 ### 4. Select icon size for button's pages
 You can also select the size of the icons on the buttos pages:
 
-![HA Blueprint - Buttons pages icon's size](/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/pics/ha_blueprint_buttons_pages_icon_size.png)<br>
-![EU Buttons pages - Small icons](/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/pics/eu_buttonpages_icon_small.png)<br>
-![EU Buttons pages - Large icons](/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/pics/eu_buttonpages_icon_large.png)
+![HA Blueprint - Buttons pages icon's size](docs/pics/ha_blueprint_buttons_pages_icon_size.png)<br>
+![EU Buttons pages - Small icons](docs/pics/eu_buttonpages_icon_small.png)<br>
+![EU Buttons pages - Large icons](docs/pics/eu_buttonpages_icon_large.png)
 &nbsp;
 ### 5. Support to CJK languages (experimental)
 You will find 3 new TFT files on the repository for the CJK languages. These files are considerably bigger, as the fonts requires more memory, but it should work fine in your panel.
@@ -135,7 +135,7 @@ You will find 3 new TFT files on the repository for the CJK languages. These fil
 #### TFT file selectors
 We still working on the Upload TFT engine to make it easier for new and for experienced users. Now, together with the **Update TFT Display** button, you will find also **Update TFT Display - Model** and **Update TFT Display - Branch** (disabled by default) where you can select the different model you are using and the upload URL will be automatically adjusted to donwload the file directly from the repository on GitHub, making this process much easier and removing the need of flashing your device every time you want to play with another TFT file or install the `nspanel_blank.tft`.
 
-![HA Blueprint - Update TFT controls](/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/pics/ha_blueprint_upload_tft_controls.png)
+![HA Blueprint - Update TFT controls](docs/pics/ha_blueprint_upload_tft_controls.png)
 
 If you have issues with the remote file and want to transfer it from your local server just as before, simply select **Use nextion_update_url** in **Update TFT Display - Model**.
 
@@ -208,7 +208,7 @@ This new add-on enables the NSPanel to manage both heating and cooling systems s
 - The dual thermostat controller functionality allows the NSPanel to utilize both of its relays for separate heating and cooling control.<br>
 Users can configure their heating and cooling settings independently, providing a tailored climate control experience.
 - The update is designed to be intuitive and user-friendly, ensuring a seamless transition for existing NSPanel users.
-- Additional Documentation: For detailed instructions and configurations, refer to the updated [add-on climate documentation](/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/addon_climate.md).
+- Additional Documentation: For detailed instructions and configurations, refer to the updated [add-on climate documentation](docs/addon_climate.md).
 
 #### Note to Users:
 This feature enhances the capabilities of the NSPanel without compromising its existing functionalities. Users who previously used the NSPanel for single-mode (either heating or cooling) control can now explore dual-mode options for a more comprehensive climate control solution.
