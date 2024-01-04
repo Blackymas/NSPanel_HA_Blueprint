@@ -33,7 +33,7 @@ Once you have the ESPHome Dashboard available, please follow the steps bellow:
 ![image](pics/ha_esphome_dashboard_new_device_04.png)<br>&nbsp;
 6. In the yaml dialog, you might want to copy the `api:` area to another temporary file, just in case. That is not really necessary, but can be used to improve the security in your system (more details later).
 ![image](pics/ha_esphome_dashboard_new_device_05.png)<br>&nbsp;
-7. Take note also of the device name in the beginning of the file. Under `esphome`, it is the value for `name` (in this examble, the device name is `my-new-nspanel`, with dashes between the words):
+7. Take note also of the device name in the beginning of the file. Under `esphome`, it is the value for `name` (in this examble, the device name is `my-new-nspanel`, with dashes between the words):<br>
 ![image](pics/ha_esphome_dashboard_new_device_05b.png)<br>&nbsp;
 
 8. Clear all the content and paste the following:
@@ -94,10 +94,16 @@ Done! Your NSPanel is all set into your ESPHome Dashbord.
 
 ### Flashing the device for the first time
 
-#### :exclamation: **Warning!!** 
-- **Make sure your panel's controller module is disconnected from main power during all the work.** If your device is open and plugged directly into the wall, you’ll be a single touch away from being electrocuted.
-- **You are solely responsible for your own safety.** If you feel something is wrong or are uncomfortable with continuing, stop immediately. |
-  
+#### Drive safe
+
+| :warning: WARNING |
+|:--|
+| **Make sure your panel's controller module is disconnected from main power during all the work.** If your device is open and plugged directly into the wall, you’ll be a single touch away from being electrocuted. |
+
+| :warning: WARNING |
+|:--|
+| **You are solely responsible for your own safety.** If you feel something is wrong or are uncomfortable with continuing, stop immediately. |
+
 - Don't use any eletronic component above 3.3VDC. Make sure you TTL adapter is set to 3.3VDC. Any value above this treshold can permanently damage your panel.
 - Use a clean area when disassembling your device and make sure you don't scratch your device's screen.
 - Keep all the parts (screws, cables, etc.) safe.
@@ -115,8 +121,17 @@ Before start unassembling your panel, please take a look at the following materi
 - @blakadder's [Sonoff NSPanel EU Switch in Detail](https://blakadder.com/nspanel-teardown/)
 - [ESPHome - Physically Connecting to your Device](https://esphome.io/guides/physical_device_connection)
 
+<<add pictures of the board & wiring>>
+<<add step by step how to generate firmware on ESPHome Dashboard>>
+<<add step by step how to flash the firmware using serial TTL>>
+
 ### Making changes Over The Air (OTA)
+<< add instructions how to flash wirelessly>>
+
 ### Updating
+<< add instructions how to flash wirelessly>>
+<< considerations - update all to the same version >>
+
 ### Migrating from other custom firmware
 
 ## Upload TFT
