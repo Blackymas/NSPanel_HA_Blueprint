@@ -7,9 +7,6 @@ Whether you're a first-time smart device user or an enthusiast looking to person
 |:--|
 | Some images or instructions on this guide might be slighly different due to different configurations depending on your ESPHome and Home Assistant implementation or versions. If you find something that is not understandable or needs to be updated, please let us know. You can create an issue reporting this, or fix it yourself and submit a Pull Request to this repository. |
 
-#### Attention
-
-
 ## Preparation
 Start by ensuring you have all the necessary tools and files. This includes your NSPanel device, a stable internet connection, and access to your Home Assistant instance.
 
@@ -142,8 +139,17 @@ Before start unassembling your panel, please take a look at the following materi
 ### Uploading to Nextion
 
 ## Blueprint
+In this area we will provide guidance on how to import the blueprint from our GitHub repository to your Home Assistant, use that to create a new automation to setup your panel and how to update the blueprint when a new version is available.
+
+All these processes are quite easy with the latest versions of Home Assistant, but please come back to us if you have any question or if something isn't very clear.
+
 ### Importing the blueprint
+Home Assistant makes this step very easy for you. Just click the button bellow and follow it's steps:
+
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBlackymas%2FNSPanel_HA_Blueprint%2Fblob%2Fmain%2Fnspanel_blueprint.yaml)
+
 ### Creating an automation
+Now that Home Assistant is equiped with our Blueprint, 
 ### Selecting the panel
 
 ## How to handle multiple panels
@@ -153,7 +159,6 @@ Before start unassembling your panel, please take a look at the following materi
 
 
 ===================================== TO BE REMOVED =====================================
-This section covers the initial configuration. All important steps for installation and setup of ESPHome and the Blueprint are described here.&nbsp;
 
 ⭐ **_Step by Step [Setup Video](https://www.youtube.com/watch?v=jpSTA_ILB8g)_**
 
@@ -164,7 +169,6 @@ This section covers the initial configuration. All important steps for installat
 &nbsp;
 > _**NOTE! We are not EN native speakers, there may well be errors in translation or sentence structure. If something is wrong or unclear an "[Issue](/Blackymas/NSPanel_HA_Blueprint/issues)" can be opened. If you want to help us, feel free to propose a change directly in GitHub or please get in contact with us.**_ 
 
-&nbsp;  
 &nbsp;  
 
 ***
@@ -182,14 +186,10 @@ This section covers the initial configuration. All important steps for installat
 ***
 
 &nbsp;  
-&nbsp;  
 
 ## 1. Short version of the setup of Esphome and Blueprint
 > _**(for those who already have experience with ESPhome and Home Assistant)**_
 
-#### 1. First you have to install the Blueprint. For this please use the following link
-
-[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBlackymas%2FNSPanel_HA_Blueprint%2Fblob%2Fmain%2Fnspanel_blueprint.yaml)
 
 > It is also possible to copy the code from the file _**"nspnael_blueprint.yaml "**_ and paste it into HA.
 > You can find instructions for this under [Using Automation Blueprints](https://www.home-assistant.io/docs/automation/using_blueprints/) and [Automation blueprint tutorial](https://www.home-assistant.io/docs/blueprint/tutorial/#create-the-blueprint-file)
