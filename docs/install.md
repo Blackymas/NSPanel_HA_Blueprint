@@ -5,8 +5,7 @@ Whether you're a first-time smart device user or an enthusiast looking to person
 
 | :exclamation: **Attention** |
 |:--|
-| Some images or instructions on this guide might be slighly different due to different configurations depending on your ESPHome and Home Assistant implementation or versions.<br>
-If you find something that is not understandable or needs to be updated, please let us know. You can create an issue reporting this, or fix it yourself and submit a Pull Request to this repository. |
+| Some images or instructions on this guide might be slighly different due to different configurations depending on your ESPHome and Home Assistant implementation or versions. If you find something that is not understandable or needs to be updated, please let us know. You can create an issue reporting this, or fix it yourself and submit a Pull Request to this repository. |
 
 #### Attention
 
