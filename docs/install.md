@@ -3,9 +3,12 @@ Welcome to this setup guide, a community-driven approach to integrating NSPanel 
 
 Whether you're a first-time smart device user or an enthusiast looking to personalize your setup, this guide provides the necessary tools and instructions. Let's embark on creating a smart home that's uniquely yours.
 
+| :exclamation: **Attention** |
+|:--|
+| Some images or instructions on this guide might be slighly different due to different configurations depending on your ESPHome and Home Assistant implementation or versions. If you find something that is not understandable or needs to be updated, please let us know. You can create an issue reporting this, or fix it yourself and submit a Pull Request to this repository. |
+
 #### Attention
-Some images or instructions on this guide might be slighly different due to different configurations depending on your ESPHome and Home Assistant implementation or versions.<br>
-If you find something that is not understandable or needs to be updated, please let us know. You can create an issue reporting this, or fix it yourself and submit a Pull Request to this repository.
+
 
 ## Preparation
 Start by ensuring you have all the necessary tools and files. This includes your NSPanel device, a stable internet connection, and access to your Home Assistant instance.
@@ -96,11 +99,11 @@ Done! Your NSPanel is all set into your ESPHome Dashbord.
 
 #### Drive safe
 
-| :warning: WARNING |
+| :warning: **WARNING** |
 |:--|
 | **Make sure your panel's controller module is disconnected from main power during all the work.** If your device is open and plugged directly into the wall, you’ll be a single touch away from being electrocuted. |
 
-| :warning: WARNING |
+| :warning: **WARNING** |
 |:--|
 | **You are solely responsible for your own safety.** If you feel something is wrong or are uncomfortable with continuing, stop immediately. |
 
@@ -108,7 +111,7 @@ Done! Your NSPanel is all set into your ESPHome Dashbord.
 - Use a clean area when disassembling your device and make sure you don't scratch your device's screen.
 - Keep all the parts (screws, cables, etc.) safe.
 
-#### Tools:
+#### Required Tools:
 If you are going to flash your NSPanel with ESPHome for the first time you also may need:
 1. [USB-to-Serial TTL adapter](https://esphome.io/guides/physical_device_connection#usb-serial-adapter)
 2. [jumper wires](https://esphome.io/guides/physical_device_connection#jumper-wires)
