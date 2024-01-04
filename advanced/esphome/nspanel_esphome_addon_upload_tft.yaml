@@ -65,20 +65,6 @@ display:
     tft_url: ${nextion_update_url}
     exit_reparse_on_start: true
 
-esphome:
-  on_boot:
-    - priority: 605.0
-      then:
-        - lambda: |-
-            static const char *const TAG = "addon_upload_tft.esphome.on_boot";
-            ESP_LOGD(TAG, "Restoring TFT file selectors");
-        - select.set_index:
-            id: tft_file_branch
-            index: !lambda return id(tft_branch);
-        - select.set_index:
-            id: tft_file_model
-            index: !lambda return id(tft_model);
-
 globals:
   - id: baud_rate_original
     type: uint
@@ -210,17 +196,38 @@ script:
             App.feed_wdt();
           }
 
+  - id: !extend restore_settings
+    mode: restart
+    then:
+      - lambda: |-
+          static const char *const TAG = "addon_upload_tft.script.restore_settings";
+
+          ESP_LOGD(TAG, "Restoring TFT file branch selector to index %i", id(tft_branch));
+          auto tft_file_branch_call = id(tft_file_branch).make_call();
+          tft_file_branch_call.set_index(id(tft_branch));
+          tft_file_branch_call.perform();
+
+          ESP_LOGD(TAG, "Restoring TFT file model selector to index %i", id(tft_model));
+          auto tft_file_model_call = id(tft_file_model).make_call();
+          tft_file_model_call.set_index(id(tft_model));
+          tft_file_model_call.perform();
+
   - id: set_tft_file
     mode: restart
     then:
       - delay: 2s
       - lambda: |-
           static const char *const TAG = "addon_upload_tft.script.set_tft_file";
-          std::string model = tft_file_model->state;
           std::string branch = tft_file_branch->state;
-          ESP_LOGD(TAG, "A new TFT was selected:");
-          ESP_LOGD(TAG, "  Model:  %s", model.c_str());
+          std::string model = tft_file_model->state;
+          ESP_LOGD(TAG, "TFT URL set:");
           ESP_LOGD(TAG, "  Branch: %s", branch.c_str());
+          ESP_LOGD(TAG, "  Model:  %s", model.c_str());
+          if (id(is_restored_settings) and tft_file_branch->active_index().has_value())
+            id(tft_branch) = tft_file_branch->active_index().value();
+          if (id(is_restored_settings) and tft_file_model->active_index().has_value())
+            id(tft_model) = tft_file_model->active_index().value();
+
           if (id(is_uploading_tft))
             ESP_LOGW(TAG, "TFT Upload in progress.");
           else {
@@ -1220,6 +1227,23 @@ script:
       - script.wait: report_upload_progress
 
 select:
+  - id: tft_file_branch
+    name: ${device_name} Update TFT display - Branch
+    platform: template
+    options:
+      - "main"
+      - "beta"
+      - "dev"
+    initial_option: "main"
+    optimistic: true
+    restore_value: true
+    internal: false
+    entity_category: config
+    disabled_by_default: true
+    icon: mdi:file-sync
+    set_action:
+      - script.execute: set_tft_file
+
   - id: tft_file_model
     name: ${device_name} Update TFT display - Model
     platform: template
@@ -1234,34 +1258,13 @@ select:
       - "NSPanel US Landscape (CJK languages)"
     initial_option: "Use nextion_update_url"
     optimistic: true
-    restore_value: false
+    restore_value: true
     internal: false
     entity_category: config
     disabled_by_default: false
     icon: mdi:file-sync
     set_action:
-      - lambda: |-
-          if (tft_file_model->active_index().has_value()) id(tft_model) = tft_file_model->active_index().value();
-          set_tft_file->execute();
-
-  - id: tft_file_branch
-    name: ${device_name} Update TFT display - Branch
-    platform: template
-    options:
-      - "main"
-      - "beta"
-      - "dev"
-    initial_option: "main"
-    optimistic: true
-    restore_value: false
-    internal: false
-    entity_category: config
-    disabled_by_default: true
-    icon: mdi:file-sync
-    set_action:
-      - lambda: |-
-          if (tft_file_branch->active_index().has_value()) id(tft_branch) = tft_file_branch->active_index().value();
-          set_tft_file->execute();
+      - script.execute: set_tft_file
 
 sensor:
   - id: !extend display_mode

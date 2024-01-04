@@ -141,6 +141,8 @@ We still working on the Upload TFT engine to make it easier for new and for expe
 
 If you have issues with the remote file and want to transfer it from your local server just as before, simply select **Use nextion_update_url** in **Update TFT Display - Model**.
 
+And you also can use the `esphome.xxxxx_upload_tft_url` service to upload using an alternative URL without the need of flash your panel again.
+
 #### Alternative baud rate for TFT uploads
 You can select an alternative baud rate for your TFT uploads. This allows faster TFT uploads and also supports displays previously set with baud rates not supported by this project (currently 115200 bps and 921600 bps).
 
