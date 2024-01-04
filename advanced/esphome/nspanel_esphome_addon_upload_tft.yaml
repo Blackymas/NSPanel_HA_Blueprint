@@ -65,6 +65,20 @@ display:
     tft_url: ${nextion_update_url}
     exit_reparse_on_start: true
 
+esphome:
+  on_boot:
+    - priority: 605.0
+      then:
+        - lambda: |-
+            static const char *const TAG = "addon_upload_tft.esphome.on_boot";
+            ESP_LOGD(TAG, "Restoring TFT file selectors");
+        - select.set_index:
+            id: tft_file_branch
+            index: !lambda return id(tft_branch);
+        - select.set_index:
+            id: tft_file_model
+            index: !lambda return id(tft_model);
+
 globals:
   - id: baud_rate_original
     type: uint
@@ -76,10 +90,20 @@ globals:
     restore_value: false
     initial_value: ${upload_tft_baud_rate}
 
+  - id: tft_branch
+    type: uint
+    restore_value: true
+    initial_value: '0'
+
   - id: tft_is_valid
     type: bool
     restore_value: false
     initial_value: 'false'
+
+  - id: tft_model
+    type: uint
+    restore_value: true
+    initial_value: '0'
 
   - id: tft_upload_try
     type: uint
@@ -188,12 +212,11 @@ script:
 
   - id: set_tft_file
     mode: restart
-    parameters:
-      model: string
-      branch: string
     then:
       - lambda: |-
           static const char *const TAG = "addon_upload_tft.script.set_tft_file";
+          std::string model = tft_file_model->state;
+          std::string branch = tft_file_branch->state;
           ESP_LOGD(TAG, "A new TFT was selected:");
           ESP_LOGD(TAG, "  Model:  %s", model.c_str());
           ESP_LOGD(TAG, "  Branch: %s", branch.c_str());
@@ -1196,7 +1219,7 @@ script:
       - script.wait: report_upload_progress
 
 select:
-  - id: tft_file
+  - id: tft_file_model
     name: ${device_name} Update TFT display - Model
     platform: template
     options:
@@ -1210,14 +1233,14 @@ select:
       - "NSPanel US Landscape (CJK languages)"
     initial_option: "Use nextion_update_url"
     optimistic: true
-    restore_value: true
+    restore_value: false
     internal: false
     entity_category: config
     disabled_by_default: false
     icon: mdi:file-sync
     set_action:
-      - lambda: set_tft_file->execute(x.c_str(), tft_file_branch->state.c_str());
-      - script.wait: set_tft_file
+      - lambda: if (tft_file_model->active_index().has_value()) id(tft_model) = tft_file_model->active_index().value();
+      - script.execute: set_tft_file
 
   - id: tft_file_branch
     name: ${device_name} Update TFT display - Branch
@@ -1228,14 +1251,14 @@ select:
       - "dev"
     initial_option: "main"
     optimistic: true
-    restore_value: true
+    restore_value: false
     internal: false
     entity_category: config
     disabled_by_default: true
     icon: mdi:file-sync
     set_action:
-      - lambda: set_tft_file->execute(tft_file->state.c_str(), x.c_str());
-      - script.wait: set_tft_file
+      - lambda: if (tft_file_branch->active_index().has_value()) id(tft_branch) = tft_file_branch->active_index().value();
+      - script.execute: set_tft_file
 
 sensor:
   - id: !extend display_mode
