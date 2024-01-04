@@ -1,3 +1,42 @@
+# Getting Started with NSPanel HA Blueprint
+Welcome to this setup guide, a community-driven approach to integrating NSPanel into your smart home. Designed for users at all levels, it combines Home Assistant's user-friendly interface with ESPHome's customization options.
+
+Whether you're a first-time smart device user or an enthusiast looking to personalize your setup, this guide provides the necessary tools and instructions. Let's embark on creating a smart home that's uniquely yours.
+
+## Preparation
+Start by ensuring you have all the necessary tools and files. This includes your NSPanel device, a stable internet connection, and access to your Home Assistant server.
+
+## ESPHome firmware
+### Setup a device on ESPHome dashboard
+![image](pics/ha_esphome_dashboard_new_device_01.png)
+![image](pics/ha_esphome_dashboard_new_device_02.png)
+![image](pics/ha_esphome_dashboard_new_device_03.png)
+![image](pics/ha_esphome_dashboard_new_device_04.png)
+![image](pics/ha_esphome_dashboard_new_device_05.png)
+![image](pics/ha_esphome_dashboard_new_device_06.png)
+![image](pics/ha_esphome_dashboard_new_device_07.png)
+
+### Flashing the device for the first time
+### Making changes Over The Air (OTA)
+### Updating
+### Migrating from other custom firmware
+
+## Upload TFT
+### Select the right file
+### Uploading to Nextion
+
+## Blueprint
+### Importing the blueprint
+### Creating an automation
+### Selecting the panel
+
+## How to handle multiple panels
+
+## Additional info
+
+
+
+===================================== TO BE REMOVED =====================================
 This section covers the initial configuration. All important steps for installation and setup of ESPHome and the Blueprint are described here.&nbsp;
 
 ⭐ **_Step by Step [Setup Video](https://www.youtube.com/watch?v=jpSTA_ILB8g)_**
