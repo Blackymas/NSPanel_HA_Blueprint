@@ -7,6 +7,30 @@ Whether you're a first-time smart device user or an enthusiast looking to person
 |:--|
 | Some images or instructions on this guide might be slighly different due to different configurations depending on your ESPHome and Home Assistant implementation or versions. If you find something that is not understandable or needs to be updated, please let us know. You can create an issue reporting this, or fix it yourself and submit a Pull Request to this repository. |
 
+## Summary
+
+- [Preparation](#preparation)
+- [ESPHome firmware](#esphome-firmware)
+  - [Preparing the ESPHome environment](#preparing-the-esphome-environment)
+  - [Setup a device on ESPHome Dashboard](#setup-a-device-on-esphome-dashboard)
+  - [Flashing the device for the first time](#flashing-the-device-for-the-first-time)
+  - [Integrating your panel to Home Assistant](#integrating-your-panel-to-home-assistant)
+  - [Making changes Over The Air (OTA)](#making-changes-over-the-air-ota)
+  - [Updating](#updating)
+  - [Migrating from other custom firmware](#migrating-from-other-custom-firmware)
+- [Upload TFT](#upload-tft)
+  - [Select the right file](#select-the-right-file)
+  - [Uploading to Nextion](#uploading-to-nextion)
+  - [Troubleshooting TFT transfer issues](#troubleshooting-tft-transfer-issues)
+- [Blueprint](#blueprint)
+  - [Importing the blueprint](#importing-the-blueprint)
+  - [Creating an automation](#creating-an-automation)
+  - [Editing the settings in your automation](#editing-the-settings-in-your-automation)
+- [How to handle multiple panels](#how-to-handle-multiple-panels)
+- [Additional Tips and Resources](#additional-tips-and-resources)
+
+------
+
 ## Preparation
 Start by ensuring you have all the necessary tools and files. This includes your NSPanel device, a stable internet connection, and access to your Home Assistant instance.
 
@@ -125,6 +149,8 @@ Before start unassembling your panel, please take a look at the following materi
 <<add step by step how to generate firmware on ESPHome Dashboard>>
 <<add step by step how to flash the firmware using serial TTL>>
 
+### Integrating your panel to Home Assistant
+
 ### Making changes Over The Air (OTA)
 << add instructions how to flash wirelessly>>
 
@@ -137,6 +163,8 @@ Before start unassembling your panel, please take a look at the following materi
 ## Upload TFT
 ### Select the right file
 ### Uploading to Nextion
+### Troubleshooting TFT transfer issues
+We have an useful guide for [troubleshooting TFT transfer issues](tft_upload.md). Please take a look there.
 
 ## Blueprint
 In this area we will provide guidance on how to import the blueprint from our GitHub repository to your Home Assistant, use that to create a new automation to setup your panel and how to update the blueprint when a new version is available.
@@ -149,12 +177,48 @@ Home Assistant makes this step very easy for you. Just click the button bellow a
 [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBlackymas%2FNSPanel_HA_Blueprint%2Fblob%2Fmain%2Fnspanel_blueprint.yaml)
 
 ### Creating an automation
-Now that Home Assistant is equiped with our Blueprint, 
-### Selecting the panel
+Now that Home Assistant is equiped with our Blueprint, you have to create a new automation using that newly imported Blueprint. Please follow these steps:
+1. On Home Assistant, go to **Settings**, then **Automations & Scenes** and then click on the tab **Blueprints**. Or just follow the link from the button bellow.<br>[![Open your Home Assistant instance and show your blueprints.](https://my.home-assistant.io/badges/blueprints.svg)](https://my.home-assistant.io/redirect/blueprints/)<br>&nbsp;
+1. Find the Blueprint named **NSPanel Configuration** and click on it.
+1. On the Blueprint settings, select your panel on the **NSPanel device** input (the very first input).
+1. Fill the other relevant entries on the Blueprint settings and then hit the **Save** button.
+1. Give a name for your automation. Anything that would help you to identify it later. Then click **Rename**.<br>
+![image](pics/ha_create_automation_rename.png)<br>&nbsp;
+
+That's it.
+
+For a more compreehensive list of what you can do on your panel's settings, please refeer to the [Blueprint guide](blueprint.md).
+### Editing the settings in your automation
+You can always edit the settings in your automation to add some new configuration, edit some existing configuration or remove things.
+
+In order to edit it, in Home Assistant, go to **Settings** and then **Automations & Scenes** or click on the button bellow:<br>
+[![Open your Home Assistant instance and show your automations.](https://my.home-assistant.io/badges/automations.svg)](https://my.home-assistant.io/redirect/automations/)
+
+On the **Automations** page, fnd your automation in the list and click on it.
+
+After changing the settings, please remember to click on **Save** to send the new settings to your panel. It shouldn't take more than a few seconds for your panel to receive the new settings, however some changes won't be visible until the page is reloaded.
+
+For a more compreehensive list of what you can do on your panel's settings, please refeer to the [Blueprint guide](blueprint.md).
 
 ## How to handle multiple panels
+If you have multiple panels, just repeat the steps above for each panel. You should have one entry per panel on the ESPHome Dashboard, on entry (device) per panel under Home Assistant integrations (**Settings** > **Devices & Services** > **ESPHome**) and one automation per panel under Home Assistant automations.
 
-## Additional info
+#### Important:
+Make sure you don't have the same panel assigned to more than one automation. Unfortunatly Home Assistant don't offers a mechanism to prevent this situation which could drive to your panel now showing what is expected and an unnecessary load over Home Assistant and your Wi-Fi network.
+
+## Additional Tips and Resources
+We have an useful guide for [troubleshooting TFT transfer issues](tft_upload.md). Please take a look there first.
+
+After troubleshooting, if issues persist, consult the [Issues](/Blackymas/NSPanel_HA_Blueprint/issues) and feel free to create a new one asking for more personalized assistance.
+
+Please share as much info as possible, like:
+1. Describing (or a picture of) what is in your screen
+2. Are updating from a previous version of this same project, or coming from another NSPanel customization (which one?) or customizing for the first time a panel with original Sonoff settings?
+3. Please share the ESPHome logs from when your panel starts to the moment the upload fails.
+4. Describe what you have already tried.
+
+## Important note
+Remember, these steps are a guideline and might vary slightly based on your specific setup and previously installed system.
 
 
 
