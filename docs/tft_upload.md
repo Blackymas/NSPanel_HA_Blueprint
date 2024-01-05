@@ -64,6 +64,7 @@ esp32:
   framework:
     type: esp-idf
 ```
+
 #### Arduino
 
 ```yaml

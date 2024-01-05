@@ -72,7 +72,7 @@ Follow these steps to add a new device in the ESPHome Dashboard:
       wifi_password: !secret wifi_password
       nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"
       # Add-on configuration (if needed)
-      # heater_relay: "1" # possible values: 1/2
+      # heater_relay: "1"  # Possible values: "1" or "2"
 
     # Customization area
     ##### My customization - Start #####

@@ -51,49 +51,52 @@ You should add your customizations at the end of your ESPHome yaml, as in the ex
 
 ```yaml
 substitutions:
-  ###### CHANGE ME START ######
+  # Settings - Editable values
   device_name: "YOUR_NSPANEL_NAME" 
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
 
-  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"
-  nextion_blank_url: "http://homeassistant.local:8123/local/nspanel_blank.tft"
+  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_us.tft"
+    
+  # Add-on configuration (if needed)
+  ## Add-on climate
+  # heater_relay: "1"  # Possible values: "1" or "2"
 
-  ##### addon-configuration #####
-  ## addon_climate ##
-  # addon_climate_heater_relay: "1" # possible values: 1/2
+# Customization area
+##### My customization - Start #####
 
-  ##### CHANGE ME END #####
+# Encrypt the communication between ESPHome and Home Assistant
+api:
+  encryption:
+    key: !secret api_encryption_key
 
+# More detailed log (for troubleshooting only)
+logger:
+  level: VERBOSE
+
+##### My customization - End #####
+
+# Core and optional configurations
 packages:
   remote_package:
     url: https://github.com/Blackymas/NSPanel_HA_Blueprint
     ref: main
     files:
       - nspanel_esphome.yaml # Core package
-      # - nspanel_esphome_addon_climate_cool.yaml # activate for local climate (cooling) control
-      # - nspanel_esphome_addon_climate_heat.yaml # activate for local climate (heater) control
-      # - nspanel_esphome_addon_climate_dual.yaml # activate for local climate (dual) control
+      # Optional advanced and add-on configurations
+      # - advanced/esphome/nspanel_esphome_advanced.yaml
+      # - nspanel_esphome_addon_climate_cool.yaml
+      - nspanel_esphome_addon_climate_heat.yaml
+      # - nspanel_esphome_addon_climate_dual.yaml
     refresh: 300s
 
 esp32:
   framework:
     type: esp-idf
-
-
-##### My customization - Start #####
-# Encrypt the communication between ESPHome and Home Assistant
-api:
-  encryption:
-    key: !secret api_encryption_key
-# More detailed log (for troubleshooting only)
-logger:
-  level: VERBOSE
-##### My customization - End #####
 ```
 
-&nbsp;
 ## Examples
+
 ### API encryption
 This is highly recommended when you are transfer sensitive information between your panel and Home Assistant, as when you use your panel to enter the PIN for an Alarm Control Panel.
 
@@ -103,10 +106,12 @@ api:
   encryption:
     key: !secret api_encryption_key
 ```
-&nbsp;
+
 ### Custom OTA password
-By default, the Wi-Fi password will be used as your OTA password, but you can replace it.<br>
+By default, the Wi-Fi password will be used as your OTA password, but you can replace it.
+
 First, you need to change the default password using this code.
+
 ```yaml
 # change OTA password, remove after flashing
 esphome:
@@ -119,15 +124,18 @@ ota:
   password: !secret wifi_password
   id: my_ota
 ```
+
 After flashing the device, you must remove the code above and replace it with the code below to start using this customization.
+
 ```yaml
 # Use my global OTA password
 ota:
   password: !secret ota_password
 ```
-&nbsp;
+
 ### Web server credentials
 By default, the web server credentials are defined by this project using `admin` as `username` and your `Wi-Fi password` as `password`, but you can replace it using this customization:
+
 ```yaml
 # Custom web server credentials
 web_server:
@@ -135,19 +143,23 @@ web_server:
     username: !secret web_server_username
     password: !secret web_server_password
 ```
-&nbsp;
+
 ### Reboot when API fails
-Reboot your panel if it loses it's connection to Home Assistant for more than a certain time (15 minutes in this example).<br>
-Sometimes the low level ESP functions could report that the ESP is connected to the network, when in fact it is not and only a full reboot fixes it.<br>
+Reboot your panel if it loses it's connection to Home Assistant for more than a certain time (15 minutes in this example).
+
+Sometimes the low level ESP functions could report that the ESP is connected to the network, when in fact it is not and only a full reboot fixes it.
+
 To support long times without Wi-Fi, this is disabled by default in this project, but you can set a reasonable interval to restart, based on your network reliability.
+
 ```yaml
 # Reboot if HA is not connected for 15 minutes
 api:
   reboot_timeout: 15min
 ```
-&nbsp;
+
 ### Manual IP
 Set IP address manually.
+
 ```yaml
 # Set IP address manually
 wifi:
@@ -158,9 +170,10 @@ wifi:
         gateway: 192.168.0.1
         subnet: 255.255.255.0
 ```
-&nbsp;
+
 ### Hidden Wi-Fi
 Connect to a hidden Wi-Fi network.
+
 ```yaml
 # Connect to a hidden Wi-Fi network.
 wifi:
@@ -169,9 +182,10 @@ wifi:
       hidden: true
   fast_connect: true
 ```
-&nbsp;
+
 ### Connect to multiple networks
 NSPanel will attempt to connect to the one with the highest signal strength or, if you set a priority, it will try to connect to the highest priority. After failing it will connect to the second network.
+
 ```yaml
 # Set dual network
 wifi:
@@ -182,9 +196,10 @@ wifi:
       password: !secret wifi_password_backup
       priority: 0
 ```
-&nbsp;
+
 ### SNTP (time) server
 ESPHome takes it's time from Home Assistant, however you can configure it to use a Network Time Server instead.
+
 ```yaml
 # Use my own local network time server
 time:
@@ -197,9 +212,9 @@ time:
       - 0.pool.ntp.org
 ```
 
-&nbsp;
 ### Sensor for display awake vs sleeping
 Creates a binary sensor to indicate either when the display is showing some page (`on`) or sleeping (`off`).
+
 ```yaml
 # Is display awake?
 binary_sensor:
@@ -211,6 +226,7 @@ binary_sensor:
 ```
 
 You can easily invert the meaning to have a sensor for display sleeping:
+
 ```yaml
 # Is display sleeping?
 binary_sensor:
@@ -221,11 +237,11 @@ binary_sensor:
       return (id(current_page).state == "screensaver");
 ```
 
-&nbsp;
 ### Deep sleep
 In this example, the panel will deep sleep for 7 hours, starting at 23:00:00 every day, for its maximum energy saving.
 
-During this time, nothing will be shown, the screen will be off and therefore no response to touch, and the panel will be disconnected from Wi-Fi, but you can still wake-up the panel by pressing one of the hardware buttons (the left one in this example):
+During this time, nothing will be shown, the screen will be off and therefore no response to touch, and the panel will be disconnected from Wi-Fi,
+but you can still wake-up the panel by pressing one of the hardware buttons (the left one in this example):
 
 ```yaml
 # Define the wake-up button. Use pin 14 for left button or pin 27 for right button
@@ -253,7 +269,6 @@ time:
 
 You can find more ideas around this on [#955](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues/955).
 
-&nbsp;
 ### Enforce time zone
 Until v3.4 (including), the time was coming from Home Assistant with it's timezone, so the Blueprint was sending the info with no transformation, to the panel.
 From v4.0, the time reference still coming from HA (or optionally from a time server), but is calculated in ESPHome, which will try to detect the timezone from the server.
@@ -267,20 +282,20 @@ time:
     timezone: "America/Cancun"
 ```
 
-&nbsp;
 ### Compiling ESPHome on lower powered machines
 For systems with lower CPU or memory capabilities, like an RPi 3 or systems with less than 2GB of RAM, this could help preventing errors caused by lack of resources when compiling ESPHome firmware.
 
 More datails on the [ESPHome docs](https://esphome.io/changelog/2022.11.0.html#running-esphome-on-lower-powered-machines).
+
 ```yaml
 # Limit the amount of resources used for compiling
 esphome:
   compile_process_limit: 1
 ```
 
-&nbsp;
 ### Sleep & Wake-up buttons
 There are several ways to wake-up or put your panel to sleep, but in this example we tried a simple approach by adding two buttons (you can implement only one of those if you want):
+
 ```yaml
 button:
   # Adds a button to put the panel to sleep
@@ -309,9 +324,9 @@ button:
             id(timer_dim).execute(id(wakeup_page_name).state.c_str(), int(id(timeout_dim).state));
 ```
 
-&nbsp;
 ### Set display as a light
-You can set your display as a light in Home Assistant, so you can control the brightness and turn on/off just like any other light, and even use this in your automation to control when your panel is on with the same automation you use for your lights:
+You can set your display as a light in Home Assistant, so you can control the brightness and turn on/off just like any other light,
+and even use this in your automation to control when your panel is on with the same automation you use for your lights:
 
 ```yaml
 light:
@@ -381,11 +396,14 @@ script:
           }
 ```
 
-&nbsp;
 ### Scheduled actions
-Although ESPHome doesn't have a Scheduler component, it is possible to use the timer to schedule actions and this is entirely managed in the device, so it will work even if Home Assistant and/or the Wi-Fi are unavailable.
+Although ESPHome doesn't have a Scheduler component, it is possible to use the timer to schedule actions and this is entirely managed in the device,
+so it will work even if Home Assistant and/or the Wi-Fi are unavailable.
+
 Following some examples:
+
 #### Scheduled relay
+
 ```yaml
 # Scheduled relay
 time:
@@ -412,8 +430,11 @@ time:
         then:
           - switch.turn_off: relay_1
 ```
+
 #### Scheduled climate
+> [!NOTE]
 > This requires add-on climate to be installed
+
 ```yaml
 # Scheduled climate
 time:
@@ -445,13 +466,14 @@ time:
               target_temperature: 18°C
 ```
 
-&nbsp;
 ### Framework `esp-idf`
+> [!IMPORTANT]
 > When switching from `arduino` to `esp-idf`, make sure to update the device with a serial cable as the partition table is different between the two frameworks as [OTA Update Component](https://esphome.io/components/ota) updates will not change the partition table.
 
 The `arduino` protocol still more popular and therefore more components are available, but as `esp-idf` is maintained by EspressIF and is kept updated, more boards are supported and the memory management is better, making it ideal if you wanna customize your panel to support memory consumption functionalities, like `bluetooth_proxy` or [Improv](https://www.improv-wifi.com/).
 
-This project currently uses `arduino` as default framework, but we are planning to set `esp-idf` as default from March 2024. In any case, you can overlap the settings with this customization.
+This project currently uses `arduino` as default framework, but we are planning to set `esp-idf` as default from March 2024.
+In any case, you can overlap the settings with this customization.
 
 For more info about frameworks, please visit [ESPHome docs](https://esphome.io/components/esp32).
 
@@ -462,8 +484,8 @@ esp32:
     type: esp-idf
 ```
 
-&nbsp;
 ### Bluetooth proxy
+> [!IMPORTANT]
 > The [ESP32 Platform](#framework-esp-idf) component should be configured to use the `esp-idf` framework, as the `arduino` framework uses significantly more memory and performs poorly with the Bluetooth proxy enabled.
 
 ```yaml
@@ -474,9 +496,10 @@ wifi:
   power_save_mode: LIGHT
 ```
 
-&nbsp;
 ### Logger via UART
-By default, the logging via hardware UART is disable in this project. You can enable it by setting the baud rate accordingly to your interface:
+
+By default, the logging via hardware UART is disable in this project.
+You can enable it by setting the baud rate accordingly to your interface:
 
 ```yaml
 # Enable hardware UART serial logging
@@ -484,7 +507,6 @@ logger:
   baud_rate: 115200
 ```
 
-&nbsp;
 ### Climate custom presets
 
 ```yaml
@@ -507,7 +529,6 @@ climate:
         mode: "heat"
 ```
 
-&nbsp;
 ### Push button / Momentary switch
 You can set the physical relays to be `on` only while the hardware buttons are pressed, and then back to `off` when the buttons are released:
 
@@ -534,12 +555,17 @@ binary_sensor:
         switch.turn_off: relay_2
 ```
 
-&nbsp;
 ### Expose Relay Fallback Switch
-You can configure a local fallback relay to integrate with Home Assistant. This is particularly useful for devices like WiFi-connected lights. For instance, you can program it to cut the power to a connected light under certain conditions, directly via a switch.
+You can configure a local fallback relay to integrate with Home Assistant.
+This is particularly useful for devices like WiFi-connected lights.
+For instance, you can program it to cut the power to a connected light under certain conditions, directly via a switch.
 
 #### Use Case
-One application, as utilized by @tikismoke and detailed in #1349, is in response to fluctuating energy prices. When the energy price is high, an automation can change the fallback mode to cut off the relay. This ensures that the bulb does not consume energy in standby mode. However, it will still function normally with `light.toggle` from the blueprint in all other cases. Local control is reinstated when the power price returns to normal. On the next switch activation, the relay turns `on`, powering up the bulb. Subsequent activations will trigger `light.toggle` from the blueprint, as this functionality is already embedded in the ESPHome YAML code.
+One application, as utilized by @tikismoke and detailed in [#1349](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues/1349), is in response to fluctuating energy prices.
+When the energy price is high, an automation can change the fallback mode to cut off the relay.
+This ensures that the bulb does not consume energy in standby mode. However, it will still function normally with `light.toggle` from the blueprint in all other cases. Local control is reinstated when the power price returns to normal.
+On the next switch activation, the relay turns `on`, powering up the bulb.
+Subsequent activations will trigger `light.toggle` from the blueprint, as this functionality is already embedded in the ESPHome YAML code.
 
 > [!NOTE]  
 > In this scenario, the bulb must be set to turn `on` automatically when power is restored.

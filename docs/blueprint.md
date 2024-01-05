@@ -9,18 +9,19 @@ The individual elements of the Blueprint are described below.
 
 It is possible to change both the color of the labels and the icons for most of the elements on each screen.
 
-On the blueprint settings, you will be able to select any of the MDI icons supported by Home Assistant, however, your panel will only support the icons available on this library: 
-``https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html``
+On the blueprint settings, you will be able to select any of the MDI icons supported by Home Assistant, however, your panel will only support the icons available on the [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html).
 
 For an easier overview, the menu items "Icon Color" and "Label Color" will not be described separately in the following documentation.
 
 ## Basic settings
 
 ### NSPanel device (REQUIRED)
+
 You will be presented with a list of all of your ESPHome ESP32 devices and you must select your panel from the list.
 
 This is technically the only required field, as basic functionality will be available when the Blueprint knows to which panel it have to send the settings.
 
+> [!NOTE]
 > You cannot have more than one blueprint based automation per each panel
 
 ### Language for NSPanel 
