@@ -31,7 +31,7 @@ This innovative solution is designed to revolutionize how you interact with your
 - **Getting Started:** Dive into our comprehensive [Documentation and Setup Guide](docs/README.md) for detailed instructions.
 - **Video Tutorial:** Prefer visual learning? Check out our [Step-by-Step Setup Video](docs/README.md).
 - **Troubleshooting:** Encounter an issue? Here's how to report it: [WIKI HowTo](docs/README.md).
-- **Feature Requests:** Got ideas? Share them [here](/Blackymas/NSPanel_HA_Blueprint/labels/new%20feature%20request).
+- **Feature Requests:** Got ideas? Share them [here](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/new%20feature%20request).
 - **What's Next?:** Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=due_date)
 
 ## 🚀 Features
