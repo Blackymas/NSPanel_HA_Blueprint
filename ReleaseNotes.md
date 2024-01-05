@@ -2,7 +2,8 @@
 
 ## Support this project
 
-### As always, we would like to thank everyone who donated to this project and remind you that every donation helps to support this project - so if you haven't made a donation yet, now would be a good time ;)
+**As always, we would like to thank everyone who donated to this project and remind you that every donation helps to support this project
+So if you haven't made a donation yet, now would be a good time ;)**
 
 [![Paypal](https://user-images.githubusercontent.com/41958506/212499642-b2fd097a-0938-4bfc-b37b-74df64592c58.png)](https://www.paypal.com/donate/?hosted_button_id=S974SWQMB8PB2)
 
@@ -35,9 +36,10 @@ We're committed to making this transition as smooth as possible, so reach out if
 
 ## Updating
 
-Updates may come with changes on the blueprint inputs and we highly recommend you review your settings and make sure all fields have the correct selection. We did our best to support your legacy settings and avoid breaking your system, but please double check your settings if you see something not working as expected.
+Updates may come with changes on the blueprint inputs and we highly recommend you review your settings and make sure all fields have the correct selection.
+We did our best to support your legacy settings and avoid breaking your system, but please double check your settings if you see something not working as expected.
 
-### Files that need to be reloaded:
+### Files that need to be reloaded
 
 1. nspanel_eu.tft,  nspanel_us.tft or nspanel_us_land.tft - v4.2
 2. nspanel_esphome.yaml - v4.2
@@ -46,22 +48,29 @@ Updates may come with changes on the blueprint inputs and we highly recommend yo
 ### Instructions
 
  _You can find the update procedures following here:_
+
 - [How To - All important thing you should know - Update](docs/howto.md#update-blueprint)
 
 ## Breaking changes
 
 1. **The `background` parameter in the `esphome.xxxxx_set_component_color` service is now deprecated.**
-2. **On the home and climate pages, the button layout has changed.** This adjustment was made to incorporate additional custom buttons on the home page and new target temperature indicators on the climate page.
-3. **Wi-Fi power save mode has been reset to `NONE` as the default setting.**<br>This was the standard up to v4.0. We switched it in v4.1 to accommodate Bluetooth components. However, since this feature isn't widely used, we're reverting to the original setting. For Bluetooth usage, you should manually set a different mode, such as `LIGHT`, as shown in the customization example below:
-```yaml
-##### My customization - Start #####
-# Enable Bluetooth proxy
-bluetooth_proxy:
-# Set Wi-Fi power save mode to "LIGHT" as required for Bluetooth on ESP32
-wifi:
-  power_save_mode: LIGHT
-##### My customization - End #####
-```
+2. **On the home and climate pages, the button layout has changed.**
+
+    This adjustment was made to incorporate additional custom buttons on the home page and new target temperature indicators on the climate page.
+3. **Wi-Fi power save mode has been reset to `NONE` as the default setting.**
+
+    This was the standard up to v4.0. We switched it in v4.1 to accommodate Bluetooth components. However, since this feature isn't widely used, we're reverting to the original setting. For Bluetooth usage, you should manually set a different mode, such as `LIGHT`, as shown in the customization example below:
+
+    ```yaml
+    ##### My customization - Start #####
+    # Enable Bluetooth proxy
+    bluetooth_proxy:
+    # Set Wi-Fi power save mode to "LIGHT" as required for Bluetooth on ESP32
+    wifi:
+    power_save_mode: LIGHT
+    ##### My customization - End #####
+    ```
+
 4. **The default baud rate for advanced mode has been reverted to 115200 bps** to resolve issues that arise when rendering button pages.
 5. **ESPHome v2023.12.0 has been established as the minimum required version** to ensure optimal performance and compatibility, particularly with the recent developments in the Nextion component.
 6. **The Alarm section in the blueprint settings has been removed.** All configurations previously made in this section have been automatically transferred to custom button 07.
@@ -77,13 +86,17 @@ wifi:
     - **Customization Still Available:** Users still have the option to manually set "Trigger" as the action for their automation. entities, as per their preference.
 
     We understand that changes in default settings can impact your workflows. We appreciate your understanding as we strive to balance new features with the familiarity and stability of the user experience.
-9. **Advanced mode no longer enforces a specific framework.**<br>
+9. **Advanced mode no longer enforces a specific framework.**
+
     In the past, the enforcement of framework changes by the advanced mode could inadvertently result in users switching frameworks during OTA updates. This practice was not recommended due to the potential for errors.
-10. **Alarm page cannot be used as wake-up page.**<br>
+10. **Alarm page cannot be used as wake-up page.**
+
     As multiple alarms are supported now, the system don't know which one to show on the wake-up.
-11. **Changes in icon presentation.**<br>
+11. **Changes in icon presentation.**
+
     As part of our efforts to standardize icons across various pages, you might notice some differences in how they appear and behave. This includes new colors for lights and climate icons, as well as the introduction of new icon designs. While many aspects can still be customized through blueprint settings, the default presentation will now adhere to this new standardized format. These changes might be a departure from what you're accustomed to in previous versions, but they aim to enhance overall consistency and user experience.
-12. ***Action required:* Reset your wake-up page selection.**<br>
+12. ***Action required:* Reset your wake-up page selection.**
+
     We've enhanced the wake-up page functionality for improved consistency after power cycles. Previously, the system didn't remember your selection following a power outage. With our latest update, this issue has been resolved. However, this improvement requires you to reselect your wake-up page one more time. Thanks for your cooperation in making these settings more reliable for everyday use.
 
 ## Overview of noteworthy changes
@@ -128,8 +141,10 @@ Now you can select the font size of your outdoor temperature display:
 
 You can also select the size of the icons on the buttos pages:
 
-![HA Blueprint - Buttons pages icon's size](docs/pics/ha_blueprint_buttons_pages_icon_size.png)<br>
-![EU Buttons pages - Small icons](docs/pics/eu_buttonpages_icon_small.png)<br>
+![HA Blueprint - Buttons pages icon's size](docs/pics/ha_blueprint_buttons_pages_icon_size.png)
+
+![EU Buttons pages - Small icons](docs/pics/eu_buttonpages_icon_small.png)
+
 ![EU Buttons pages - Large icons](docs/pics/eu_buttonpages_icon_large.png)
 
 ### 5. Support to CJK languages (experimental)
@@ -222,8 +237,9 @@ This new add-on enables the NSPanel to manage both heating and cooling systems s
 
 #### Implementation Details:
 
-- The dual thermostat controller functionality allows the NSPanel to utilize both of its relays for separate heating and cooling control.<br>
-Users can configure their heating and cooling settings independently, providing a tailored climate control experience.
+- The dual thermostat controller functionality allows the NSPanel to utilize both of its relays for separate heating and cooling control.
+
+  Users can configure their heating and cooling settings independently, providing a tailored climate control experience.
 - The update is designed to be intuitive and user-friendly, ensuring a seamless transition for existing NSPanel users.
 - Additional Documentation: For detailed instructions and configurations, refer to the updated [add-on climate documentation](docs/addon_climate.md).
 
