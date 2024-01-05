@@ -47,7 +47,7 @@ We did our best to support your legacy settings and avoid breaking your system, 
 
 ### Instructions
 
- _You can find the update procedures following here:_
+ *You can find the update procedures following here:*
 
 - [How To - All important thing you should know - Update](docs/howto.md#update-blueprint)
 
@@ -59,7 +59,9 @@ We did our best to support your legacy settings and avoid breaking your system, 
     This adjustment was made to incorporate additional custom buttons on the home page and new target temperature indicators on the climate page.
 3. **Wi-Fi power save mode has been reset to `NONE` as the default setting.**
 
-    This was the standard up to v4.0. We switched it in v4.1 to accommodate Bluetooth components. However, since this feature isn't widely used, we're reverting to the original setting. For Bluetooth usage, you should manually set a different mode, such as `LIGHT`, as shown in the customization example below:
+    This was the standard up to v4.0. We switched it in v4.1 to accommodate Bluetooth components.
+    However, since this feature isn't widely used, we're reverting to the original setting.
+    For Bluetooth usage, you should manually set a different mode, such as `LIGHT`, as shown in the customization example below:
 
     ```yaml
     ##### My customization - Start #####
@@ -77,27 +79,36 @@ We did our best to support your legacy settings and avoid breaking your system, 
 7. **Documentation in German is no longer maintained.** This change allows us to more efficiently update and maintain the remaining documentation.
 8. **Reversion to "Toggle" as default action for automation entities on buttons.**
 
-    In this update, we have reverted the default action for button presses on automation. entities back to "Toggle." This change reverses the adjustment made in version 4.1, where "Trigger" was set as the default action.
+    In this update, we have reverted the default action for button presses on automation. entities back to "Toggle".
+    This change reverses the adjustment made in version 4.1, where "Trigger" was set as the default action.
 
     **Impact:**
 
     - **Default Behavior:** With this reversion, pressing a button linked to an automation entity will now enable or disable the automation, as it did prior to version 4.1.
     - **Consistency and Familiarity:** This change aims to align with user expectations and maintain consistency in the user experience.
-    - **Customization Still Available:** Users still have the option to manually set "Trigger" as the action for their automation. entities, as per their preference.
+    - **Customization Still Available:** Users still have the option to manually set "Trigger" as the action for their `automation.` entities, as per their preference.
 
-    We understand that changes in default settings can impact your workflows. We appreciate your understanding as we strive to balance new features with the familiarity and stability of the user experience.
+    We understand that changes in default settings can impact your workflows.
+    We appreciate your understanding as we strive to balance new features with the familiarity and stability of the user experience.
 9. **Advanced mode no longer enforces a specific framework.**
 
-    In the past, the enforcement of framework changes by the advanced mode could inadvertently result in users switching frameworks during OTA updates. This practice was not recommended due to the potential for errors.
+    In the past, the enforcement of framework changes by the advanced mode could inadvertently result in users switching frameworks during OTA updates.
+    This practice was not recommended due to the potential for errors.
 10. **Alarm page cannot be used as wake-up page.**
 
     As multiple alarms are supported now, the system don't know which one to show on the wake-up.
 11. **Changes in icon presentation.**
 
-    As part of our efforts to standardize icons across various pages, you might notice some differences in how they appear and behave. This includes new colors for lights and climate icons, as well as the introduction of new icon designs. While many aspects can still be customized through blueprint settings, the default presentation will now adhere to this new standardized format. These changes might be a departure from what you're accustomed to in previous versions, but they aim to enhance overall consistency and user experience.
-12. ***Action required:* Reset your wake-up page selection.**
+    As part of our efforts to standardize icons across various pages, you might notice some differences in how they appear and behave.
+    This includes new colors for lights and climate icons, as well as the introduction of new icon designs.
+    While many aspects can still be customized through blueprint settings, the default presentation will now adhere to this new standardized format.
+    These changes might be a departure from what you're accustomed to in previous versions, but they aim to enhance overall consistency and user experience.
+12. **_Action required:_ Reset your wake-up page selection.**
 
-    We've enhanced the wake-up page functionality for improved consistency after power cycles. Previously, the system didn't remember your selection following a power outage. With our latest update, this issue has been resolved. However, this improvement requires you to reselect your wake-up page one more time. Thanks for your cooperation in making these settings more reliable for everyday use.
+    We've enhanced the wake-up page functionality for improved consistency after power cycles.
+    Previously, the system didn't remember your selection following a power outage. With our latest update, this issue has been resolved.
+    However, this improvement requires you to reselect your wake-up page one more time.
+    Thanks for your cooperation in making these settings more reliable for everyday use.
 
 ## Overview of noteworthy changes
 
@@ -123,7 +134,9 @@ We did our best to support your legacy settings and avoid breaking your system, 
 ### 1. Standardized entity icons
 
 The engine for defining the icons to be shown and it's color was standardize between all the pages, so now you may see a more consistent User's Interface.
-We've upgraded the icon definition engine to standardize the appearance and color of icons across all pages. This enhancement leads to a more consistent and harmonious user interface. Expect a unified visual experience that aligns the look and feel of icons throughout the system, contributing to improved navigation and aesthetic appeal.
+We've upgraded the icon definition engine to standardize the appearance and color of icons across all pages.
+This enhancement leads to a more consistent and harmonious user interface.
+Expect a unified visual experience that aligns the look and feel of icons throughout the system, contributing to improved navigation and aesthetic appeal.
 
 ### 2. Additional custom buttons on Home page
 
@@ -157,7 +170,10 @@ You will find 3 new TFT files on the repository for the CJK languages. These fil
 
 #### TFT file selectors
 
-We still working on the Upload TFT engine to make it easier for new and for experienced users. Now, together with the **Update TFT Display** button, you will find also **Update TFT Display - Model** and **Update TFT Display - Branch** (disabled by default) where you can select the different model you are using and the upload URL will be automatically adjusted to donwload the file directly from the repository on GitHub, making this process much easier and removing the need of flashing your device every time you want to play with another TFT file or install the `nspanel_blank.tft`.
+We still working on the Upload TFT engine to make it easier for new and for experienced users.
+Now, together with the **Update TFT Display** button, you will find also **Update TFT Display - Model** and **Update TFT Display - Branch** (disabled by default) where you can select the different model you are
+using and the upload URL will be automatically adjusted to donwload the file directly from the repository on GitHub, making this process much
+easier and removing the need of flashing your device every time you want to play with another TFT file or install the `nspanel_blank.tft`.
 
 ![HA Blueprint - Update TFT controls](docs/pics/ha_blueprint_upload_tft_controls.png)
 
@@ -167,10 +183,12 @@ And you also can use the `esphome.xxxxx_upload_tft_url` service to upload using 
 
 #### Alternative baud rate for TFT uploads
 
-You can select an alternative baud rate for your TFT uploads. This allows faster TFT uploads and also supports displays previously set with baud rates not supported by this project (currently 115200 bps and 921600 bps).
+You can select an alternative baud rate for your TFT uploads.
+This allows faster TFT uploads and also supports displays previously set with baud rates not supported by this project (currently 115200 bps and 921600 bps).
 
 
-In most cases, this would be set for a higher value to enable faster TFT transfer. The default is 921600 bps, the maximum supported by Nextion displays.
+In most cases, this would be set for a higher value to enable faster TFT transfer.
+The default is 921600 bps, the maximum supported by Nextion displays.
 
 You can also use this if you have issues with TFT transfer and want to try a lower baud rate as in some rare cases Nextion will automatically set itself to 9600 bps.
 
