@@ -1,8 +1,10 @@
 # Panel stuck on Boot page
 
-When your panel starts, a number of different things needs to be set and the ESPHome must establish connection to the Nextion display used by your panel and also to your Home Assistant, which will provide the propper settings required by your panel. If everything goes right, the boot page will be shown for just a few seconds, then the wake-up page will be shown.
+When your panel starts, a number of different things needs to be set and the ESPHome must establish connection to the Nextion display used by your panel and also to your Home Assistant, which will provide the propper settings required by your panel.
+If everything goes right, the boot page will be shown for just a few seconds, then the wake-up page will be shown.
 
-If something happens during this process, your panel may get stuck on this page. In many cases, restarting your panel can resolve the issue, but if after a reboot it still showing the boot page, this guide may help you.
+If something happens during this process, your panel may get stuck on this page.
+In many cases, restarting your panel can resolve the issue, but if after a reboot it still showing the boot page, this guide may help you.
 
 Understanding what is shown on the boot page can be useful to find the cause of the problem or when you are looking for help.
 
@@ -28,13 +30,15 @@ Once ESPHome is connected to both the display and the Wi-Fi network, that text w
 
 #### Baud rate (bps)
 
-On the top right corner, it's shown the baud rate used by the display to communicate to ESPHome. By default, all the communication should happens at 115200 bps, but as 921600 bps is also supported, the display will alternate between these 2 rates every 30 seconds until ESPHome gets connected.
+On the top right corner, it's shown the baud rate used by the display to communicate to ESPHome.
+By default, all the communication should happens at 115200 bps, but as 921600 bps is also supported, the display will alternate between these 2 rates every 30 seconds until ESPHome gets connected.
 
 #### Framework
 
 Right bellow the baud rate information, you may see the framework used by ESPHome, which is either `esp-idf` (default for new installations) or `arduino` (default for installations prior v4.1.4).
 
-That information will be available only when ESPHome establishes communication with the display. If you cannot see that information after a couple of seconds then you may have an issue on the communication between ESPHome and the display (explained later).
+That information will be available only when ESPHome establishes communication with the display.
+If you cannot see that information after a couple of seconds then you may have an issue on the communication between ESPHome and the display (explained later).
 
 #### Versions
 
