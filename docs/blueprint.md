@@ -26,7 +26,7 @@ This is technically the only required field, as basic functionality will be avai
 ### Language for NSPanel 
 The language can be selected via the drop-down menu.
 
-Currently around 30 languages are supported, but if you cannot find your language there, please create a [new feature request](/Blackymas/NSPanel_HA_Blueprint/issues/new) and we will be happy to help.
+Currently around 30 languages are supported, but if you cannot find your language there, please create a [new feature request](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues/new) and we will be happy to help.
 
 ### Date format
 Select how you want to see the date displayed on your panel (Home page and weather pages are affected).
