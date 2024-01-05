@@ -1,16 +1,15 @@
-*Are you happy with our version for NSPanel? Please consider supporting us with a donation.*
-<br>[![Paypal](https://user-images.githubusercontent.com/41958506/212499642-b2fd097a-0938-4bfc-b37b-74df64592c58.png)](https://www.paypal.com/donate/?hosted_button_id=S974SWQMB8PB2)
-
-[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBlackymas%2FNSPanel_HA_Blueprint%2Fblob%2Fmain%2Fnspanel_blueprint.yaml)
-
-[![ESPHome (latest)](https://github.com/Blackymas/NSPanel_HA_Blueprint/actions/workflows/validate_esphome.yml/badge.svg)](https://github.com/Blackymas/NSPanel_HA_Blueprint/actions/workflows/validate_esphome.yml)
-[![Validate ESPHome (beta)](https://github.com/Blackymas/NSPanel_HA_Blueprint/actions/workflows/validate_esphome_beta.yml/badge.svg)](https://github.com/Blackymas/NSPanel_HA_Blueprint/actions/workflows/validate_esphome_beta.yml)
-
 # NSPanel Custom with HA Blueprint
 
 This innovative solution is designed to revolutionize how you interact with your Sonoff NSPanel. Our goal? To make the customization of your NSPanel seamless, intuitive, and completely code-free!
 
+*Are you happy with our version for NSPanel? Please consider supporting us with a donation.*
+
+[![Paypal](https://user-images.githubusercontent.com/41958506/212499642-b2fd097a-0938-4bfc-b37b-74df64592c58.png)](https://www.paypal.com/donate/?hosted_button_id=S974SWQMB8PB2)
+
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBlackymas%2FNSPanel_HA_Blueprint%2Fblob%2Fmain%2Fnspanel_blueprint.yaml)
+
 ## Table of Contents
+
 1. [Project Highlights](#-project-highlights)
 2. [Documentation & Resources](#-documentation--resources)
 3. [Features](#-features)
@@ -54,11 +53,10 @@ This innovative solution is designed to revolutionize how you interact with your
 - 2 physical switches with optional fallback mode
 - and much more ;)
 
-
 ## 📖 Pages Overview
 
-
 ### Home
+
 ![Home EU](docs/pics/eu_home.png)
 <br>
 ![Home US](docs/pics/us_home.png)
@@ -73,8 +71,8 @@ This innovative solution is designed to revolutionize how you interact with your
 - Room humidity
 - Up to 3 user's selectable entities
 
-&nbsp;
 ### Buttons Pages
+
 ![3 Buttonpage](https://user-images.githubusercontent.com/41958506/203654022-c6d81263-ce56-4a84-917a-9d4911f19f55.png)
 ![NEW Domains](https://user-images.githubusercontent.com/41958506/206879659-3aea30c1-b126-4d52-a869-abf6adfc8fa1.png)
 
@@ -87,8 +85,8 @@ This innovative solution is designed to revolutionize how you interact with your
 - Swipe between all pages 
 - Swipe up and down for quick access to specific pages
 
-&nbsp;
 ### Entities Pages
+
 ![Entities EU](docs/pics/eu_entities.png)
 <br>
 ![Entities US](docs/pics/us_entities.png)
@@ -97,8 +95,8 @@ This innovative solution is designed to revolutionize how you interact with your
 - Icons and labels can be individually configured via blueprint or automatically detected for each entity
 - Flexible alignment options for values as per user preference
 
-&nbsp;
 ### Light Settings
+
 ![4 lightsetting 1](https://user-images.githubusercontent.com/41958506/203654055-943d1910-7673-4d9f-ad81-7ef00d155e5a.png)
 ![5 Lightsetting 2](https://user-images.githubusercontent.com/41958506/203654076-93e110df-f314-4cf1-8500-ed667f2202fd.png)
 ![6 Lightsetting 3](https://user-images.githubusercontent.com/41958506/203654179-f7303b02-c886-4890-b976-cb498940a627.png)
@@ -109,8 +107,8 @@ This innovative solution is designed to revolutionize how you interact with your
 - Color temperature slider
 - Jump back to the right button page
 
-&nbsp;
 ### Cover Settings
+
 ![8 Cover](https://user-images.githubusercontent.com/41958506/203654290-c6ec2f2f-7924-492c-914c-0d96dc3907e0.png)
 
 - Open and close cover
@@ -118,8 +116,8 @@ This innovative solution is designed to revolutionize how you interact with your
 - Cover battery value (when available)
 - jump back to the right button page
 
-&nbsp;
 ### Thermostat / Climate
+
 - Target temperature control slider 
 - Current temperature
 - 4 user's selectable values (for water and external temperatures, etc.)
@@ -127,20 +125,19 @@ This innovative solution is designed to revolutionize how you interact with your
 - 2 user's selectable buttons
 - [Can be used for local control (even when Wi-Fi is unavailable) when your panel's relays are used to control your cooler/heater](docs/addon_climate.md)
 
-&nbsp;
 ### Fan speed
+
 - Turn-on and turn-off fan
 - Set speed via slider or buttons
 - jump back to the right button page
 
-&nbsp;
 ### Alarm
+
 - Arm/disarm an alarm (standard modes supported by Home Assistant)
 - Support to numeric pin for arming or disarming
 
-
-&nbsp;
 ### Weather Forecast
+
 ![9 Weather](https://user-images.githubusercontent.com/41958506/203654307-24000d00-b7e1-47eb-bd64-9e97b508db52.png)
 
 - 5 days weather forecast via swipe (supports most used weather integrations)
@@ -153,11 +150,10 @@ This innovative solution is designed to revolutionize how you interact with your
   - Thunderstorm probability
   - Wind speed
 
-&nbsp;
 ### Display Settings
 
 ![Settings EU](docs/pics/eu_settings.png)
-<br>
+
 ![Settings US](docs/pics/us_settings.png)
 
 - Restart NSPanel
@@ -166,21 +162,23 @@ This innovative solution is designed to revolutionize how you interact with your
 
 ### Boot
 ![Boot EU](docs/pics/eu_boot.png)
-<br>
-![Boot US](docs/pics/us_boot.png)
 
+![Boot US](docs/pics/us_boot.png)
 
 ## Home Assistant interface
 
 ## Device's page
+
 On the device's page under "Devices & Services" you can set the global configuration of your device and see the value of it's sensors and relays:
 
 ![Device Setting - Controls](docs/pics/ha_device_controls.png)<br>
 ![Device Setting - Sensors](docs/pics/ha_device_sensors.png)<br>
-![Device Setting - Configuration](docs/pics/ha_device_configuration.png)<br>
+![Device Setting - Configuration](docs/pics/ha_device_configuration.png)
+
 ![Device Setting - Diagnostic](docs/pics/ha_device_diagnostic.png)<br>
 
 ## Automation (Blueprint)
+
 In your automations you use the blueprint's inputs to define what will be shown on your panel and how it should behave:
 ![Blueprint 01](docs/pics/ha_blueprint_01.png)
 ![Blueprint 02](docs/pics/ha_blueprint_02.png)
