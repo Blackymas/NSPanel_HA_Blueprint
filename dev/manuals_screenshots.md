@@ -2,9 +2,9 @@
 
 Please select "Instruction codes: utf-8" in the Nextion simulator
 
-### Boot page
+## Boot page
 
-```
+```nextion
 page boot
 baud_rate.txt="115200 bps"
 esph_version.txt="4.2"
@@ -19,11 +19,11 @@ ip_addr.txt="192.168.0.123"
 <br>
 ![Boot US](../docs/pics/us_boot.png)
 
-### Home page
+## Home page
 
-#### EU version
+### EU version
 
-```
+```nextion
 page home
 date.txt="Sunday, 29/11"
 outdoor_temp.txt="8.9°"
@@ -61,9 +61,9 @@ value03_icon.txt=""
 
 ![Home EU](../docs/pics/eu_home.png)
 
-#### US version
+### US version
 
-```
+```nextion
 page home
 meridiem.txt="PM"
 date.txt="Sunday, 11/29"
@@ -102,18 +102,18 @@ value03_icon.txt=""
 
 ![Home US](../docs/pics/us_home.png)
 
-### Settings page
+## Settings page
 
-```
+```nextion
 page settings
 ```
 
 ![Settings EU](../docs/pics/eu_settings.png)
 ![Settings US](../docs/pics/us_settings.png)
 
-### Buttons pages (DRAFT)
+## Buttons pages (DRAFT)
 
-```
+```nextion
 api=1
 page buttonpage01
 page_label.txt="Bedroom"
@@ -150,11 +150,11 @@ button06icon.picc=46
 button06bri.picc=46
 ```
 
-### Entities pages
+## Entities pages
 
-#### EU version
+### EU version
 
-```
+```nextion
 api=1
 page entitypage01
 entity01_label.txt="Power monitoring"
@@ -180,9 +180,9 @@ value07.txt="1.84 €/h"
 value07.xcen=2
 ```
 
-#### US version
+### US version
 
-```
+```nextion
 api=1
 page entitypage01
 entity01_label.txt="Power monitoring"
@@ -208,9 +208,9 @@ value07.txt="1.84 $/h"
 value07.xcen=2
 ```
 
-### Sensor page (mockup)
+## Sensor page (mockup)
 
-```
+```nextion
 api=1
 page notification
 vis bt_accept,0
