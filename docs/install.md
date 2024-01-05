@@ -147,6 +147,7 @@ Before disassembling your panel, review the following resources:
 ##### Pending: (Steps to flash the firmware using serial TTL will be added here)
 
 ### Integrating your panel to Home Assistant
+##### Pending: 
 
 ### Making changes Over The Air (OTA)
 ##### Pending: (add instructions how to flash wirelessly)
