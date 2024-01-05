@@ -26,7 +26,7 @@ Table of contents:
   - [Logger via UART](#logger-via-uart)
   - [Climate custom presets](#climate-custom-presets)
   - [Push button / Momentary switch](#push-button--momentary-switch)
-  - [Control local relay fallback](#Control-local-relay-fallback)
+  - [Expose relay fallback switch](#expose-relay-fallback-switch)
 
 &nbsp;
 &nbsp;
@@ -535,12 +535,14 @@ binary_sensor:
 ```
 
 &nbsp;
-### Control local relay fallback
-You can expose the local fallback relay to homeassistant. One use case is with wifi connected light for example.
-It can be used to cut the power of the connected light in some case directly from the button.
-@tikismoke use it when energy price is higher. An automation change the fallback mode and cut the relay the bulb will no more consume energy in standby mode (but act normally with ligh.toggle from the bluebrint in all other case), local control is cut when power get to normal price. On next push the relay turn `on` and the bulb power up, the next push will call light toggle.toggle from the blueprint directly as it is all already embedded in the esphome yaml code. 
+### Expose Relay Fallback Switch
+You can configure a local fallback relay to integrate with Home Assistant. This is particularly useful for devices like WiFi-connected lights. For instance, you can program it to cut the power to a connected light under certain conditions, directly via a switch.
 
-NOTE that in this case the bulb must light `ON` automatically when power is restore.
+#### Use Case
+One application, as utilized by @tikismoke and detailed in #1349, is in response to fluctuating energy prices. When the energy price is high, an automation can change the fallback mode to cut off the relay. This ensures that the bulb does not consume energy in standby mode. However, it will still function normally with `light.toggle` from the blueprint in all other cases. Local control is reinstated when the power price returns to normal. On the next switch activation, the relay turns `on`, powering up the bulb. Subsequent activations will trigger `light.toggle` from the blueprint, as this functionality is already embedded in the ESPHome YAML code.
+
+> [!NOTE]  
+> In this scenario, the bulb must be set to turn `on` automatically when power is restored.
 
 ```yaml
 # Expose relay local control switch to Home Assistant
