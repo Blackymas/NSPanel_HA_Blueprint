@@ -3,9 +3,9 @@ Welcome to this setup guide, a community-driven approach to integrating NSPanel 
 
 Whether you're a first-time smart device user or an enthusiast looking to personalize your setup, this guide provides the necessary tools and instructions. Let's embark on creating a smart home that's uniquely yours.
 
-| :exclamation: **Attention** |
-|:--|
-| Some images or instructions on this guide might be slighly different due to different configurations depending on your ESPHome and Home Assistant implementation or versions. If you find something that is not understandable or needs to be updated, please let us know. You can create an issue reporting this, or fix it yourself and submit a Pull Request to this repository. |
+> [!NOTE]  
+> Some images or instructions on this guide might be slighly different due to different configurations depending on your ESPHome and Home Assistant implementation or versions.<br>
+> If you find something that is not understandable or needs to be updated, please let us know. You can create an issue reporting this, or fix it yourself and submit a [Pull Request](/Blackymas/NSPanel_HA_Blueprint/pulls) to this repository.
 
 ## Summary
 
