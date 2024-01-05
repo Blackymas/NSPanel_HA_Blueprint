@@ -1,9 +1,12 @@
+# How-to
 
-# Introduction
-In this document, we collect important information, tips, and solutions related to various topics noticed over time. This is a community-driven resource, and we encourage everyone to contribute their knowledge.
+In this document, we collect important information, tips, and solutions related to various topics noticed over time.
+This is a community-driven resource, and we encourage everyone to contribute their knowledge.
 
 ## Community Contribution
-If you have a solution or tip to share, please contribute! Your knowledge can significantly help others in the community. You can write a short message with your findings, and we'll include it here. 
+
+If you have a solution or tip to share, please contribute! Your knowledge can significantly help others in the community.
+You can write a short message with your findings, and we'll include it here.
 
 # Topics and Solutions
 Below are the topics covered in this document, each with relevant tips and solutions.
@@ -25,22 +28,31 @@ Below are the topics covered in this document, each with relevant tips and solut
 
 * Describe your problem as detailed as possible.
 * Please write your ESPHome and Home Assistant version, as the version of files of this project (TFT, ESPHome and Blueprint).
-* Please go to your automation and then to the "3 dots" and then to _**Edit as YAML**_. Copy the complete code and attach it to the ticket
-* An important "helper" for solving problems is the trace of an automation. You can find the trace under _**Settings --> Automations & Scenes --> your NSPanel automation --> Traces (top right)**_
+* Please go to your automation and then to the "3 dots" and then to _**Edit as YAML**_.
+Copy the complete code and attach it to the ticket
+* An important "helper" for solving problems is the trace of an automation.
+You can find the trace under _**Settings --> Automations & Scenes --> your NSPanel automation --> Traces (top right)**_
 
-> TRACES! Please execute again what does not work and open the trace immediately afterwards. Often you have to open the trace after the reboot too. During the start up, most things are loaded.
+> TRACES! Please execute again what does not work and open the trace immediately afterwards.
+Often you have to open the trace after the reboot too.
+During the start up, most things are loaded.
 
-> IMPORTANT! in the trace you can see by the _**"orange "**_ lines which way the automation has gone. Please tell us this path. Also, please take one or more screenshots and add them to your ticket. Especially important for us is where the _**"Orange "**_ line ends, because most of the time this is also where the problem is.
+> IMPORTANT! in the trace you can see by the _**"orange "**_ lines which way the automation has gone.
+Please tell us this path.
+Also, please take one or more screenshots and add them to your ticket.
+Especially important for us is where the _**"Orange "**_ line ends, because most of the time this is also where the problem is.
 
-> IMPORTANT! When you have opened the trace, there is a _**"timestamp "**_ at the top. It is important that you select the correct timestamp.
+> IMPORTANT! When you have opened the trace, there is a _**"timestamp "**_ at the top.
+It is important that you select the correct timestamp.
 
 
-### Example trace after reboot:
+### Example trace after reboot
 
 ![Bildschirmfoto 2022-11-27 um 14 54 58](https://user-images.githubusercontent.com/41958506/204139082-70d3a8d1-1c82-43cb-88f2-573f2e276a48.png)
 
-### Example automations Blueprint:
-```
+### Example automations Blueprint
+
+```yaml
 alias: YYXYYXYYX - NSPanel Configuration
 description: ""
 use_blueprint:
@@ -76,10 +88,13 @@ use_blueprint:
 >IMPORTANT: To install a new version of the NSPanel, the Blueprint, ESPHome and the TFT must be updated!
 
 1. In Home Assistant, go to Settings > Automation & Scenes, select the tab Blueprints and find the blueprint named "NSPanel Configuration"
-2. Click the 3-dot menu and select "Re-import blueprint":<br>![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/afb433e8-f29c-4b3f-8d6b-16a12b181422)
-3. Click "Re-import" button:<br>![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/1db36411-e5a4-4cef-bcef-575a08019a67)
+2. Click the 3-dot menu and select "Re-import blueprint":
+  ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/afb433e8-f29c-4b3f-8d6b-16a12b181422)
+3. Click "Re-import" button:
+  ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/1db36411-e5a4-4cef-bcef-575a08019a67)
 4. Reload automations or restart Home Assistant.
-5. The new Blueprint is now available. Settings that have already been made are adopted.
+5. The new Blueprint is now available.
+Settings that have already been made are adopted.
 6. Please review the blueprint settings (under Automations tab) for new settings available with the new version.
 
 ## Update ESPHome
@@ -88,13 +103,16 @@ use_blueprint:
 - *To install a new version of the NSPanel, the Blueprint, ESPHome and the TFT must be updated!*
 - *These instructions are for updating a panel where an older version of these files are already installed.*
 
-To flash your panel with an updated version from this project, go to the ESPHome dashboard (in your Home Assistant) and find the device you want to update. Then click the 3-dot menu and select the option "Validate":
+To flash your panel with an updated version from this project, go to the ESPHome dashboard (in your Home Assistant) and find the device you want to update.
+Then click the 3-dot menu and select the option "Validate":
 
 ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/e393ced5-78d4-475a-8630-893c05734f5d)
 
-The system will go thru all the settings, combining your entries in "substitutions" and the ESPHome file(s) from the GitHub repository and validate the final setup. It might take some time.
+The system will go thru all the settings, combining your entries in "substitutions" and the ESPHome file(s) from the GitHub repository and validate the final setup.
+It might take some time.
 
-If everything goes well, you will see a green check mark in the top of the dialog window. When you get that, you can click "Install":
+If everything goes well, you will see a green check mark in the top of the dialog window.
+When you get that, you can click "Install":
 
 ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/bc67533b-4f2e-4034-8e7e-34063a26f1c3)
 
@@ -121,7 +139,7 @@ The display can be updated via the UI:
 
 To show a notification on the NSPAnel, the following service call can be used:
 
-```
+```yaml
 service: esphome.panelname_notification_show
 data:
   label: Example text
@@ -130,7 +148,7 @@ data:
 
 To clear any notifications, the following service call can be used:
 
-```
+```yaml
 service: esphome.panelname_notification_clear
 data: {}
 ```
@@ -138,7 +156,7 @@ data: {}
 
 To use the notifications in an automation, again simply use the service call as shown in the example below:
 
-```
+```yaml
 description: ""
 mode: single
 trigger:
@@ -157,11 +175,12 @@ trigger:
 ## Climate control with Relays
 > Attention!! Although these instructions are still valid, since v4.0 there is a better way to setup a climate control using the panel's relays: https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-Add%E2%80%90on:-Climate
 
-In order to use the NSPanel to control a radiator or underfloor heating, at least one Generic Thermostat must be created in the HA. More information can be found here: https://www.home-assistant.io/integrations/generic_thermostat/
+In order to use the NSPanel to control a radiator or underfloor heating, at least one Generic Thermostat must be created in the HA.
+More information can be found here: https://www.home-assistant.io/integrations/generic_thermostat/
 
 Example configuration Generic Thermostat:
 
-```
+```yaml
 climate:
   - platform: generic_thermostat
     name: Study
@@ -186,9 +205,10 @@ Afterwards, the climate.entity must be assigned accordingly in the panel configu
 
 ## Call a page directly
 
-Sometimes it can make sense to automatically show a certain side of the display. To do this, the following service can be used:
+Sometimes it can make sense to automatically show a certain side of the display.
+To do this, the following service can be used:
 
-```
+```yaml
 service: esphome.nspanel_send_command_printf
 data:
   cmd: page home
@@ -212,15 +232,15 @@ The following pages are currently available for a direct call:
 
 ## Play RTTTL Sound
 
-HA can send a RTTTL to the NSPanel, custom melodies are possible. 
+HA can send a RTTTL to the NSPanel, custom melodies are possible.
 
 The use this function, the following service is called: ***nspanel_play_rtttl*** 
 
-You can find many RTTTL strings on the web, the important thing is that they must start with the name and then a colon. 
+You can find many RTTTL strings on the web, the important thing is that they must start with the name and then a colon.
 
 Here is an example:
 
-```
+```txt
 The Simpsons:d=4,o=5,b=160:c.6,e6,f#6,8a6,g.6,e6,c6,8a,8f#,8f#,8f#,2g,8p,8p,8f#,8f#,8f#,8g,a#.,8c6,8c6,8c6,c6
 ```
 
@@ -243,7 +263,8 @@ In the last step, assign the trigger to a button in the Panel Config.
 ## Updating Wi-Fi settings and OTA Passwords in ESPHome with This Project
 
 #### Overview
-When you update your Wi-Fi password in a device with firmware from our project, it's important to remember that the `wifi_password` substitution is used for both Wi-Fi and OTA updates (and a few more places that are not relevant now). Failing to update both simultaneously can lead to connection issues.
+When you update your Wi-Fi password in a device with firmware from our project, it's important to remember that the `wifi_password` substitution is used for both Wi-Fi and OTA updates (and a few more places that are not relevant now).
+Failing to update both simultaneously can lead to connection issues.
 
 #### Step-by-Step Guide
 
@@ -253,6 +274,7 @@ When you update your Wi-Fi password in a device with firmware from our project, 
 2. **Update OTA Password First**
    - Open your panel's YAML.
    - Add the following in the customization area:
+
      ```yaml
      esphome:
        on_boot:
@@ -264,15 +286,21 @@ When you update your Wi-Fi password in a device with firmware from our project, 
        password: "Your current Wi-Fi password"
        id: my_ota
      ```
-   - Flash your device. It will use the current password for this flash and will inform your device to start using the new password for the next OTA.
+
+   - Flash your device.
+It will use the current password for this flash and will inform your device to start using the new password for the next OTA.
    - When your device starts, **remove the lines above**.
-   - Find the `wifi_ssid` and `wifi_password` key in the `substitutions` area (usually at the beginning of the file) and change it to your new Wi-Fi password. If that is point to `!secret`, you will have to edit it in your `secrets.yaml` file instead.
-   - Flash your device again with the updated YAML. It will use the current Wi-Fi to connect to your device and the new Wi-Fi password as the OTA password, then will inform your device to connect to the Wi-Fi with the new settings.
+   - Find the `wifi_ssid` and `wifi_password` key in the `substitutions` area (usually at the beginning of the file) and change it to your new Wi-Fi password.
+    If that is point to `!secret`, you will have to edit it in your `secrets.yaml` file instead.
+   - Flash your device again with the updated YAML.
+It will use the current Wi-Fi to connect to your device and the new Wi-Fi password as the OTA password, then will inform your device to connect to the Wi-Fi with the new settings.
 
 3. **Update Wi-Fi Settings in Your Access Point**
 
 #### Important Notes
-- The device will still be using the old Wi-Fi settings for this update. If you've already changed your Wi-Fi network settings, this step will fail.
+
+- The device will still be using the old Wi-Fi settings for this update.
+If you've already changed your Wi-Fi network settings, this step will fail.
 - **Troubleshooting: Unable to Connect via Wi-Fi**
   - If your device cannot connect to Wi-Fi due to a password or SSID change, you will need to flash the device via a serial connection.
   - Connect your device to your computer using a USB-to-Serial adapter.
@@ -280,13 +308,17 @@ When you update your Wi-Fi password in a device with firmware from our project, 
   - In this case, don't worry about the OTA password, as it's not required when flashing via serial.
 
 #### Verify the Update
+
 - Once the new configuration is uploaded, your device should automatically connect to your Wi-Fi network with the new settings.
 - Verify that OTA updates are working with the new password.
 
 #### Additional Tips
+
 - **Backup Your Configuration:** Always keep a backup of your ESPHome configuration files.
 - **Network Accessibility:** Ensure your device remains within your Wi-Fi network's range during the update process.
 - **Serial Flashing:** Familiarize yourself with the process of flashing via serial, as it's a reliable fallback method.
 
 #### Conclusion
-By carefully updating both your Wi-Fi settings and OTA passwords in your ESPHome configuration, you can avoid connection issues. Remember to always back up your configuration and be prepared to use a serial connection if Wi-Fi connectivity is lost.
+
+By carefully updating both your Wi-Fi settings and OTA passwords in your ESPHome configuration, you can avoid connection issues.
+Remember to always back up your configuration and be prepared to use a serial connection if Wi-Fi connectivity is lost.
