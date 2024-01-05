@@ -26,6 +26,7 @@ Table of contents:
   - [Logger via UART](#logger-via-uart)
   - [Climate custom presets](#climate-custom-presets)
   - [Push button / Momentary switch](#push-button--momentary-switch)
+  - [Expose relay fallback switch](#expose-relay-fallback-switch)
 
 &nbsp;
 &nbsp;
@@ -531,4 +532,23 @@ binary_sensor:
         switch.turn_on: relay_2
     on_release:
         switch.turn_off: relay_2
+```
+
+&nbsp;
+### Expose Relay Fallback Switch
+You can configure a local fallback relay to integrate with Home Assistant. This is particularly useful for devices like WiFi-connected lights. For instance, you can program it to cut the power to a connected light under certain conditions, directly via a switch.
+
+#### Use Case
+One application, as utilized by @tikismoke and detailed in #1349, is in response to fluctuating energy prices. When the energy price is high, an automation can change the fallback mode to cut off the relay. This ensures that the bulb does not consume energy in standby mode. However, it will still function normally with `light.toggle` from the blueprint in all other cases. Local control is reinstated when the power price returns to normal. On the next switch activation, the relay turns `on`, powering up the bulb. Subsequent activations will trigger `light.toggle` from the blueprint, as this functionality is already embedded in the ESPHome YAML code.
+
+> [!NOTE]  
+> In this scenario, the bulb must be set to turn `on` automatically when power is restored.
+
+```yaml
+# Expose relay local control switch to Home Assistant
+switch:
+  - id: !extend relay1_local
+    internal: false
+  - id: !extend relay2_local
+    internal: false
 ```
