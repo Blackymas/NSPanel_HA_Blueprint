@@ -121,13 +121,13 @@ Done! Your NSPanel is all set into your ESPHome Dashbord.
 
 #### Drive safe
 
-| :warning: **WARNING** |
-|:--|
-| **Make sure your panel's controller module is disconnected from main power during all the work.** If your device is open and plugged directly into the wall, you’ll be a single touch away from being electrocuted. |
+> [!CAUTION]
+> **Make sure your panel's controller module is disconnected from main power during all the work.**<br>
+>If your device is open and plugged directly into the wall, you’ll be a single touch away from being electrocuted.
 
-| :warning: **WARNING** |
-|:--|
-| **You are solely responsible for your own safety.** If you feel something is wrong or are uncomfortable with continuing, stop immediately. |
+> [!WARNING]  
+> **You are solely responsible for your own safety.**<br>
+> If you feel something is wrong or are uncomfortable with continuing, stop immediately.
 
 - Don't use any eletronic component above 3.3VDC. Make sure you TTL adapter is set to 3.3VDC. Any value above this treshold can permanently damage your panel.
 - Use a clean area when disassembling your device and make sure you don't scratch your device's screen.
@@ -195,7 +195,9 @@ Now that Home Assistant is equiped with our Blueprint, you have to create a new 
 
 That's it.
 
-For a more compreehensive list of what you can do on your panel's settings, please refeer to the [Blueprint guide](blueprint.md).
+> [!TIP]
+> For a more compreehensive list of what you can do on your panel's settings, please refeer to the [Blueprint guide](blueprint.md).
+
 ### Editing the settings in your automation
 You can always edit the settings in your automation to add some new configuration, edit some existing configuration or remove things.
 
@@ -206,18 +208,18 @@ On the **Automations** page, fnd your automation in the list and click on it.
 
 After changing the settings, please remember to click on **Save** to send the new settings to your panel. It shouldn't take more than a few seconds for your panel to receive the new settings, however some changes won't be visible until the page is reloaded.
 
-For a more compreehensive list of what you can do on your panel's settings, please refeer to the [Blueprint guide](blueprint.md).
+> [!TIP]
+> For a more compreehensive list of what you can do on your panel's settings, please refeer to the [Blueprint guide](blueprint.md).
 
 ## How to handle multiple panels
 If you have multiple panels, just repeat the steps above for each panel. You should have one entry per panel on the ESPHome Dashboard, on entry (device) per panel under Home Assistant integrations (**Settings** > **Devices & Services** > **ESPHome**) and one automation per panel under Home Assistant automations.
 
-#### Important:
-Make sure you don't have the same panel assigned to more than one automation. Unfortunatly Home Assistant don't offers a mechanism to prevent this situation which could drive to your panel now showing what is expected and an unnecessary load over Home Assistant and your Wi-Fi network.
+> [!IMPORTANT]  
+> Make sure you don't have the same panel assigned to more than one automation. Unfortunatly Home Assistant don't offers a mechanism to prevent this situation which could drive to your panel not showing what is expected and an unnecessary load over Home Assistant and your Wi-Fi network.
 
 ## Advanced configuration for ESPHome and Home Assistant experts
-| :exclamation: **Attention** |
-|:--|
-| Customizations and advanced mode are not supported by this project's team. Use this with caution and only when you know what you are doing. |
+> [!WARNING]  
+> Customizations and advanced mode are not supported by this project's team. Use this with caution and only when you know what you are doing.
 
 Before you start customizing your system, we would like to invite you to share anything nice you achieve. You can always create a new [Pull Request](/Blackymas/NSPanel_HA_Blueprint/pulls) to `dev` branch and this will give a chance for other users with similar challenges to take advantage of your discoveries.
 
@@ -254,9 +256,9 @@ esp32:
 ###### Do not change area - End ######
 ```
 
-| :memo: **Take note of this** |
-|:--|
-| Note that a sub-folder was used in the example above in order to avoid that file to be added as an additional device in your ESPHome dashboard. You can also have the file in the same folder, but with it's name starting with `.`, so ESPHome dashboard understands that file should be ignored when listing devices. |
+> [!NOTE]  
+> Note that a sub-folder was used in the example above in order to avoid that file to be added as an additional device in your ESPHome dashboard.<br>
+> You can also have the file in the same folder, but with it's name starting with `.`, so ESPHome dashboard understands that file should be ignored when listing devices.
 
 ### Blueprint
 The Blueprint file `nspanel_blueprint.yaml` can also be installed manually or you can edit locally your copy of the Blueprint, however be aware that your changes will be lost if you reload the Blueprint from the repository.
@@ -269,7 +271,8 @@ For a better understanding on how to use Nextion, please use the following docum
 - [Nextion Editor Guide](https://nextion.tech/editor_guide/)
 
 ## Additional Tips and Resources
-We have an useful guide for [troubleshooting TFT transfer issues](tft_upload.md). Please take a look there first.
+> [!TIP]
+> We have an useful guide for [troubleshooting TFT transfer issues](tft_upload.md). Please take a look there first.
 
 After troubleshooting, if issues persist, consult the [Issues](/Blackymas/NSPanel_HA_Blueprint/issues) and feel free to create a new one asking for more personalized assistance.
 
@@ -279,5 +282,5 @@ Please share as much info as possible, like:
 3. Please share the ESPHome logs from when your panel starts to the moment the upload fails.
 4. Describe what you have already tried.
 
-## Important note
+## :exclamation: Important note
 Remember, these steps are a guideline and might vary slightly based on your specific setup and previously installed system.
