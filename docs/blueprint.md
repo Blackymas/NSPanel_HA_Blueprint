@@ -27,7 +27,8 @@ This is technically the only required field, as basic functionality will be avai
 
 The language can be selected via the drop-down menu.
 
-Currently around 30 languages are supported, but if you cannot find your language there, please create a [new feature request](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues/new) and we will be happy to help.
+Currently around 30 languages are supported, but if you cannot find your language there,
+please create a [new feature request](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues/new) and we will be happy to help.
 
 ### Date format
 
@@ -65,21 +66,21 @@ If the value of the sensor needs to be corrected, this can be done via the tempe
 
 ## Home page - Sensor
 
-#### Sensor 01-03 - Entity (Optional)
+### Sensor 01-03 - Entity (Optional)
 
 Up to three sensors can be displayed on the home screen.
 Select the corresponding HA entity.
 
 ## Home page - Chips
 
-#### Chip 01-07 - Entity (Optional)
+### Chip 01-07 - Entity (Optional)
 
 Used to display HA entities on the home screen.
 For example to display the status of a specific switch on the NSPanel.
 
 ## Home page - Custom buttons
 
-#### Custom button 01-06 - Entity (Optional)
+### Custom button 01-06 - Entity (Optional)
 
 Your panel will show 10 buttons on the Home page.
 4 of those are fixed for Notifications, QR Code, Entities pages and Alarm, but you have additional 6 custom buttons that can be assigned to different entities from your Home Assistant.
