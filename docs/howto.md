@@ -8,18 +8,18 @@ This is a community-driven resource, and we encourage everyone to contribute the
 If you have a solution or tip to share, please contribute! Your knowledge can significantly help others in the community.
 You can write a short message with your findings, and we'll include it here.
 
-# Topics and Solutions
+## Topics and Solutions
 Below are the topics covered in this document, each with relevant tips and solutions.
 
-1. [How do I create "Issues" when I have a problem ](#How-do-I-create-issues-when-I-have-a-problem)
-1. [Update Blueprint](#Update-blueprint)
-1. [Update ESPHome](#Update-esphome)
-1. [Update TFT](#Update-tft)
+1. [How do I create "Issues" when I have a problem ](#how-to-create-issues-when-i-have-a-problem)
+1. [Update Blueprint](#update-blueprint)
+1. [Update ESPHome](#update-esphome)
+1. [Update TFT](#update-tft)
 1. [Notification via HA](#notification-via-ha)
 1. [Climate control with relays](#climate-control-with-relays)
-1. [Call a page directly](#Call-a-page-directly)
+1. [Call a page directly](#call-a-page-directly)
 1. [Play RTTTL Sound](#play-rtttl-sound)
-1. [Start automations via Input_Boolean](#Start-automations-via-input_boolean)
+1. [Start automations via Input_Boolean](#start-automations-via-input_boolean)
 1. [Updating Wi-Fi and OTA passwords in ESPHome with this project](#updating-wi-fi-settings-and-ota-passwords-in-esphome-with-this-project)
 
 ## How to create "issues" when I have a problem
@@ -33,18 +33,21 @@ Copy the complete code and attach it to the ticket
 * An important "helper" for solving problems is the trace of an automation.
 You can find the trace under _**Settings --> Automations & Scenes --> your NSPanel automation --> Traces (top right)**_
 
+
+> [!NOTE]
 > TRACES! Please execute again what does not work and open the trace immediately afterwards.
-Often you have to open the trace after the reboot too.
-During the start up, most things are loaded.
+> Often you have to open the trace after the reboot too.
+> During the start up, most things are loaded.
 
-> IMPORTANT! in the trace you can see by the _**"orange "**_ lines which way the automation has gone.
-Please tell us this path.
-Also, please take one or more screenshots and add them to your ticket.
-Especially important for us is where the _**"Orange "**_ line ends, because most of the time this is also where the problem is.
+> [!IMPORTANT]  
+> In the trace you can see by the _**"orange "**_ lines which way the automation has gone.
+> Please tell us this path.
+> Also, please take one or more screenshots and add them to your ticket.
+> Especially important for us is where the _**"Orange "**_ line ends, because most of the time this is also where the problem is.
 
-> IMPORTANT! When you have opened the trace, there is a _**"timestamp "**_ at the top.
-It is important that you select the correct timestamp.
-
+> [!IMPORTANT]  
+> When you have opened the trace, there is a _**"timestamp "**_ at the top.
+> It is important that you select the correct timestamp.
 
 ### Example trace after reboot
 
@@ -100,6 +103,7 @@ Settings that have already been made are adopted.
 ## Update ESPHome
 
 ***IMPORTANT:***
+
 - *To install a new version of the NSPanel, the Blueprint, ESPHome and the TFT must be updated!*
 - *These instructions are for updating a panel where an older version of these files are already installed.*
 
@@ -217,6 +221,7 @@ data:
 For example, to directly display button page 2, "home" must be replaced with "buttonpage02".
 
 The following pages are currently available for a direct call:
+
   - alarm
   - buttonpage01
   - buttonpage02
@@ -262,11 +267,12 @@ In the last step, assign the trigger to a button in the Panel Config.
 
 ## Updating Wi-Fi settings and OTA Passwords in ESPHome with This Project
 
-#### Overview
-When you update your Wi-Fi password in a device with firmware from our project, it's important to remember that the `wifi_password` substitution is used for both Wi-Fi and OTA updates (and a few more places that are not relevant now).
+### Overview
+When you update your Wi-Fi password in a device with firmware from our project,
+it's important to remember that the `wifi_password` substitution is used for both Wi-Fi and OTA updates (and a few more places that are not relevant now).
 Failing to update both simultaneously can lead to connection issues.
 
-#### Step-by-Step Guide
+### Step-by-Step Guide
 
 1. **Prepare Your Device for Update**
    - Ensure your device is connected to your computer and is accessible via your current Wi-Fi network.
@@ -297,7 +303,7 @@ It will use the current Wi-Fi to connect to your device and the new Wi-Fi passwo
 
 3. **Update Wi-Fi Settings in Your Access Point**
 
-#### Important Notes
+### Important Notes
 
 - The device will still be using the old Wi-Fi settings for this update.
 If you've already changed your Wi-Fi network settings, this step will fail.
@@ -307,18 +313,18 @@ If you've already changed your Wi-Fi network settings, this step will fail.
   - Use the ESPHome flasher tool to upload the new configuration.
   - In this case, don't worry about the OTA password, as it's not required when flashing via serial.
 
-#### Verify the Update
+### Verify the Update
 
 - Once the new configuration is uploaded, your device should automatically connect to your Wi-Fi network with the new settings.
 - Verify that OTA updates are working with the new password.
 
-#### Additional Tips
+### Additional Tips
 
 - **Backup Your Configuration:** Always keep a backup of your ESPHome configuration files.
 - **Network Accessibility:** Ensure your device remains within your Wi-Fi network's range during the update process.
 - **Serial Flashing:** Familiarize yourself with the process of flashing via serial, as it's a reliable fallback method.
 
-#### Conclusion
+### Conclusion
 
 By carefully updating both your Wi-Fi settings and OTA passwords in your ESPHome configuration, you can avoid connection issues.
 Remember to always back up your configuration and be prepared to use a serial connection if Wi-Fi connectivity is lost.
