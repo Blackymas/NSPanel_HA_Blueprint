@@ -271,7 +271,9 @@ Users who previously used the NSPanel for single-mode (either heating or cooling
 
 Leveraging the capabilities introduced with the Dual Thermostat Controller add-on, the existing climate page has been upgraded to support systems with dual temperature settings.
 This enhancement allows users to effectively manage thermostats that require both heating and cooling target temperatures, directly from the NSPanel's interface.
-While originally developed to complement the new add-on, this refined climate page also seamlessly extends its functionality to existing thermostats with dual set capabilities, offering a more versatile and comprehensive climate control experience.
+While originally developed to complement the new add-on,
+this refined climate page also seamlessly extends its functionality to existing thermostats with dual set capabilities,
+offering a more versatile and comprehensive climate control experience.
 
 ### 15. Enhanced timeout flexibility for Sleep, Page fallback, and Dimming settings
 
@@ -282,7 +284,8 @@ This enhancement allows for a wider range of use cases, catering to the needs of
 ### 16. Display time on the `screensaver` page
 
 In this release, we're excited to introduce a new feature that adds a display time function to the Screensaver page.
-With this update, our screensaver not only serves its primary purpose of saving screen energy but also doubles as an informative display, reflecting our commitment to creating practical, user-friendly solutions.
+With this update, our screensaver not only serves its primary purpose of saving screen energy but also doubles as an informative display,
+reflecting our commitment to creating practical, user-friendly solutions.
 
 You can enable this feature on the bueprint settings, at the **CUSTOM CONFIGURATION** section (almost at the end).
 You also have to set **Display Brightness Sleep** at the device's page (**Settings** > **Devices & Services** > **ESPHome**).
