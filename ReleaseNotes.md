@@ -254,7 +254,7 @@ This new add-on enables the NSPanel to manage both heating and cooling systems s
 - **Efficiency:** With the ability to control both heating and cooling systems, the NSPanel can more effectively maintain desired temperatures, potentially leading to energy savings.
 - **User Experience:** This update simplifies the user interface by integrating control of both systems into one panel, making it easier to manage home climate.
 
-#### Implementation Details:
+#### Implementation Details
 
 - The dual thermostat controller functionality allows the NSPanel to utilize both of its relays for separate heating and cooling control.
 
@@ -262,29 +262,36 @@ This new add-on enables the NSPanel to manage both heating and cooling systems s
 - The update is designed to be intuitive and user-friendly, ensuring a seamless transition for existing NSPanel users.
 - Additional Documentation: For detailed instructions and configurations, refer to the updated [add-on climate documentation](docs/addon_climate.md).
 
-#### Note to Users:
+#### Note to Users
 
-This feature enhances the capabilities of the NSPanel without compromising its existing functionalities. Users who previously used the NSPanel for single-mode (either heating or cooling) control can now explore dual-mode options for a more comprehensive climate control solution.
+This feature enhances the capabilities of the NSPanel without compromising its existing functionalities.
+Users who previously used the NSPanel for single-mode (either heating or cooling) control can now explore dual-mode options for a more comprehensive climate control solution.
 
 ### 14. Enhanced Climate Page for Dual Thermostat Control
 
-Leveraging the capabilities introduced with the Dual Thermostat Controller add-on, the existing climate page has been upgraded to support systems with dual temperature settings. This enhancement allows users to effectively manage thermostats that require both heating and cooling target temperatures, directly from the NSPanel's interface. While originally developed to complement the new add-on, this refined climate page also seamlessly extends its functionality to existing thermostats with dual set capabilities, offering a more versatile and comprehensive climate control experience.
+Leveraging the capabilities introduced with the Dual Thermostat Controller add-on, the existing climate page has been upgraded to support systems with dual temperature settings.
+This enhancement allows users to effectively manage thermostats that require both heating and cooling target temperatures, directly from the NSPanel's interface.
+While originally developed to complement the new add-on, this refined climate page also seamlessly extends its functionality to existing thermostats with dual set capabilities, offering a more versatile and comprehensive climate control experience.
 
 ### 15. Enhanced timeout flexibility for Sleep, Page fallback, and Dimming settings
 
-We have improved the functionality of our system by enhancing the timeout flexibility for Sleep, Page Fallback, and Dimming settings. The previous timeout limit of 300 seconds has been significantly expanded, offering users more control and customization options for these specific features. This enhancement allows for a wider range of use cases, catering to the needs of those who require extended periods for these settings, while still maintaining the option for shorter durations.
+We have improved the functionality of our system by enhancing the timeout flexibility for Sleep, Page Fallback, and Dimming settings.
+The previous timeout limit of 300 seconds has been significantly expanded, offering users more control and customization options for these specific features.
+This enhancement allows for a wider range of use cases, catering to the needs of those who require extended periods for these settings, while still maintaining the option for shorter durations.
 
 ### 16. Display time on the `screensaver` page
 
-In this release, we're excited to introduce a new feature that adds a display time function to the Screensaver page. With this update, our screensaver not only serves its primary purpose of saving screen energy but also doubles as an informative display, reflecting our commitment to creating practical, user-friendly solutions.
+In this release, we're excited to introduce a new feature that adds a display time function to the Screensaver page.
+With this update, our screensaver not only serves its primary purpose of saving screen energy but also doubles as an informative display, reflecting our commitment to creating practical, user-friendly solutions.
 
-You can enable this feature on the bueprint settings, at the **CUSTOM CONFIGURATION** section (almost at the end). You also have to set **Display Brightness Sleep** at the device's page (**Settings** > **Devices & Services** > **ESPHome**).
+You can enable this feature on the bueprint settings, at the **CUSTOM CONFIGURATION** section (almost at the end).
+You also have to set **Display Brightness Sleep** at the device's page (**Settings** > **Devices & Services** > **ESPHome**).
 
 ## What's Next?
 
 Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=due_date)
 
-## Special thanks to:
+## Special thanks to
 
 - @bluefoxlee - For the CJK fonts and all the support with #1359.
 - @Floppe - Fix entity pages labels, #1455
