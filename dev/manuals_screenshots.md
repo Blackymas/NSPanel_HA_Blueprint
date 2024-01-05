@@ -16,12 +16,12 @@ ip_addr.txt="192.168.0.123"
 ```
 
 ![Boot EU](../docs/pics/eu_boot.png)
-<br>
+
 ![Boot US](../docs/pics/us_boot.png)
 
 ## Home page
 
-### EU version
+**EU version:**
 
 ```nextion
 page home
@@ -61,7 +61,7 @@ value03_icon.txt=""
 
 ![Home EU](../docs/pics/eu_home.png)
 
-### US version
+**US version:**
 
 ```nextion
 page home
@@ -152,7 +152,7 @@ button06bri.picc=46
 
 ## Entities pages
 
-### EU version
+**EU version:**
 
 ```nextion
 api=1
@@ -180,7 +180,7 @@ value07.txt="1.84 €/h"
 value07.xcen=2
 ```
 
-### US version
+**US version:**
 
 ```nextion
 api=1
