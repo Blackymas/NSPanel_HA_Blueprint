@@ -114,12 +114,8 @@ The new firmware will be built and then flashed to your panel, which will restar
 The display can be updated via the UI:
 
 1. Go to ***Settings --> Devices & Services --> Integrations*** , select the display under the ESPHome integration.
-
 2. Press the switch "Update TFT Display" under Configuration.
-
 3. The display starts the update process and then restarts.
-
-   ![DisplayUpdate](./(DE)-HowTo---Alle-wichtigen-Dinge-die-man-wissen-sollte.assets/DisplayUpdate.PNG)
 
 ## Notification via HA
 
@@ -186,7 +182,7 @@ climate:
     precision: 0.1
 ```
 
-Afterwards, the climate.entity must be assigned accordingly in the panel configuration:![climate](./(DE)-HowTo---Alle-wichtigen-Dinge-die-man-wissen-sollte.assets/climate.PNG)
+Afterwards, the climate.entity must be assigned accordingly in the panel configuration.
 
 ## Call a page directly
 
@@ -241,9 +237,9 @@ Although the NSPanel can execute scripts directly over the buttons, there is als
 For this, a helper must first be created under ***Settings --> Devices&Services --> Helpers***, see here: 
 https://www.home-assistant.io/integrations/input_boolean/![Toggle1](./(EN)-HowTo---All-important-thing-you-should-know.assets/Toggle1.PNG)
 
-Now add the created Input_Boolean as a trigger in the desired automation under State:![Toggle2](./(DE)-HowTo---Alle-wichtigen-Dinge-die-man-wissen-sollte.assets/Toggle2.PNG)
+Now add the created Input_Boolean as a trigger in the desired automation under State.
 
-In the last step, assign the trigger to a button in the Panel Config:![Toggle3](./(DE)-HowTo---Alle-wichtigen-Dinge-die-man-wissen-sollte.assets/Toggle3.PNG)
+In the last step, assign the trigger to a button in the Panel Config.
 
 ## Updating Wi-Fi settings and OTA Passwords in ESPHome with This Project
 

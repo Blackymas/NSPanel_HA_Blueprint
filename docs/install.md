@@ -5,7 +5,7 @@ Whether you're a first-time smart device user or an enthusiast looking to person
 
 > [!NOTE]  
 > Some images or instructions on this guide might be slighly different due to different configurations depending on your ESPHome and Home Assistant implementation or versions.<br>
-> If you find something that is not understandable or needs to be updated, please let us know. You can create an issue reporting this, or fix it yourself and submit a [Pull Request](/Blackymas/NSPanel_HA_Blueprint/pulls) to this repository.
+> If you find something that is not understandable or needs to be updated, please let us know. You can create an issue reporting this, or fix it yourself and submit a [Pull Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/pulls) to this repository.
 
 ## Summary
 - [Preparation](#preparation)
@@ -162,7 +162,7 @@ The installation in a NSPanel with Sonoff's original firmware should be straighf
 If you have already installed on your NSPanel the "nspanel-lovelace-ui" firmware from @joBr99 or from Tasmota, an [intermediate step](lovelace_ui.md) is necessary. Please execute that first before returning here.
 
 #### Other
-Please try the standard process and if you find any issue, please [create a new issue](/Blackymas/NSPanel_HA_Blueprint/issues) and inform which custom firmware you have installed before migrating to NSPanel HA Blueprint.
+Please try the standard process and if you find any issue, please [create a new issue](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues) and inform which custom firmware you have installed before migrating to NSPanel HA Blueprint.
 
 ## Upload TFT
 ##### Pending: 
@@ -229,7 +229,7 @@ For homes with multiple panels:
 > [!WARNING]
 > Customizations and advanced mode are not supported by this project's team. Use them with caution and only if you have the necessary expertise.
 
-Before customizing your system, we encourage you to share any enhancements you make. Consider creating a [Pull Request](/Blackymas/NSPanel_HA_Blueprint/pulls) to the `dev` branch to share your discoveries with the community.
+Before customizing your system, we encourage you to share any enhancements you make. Consider creating a [Pull Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/pulls) to the `dev` branch to share your discoveries with the community.
 
 ### ESPHome
 
@@ -275,7 +275,7 @@ For guidance on using Nextion, refer to:
 > [!TIP]
 > For troubleshooting TFT transfer issues, consult our [TFT Transfer Troubleshooting Guide](tft_upload.md) first.
 
-If problems persist after troubleshooting, visit the [Issues](/Blackymas/NSPanel_HA_Blueprint/issues) page. Feel free to create a new issue for personalized assistance, providing details such as:
+If problems persist after troubleshooting, visit the [Issues](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues) page. Feel free to create a new issue for personalized assistance, providing details such as:
 1. A description or picture of what is displayed on your screen.
 2. Information on whether you are updating from a previous version of this project, migrating from another NSPanel customization, or customizing a panel with the original Sonoff settings.
 3. ESPHome logs from the start of your panel to the point where the upload fails.
