@@ -8,7 +8,7 @@ If you are coming from there, you have to chose one of the 3 options:
 - [Upload TFT using **NsPanel Lovelace UI** tools - Tasmota version](#upload-tft-using-nspanel-lovelace-ui-tools---tasmota-version)
 - [Upload TFT using this project's tools](#upload-tft-using-this-projects-tools)
 
-### Common steps
+## Updating TFT
 
 1. Download the file [`nspanel_blank.tft`](../nspanel_blank.tft) from our GitHub repository.
 2. Upload the same file (`nspanel_blank.tft`) to the folder _**"www"**_ in your Home Assistant
@@ -18,15 +18,17 @@ If you are coming from there, you have to chose one of the 3 options:
 
 After following the [**Common steps**](#common-steps), follow the additional steps:
 
-4. On Home Assistant, go to _**"Developer tools --> Services"**_ and search there for the service named "**ESPHome: DEVICE_NAME_upload_tft**" or `esphome.<<device_name>>_upload_tft`.
-5. On the field `URL`, enter the url for your local `nspanel_blank.tft` file (typically `http://homeassistant.local:8123/local/nspanel_blank.tft`).
-6. Press the button **CALL SERVICE**
+1. On Home Assistant, go to _**"Developer tools --> Services"**_ and search there for the service named "**ESPHome: DEVICE_NAME_upload_tft**" or `esphome.<<device_name>>_upload_tft`.
+2. On the field `URL`, enter the url for your local `nspanel_blank.tft` file (typically `http://homeassistant.local:8123/local/nspanel_blank.tft`).
+3. Press the button **CALL SERVICE**
 
 If everything goes right, you will see the progress bar indicating the file transfer an you will end up with a black screen showing a QR code. Then please follow the instructions from [here](nspanel_blank.md#what-to-do-after-installing-nspanel_blanktft).
 
 ### Upload TFT using **NsPanel Lovelace UI** tools - Tasmota version
 
-After following the [**Common steps**](#common-steps), use the instructions from [**NsPanel Lovelace UI** - Flash Firmware to Nextion Screen](https://docs.nspanel.pky.eu/stable/prepare_nspanel/#flash-firmware-to-nextion-screen) website to upload TFT, just replacing the file url by the one you have locally (typically `http://homeassistant.local:8123/local/nspanel_blank.tft`).
+After following the [**Common steps**](#common-steps),
+use the instructions from [**NsPanel Lovelace UI** - Flash Firmware to Nextion Screen](https://docs.nspanel.pky.eu/stable/prepare_nspanel/#flash-firmware-to-nextion-screen) website to upload TFT,
+just replacing the file url by the one you have locally (typically `http://homeassistant.local:8123/local/nspanel_blank.tft`).
 
 If everything goes right, you will see the progress bar indicating the file transfer an you will end up with a black screen showing a QR code. Then please follow the instructions from [here](nspanel_blank.md#what-to-do-after-installing-nspanel_blanktft).
 
@@ -36,17 +38,17 @@ If you have already installed the ESPHome firmware from this project, this is pr
 
 After following the [**Common steps**](#common-steps), follow the additional steps:
 
-4. On your panel's screen showing a ring and a message "Wait for content...", click 9 times in the center of the ring.
+1. On your panel's screen showing a ring and a message "Wait for content...", click 9 times in the center of the ring.
 
     ![Lovelace Startup page](pics/lovelace-ui_startup.png)
-5. You should get to this page:
+2. You should get to this page:
 
     ![Lovelace Test page](pics/lovelace-ui_pageTest.png)
-6. Click on the button "disable recmod"
-7. Click on the button "bauds=115200"
-4. On Home Assistant, go to _**"Developer tools --> Services"**_ and search there for the service named "**ESPHome: DEVICE_NAME_upload_tft**" or `esphome.<<device_name>>_upload_tft`.
-5. On the field `URL`, enter the url for your local `nspanel_blank.tft` file (typically `http://homeassistant.local:8123/local/nspanel_blank.tft`).
-6. Press the button **CALL SERVICE**
+3. Click on the button "disable recmod"
+4. Click on the button "bauds=115200"
+5. On Home Assistant, go to _**"Developer tools --> Services"**_ and search there for the service named "**ESPHome: DEVICE_NAME_upload_tft**" or `esphome.<<device_name>>_upload_tft`.
+6. On the field `URL`, enter the url for your local `nspanel_blank.tft` file (typically `http://homeassistant.local:8123/local/nspanel_blank.tft`).
+7. Press the button **CALL SERVICE**
 
 If everything goes right, you will see the progress bar indicating the file transfer an you will end up with a black screen showing a QR code. Then please follow the instructions from [here](nspanel_blank.md#what-to-do-after-installing-nspanel_blanktft).
 
