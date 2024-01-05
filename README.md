@@ -208,15 +208,14 @@ A huge thank you to everyone who has contributed to making this project a realit
 
 And special thanks for the other projects which inspired us:
 
-- Hellis81: https://github.com/Hellis81/NS-panel
-- Jimmyboy83: https://github.com/Jimmyboy83/nspanel
-- joBr99: https://github.com/joBr99/Generate-HASP-Fonts
-- lovejoy77: https://github.com/lovejoy777/NSpanel
-- Marcfager:  https://github.com/marcfager/nspanel-mf
-- Masto: https://github.com/masto/NSPanel-Demo-Files
-- sairon: https://github.com/sairon/esphome-nspanel-lovelace-ui
-- SmartHome Yourself: https://www.youtube.com/c/SmarthomeyourselfDe_DIY
-
+- [Hellis81](https://github.com/Hellis81/NS-panel)
+- [Jimmyboy83](https://github.com/Jimmyboy83/nspanel)
+- [joBr99](https://github.com/joBr99/Generate-HASP-Fonts)
+- [lovejoy77](https://github.com/lovejoy777/NSpanel)
+- [Marcfager](https://github.com/marcfager/nspanel-mf)
+- [Masto](https://github.com/masto/NSPanel-Demo-Files)
+- [sairon](https://github.com/sairon/esphome-nspanel-lovelace-ui)
+- [SmartHome Yourself](https://www.youtube.com/c/SmarthomeyourselfDe_DIY)
 
 ## 💖 Donations
 
