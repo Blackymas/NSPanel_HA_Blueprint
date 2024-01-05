@@ -281,14 +281,3 @@ Please share as much info as possible, like:
 
 ## Important note
 Remember, these steps are a guideline and might vary slightly based on your specific setup and previously installed system.
-
-
-
-===================================== TO BE REMOVED =====================================
-
-
-#### 7. After the NSPanel is flashed, you can go to _**"Settings --> Devices & Services --> Add Integration"**_ to add your new device and finish setting it up.
-
-#### 8. In the last step, only the TFT must be uploaded. To do this, open your new device in the ESPHome integration and activate the item _**"Update TFT display "**_ under _**"Configuration"**_. Now the current TFT file is loaded from local Home Assistant Server or GitHub and uploaded to your NSPanel. _**ATTENTION!**_ This process will take up to 30 minutes.
-
-&nbsp; 
