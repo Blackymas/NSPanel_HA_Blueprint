@@ -88,7 +88,7 @@ esp32:
 
 
 ## Additional Tips and Resources
-After troubleshooting, if issues persist, consult the [Issues](/Blackymas/NSPanel_HA_Blueprint/issues) and feel free to create a new one asking for more personalized assistance.
+After troubleshooting, if issues persist, consult the [Issues](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues) and feel free to create a new one asking for more personalized assistance.
 
 Please share as much info as possible, like:
 1. Describing (or a picture of) what is in your screen
