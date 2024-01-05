@@ -282,5 +282,5 @@ Please share as much info as possible, like:
 3. Please share the ESPHome logs from when your panel starts to the moment the upload fails.
 4. Describe what you have already tried.
 
-## :exclamation: Important note
+## Important note
 Remember, these steps are a guideline and might vary slightly based on your specific setup and previously installed system.
