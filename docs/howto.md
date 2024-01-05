@@ -33,11 +33,11 @@ Copy the complete code and attach it to the ticket
 * An important "helper" for solving problems is the trace of an automation.
 You can find the trace under _**Settings --> Automations & Scenes --> your NSPanel automation --> Traces (top right)**_
 
+<!-- markdownlint-disable MD027 -->
 > [!NOTE]
 > TRACES! Please execute again what does not work and open the trace immediately afterwards.
 > Often you have to open the trace after the reboot too.
 > During the start up, most things are loaded.
-
 
 > [!IMPORTANT]  
 > In the trace you can see by the _**"orange "**_ lines which way the automation has gone.
@@ -45,10 +45,10 @@ You can find the trace under _**Settings --> Automations & Scenes --> your NSPan
 > Also, please take one or more screenshots and add them to your ticket.
 > Especially important for us is where the _**"Orange "**_ line ends, because most of the time this is also where the problem is.
 
-
 > [!IMPORTANT]  
 > When you have opened the trace, there is a _**"timestamp "**_ at the top.
 > It is important that you select the correct timestamp.
+<!-- markdownlint-enable MD027 -->
 
 ### Example trace after reboot
 
