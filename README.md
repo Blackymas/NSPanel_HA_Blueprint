@@ -58,7 +58,7 @@ This innovative solution is designed to revolutionize how you interact with your
 ### Home
 
 ![Home EU](docs/pics/eu_home.png)
-<br>
+
 ![Home US](docs/pics/us_home.png)
 
 - Current weather with button to Weather Forcast page
@@ -82,13 +82,13 @@ This innovative solution is designed to revolutionize how you interact with your
 - Button labels can be assigned via blueprint
 - All buttons feature a long-press function
 - Automatic detection of light, cover, fan, media player, alarm or climate entities for submenus through long press
-- Swipe between all pages 
+- Swipe between all pages
 - Swipe up and down for quick access to specific pages
 
 ### Entities Pages
 
 ![Entities EU](docs/pics/eu_entities.png)
-<br>
+
 ![Entities US](docs/pics/us_entities.png)
 
 - Up to 8 entities per page, across 4 different pages, totaling 32 entities
@@ -118,7 +118,7 @@ This innovative solution is designed to revolutionize how you interact with your
 
 ### Thermostat / Climate
 
-- Target temperature control slider 
+- Target temperature control slider
 - Current temperature
 - 4 user's selectable values (for water and external temperatures, etc.)
 - All the standard climate controls from Home Assistant (`heat`, `fan`, `cool`, `auto`, `dry`)
@@ -161,6 +161,7 @@ This innovative solution is designed to revolutionize how you interact with your
 - Display dim brightness slider
 
 ### Boot
+
 ![Boot EU](docs/pics/eu_boot.png)
 
 ![Boot US](docs/pics/us_boot.png)
@@ -171,11 +172,13 @@ This innovative solution is designed to revolutionize how you interact with your
 
 On the device's page under "Devices & Services" you can set the global configuration of your device and see the value of it's sensors and relays:
 
-![Device Setting - Controls](docs/pics/ha_device_controls.png)<br>
-![Device Setting - Sensors](docs/pics/ha_device_sensors.png)<br>
+![Device Setting - Controls](docs/pics/ha_device_controls.png)
+
+![Device Setting - Sensors](docs/pics/ha_device_sensors.png)
+
 ![Device Setting - Configuration](docs/pics/ha_device_configuration.png)
 
-![Device Setting - Diagnostic](docs/pics/ha_device_diagnostic.png)<br>
+![Device Setting - Diagnostic](docs/pics/ha_device_diagnostic.png)
 
 ## Automation (Blueprint)
 
@@ -185,7 +188,6 @@ In your automations you use the blueprint's inputs to define what will be shown 
 ![Blueprint 03](docs/pics/ha_blueprint_03.png)
 ![Blueprint 04](docs/pics/ha_blueprint_04.png)
 ![Blueprint 05](docs/pics/ha_blueprint_05.png)
-
 
 ## 🚀 Contributing
 
@@ -205,6 +207,7 @@ Join our vibrant community! Whether you're seeking support, wanting to contribut
 A huge thank you to everyone who has contributed to making this project a reality. Your support, feedback, and contributions have been invaluable.
 
 And special thanks for the other projects which inspired us:
+
 - Hellis81: https://github.com/Hellis81/NS-panel
 - Jimmyboy83: https://github.com/Jimmyboy83/nspanel
 - joBr99: https://github.com/joBr99/Generate-HASP-Fonts
