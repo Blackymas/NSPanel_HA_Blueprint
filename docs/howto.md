@@ -208,33 +208,107 @@ climate:
 
 Afterwards, the climate.entity must be assigned accordingly in the panel configuration.
 
-## Call a page directly
+## Call a Page Directly
 
-Sometimes it can make sense to automatically show a certain side of the display.
-To do this, the following service can be used:
+In user-created automations within Home Assistant, there are scenarios where you might want to automatically display a specific page on your device's screen.
+The following services enable this functionality:
+
+### Basic Pages
+
+To open a specific page, you can utilize the `esphome.xxxxxx_send_command_printf` service.
+Here's an example that demonstrates how to open the `home` page:
 
 ```yaml
-service: esphome.nspanel_send_command_printf
+service: esphome.xxxxx_send_command_printf
 data:
   cmd: page home
 ```
 
-For example, to directly display button page 2, "home" must be replaced with "buttonpage02".
+Currently, the following pages can be accessed using this method:
 
-The following pages are currently available for a direct call:
+- `buttonpage01`
+- `buttonpage02`
+- `buttonpage03`
+- `buttonpage04`
+- `entitypage01`
+- `entitypage02`
+- `entitypage03`
+- `entitypage04`
+- `home`
+- `qrcode`
+- `screensaver`
 
-  - alarm
-  - buttonpage01
-  - buttonpage02
-  - buttonpage03
-  - buttonpage04
-  - climate
-  - entitypage01
-  - entitypage02
-  - entitypage03
-  - entitypage04
-  - home
-  - qrcode
+For instance, to directly navigate to button page 2, replace `home` in the command with `buttonpage02`:
+
+```yaml
+service: esphome.xxxxx_send_command_printf
+data:
+  cmd: page buttonpage02
+```
+
+### Entity-Specific Pages
+
+For entity-specific pages, a more detailed call is required as it involves specifying the entity.
+You can use the service `esphome.xxxxx_open_entity_settings_page` as shown in the following example:
+
+```yaml
+service: esphome.xxxxx_open_entity_settings_page
+data:
+  page: climate
+  page_label: My thermostat
+  page_icon: \uE237
+  page_icon_color:
+    - 255
+    - 0
+    - 0
+  entity: climate.my_thermostat
+  back_page: home
+```
+
+The required parameters for this service are as follows:
+
+- **page**: The page to be opened, typically the same as the domain of the entity (e.g., `climate`, `cover`, `light`).
+- **page_label**: The title of the page, usually the friendly name of the entity.
+- **page_icon**: The UTF-8 code for the icon to be displayed at the top left of the page.
+Supported icons are listed on the [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) page.
+The code is a 4-character hex string found near the icon in the list. Prefix the icon code with `\u` to indicate it's a UTF-8 hex code.
+- **page_icon_color**: An RGB array with values from 0 to 255 for red, green, and blue.
+ESPHome automatically converts this array to a [16-bit RGB (RGB565)](https://en.wikipedia.org/wiki/List_of_monochrome_and_RGB_color_formats#16-bit_RGB_(also_known_as_RGB565)) format, which may lead to some color distortion.
+- **entity**: The `entity_id` from Home Assistant for the relevant entity.
+- **back_page**: The page to return to when the detailed page is manually closed or after a page timeout.
+Only [Basic pages](#basic-pages) are supported.
+
+### Notification Page
+
+To display the notification page, use the `esphome.xxxxx_notification_show` service as shown below:
+
+```yaml
+service: esphome.xxxxx_notification_show
+data:
+  label: "Notification title"
+  message: "Attention! This is a placeholder for your notification message."
+```
+
+### Wake-up Page
+
+You may have configured a specific **Wake-up page** on your device. This page is automatically displayed after the device boots up or wakes up from sleep mode (such as the `screensaver` page). To open this page, you have two options:
+
+1. Directly call the page if it is one of the [Basic pages](#basic-pages).
+2. Use the `esphome.xxxxx_wake_up` service as follows:
+
+   ```yaml
+   service: esphome.xxxxx_wake_up
+   data:
+     reset_timer: true
+   ```
+
+    The `reset_timer` parameter allows you to control the **Timeout sleep timer**.
+    Setting it to `true` resets the timer, while `false` continues counting down from the current value.
+
+The **Wake-up** service differs from a normal page call in that it only opens the wake-up page if the panel is in sleep mode.
+If the panel is already active, the current page remains displayed.
+This feature is particularly useful in conjunction with a motion sensor to wake up your panel automatically.
+By repeatedly calling this service whenever motion is detected, the panel can be either woken up or have its sleep timeout timer reset (if `reset_timer` is set to `true`).
 
 ## Play RTTTL Sound
 
