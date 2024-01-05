@@ -33,7 +33,7 @@ Copy the complete code and attach it to the ticket
 * An important "helper" for solving problems is the trace of an automation.
 You can find the trace under _**Settings --> Automations & Scenes --> your NSPanel automation --> Traces (top right)**_
 
-<!-- markdownlint-disable MD027 -->
+<!-- markdownlint-disable MD028 -->
 > [!NOTE]
 > TRACES! Please execute again what does not work and open the trace immediately afterwards.
 > Often you have to open the trace after the reboot too.
@@ -48,7 +48,7 @@ You can find the trace under _**Settings --> Automations & Scenes --> your NSPan
 > [!IMPORTANT]  
 > When you have opened the trace, there is a _**"timestamp "**_ at the top.
 > It is important that you select the correct timestamp.
-<!-- markdownlint-enable MD027 -->
+<!-- markdownlint-enable MD028 -->
 
 ### Example trace after reboot
 
