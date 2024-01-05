@@ -10,11 +10,11 @@ Understanding what is shown on the boot page can be useful to find the cause of 
 
 Your boot page probably looks like this:
 
-#### Before ESPHome is connected
+**Before ESPHome is connected:**
 
 ![Boot page Initializing](pics/eu_boot_initializing.png)
 
-#### When ESPHome is connected
+**When ESPHome is connected:**
 
 ![Boot page with IP](pics/eu_boot_with_ip_address.png)
 
@@ -68,12 +68,14 @@ You can use this button to force a reboot of your panel. This button is availabl
 
 **Symptoms:** The ESPHome version is shown, but not the blueprint version.
 
+<!-- markdownlint-disable MD013 MD033 -->
 | Possible causes | Suggestions |
 | :-- | :-- |
 | You may have an older version of the blueprint installed or the blueprint isn't installed into your Home Assistant. | [Install the blueprint](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBlackymas%2FNSPanel_HA_Blueprint%2Fblob%2Fmain%2Fnspanel_blueprint.yaml).<br>[Update the blueprint](howto.md#update-blueprint).|
 | You don't have an automation created using the blueprint. | On Home Assistant, go to **Settings** --> **Automations & Scenes** --> **Blueprints** --> **NSPanel Configuration** --> **CREATE AUTOMATION** and follow the [instructions to setup your automation](blueprint.md).<br>**Attention!!** You need one automation per panel, if you have more than one panel set. |
 | Your panel is not selected in the automation. | Open the automation related to your panel and make sure the right device is set on the **NSPanel device** field. |
 | Reconnect the Panel's device to Home Assistant. | 1. Go to **Settings** --> **Devices & Services** --> **ESPHome**<br>2. Delete the device<br>3. Restart Home Assistant host<br>4. Go back to **Settings** --> **Devices & Services**<br>5. Click **Add integration**<br>6. Select **ESPHome**<br>7. Enter your panel's hostname or IP address.|
+<!-- markdownlint-enable MD013 MD033 -->
 
 ## Additional Tips and Resources
 
