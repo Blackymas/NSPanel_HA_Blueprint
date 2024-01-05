@@ -3,6 +3,7 @@
 Please select "Instruction codes: utf-8" in the Nextion simulator
 
 ### Boot page
+
 ```
 page boot
 baud_rate.txt="115200 bps"
@@ -19,7 +20,9 @@ ip_addr.txt="192.168.0.123"
 ![Boot US](../docs/pics/us_boot.png)
 
 ### Home page
+
 #### EU version
+
 ```
 page home
 date.txt="Sunday, 29/11"
@@ -55,9 +58,11 @@ button03.txt=""
 value03_state.txt="715 W"
 value03_icon.txt=""
 ```
+
 ![Home EU](../docs/pics/eu_home.png)
 
 #### US version
+
 ```
 page home
 meridiem.txt="PM"
@@ -94,9 +99,11 @@ button03.txt=""
 value03_state.txt="715 W"
 value03_icon.txt=""
 ```
+
 ![Home US](../docs/pics/us_home.png)
 
 ### Settings page
+
 ```
 page settings
 ```
@@ -104,8 +111,8 @@ page settings
 ![Settings EU](../docs/pics/eu_settings.png)
 ![Settings US](../docs/pics/us_settings.png)
 
-
 ### Buttons pages (DRAFT)
+
 ```
 api=1
 page buttonpage01
@@ -144,7 +151,9 @@ button06bri.picc=46
 ```
 
 ### Entities pages
+
 #### EU version
+
 ```
 api=1
 page entitypage01
@@ -170,7 +179,9 @@ value07_label.txt="Electricity cost rate"
 value07.txt="1.84 €/h"
 value07.xcen=2
 ```
+
 #### US version
+
 ```
 api=1
 page entitypage01
@@ -198,6 +209,7 @@ value07.xcen=2
 ```
 
 ### Sensor page (mockup)
+
 ```
 api=1
 page notification
