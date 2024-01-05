@@ -9,6 +9,7 @@ If you are coming from there, you have to chose one of the 3 options:
 - [Upload TFT using this project's tools](#upload-tft-using-this-projects-tools)
 
 ### Common steps
+
 1. Download the file [`nspanel_blank.tft`](../nspanel_blank.tft) from our GitHub repository.
 2. Upload the same file (`nspanel_blank.tft`) to the folder _**"www"**_ in your Home Assistant
 3. Double check if the file is available by trying to download it using your local url (typically [`http://homeassistant.local:8123/local/nspanel_blank.tft`](http://homeassistant.local:8123/local/nspanel_blank.tft)).
@@ -35,8 +36,12 @@ If you have already installed the ESPHome firmware from this project, this is pr
 
 After following the [**Common steps**](#common-steps), follow the additional steps:
 
-4. On your panel's screen showing a ring and a message "Wait for content...", click 9 times in the center of the ring.<br>![Lovelace Startup page](pics/lovelace-ui_startup.png)
-5. You should get to this page:<br>![Lovelace Test page](pics/lovelace-ui_pageTest.png)
+4. On your panel's screen showing a ring and a message "Wait for content...", click 9 times in the center of the ring.
+
+    ![Lovelace Startup page](pics/lovelace-ui_startup.png)
+5. You should get to this page:
+
+    ![Lovelace Test page](pics/lovelace-ui_pageTest.png)
 6. Click on the button "disable recmod"
 7. Click on the button "bauds=115200"
 4. On Home Assistant, go to _**"Developer tools --> Services"**_ and search there for the service named "**ESPHome: DEVICE_NAME_upload_tft**" or `esphome.<<device_name>>_upload_tft`.
@@ -45,11 +50,11 @@ After following the [**Common steps**](#common-steps), follow the additional ste
 
 If everything goes right, you will see the progress bar indicating the file transfer an you will end up with a black screen showing a QR code. Then please follow the instructions from [here](nspanel_blank.md#what-to-do-after-installing-nspanel_blanktft).
 
-
 ## Additional Tips and Resources
+
 We have an useful guide for [troubleshooting TFT transfer issues](tft_upload.md). Please take a look there first.
 
-After troubleshooting, if issues persist, consult the [Issues](/Blackymas/NSPanel_HA_Blueprint/issues) and feel free to create a new one asking for more personalized assistance.
+After troubleshooting, if issues persist, consult the [Issues](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues) and feel free to create a new one asking for more personalized assistance.
 
 Please share as much info as possible, like:
 1. Describing (or a picture of) what is in your screen
@@ -58,4 +63,5 @@ Please share as much info as possible, like:
 4. Describe what you have already tried.
 
 ## Important note
+
 Remember, these steps are a guideline and might vary slightly based on your specific setup and previously installed system.
