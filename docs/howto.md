@@ -224,7 +224,7 @@ Here is an example:
 The Simpsons:d=4,o=5,b=160:c.6,e6,f#6,8a6,g.6,e6,c6,8a,8f#,8f#,8f#,2g,8p,8p,8f#,8f#,8f#,8g,a#.,8c6,8c6,8c6,c6
 ```
 
-![image-20230320222454441](./assets/image-20230320222454441.png)
+![image-20230320222454441](pics/image-20230320222454441.png)
 
 More information: https://esphome.io/components/rtttl.html#common-beeps
 
@@ -234,8 +234,7 @@ More songs: https://codebender.cc/sketch:109888#RTTTL%20Songs.ino
 
 Although the NSPanel can execute scripts directly over the buttons, there is also the possibility of starting automations directly by the means of Input_Boolean.
 
-For this, a helper must first be created under ***Settings --> Devices&Services --> Helpers***, see here: 
-https://www.home-assistant.io/integrations/input_boolean/![Toggle1](./(EN)-HowTo---All-important-thing-you-should-know.assets/Toggle1.PNG)
+For this, a helper must first be created under ***Settings --> Devices&Services --> Helpers***
 
 Now add the created Input_Boolean as a trigger in the desired automation under State.
 
