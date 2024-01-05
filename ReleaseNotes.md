@@ -103,7 +103,7 @@ We did our best to support your legacy settings and avoid breaking your system, 
     This includes new colors for lights and climate icons, as well as the introduction of new icon designs.
     While many aspects can still be customized through blueprint settings, the default presentation will now adhere to this new standardized format.
     These changes might be a departure from what you're accustomed to in previous versions, but they aim to enhance overall consistency and user experience.
-12. **_Action required:_ Reset your wake-up page selection.**
+12. ***Action required:* Reset your wake-up page selection.**
 
     We've enhanced the wake-up page functionality for improved consistency after power cycles.
     Previously, the system didn't remember your selection following a power outage. With our latest update, this issue has been resolved.
@@ -171,9 +171,9 @@ You will find 3 new TFT files on the repository for the CJK languages. These fil
 #### TFT file selectors
 
 We still working on the Upload TFT engine to make it easier for new and for experienced users.
-Now, together with the **Update TFT Display** button, you will find also **Update TFT Display - Model** and **Update TFT Display - Branch** (disabled by default) where you can select the different model you are
-using and the upload URL will be automatically adjusted to donwload the file directly from the repository on GitHub, making this process much
-easier and removing the need of flashing your device every time you want to play with another TFT file or install the `nspanel_blank.tft`.
+Now, together with the **Update TFT Display** button, you will find also **Update TFT Display - Model** and **Update TFT Display - Branch** (disabled by default)
+where you can select the different model you are using and the upload URL will be automatically adjusted to donwload the file directly from the repository on GitHub,
+making this process much easier and removing the need of flashing your device every time you want to play with another TFT file or install the `nspanel_blank.tft`.
 
 ![HA Blueprint - Update TFT controls](docs/pics/ha_blueprint_upload_tft_controls.png)
 
@@ -186,13 +186,13 @@ And you also can use the `esphome.xxxxx_upload_tft_url` service to upload using 
 You can select an alternative baud rate for your TFT uploads.
 This allows faster TFT uploads and also supports displays previously set with baud rates not supported by this project (currently 115200 bps and 921600 bps).
 
-
 In most cases, this would be set for a higher value to enable faster TFT transfer.
 The default is 921600 bps, the maximum supported by Nextion displays.
 
 You can also use this if you have issues with TFT transfer and want to try a lower baud rate as in some rare cases Nextion will automatically set itself to 9600 bps.
 
 To enable an alternative upload TFT baud rate, add the desired value in your substitutions like this:
+
 ```yaml
   upload_tft_baud_rate: "9600"
 ```
@@ -226,14 +226,16 @@ You can now navigate to button pages from the screensaver while your panel is in
 
 ### 12. Enhanced control for automation entities on buttons
 
-We're pleased to announce a new feature that offers users enhanced control over their smart home setups. Now, you can globally select between **Toggle** and **Trigger** actions for button presses on automation entities. This update allows for a more personalized and efficient control experience, tailored to your unique preferences.
+We're pleased to announce a new feature that offers users enhanced control over their smart home setups.
+Now, you can globally select between **Toggle** and **Trigger** actions for button presses on automation entities.
+This update allows for a more personalized and efficient control experience, tailored to your unique preferences.
 
-#### Key features:
+#### Key features
 
 - **Toggle:** This action will enable or disable the automation. It is set as the default option.
 - **Trigger:** This action will execute the automation regardless of its current state, providing more flexibility.
 
-#### How to use:
+#### How to use
 
 1. Access your configuration for automation under **Services** > **Automations & Scenes**. Select the automation associated with your panel setup.
 1. Scroll to the **ADVANCED SETTINGS** section at the end.
@@ -242,12 +244,11 @@ We're pleased to announce a new feature that offers users enhanced control over 
 
 This update is specially designed to cater to diverse user needs, ensuring a more intuitive and responsive smart home experience.
 
-
 ### 13. Dual thermostat controller support (add-on)
 
 This new add-on enables the NSPanel to manage both heating and cooling systems simultaneously, utilizing its dual relay functionality.
 
-#### Key Benefits:
+#### Key Benefits
 
 - **Versatility:** Users can now configure their NSPanel to control both a heater and a cooler, offering increased flexibility in home temperature management.
 - **Efficiency:** With the ability to control both heating and cooling systems, the NSPanel can more effectively maintain desired temperatures, potentially leading to energy savings.
