@@ -196,6 +196,7 @@ After importing the Blueprint into Home Assistant, create a new automation using
 5. Name your automation for easy identification and click **Rename**.
    ![image](pics/ha_create_automation_rename.png)
 
+<br>&nbsp;
 > [!TIP]
 > For a comprehensive list of panel settings, refer to the [Blueprint Guide](blueprint.md).
 
