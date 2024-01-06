@@ -1,7 +1,8 @@
 # Troubleshooting TFT transfer
 
 > [!IMPORTANT]  
-> If you have already installed the version "nspanel-lovelace-ui" from joBr99 on your NSPanel, an intermediate step is necessary - otherwise, it is not possible to install this or any other version.
+> If you have already installed the version "nspanel-lovelace-ui" from joBr99 on your NSPanel, an intermediate step is necessary - otherwise,
+> it is not possible to install this or any other version.
 >
 > See [Common Issues | TFT Upload when NSPanel Lovelace UI has been installed](howto.md)
 
@@ -9,6 +10,12 @@
 
 The following is a list of common issues affecting the TFT upload, along with suggested solutions.
 These issues are not specific to the NSPanel HA Blueprint project but are common to Nextion displays and ESPHome.
+
+### Enabling TFT upload components
+If the components necessary for uploading a TFT file are not available in the device's page under **Settings** > **Devices & Services** > **ESPHome**,
+and you cannot simply enable the entity on it's settings, please try removing the device integration from there, restart your Home Assistant instance and then add the device again.
+It should be automatically detected as a new integration, but if this is not happening,
+click the **Add integration** button, select **ESPHome**, add the device hostname or IP address and follow the steps required.
 
 ### Wait a Bit Before Starting the TFT Upload
 
