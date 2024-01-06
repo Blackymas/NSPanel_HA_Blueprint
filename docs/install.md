@@ -1,11 +1,15 @@
 # Getting Started with NSPanel HA Blueprint
-Welcome to this setup guide, a community-driven approach to integrating NSPanel into your smart home. Designed for users at all levels, it combines Home Assistant's user-friendly interface with ESPHome's customization options.
+Welcome to this setup guide, a community-driven approach to integrating NSPanel into your smart home.
+Designed for users at all levels, it combines Home Assistant's user-friendly interface with ESPHome's customization options.
 
-Whether you're a first-time smart device user or an enthusiast looking to personalize your setup, this guide provides the necessary tools and instructions. Let's embark on creating a smart home that's uniquely yours.
+Whether you're a first-time smart device user or an enthusiast looking to personalize your setup, this guide provides the necessary tools and instructions.
+Let's embark on creating a smart home that's uniquely yours.
 
 > [!NOTE]  
-> Some images or instructions on this guide might be slighly different due to different configurations depending on your ESPHome and Home Assistant implementation or versions.<br>
-> If you find something that is not understandable or needs to be updated, please let us know. You can create an issue reporting this, or fix it yourself and submit a [Pull Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/pulls) to this repository.
+> Some images or instructions on this guide might be slighly different due to different configurations depending on your ESPHome and Home Assistant implementation or versions.
+>
+> If you find something that is not understandable or needs to be updated, please let us know.
+> You can create an issue reporting this, or fix it yourself and submit a [Pull Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/pulls) to this repository.
 
 ## Summary
 - [Preparation](#preparation)
@@ -18,13 +22,13 @@ Whether you're a first-time smart device user or an enthusiast looking to person
   - [Updating](#updating)
   - [Migrating from Other Custom Firmware](#migrating-from-other-custom-firmware)
 - [Upload TFT](#upload-tft)
-  - [Selecting the Right File](#selecting-the-right-file)
+  - [Select the Right File](#select-the-right-file)
   - [Uploading to Nextion](#uploading-to-nextion)
   - [Troubleshooting TFT Transfer Issues](#troubleshooting-tft-transfer-issues)
 - [Blueprint](#blueprint)
   - [Importing the Blueprint](#importing-the-blueprint)
   - [Creating an Automation](#creating-an-automation)
-  - [Editing the Settings in Your Automation](#editing-the-settings-in-your-automation)
+  - [Editing Automation Settings](#editing-automation-settings)
 - [How to Handle Multiple Panels](#how-to-handle-multiple-panels)
 - [Advanced Configuration for ESPHome and Home Assistant Experts](#advanced-configuration-for-esphome-and-home-assistant-experts)
 - [Additional Tips and Resources](#additional-tips-and-resources)
@@ -32,19 +36,29 @@ Whether you're a first-time smart device user or an enthusiast looking to person
 ------
 
 ## Preparation
-Start by ensuring you have all the necessary tools and files. This includes your NSPanel device, a stable internet connection, and access to your Home Assistant instance.
+Start by ensuring you have all the necessary tools and files.
+This includes your NSPanel device, a stable internet connection, and access to your Home Assistant instance.
 
-If flashing it for the first time, please look for additional preparation and tools on the [Flashing the device for the first time](#flashing-the-device-for-the-first-time) section later in this guide.
+If flashing it for the first time, please look for additional preparation and tools on the
+[Flashing the device for the first time](#flashing-the-device-for-the-first-time) section later in this guide.
 
 ## ESPHome Firmware
 
 ### Preparing the ESPHome Environment
 
-To flash your NSPanel, ESPHome firmware is required. ESPHome can be integrated into your setup in various ways, including as a Home Assistant add-on or through a local installation on your computer. This guide is based on using the ESPHome dashboard, which is available in all standard implementations.
+To flash your NSPanel, ESPHome firmware is required.
+ESPHome can be integrated into your setup in various ways, including as a Home Assistant add-on or through a local installation on your computer.
+This guide is based on using the ESPHome dashboard, which is available in all standard implementations.
 
-- **Installing ESPHome as a Home Assistant Add-On**: For seamless integration with Home Assistant, ESPHome can be installed as an add-on. This method provides an easy-to-navigate interface and direct integration with your Home Assistant setup. For detailed instructions on this installation method, refer to [Getting Started with ESPHome and Home Assistant](https://esphome.io/guides/getting_started_hassio).
+- **Installing ESPHome as a Home Assistant Add-On**: For seamless integration with Home Assistant, ESPHome can be installed as an add-on.
+This method provides an easy-to-navigate interface and direct integration with your Home Assistant setup.
+For detailed instructions on this installation method, refer to [Getting Started with ESPHome and Home Assistant](https://esphome.io/guides/getting_started_hassio).
 
-- **Manual Installation of ESPHome**: A manual installation on your computer might be preferred if your Home Assistant's host is resource-limited and struggles with compiling ESPHome projects. Standalone installations on a normal computer typically offer faster and more efficient compiling. This method is ideal if you're working with a system that doesn't support Home Assistant add-ons or if you prefer a separate management environment for your ESPHome devices. Detailed steps for a manual installation can be found in the guide [Installing ESPHome Manually](https://esphome.io/guides/installing_esphome.html).
+- **Manual Installation of ESPHome**: A manual installation on your computer might be preferred
+if your Home Assistant's host is resource-limited and struggles with compiling ESPHome projects.
+Standalone installations on a normal computer typically offer faster and more efficient compiling.
+This method is ideal if you're working with a system that doesn't support Home Assistant add-ons or if you prefer a separate management environment for your ESPHome devices.
+Detailed steps for a manual installation can be found in the guide [Installing ESPHome Manually](https://esphome.io/guides/installing_esphome.html).
 
 ### Setting Up a Device on ESPHome Dashboard
 
