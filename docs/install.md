@@ -253,21 +253,17 @@ If you have any questions or need clarification, please reach out to us.
 
 ### Importing the Blueprint
 Importing the blueprint into Home Assistant is a simple process. Just click the button below and follow the steps:
-
+<!-- markdownlint-disable MD013 -->
 [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBlackymas%2FNSPanel_HA_Blueprint%2Fblob%2Fmain%2Fnspanel_blueprint.yaml)
+<!-- markdownlint-enable MD013 -->
 
 ### Creating an Automation
 After importing the Blueprint into Home Assistant, create a new automation using these steps:
 
-1. Go to **Settings** → **Automations & Scenes** → **Blueprints** in Home Assistant. Alternatively, use the link below.
-   [![Open your Home Assistant instance and show your blueprints.](https://my.home-assistant.io/badges/blueprints.svg)](https://my.home-assistant.io/redirect/blueprints/)
-
+1. Go to [**Settings** → **Automations & Scenes** → **Blueprints**](https://my.home-assistant.io/redirect/blueprints/) in Home Assistant.
 2. Find the **NSPanel Configuration** Blueprint and click on it.
-
 3. In the Blueprint settings, select your panel in the **NSPanel device** field.
-
 4. Complete the relevant settings and click the **Save** button.
-
 5. Name your automation for easy identification and click **Rename**.
    ![image](pics/ha_create_automation_rename.png)
 
