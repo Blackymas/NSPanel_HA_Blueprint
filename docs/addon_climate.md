@@ -9,10 +9,10 @@ using the internal temperature sensor and independent of the network availabilit
 1. The NSPanel is limited to 2A per relay.
 Don't use it for directly power your cooler/heater if exceeding the panel specifications:
     - 150W/110V/Gang, 300W/110V/Total
-    - 300W/220V/Gang, 600W/220V/Total<br>
-  - More details on the [Sonoff NSPanel's page](https://sonoff.tech/product/central-control-panel/nspanel/)
-    and the [product specifications document](https://sonoff.tech/wp-content/uploads/2021/11/%E4%BA%A7%E5%93%81%E5%8F%82%E6%95%B0%E8%A1%A8-NSPanel-20210831.pdf).
-
+    - 300W/220V/Gang, 600W/220V/Total
+    > [!NOTE]
+    > More details on the [Sonoff NSPanel's page](https://sonoff.tech/product/central-control-panel/nspanel/)
+    > and the [product specifications document](https://sonoff.tech/wp-content/uploads/2021/11/%E4%BA%A7%E5%93%81%E5%8F%82%E6%95%B0%E8%A1%A8-NSPanel-20210831.pdf).
 2. A target temperature must be set on the climate entity in Home Assistant or the page Climate in your panel.
 
 ## Installation
