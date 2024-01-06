@@ -146,7 +146,23 @@ Before disassembling your panel, review the following resources:
 ##### Pending: (Steps to flash the firmware using serial TTL will be added here)
 
 ### Integrating your panel to Home Assistant
-##### Pending: 
+Once your panel loaded the new ESPHome firmware, it should be automatically detected by Home Assistant and you should get a notification about that.
+If that isn't happnening, you can manually add it as a new intgration with the following steps:
+> [!TIP]
+> You can use [this link](https://my.home-assistant.io/redirect/config_flow_start/?domain=esphome)
+> to go directly to the dialog to add a new ESPHome device,
+> then you can go directly to step 3.
+
+1. Go to your [ESPHome integration's dashboard](https://my.home-assistant.io/redirect/integration/?domain=esphome) under **Settings** > **Devices & Services** > **ESPHome**.
+2. If your panel is detected, just click **Configure**, otherwise, click on **Add device**.
+3. Enter your new panel's hostname or IP address and click **Next**.
+4. Follow the instructions from your Home Assistant to add your new panel.
+
+After that, you will have access to the **Device's page** related to your NSPanel. On that page you will find all the entities published by the ESPHome firwmare installed in your panel, which can be use to see it's status and control some of it's settings.
+
+It might take a minute or two until the device's page gets fully populated, but when that is completed, take a look around and get familiar with that page.
+
+You can always get back to the device's page under your [ESPHome integration's dashboard](https://my.home-assistant.io/redirect/integration/?domain=esphome).
 
 ### Making changes Over The Air (OTA)
 ##### Pending: (add instructions how to flash wirelessly)
