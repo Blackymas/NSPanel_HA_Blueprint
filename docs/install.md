@@ -125,6 +125,7 @@ Your NSPanel is now configured in your ESPHome Dashboard.
 ### Flashing the Device for the First Time
 
 #### Drive Safe
+<!-- markdownlint-disable MD028 -->
 > [!CAUTION] 
 > **Disconnect your panel's controller module from main power during all work.**  
 > Operating on an open device that's plugged into the wall puts you at risk of electrocution.
@@ -132,6 +133,7 @@ Your NSPanel is now configured in your ESPHome Dashboard.
 > [!WARNING]
 > **You are solely responsible for your own safety.**  
 > If you're uncomfortable or if something feels wrong, stop immediately.
+<!-- markdownlint-enable MD028 -->
 
 - Use only electronic components rated for 3.3VDC. Ensure your TTL adapter is set to 3.3VDC. Exceeding this voltage can cause permanent damage to your panel.
 - Maintain a clean work area to prevent damage to your device, especially the screen.
@@ -266,7 +268,7 @@ After importing the Blueprint into Home Assistant, create a new automation using
 
 4. Complete the relevant settings and click the **Save** button.
 
-5. Name your automation for easy identification and click **Rename**.<br>
+5. Name your automation for easy identification and click **Rename**.
    ![image](pics/ha_create_automation_rename.png)
 
 > [!TIP]
@@ -307,8 +309,9 @@ For homes with multiple panels:
 Before customizing your system, we encourage you to share any enhancements you make.
 Consider creating a [Pull Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/pulls) to the `dev` branch to share your discoveries with the community.
 
-### ESPHome
-For advanced customization with ESPHome, start with "Customizations." We have a dedicated page for this, and your contributions are welcome: [Customization](customization.md).
+### Advanced ESPHome Configuration
+For advanced customization with ESPHome, start with "Customizations."
+We have a dedicated page for this, and your contributions are welcome: [Customization](customization.md).
 
 To use a local copy of `nspanel_esphome.yaml`, copy the file from GitHub to your local file system and include it in your ESPHome settings as follows:
 
@@ -335,13 +338,16 @@ esp32:
 ```
 
 > [!NOTE]
-> A sub-folder is recommended to prevent the file from being added as an additional device in the ESPHome dashboard. Alternatively, you can name the file starting with `.` to exclude it from the device list.
+> A sub-folder is recommended to prevent the file from being added as an additional device in the ESPHome dashboard.
+> Alternatively, you can name the file starting with `.` to exclude it from the device list.
 
-### Blueprint
-The Blueprint file `nspanel_blueprint.yaml` can be installed manually. You can also edit your local copy of the Blueprint, but be aware that reloading the Blueprint from the repository will overwrite local changes.
+### Advanced Blueprint Configuration
+The Blueprint file `nspanel_blueprint.yaml` can be installed manually.
+You can also edit your local copy of the Blueprint, but be aware that reloading the Blueprint from the repository will overwrite local changes.
 
-### TFT File
-All `.HMI` files used in this project are available in our GitHub repository. Modify these files using the [Nextion Editor](https://nextion.tech/nextion-editor/) and create your own `.tft` files for your device.
+### Advanced TFT File
+All `.HMI` files used in this project are available in our GitHub repository.
+Modify these files using the [Nextion Editor](https://nextion.tech/nextion-editor/) and create your own `.tft` files for your device.
 
 For guidance on using Nextion, refer to:
 - [Nextion Instruction Set](https://nextion.tech/instruction-set)
@@ -351,7 +357,8 @@ For guidance on using Nextion, refer to:
 > [!TIP]
 > For troubleshooting TFT transfer issues, consult our [TFT Transfer Troubleshooting Guide](tft_upload.md) first.
 
-If problems persist after troubleshooting, visit the [Issues](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues) page. Feel free to create a new issue for personalized assistance, providing details such as:
+If problems persist after troubleshooting, visit the [Issues](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues) page.
+Feel free to create a new issue for personalized assistance, providing details such as:
 1. A description or picture of what is displayed on your screen.
 2. Information on whether you are updating from a previous version of this project, migrating from another NSPanel customization, or customizing a panel with the original Sonoff settings.
 3. ESPHome logs from the start of your panel to the point where the upload fails.
