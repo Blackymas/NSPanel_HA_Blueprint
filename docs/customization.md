@@ -31,9 +31,11 @@ Table of contents:
 &nbsp;
 &nbsp;
 ## Description
-This project adds lots of functionalities to your NSPanel and we are constantly adding new features based on user's feedback. However, you might have some specific case that are not included on the current implementation or is not a common case for other users.
+This project adds lots of functionalities to your NSPanel and we are constantly adding new features based on user's feedback.
+However, you might have some specific case that are not included on the current implementation or is not a common case for other users.
 
-You can take advantage of [ESPHome Configuration Types](https://esphome.io/guides/configuration-types.html) to add your custom functionality or even to customize an existing functionality with minimum effort and this document intents to clarify how to use this and give some examples of customization.
+You can take advantage of [ESPHome Configuration Types](https://esphome.io/guides/configuration-types.html) to add your custom functionality
+or even to customize an existing functionality with minimum effort and this document intents to clarify how to use this and give some examples of customization.
 
 Please feel free to add your own customation to this document by creating a PR in the `dev` branch.
 
@@ -43,7 +45,8 @@ Please feel free to add your own customation to this document by creating a PR i
 
 &nbsp;
 ## Instructions
-There's nothing particular for this project, so you can just use any of the [ESPHome Configuration Types](https://esphome.io/guides/configuration-types.html) and only edit your local ESPHome yaml settings.
+There's nothing particular for this project, so you can just use any of the [ESPHome Configuration Types](https://esphome.io/guides/configuration-types.html)
+and only edit your local ESPHome yaml settings.
 
 Most of the ESPHome components in this project contains an `Id`, which can be used together with the `!extend` key to add or replace existing code.
 
@@ -99,9 +102,11 @@ esp32:
 
 ### API encryption
 > [!IMPORTANT]
-> Changing the API encryption can break the connection to Home Assistant, requiring the device to be removed from integrations (**Settings** > **Devices & Services** > **ESPHome**) and then re-added.
+> Changing the API encryption can break the connection to Home Assistant,
+> requiring the device to be removed from integrations (**Settings** > **Devices & Services** > **ESPHome**) and then re-added.
 
-This is highly recommended when you are transfer sensitive information between your panel and Home Assistant, as when you use your panel to enter the PIN for an Alarm Control Panel.
+This is highly recommended when you are transfer sensitive information between your panel and Home Assistant,
+as when you use your panel to enter the PIN for an Alarm Control Panel.
 
 ```yaml
 # Encrypt the communication between ESPHome and Home Assistant
@@ -187,7 +192,8 @@ wifi:
 ```
 
 ### Connect to multiple networks
-NSPanel will attempt to connect to the one with the highest signal strength or, if you set a priority, it will try to connect to the highest priority. After failing it will connect to the second network.
+NSPanel will attempt to connect to the one with the highest signal strength or, if you set a priority, it will try to connect to the highest priority.
+After failing it will connect to the second network.
 
 ```yaml
 # Set dual network
@@ -471,9 +477,12 @@ time:
 
 ### Framework `esp-idf`
 > [!IMPORTANT]
-> When switching from `arduino` to `esp-idf`, make sure to update the device with a serial cable as the partition table is different between the two frameworks as [OTA Update Component](https://esphome.io/components/ota) updates will not change the partition table.
+> When switching from `arduino` to `esp-idf`, make sure to update the device with a serial cable as the partition table is different between the two frameworks
+as [OTA Update Component](https://esphome.io/components/ota) updates will not change the partition table.
 
-The `arduino` protocol still more popular and therefore more components are available, but as `esp-idf` is maintained by EspressIF and is kept updated, more boards are supported and the memory management is better, making it ideal if you wanna customize your panel to support memory consumption functionalities, like `bluetooth_proxy` or [Improv](https://www.improv-wifi.com/).
+The `arduino` protocol still more popular and therefore more components are available, but as `esp-idf` is maintained by EspressIF and is kept updated,
+more boards are supported and the memory management is better, making it ideal if you wanna customize your panel to support memory consumption functionalities,
+like `bluetooth_proxy` or [Improv](https://www.improv-wifi.com/).
 
 This project currently uses `arduino` as default framework, but we are planning to set `esp-idf` as default from March 2024.
 In any case, you can overlap the settings with this customization.
@@ -490,7 +499,8 @@ esp32:
 
 ### Bluetooth proxy
 > [!IMPORTANT]
-> The [ESP32 Platform](#framework-esp-idf) component should be configured to use the `esp-idf` framework, as the `arduino` framework uses significantly more memory and performs poorly with the Bluetooth proxy enabled.
+> The [ESP32 Platform](#framework-esp-idf) component should be configured to use the `esp-idf` framework,
+> as the `arduino` framework uses significantly more memory and performs poorly with the Bluetooth proxy enabled.
 
 ```yaml
 # Enable Bluetooth proxy
@@ -567,7 +577,8 @@ For instance, you can program it to cut the power to a connected light under cer
 #### Use Case
 One application, as utilized by @tikismoke and detailed in [#1349](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues/1349), is in response to fluctuating energy prices.
 When the energy price is high, an automation can change the fallback mode to cut off the relay.
-This ensures that the bulb does not consume energy in standby mode. However, it will still function normally with `light.toggle` from the blueprint in all other cases. Local control is reinstated when the power price returns to normal.
+This ensures that the bulb does not consume energy in standby mode. However, it will still function normally with `light.toggle` from the blueprint in all other cases.
+Local control is reinstated when the power price returns to normal.
 On the next switch activation, the relay turns `on`, powering up the bulb.
 Subsequent activations will trigger `light.toggle` from the blueprint, as this functionality is already embedded in the ESPHome YAML code.
 
