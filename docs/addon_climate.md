@@ -56,6 +56,7 @@ esp32:
 
 The following keys are available to be used in your `substitutions`:
 
+<!-- markdownlint-disable MD013 MD033 -->
 Key|Required|Supported values|Default|Description
 :-|:-:|:-:|:-:|:-
 cooler_relay|Mandatory for *cool* and *dual*|`1` or `2`|`0` (disabled)|Relay used for control the cooler. User `1` for "Relay 1" or `2` for "Relay 2".
@@ -69,9 +70,11 @@ target_high|Optional|Number representing a temperature in the selected unit|`24`
 temp_min|Optional|Number representing a temperature in the selected unit|*cool: `15`*<br>*heat: `7`*<br>*dual: `7`* |The minimum temperature the climate device can reach. Used to set the range of the frontend gauge.
 temp_max|Optional|Number representing a temperature in the selected unit|*cool: `45`*<br>*heat: `35`*<br>*dual: `45`* |The maximum temperature the climate device can reach. Used to set the range of the frontend gauge.
 temp_step|Optional|Number representing a temperature in the selected unit|`0.5`|The granularity with which the target temperature can be controlled.
+<!-- markdownlint-enable MD013 MD033 -->
 
 - All values must be delimited with `""`
-- For more details on the keys, please take a look at [ESPHome Base Climate Configurations](https://esphome.io/components/climate/index.html#base-climate-configuration) and [ESPHome Climate Thermostat - Additional actions behavior](https://esphome.io/components/climate/thermostat.html#additional-actions-behavior).
+- For more details on the keys, please take a look at [ESPHome Base Climate Configurations](https://esphome.io/components/climate/index.html#base-climate-configuration)
+and [ESPHome Climate Thermostat - Additional actions behavior](https://esphome.io/components/climate/thermostat.html#additional-actions-behavior).
 
 ### Examples
 
