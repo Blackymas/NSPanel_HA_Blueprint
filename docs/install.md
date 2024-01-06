@@ -113,7 +113,8 @@ Follow these steps to add a new device in the ESPHome Dashboard:
    ![YAML Code](pics/ha_esphome_dashboard_new_device_06.png)
 9. Modify the **Settings** section with your device name (as noted in step 7) and Wi-Fi details.  
    ![Edit Settings](pics/ha_esphome_dashboard_new_device_06b.png)
-10. For Wi-Fi credentials, use `!secret` for added security or input them directly. Learn about secrets in ESPHome: [Home Assistant Secrets in ESPHome](https://www.youtube.com/watch?v=eW4vKDeHh7Y).
+10. For Wi-Fi credentials, use `!secret` for added security or input them directly.
+Learn about secrets in ESPHome: [Home Assistant Secrets in ESPHome](https://www.youtube.com/watch?v=eW4vKDeHh7Y).
 11. Optionally, adjust `nextion_update_url` to the URL of a TFT file hosted on an HTTP or HTTPS server, ensuring that the file is accessible to the NSPanel.
 This URL will be used by ESPHome to download the TFT file to your panel.
 For more information on hosting the TFT file and setting up the URL, see the [Upload TFT](#upload-tft) section.
@@ -170,7 +171,9 @@ If that isn't happnening, you can manually add it as a new intgration with the f
 3. Enter your new panel's hostname or IP address and click **Next**.
 4. Follow the instructions from your Home Assistant to add your new panel.
 
-After that, you will have access to the **Device's page** related to your NSPanel. On that page you will find all the entities published by the ESPHome firwmare installed in your panel, which can be use to see it's status and control some of it's settings.
+After that, you will have access to the **Device's page** related to your NSPanel.
+On that page you will find all the entities published by the ESPHome firmware installed in your panel,
+which can be use to see it's status and control some of it's settings.
 
 It might take a minute or two until the device's page gets fully populated, but when that is completed, take a look around and get familiar with that page.
 
@@ -184,19 +187,24 @@ You can always get back to the device's page under your [ESPHome integration's p
 >>>>> Pending: (considerations - update all to the same version)
 
 ### Migrating from other custom firmware
-The installation in a NSPanel with Sonoff's original firmware should be straighforward, however, if you have installed some other custom firmware before, you may have additional steps to execute.
+The installation in a NSPanel with Sonoff's original firmware should be straighforward, however,
+if you have installed some other custom firmware before, you may have additional steps to execute.
 
 #### NSPanel Lovelace UI
-If you have already installed on your NSPanel the "nspanel-lovelace-ui" firmware from @joBr99 or from Tasmota, an [intermediate step](lovelace_ui.md) is necessary. Please execute that first before returning here.
+If you have already installed on your NSPanel the "nspanel-lovelace-ui" firmware from @joBr99 or from Tasmota, an [intermediate step](lovelace_ui.md) is necessary.
+Please execute that first before returning here.
 
 #### Other
-Please try the standard process and if you find any issue, please [create a new issue](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues) and inform which custom firmware you have installed before migrating to NSPanel HA Blueprint.
+Please try the standard process and if you find any issue,
+please [create a new issue](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues) and inform
+which custom firmware you have installed before migrating to NSPanel HA Blueprint.
 
 ## Upload TFT
 >>>>> Pending:
 
 ### Select the right file
-Open the device's page under [ESPHome integration's page](https://my.home-assistant.io/redirect/integration/?domain=esphome) and look for **Update TFT display** and **Update TFT display - Model** under the **Configuration** area.
+Open the device's page under [ESPHome integration's page](https://my.home-assistant.io/redirect/integration/?domain=esphome)
+and look for **Update TFT display** and **Update TFT display - Model** under the **Configuration** area.
 
 ![image](pics/ha_device_configuration_tft_upload_controls.png)
 
@@ -210,11 +218,10 @@ you specified in your panel's yaml setting under the ESPHome dashboard and is ty
 when your device have issues to transfer a TFT file directly from the GitHub repository or when
 you want to use a custom TFT file hosted in your local server.
 This is the default option and this keeps the compatibility with legacy installations when this was the only option.
-- **NSPanel Blank:** This is a very small TFT file which just shows a pre-formatted QR code on
-the screen with a link to the instructions. Although it's not a functional TFT for controlling your panel,
-it can be usefull when you have issues in your first TFT upload, as it will remove the
-*Nextion Active Reparse Mode* used when a Sonoff's TFT and also
-when some other custom implementations are installed.
+- **NSPanel Blank:** This is a very small TFT file which just shows a pre-formatted QR code on the screen with a link to the instructions.
+Although it's not a functional TFT for controlling your panel, it can be usefull when you have
+issues in your first TFT upload, as it will remove the *Nextion Active Reparse Mode* used when
+a Sonoff's TFT and also when some other custom implementations are installed.
 - **NSPanel EU:** This should be used when you are using a Sonoff NSPanel EU model.
 - **NSPanel US:** This should be used when you are using a Sonoff NSPanel US model installed on
 it's normal (portrait) position with the buttons bellow the screen.
