@@ -76,7 +76,6 @@ Follow these steps to add a new device in the ESPHome Dashboard:
    ![API Section](pics/ha_esphome_dashboard_new_device_05.png)
 7. Note the device name at the beginning of the file under `esphome`.  
    ![Device Name](pics/ha_esphome_dashboard_new_device_05b.png)
-
 8. Clear all existing content and paste the following YAML configuration:
     ```yaml
     substitutions:
@@ -110,19 +109,15 @@ Follow these steps to add a new device in the ESPHome Dashboard:
       framework:
         type: esp-idf
     ```
-   ![YAML Code](pics/ha_esphome_dashboard_new_device_06.png)
 
+   ![YAML Code](pics/ha_esphome_dashboard_new_device_06.png)
 9. Modify the **Settings** section with your device name (as noted in step 7) and Wi-Fi details.  
    ![Edit Settings](pics/ha_esphome_dashboard_new_device_06b.png)
-
 10. For Wi-Fi credentials, use `!secret` for added security or input them directly. Learn about secrets in ESPHome: [Home Assistant Secrets in ESPHome](https://www.youtube.com/watch?v=eW4vKDeHh7Y).
-
 11. Optionally, adjust `nextion_update_url` to the URL of a TFT file hosted on an HTTP or HTTPS server, ensuring that the file is accessible to the NSPanel.
 This URL will be used by ESPHome to download the TFT file to your panel.
 For more information on hosting the TFT file and setting up the URL, see the [Upload TFT](#upload-tft) section.
-
 12. (Optional) Enhance security with API encryption by adding the copied key from step 6 to the **My Customization** area.
-
 13. After finalizing settings, click **Save** and close the YAML window.
 
 Your NSPanel is now configured in your ESPHome Dashboard.
@@ -130,7 +125,6 @@ Your NSPanel is now configured in your ESPHome Dashboard.
 ### Flashing the Device for the First Time
 
 #### Drive Safe
-
 > [!CAUTION] 
 > **Disconnect your panel's controller module from main power during all work.**  
 > Operating on an open device that's plugged into the wall puts you at risk of electrocution.
@@ -157,9 +151,9 @@ Before disassembling your panel, review the following resources:
 - [ESPHome - Physically Connecting to Your Device](https://esphome.io/guides/physical_device_connection)
 
 
-##### Pending: (Pictures of the board & wiring will be added here)
-##### Pending: (Steps to generate firmware on ESPHome Dashboard will be added here)
-##### Pending: (Steps to flash the firmware using serial TTL will be added here)
+>>>>> Pending: (Pictures of the board & wiring will be added here)
+>>>>> Pending: (Steps to generate firmware on ESPHome Dashboard will be added here)
+>>>>> Pending: (Steps to flash the firmware using serial TTL will be added here)
 
 ### Integrating your panel to Home Assistant
 Once your panel loaded the new ESPHome firmware, it should be automatically detected by Home Assistant and you should get a notification about that.
@@ -181,11 +175,11 @@ It might take a minute or two until the device's page gets fully populated, but 
 You can always get back to the device's page under your [ESPHome integration's page](https://my.home-assistant.io/redirect/integration/?domain=esphome).
 
 ### Making changes Over The Air (OTA)
-##### Pending: (add instructions how to flash wirelessly)
+>>>>> Pending: (add instructions how to flash wirelessly)
 
 ### Updating
-##### Pending: (add instructions how to flash wirelessly)
-##### Pending: (considerations - update all to the same version)
+>>>>> Pending: (add instructions how to flash wirelessly)
+>>>>> Pending: (considerations - update all to the same version)
 
 ### Migrating from other custom firmware
 The installation in a NSPanel with Sonoff's original firmware should be straighforward, however, if you have installed some other custom firmware before, you may have additional steps to execute.
@@ -197,9 +191,9 @@ If you have already installed on your NSPanel the "nspanel-lovelace-ui" firmware
 Please try the standard process and if you find any issue, please [create a new issue](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues) and inform which custom firmware you have installed before migrating to NSPanel HA Blueprint.
 
 ## Upload TFT
-##### Pending: 
-### Select the right file
+>>>>> Pending:
 
+### Select the right file
 Open the device's page under [ESPHome integration's page](https://my.home-assistant.io/redirect/integration/?domain=esphome) and look for **Update TFT display** and **Update TFT display - Model** under the **Configuration** area.
 
 ![image](pics/ha_device_configuration_tft_upload_controls.png)
@@ -234,7 +228,6 @@ installed on the landscape position with the buttons at the right side of the sc
 and want to use the CJK (Chinese/Japanese/Korean) languages.
 
 ### Uploading to Nextion
-
 Once the right model is selected, please press the button **Update TFT display**.
 
 In a few seconds your display should start transferring the file correspondent to the selected model.
@@ -247,7 +240,6 @@ Once started, the transfer shouldn't take more than 10 to 20 minutes. If after t
 > [!TIP]
 > For troubleshooting TFT transfer issues, consult our [TFT Transfer Troubleshooting Guide](tft_upload.md) first.
 
-##### Pending: 
 ### Troubleshooting TFT transfer issues
 We have an useful guide for [troubleshooting TFT transfer issues](tft_upload.md). Please take a look there.
 
@@ -303,17 +295,19 @@ For homes with multiple panels:
 3. Create a separate automation for each panel in Home Assistant.
 
 > [!IMPORTANT]
-> Avoid assigning the same panel to multiple automations. This can cause unexpected behavior and put extra load on Home Assistant and your Wi-Fi network. Currently, Home Assistant does not have a mechanism to prevent this.
+> Avoid assigning the same panel to multiple automations.
+> This can cause unexpected behavior and put extra load on Home Assistant and your Wi-Fi network.
+> Currently, Home Assistant does not have a mechanism to prevent this.
 
 ## Advanced Configuration for ESPHome and Home Assistant Experts
 
 > [!WARNING]
 > Customizations and advanced mode are not supported by this project's team. Use them with caution and only if you have the necessary expertise.
 
-Before customizing your system, we encourage you to share any enhancements you make. Consider creating a [Pull Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/pulls) to the `dev` branch to share your discoveries with the community.
+Before customizing your system, we encourage you to share any enhancements you make.
+Consider creating a [Pull Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/pulls) to the `dev` branch to share your discoveries with the community.
 
 ### ESPHome
-
 For advanced customization with ESPHome, start with "Customizations." We have a dedicated page for this, and your contributions are welcome: [Customization](customization.md).
 
 To use a local copy of `nspanel_esphome.yaml`, copy the file from GitHub to your local file system and include it in your ESPHome settings as follows:
@@ -339,6 +333,7 @@ esp32:
     type: esp-idf
 
 ```
+
 > [!NOTE]
 > A sub-folder is recommended to prevent the file from being added as an additional device in the ESPHome dashboard. Alternatively, you can name the file starting with `.` to exclude it from the device list.
 
@@ -363,5 +358,4 @@ If problems persist after troubleshooting, visit the [Issues](https://github.com
 4. A description of what you have already tried.
 
 ## Important Note
-
 Remember, these instructions serve as a guideline and may vary based on your specific setup and any systems previously installed.
