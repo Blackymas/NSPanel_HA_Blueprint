@@ -103,7 +103,9 @@ Follow these steps to add a new device in the ESPHome Dashboard:
 
 10. For Wi-Fi credentials, use `!secret` for added security or input them directly. Learn about secrets in ESPHome: [Home Assistant Secrets in ESPHome](https://www.youtube.com/watch?v=eW4vKDeHh7Y).
 
-11. Optionally, adjust `nextion_update_url` to the URL of a TFT file hosted on an HTTP or HTTPS server, ensuring that the file is accessible to the NSPanel. This URL will be used by ESPHome to download the TFT file to your panel. For more information on hosting the TFT file and setting up the URL, see the [Upload TFT](#upload-tft) section.
+11. Optionally, adjust `nextion_update_url` to the URL of a TFT file hosted on an HTTP or HTTPS server, ensuring that the file is accessible to the NSPanel.
+This URL will be used by ESPHome to download the TFT file to your panel.
+For more information on hosting the TFT file and setting up the URL, see the [Upload TFT](#upload-tft) section.
 
 12. (Optional) Enhance security with API encryption by adding the copied key from step 6 to the **My Customization** area.
 
@@ -153,8 +155,8 @@ If that isn't happnening, you can manually add it as a new intgration with the f
 > to go directly to the dialog to add a new ESPHome device,
 > then you can go directly to step 3.
 
-1. Go to your [ESPHome integration's dashboard](https://my.home-assistant.io/redirect/integration/?domain=esphome) under **Settings** > **Devices & Services** > **ESPHome**.
-2. If your panel is detected, just click **Configure**, otherwise, click on **Add device**.
+1. Go to your [ESPHome integration's page](https://my.home-assistant.io/redirect/integration/?domain=esphome) under **Settings** > **Devices & Services** > **ESPHome**.
+2. If your panel is automatically discovered, just click **Configure**, otherwise, click on **Add device**.
 3. Enter your new panel's hostname or IP address and click **Next**.
 4. Follow the instructions from your Home Assistant to add your new panel.
 
@@ -162,7 +164,7 @@ After that, you will have access to the **Device's page** related to your NSPane
 
 It might take a minute or two until the device's page gets fully populated, but when that is completed, take a look around and get familiar with that page.
 
-You can always get back to the device's page under your [ESPHome integration's dashboard](https://my.home-assistant.io/redirect/integration/?domain=esphome).
+You can always get back to the device's page under your [ESPHome integration's page](https://my.home-assistant.io/redirect/integration/?domain=esphome).
 
 ### Making changes Over The Air (OTA)
 ##### Pending: (add instructions how to flash wirelessly)
@@ -183,14 +185,63 @@ Please try the standard process and if you find any issue, please [create a new 
 ## Upload TFT
 ##### Pending: 
 ### Select the right file
-##### Pending: 
+
+Open the device's page under [ESPHome integration's page](https://my.home-assistant.io/redirect/integration/?domain=esphome) and look for **Update TFT display** and **Update TFT display - Model** under the **Configuration** area.
+
+![image](pics/ha_device_configuration_tft_upload_controls.png)
+
+Expand the **Update TFT display - Model** control and find the model that better fits your panel:
+
+![image](pics/ha_device_configuration_tft_upload_model.png)
+
+The options are:
+- **Use `nextion_update_url`:** This will indicate ESPHome to download the TFT file from the URL
+you specified in your panel's yaml setting under the ESPHome dashboard and is typically used
+when your device have issues to transfer a TFT file directly from the GitHub repository or when
+you want to use a custom TFT file hosted in your local server.
+This is the default option and this keeps the compatibility with legacy installations when this was the only option.
+- **NSPanel Blank:** This is a very small TFT file which just shows a pre-formatted QR code on
+the screen with a link to the instructions. Although it's not a functional TFT for controlling your panel,
+it can be usefull when you have issues in your first TFT upload, as it will remove the
+*Nextion Active Reparse Mode* used when a Sonoff's TFT and also
+when some other custom implementations are installed.
+- **NSPanel EU:** This should be used when you are using a Sonoff NSPanel EU model.
+- **NSPanel US:** This should be used when you are using a Sonoff NSPanel US model installed on
+it's normal (portrait) position with the buttons bellow the screen.
+- **NSPanel US Landscape:** This should be used when you are using a Sonoff NSPanel US model
+installed on the landscape position with the buttons at the right side of the screen.
+- **NSPanel EU (CJK languages):** This should be used when you are using a Sonoff NSPanel EU model
+and want to use the CJK (Chinese/Japanese/Korean) languages.
+- **NSPanel US (CJK languages):** This should be used when you are using a Sonoff NSPanel US model
+installed on it's normal (portrait) position with the buttons bellow the screen,
+and want to use the CJK (Chinese/Japanese/Korean) languages.
+- **NSPanel US Landscape (CJK languages):** This should be used when you are using a Sonoff NSPanel US model
+installed on the landscape position with the buttons at the right side of the screen,
+and want to use the CJK (Chinese/Japanese/Korean) languages.
+
 ### Uploading to Nextion
+
+Once the right model is selected, please press the button **Update TFT display**.
+
+In a few seconds your display should start transferring the file correspondent to the selected model.
+The transfer screen shows a progress bar with a percentage counter with a black background.
+
+If the transfer don't starts in a few seconds, ESPHome will retry automatically a few times, with different transfer parameters, so the transfer can take up to a minute to start.
+
+Once started, the transfer shouldn't take more than 10 to 20 minutes. If after this time it isn't close to finnish, please cancel the process by restarting your device, then try it again.
+
+> [!TIP]
+> For troubleshooting TFT transfer issues, consult our [TFT Transfer Troubleshooting Guide](tft_upload.md) first.
+
 ##### Pending: 
 ### Troubleshooting TFT transfer issues
 We have an useful guide for [troubleshooting TFT transfer issues](tft_upload.md). Please take a look there.
 
 ## Blueprint
-This section provides guidance on importing the NSPanel HA Blueprint from our GitHub repository into your Home Assistant, creating a new automation for your panel setup, and updating the blueprint when new versions are available. These processes are straightforward with the latest versions of Home Assistant. If you have any questions or need clarification, please reach out to us.
+This section provides guidance on importing the NSPanel HA Blueprint from our GitHub repository into your Home Assistant,
+creating a new automation for your panel setup, and updating the blueprint when new versions are available.
+These processes are straightforward with the latest versions of Home Assistant.
+If you have any questions or need clarification, please reach out to us.
 
 ### Importing the Blueprint
 Importing the blueprint into Home Assistant is a simple process. Just click the button below and follow the steps:
