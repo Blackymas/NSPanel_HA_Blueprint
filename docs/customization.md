@@ -98,6 +98,9 @@ esp32:
 ## Examples
 
 ### API encryption
+> [!IMPORTANT]
+> Changing the API encryption can break the connection to Home Assistant, requiring the device to be removed from integrations (**Settings** > **Devices & Services** > **ESPHome**) and then re-added.
+
 This is highly recommended when you are transfer sensitive information between your panel and Home Assistant, as when you use your panel to enter the PIN for an Alarm Control Panel.
 
 ```yaml
@@ -475,7 +478,8 @@ The `arduino` protocol still more popular and therefore more components are avai
 This project currently uses `arduino` as default framework, but we are planning to set `esp-idf` as default from March 2024.
 In any case, you can overlap the settings with this customization.
 
-For more info about frameworks, please visit [ESPHome docs](https://esphome.io/components/esp32).
+> [!NOTE]
+> For more info about frameworks, please visit [ESPHome docs](https://esphome.io/components/esp32).
 
 ```yaml
 # Change framework to `esp-idf`
