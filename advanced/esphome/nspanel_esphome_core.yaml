@@ -14,7 +14,7 @@ substitutions:
   ota_password: ${wifi_password}
   ap_password: ${wifi_password}
   ##### DON'T CHANGE THIS ######
-  version: "4.2dev.4"
+  version: "4.2dev.5"
   ##############################
 
 ##### External components #####
@@ -382,7 +382,6 @@ api:
       variables:
         current_temp: float
         supported_features: int
-        supported_hvac_modes: int
         target_temp: float
         target_temp_high: float
         target_temp_low: float
@@ -399,7 +398,6 @@ api:
             id: set_climate
             current_temp: !lambda "return current_temp;"
             supported_features: !lambda "return supported_features;"
-            supported_hvac_modes: !lambda "return supported_hvac_modes;"
             target_temp: !lambda "return target_temp;"
             target_temp_high: !lambda "return target_temp_high;"
             target_temp_low: !lambda "return target_temp_low;"
@@ -1639,8 +1637,8 @@ text_sensor:
             else if (page == "climate") {
               if (embedded==1)
                 addon_climate_service_call->execute(key.c_str(), value.c_str());
-              else if (key == "set_temperature")
-                ha_call_service->execute("climate.set_temperature", "temperature", to_string(stof(value) / 10), entity.c_str());
+              else if (key == "temperature" or key == "target_temp_high" or key == "target_temp_low")
+                ha_call_service->execute("climate.set_temperature", key.c_str(), to_string(stof(value) / 10), entity.c_str());
               else if (key == "hvac_mode")
                 ha_call_service->execute("climate.set_hvac_mode", key.c_str(), value.c_str(), entity.c_str());
             }
@@ -2506,7 +2504,6 @@ script:
     parameters:
       current_temp: float
       supported_features: int
-      supported_hvac_modes: int
       target_temp: float
       target_temp_high: float
       target_temp_low: float
@@ -2522,7 +2519,6 @@ script:
           ESP_LOGD(TAG, "Starting");
           ESP_LOGD(TAG, "  current_temp:         %f", current_temp);
           ESP_LOGD(TAG, "  supported_features:   %i", supported_features);
-          ESP_LOGD(TAG, "  supported_hvac_modes: %i", supported_hvac_modes);
           ESP_LOGD(TAG, "  target_temp:          %f", target_temp);
           ESP_LOGD(TAG, "  target_temp_high:     %f", target_temp_high);
           ESP_LOGD(TAG, "  target_temp_low:      %f", target_temp_low);
@@ -2534,6 +2530,8 @@ script:
           if (current_page->state == "climate") {
             ESP_LOGD(TAG, "Page climate is visible");
             disp1->send_command_printf("climateslider.maxval=%i", total_steps);
+            disp1->send_command_printf("slider_high.maxval=%i", total_steps);
+            disp1->send_command_printf("slider_low.maxval=%i", total_steps);
             disp1->set_component_value("temp_offset", temp_offset);
             disp1->set_component_value("temp_step", temp_step);
             disp1->show_component("current_temp");
@@ -2542,28 +2540,39 @@ script:
             else
               disp1->set_component_text_printf("current_temp", id(mui_unavailable_global).c_str());
 
-            disp1->set_component_value("hvac_modes", supported_hvac_modes);
-            if (supported_hvac_modes & 1) {  // Heat
-              if (target_temp_high <= -999 and target_temp > -999) target_temp_high = target_temp;
-              disp1->set_component_text_printf("target_high", "%.1f°", target_temp_high);
-              disp1->show_component("target_high");
-              disp1->set_component_value("slider_high", round(((10*target_temp_high) - temp_offset) / temp_step));
-              disp1->show_component("slider_high");
-            } else {
-              disp1->hide_component("target_high");
+            if (target_temp > -999) {  // Target temp enabled
+              disp1->set_component_value("active_slider", 0);
               disp1->hide_component("slider_high");
-            }
-            if (supported_hvac_modes & 2) {  // Cool
-              if (target_temp_low <= -999 and target_temp > -999) target_temp_low = target_temp;
-              disp1->set_component_text_printf("target_low", "%.1f°", target_temp_low);
-              disp1->show_component("target_low");
-              disp1->set_component_value("slider_low", round(((10*target_temp_low) - temp_offset) / temp_step));
-              disp1->show_component("slider_low");
-            } else {
-              disp1->hide_component("target_low");
               disp1->hide_component("slider_low");
+              disp1->hide_component("target_low");
+              disp1->set_component_text_printf("target_high", "%.1f°", target_temp);
+              disp1->show_component("target_high");
+              disp1->set_component_value("climateslider", round(((10*target_temp) - temp_offset) / temp_step));
+              disp1->show_component("climateslider");
+            } else {
+              disp1->hide_component("slider_high");
+              if (target_temp_low > -999) {  // Target temp low enabled
+                disp1->set_component_value("active_slider", 2);
+                disp1->set_component_text_printf("target_low", "%.1f°", target_temp_low);
+                disp1->show_component("target_low");
+                disp1->set_component_value("slider_low", round(((10*target_temp_low) - temp_offset) / temp_step));
+                disp1->show_component("slider_low");
+              } else {
+                disp1->hide_component("target_low");
+                disp1->hide_component("slider_low");
+              }
+              if (target_temp_high > -999) {  // Target temp high enabled
+                disp1->set_component_value("active_slider", 1);
+                disp1->set_component_text_printf("target_high", "%.1f°", target_temp_high);
+                disp1->show_component("target_high");
+                disp1->set_component_value("slider_high", round(((10*target_temp_high) - temp_offset) / temp_step));
+                disp1->show_component("slider_high");
+              } else {
+                disp1->hide_component("target_high");
+                disp1->hide_component("slider_high");
+              }
             }
-            if (supported_hvac_modes > 0) {
+            if (target_temp > -999 or target_temp_high > -999 or target_temp_low > -999) {
               disp1->set_component_text_printf("target_icon", "%s", climate_icon.c_str());
               disp1->show_component("target_icon");
               disp1->show_component("decrease_temp");
