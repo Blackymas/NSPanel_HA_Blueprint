@@ -9,15 +9,15 @@ If your alarm requires a text code, you will still be able to display it on your
 however, when you click in any button it will send services calls to Home Assistant
 without the code and it will fail for the calls where a code is required.
 
-### Security advisory
-
-By default, the communication between your NSPanel (ESPHome) and Home Assistant (HA) is not encrypted,
-which means a person with access to your network could potentially monitor the communication between your panel and HA and replicate the service calls.
-Although this is not a big issue for most of the service calls (turn-on a light,
+> [!IMPORTANT]
+> **Security advisory**
+> By default, the communication between your NSPanel (ESPHome) and Home Assistant (HA) is not encrypted,
+> which means a person with access to your network could potentially monitor the communication between your panel and HA and replicate the service calls.
+> Although this is not a big issue for most of the service calls (turn-on a light,
 close a curtain, etc.), it can be a problem when controlling your alarm system.
-
-Based on that, we hardly reccoment the use of API encryption for all users controlling an Alarm system via a NSPanel.
-You can easily enable this by following the ["API encryption" example available here](customization.md#api-encryption).
+>
+> Based on that, we hardly reccoment the use of API encryption for all users controlling an Alarm system via a NSPanel.
+> You can easily enable this by following the ["API encryption" example available here](customization.md#api-encryption).
 
 ## Configuration
 
