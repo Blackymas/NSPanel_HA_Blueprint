@@ -192,14 +192,16 @@ Using a voltage higher than 3.3VDC, such as 5VDC, can damage your panel.
 4. To avoid short circuits, consider moving the panel's board away from the metal backing of the display.
 The use of a non-conductive tool, like the blue plastic one shown in the picture, can be helpful.
 5. Note the cross-connection of `RX` and `TX` pins.
-The following pin-out should be used:
-   | Panel's Board | TTL USB-to-Serial |
-   | :--: | :--: |
-   | `3V3` | `VCC`, `3V3`, or `3.3V` |
-   | `TX`  | `RX`  |
-   | `RX`  | `TX`  |
-   | `GND` | `GND` |
-   | `IO0` | `GND`<br>This can be connected to a `GND` pin on the panel's board. |
+    The following pin-out should be used:
+    <!-- markdownlint-disable MD033 -->
+      | Panel's Board | TTL USB-to-Serial |
+      | :--: | :--: |
+      | `3V3` | `VCC`, `3V3`, or `3.3V` |
+      | `TX`  | `RX`  |
+      | `RX`  | `TX`  |
+      | `GND` | `GND` |
+      | `IO0` | `GND`<br>This can be connected to a `GND` pin on the panel's board. |
+    <!-- markdownlint-enable MD033 -->
 
 By following these guidelines and referring to the provided resources, you can safely prepare your NSPanel for firmware updates.
 
