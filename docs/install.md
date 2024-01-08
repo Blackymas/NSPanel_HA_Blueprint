@@ -1,15 +1,25 @@
 # Getting Started with NSPanel HA Blueprint
 Welcome to this setup guide, a community-driven approach to integrating NSPanel into your smart home.
-Designed for users at all levels, it combines Home Assistant's user-friendly interface with ESPHome's customization options.
+This guide is designed to be user-friendly, aiming to assist users who have a basic understanding of Home Assistant and ESPHome.
+While it's crafted to be accessible at all levels, a foundational knowledge in smart home automation will help you make the most of it.
 
-Whether you're a first-time smart device user or an enthusiast looking to personalize your setup, this guide provides the necessary tools and instructions.
-Let's embark on creating a smart home that's uniquely yours.
+Whether you're taking your first steps in customizing your smart home or you're an enthusiast looking to further personalize your setup, this guide provides essential tools and instructions.
+Let’s embark on this journey together to create a smart home that’s uniquely yours.
 
-> [!NOTE]  
+<!-- markdownlint-disable MD028 -->
+> [!TIP]
+> For troubleshooting TFT transfer issues, the most popular topic for new sers, please consult our [TFT Transfer Troubleshooting Guide](tft_upload.md).
+
+> [!NOTE]
+> We encourage users with absolute beginner-level knowledge in Home Assistant, ESPHome, or YAML editing to familiarize themselves with the basics of these platforms.
+> Our community is here to support, but please note that this guide may not cover the fundamental aspects of Home Assistant and ESPHome extensively.
+
+> [!NOTE]
 > Some images or instructions on this guide might be slighly different due to different configurations depending on your ESPHome and Home Assistant implementation or versions.
 >
 > If you find something that is not understandable or needs to be updated, please let us know.
 > You can create an issue reporting this, or fix it yourself and submit a [Pull Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/pulls) to this repository.
+<!-- markdownlint-enable MD028 -->
 
 ## Summary
 - [Preparation](#preparation)
@@ -116,9 +126,21 @@ Follow these steps to add a new device in the ESPHome Dashboard:
 10. For Wi-Fi credentials, use `!secret` for added security or input them directly.
 Learn about secrets in ESPHome: [Home Assistant Secrets in ESPHome](https://www.youtube.com/watch?v=eW4vKDeHh7Y).
 11. Optionally, adjust `nextion_update_url` to the URL of a TFT file hosted on an HTTP or HTTPS server, ensuring that the file is accessible to the NSPanel.
-This URL will be used by ESPHome to download the TFT file to your panel.
-For more information on hosting the TFT file and setting up the URL, see the [Upload TFT](#upload-tft) section.
+    This URL will be used by ESPHome to download the TFT file to your panel.
+    For more information on hosting the TFT file and setting up the URL, see the [Upload TFT](#upload-tft) section.
+
+    > [!CAUTION]
+    > **Prefer HTTP over HTTPS for File Transfer**  
+    > While you might encounter examples using HTTPS in URLs for file transfer,
+    > it is strongly recommended to use HTTP, especially when employing the `arduino` framework.
+    > The support for HTTPS in this context can be unstable,
+    > often leading to issues with file transfers.
+
 12. (Optional) Enhance security with API encryption by adding the copied key from step 6 to the **My Customization** area.
+
+    > [!TIP]
+    > You can get a new randomly generated valid key from [ESPHome Native API Component](https://esphome.io/components/api.html#configuration-variables) page.
+
 13. After finalizing settings, click **Save** and close the YAML window.
 
 Your NSPanel is now configured in your ESPHome Dashboard.
@@ -127,7 +149,7 @@ Your NSPanel is now configured in your ESPHome Dashboard.
 
 #### Drive Safe
 <!-- markdownlint-disable MD028 -->
-> [!CAUTION] 
+> [!CAUTION]
 > **Disconnect your panel's controller module from main power during all work.**  
 > Operating on an open device that's plugged into the wall puts you at risk of electrocution.
 

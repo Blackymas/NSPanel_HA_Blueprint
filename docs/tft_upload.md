@@ -11,6 +11,20 @@
 The following is a list of common issues affecting the TFT upload, along with suggested solutions.
 These issues are not specific to the NSPanel HA Blueprint project but are common to Nextion displays and ESPHome.
 
+### Resolving "SYSTEM DATA ERROR" on Display
+
+#### Don't Panic!
+
+The "SYSTEM DATA ERROR" message, sometimes displayed upside-down, appears when a TFT upload is incomplete. While it may seem alarming, this message simply indicates that the TFT file on the display is invalid. A successful TFT upload will resolve this issue.
+
+### Using the `nspanel_blank.tft` File to Assist
+
+Many TFT upload problems are associated with the Nextion Active Reparse Mode, which is used in some implementations like the original Sonoff firmware or other popular custom firmwares. Installing any TFT file from this project will disable this mode. However, the size of a typical TFT file (7 to 12 Mb) can be challenging for devices with limited memory, such as the ESP32 in your panel, especially over a serial interface.
+
+To facilitate the process, we've created the `nspanel_blank.tft` file. Although it's not a fully functional TFT file, it's sufficient to disable the Reparse Mode and is significantly smaller (less than 300kb). 
+
+If you encounter any issues, try installing the `nspanel_blank.tft` file first. This should make it easier to subsequently install larger, fully functional TFT files.
+
 ### Enabling TFT upload components
 If the components necessary for uploading a TFT file are not available in the device's page under **Settings** > **Devices & Services** > **ESPHome**,
 and you cannot simply enable the entity on it's settings, please try removing the device integration from there, restart your Home Assistant instance and then add the device again.
