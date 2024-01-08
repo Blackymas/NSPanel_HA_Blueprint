@@ -15,13 +15,20 @@ These issues are not specific to the NSPanel HA Blueprint project but are common
 
 #### Don't Panic!
 
-The "SYSTEM DATA ERROR" message, sometimes displayed upside-down, appears when a TFT upload is incomplete. While it may seem alarming, this message simply indicates that the TFT file on the display is invalid. A successful TFT upload will resolve this issue.
+The "SYSTEM DATA ERROR" message, sometimes displayed upside-down, appears when a TFT upload is incomplete.
+While it may seem alarming, this message simply indicates that the TFT file on the display is invalid.
+A successful TFT upload will resolve this issue.
 
 ### Using the `nspanel_blank.tft` File to Assist
 
-Many TFT upload problems are associated with the Nextion Active Reparse Mode, which is used in some implementations like the original Sonoff firmware or other popular custom firmwares. Installing any TFT file from this project will disable this mode. However, the size of a typical TFT file (7 to 12 Mb) can be challenging for devices with limited memory, such as the ESP32 in your panel, especially over a serial interface.
+Many TFT upload problems are associated with the Nextion Active Reparse Mode,
+which is used in some implementations like the original Sonoff firmware or other popular custom firmwares.
+Installing any TFT file from this project will disable this mode.
+However, the size of a typical TFT file (7 to 12 Mb) can be challenging for devices with limited memory,
+such as the ESP32 in your panel, especially over a serial interface.
 
-To facilitate the process, we've created the `nspanel_blank.tft` file. Although it's not a fully functional TFT file, it's sufficient to disable the Reparse Mode and is significantly smaller (less than 300kb). 
+To facilitate the process, we've created the `nspanel_blank.tft` file.
+Although it's not a fully functional TFT file, it's sufficient to disable the Reparse Mode and is significantly smaller (less than 300kb). 
 
 If you encounter any issues, try installing the `nspanel_blank.tft` file first. This should make it easier to subsequently install larger, fully functional TFT files.
 
