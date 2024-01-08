@@ -11,11 +11,13 @@
 The following is a list of common issues affecting the TFT upload, along with suggested solutions.
 These issues are not specific to the NSPanel HA Blueprint project but are common to Nextion displays and ESPHome.
 
-### Resolving "SYSTEM DATA ERROR" on Display
+### Resolving "System data ERROR!" on Display
+
+![System Data ERROR](pics/us_system_data_error_upside_down.jpg)
 
 #### Don't Panic!
 
-The "SYSTEM DATA ERROR" message, sometimes displayed upside-down, appears when a TFT upload is incomplete.
+The "System data ERROR!" message, sometimes displayed upside-down, appears when a TFT upload is incomplete.
 While it may seem alarming, this message simply indicates that the TFT file on the display is invalid.
 A successful TFT upload will resolve this issue.
 

@@ -29,7 +29,7 @@ Let’s embark on this journey together to create a smart home that’s uniquely
   - [Flashing the Device for the First Time](#flashing-the-device-for-the-first-time)
   - [Integrating Your Panel to Home Assistant](#integrating-your-panel-to-home-assistant)
   - [Making Changes Over The Air (OTA)](#making-changes-over-the-air-ota)
-  - [Updating](#updating)
+  - [Updating Your NSPanel Firmware](#updating-your-nspanel-firmware)
   - [Migrating from Other Custom Firmware](#migrating-from-other-custom-firmware)
 - [Upload TFT](#upload-tft)
   - [Select the Right File](#select-the-right-file)
@@ -170,15 +170,67 @@ For first-time flashing of your NSPanel with ESPHome, you may need:
 4. Appropriate screwdriver to disassemble your panel's controller module (touch plate)
 
 #### Connecting Your Device via USB-to-Serial TTL Interface
-Before disassembling your panel, review the following resources:
+
+Before you begin disassembling your panel, it is recommended to review the following resources for guidance:
 - [YouTube - Mark Watt Tech - HOW TO - Setup the SIMPLEST Smart Home Scene Controller](https://www.youtube.com/watch?v=jpSTA_ILB8g&t=323s)
 - @blakadder's [Sonoff NSPanel EU Switch in Detail](https://blakadder.com/nspanel-teardown/)
 - [ESPHome - Physically Connecting to Your Device](https://esphome.io/guides/physical_device_connection)
 
+While this guide does not cover the firmware transfer process in detail,
+here are some important points to consider during the setup:
 
->>>>> Pending: (Pictures of the board & wiring will be added here)
->>>>> Pending: (Steps to generate firmware on ESPHome Dashboard will be added here)
->>>>> Pending: (Steps to flash the firmware using serial TTL will be added here)
+![US model - Board to TTL wiring](pics/us_board_ttl_wiring.jpg)
+![US model - Board to TTL wiring (zoom)](pics/us_board_ttl_wiring_zoom.jpg)
+![TTL wiring (zoom)](pics/us_ttl_wiring_zoom.jpg)
+
+1. Handle with care the pins connecting the front panel (which includes the main board and screen) to the back part (the section mounted to the wall).
+These pins are fragile and can break or bend, potentially rendering your panel nonfunctional.
+2. Ensure that the pin `IO0` on the panel's board is connected to the `GND` pin on the back part connectors.
+This connection is necessary to put the ESP32 into firmware transfer mode.
+3. Before connecting the TTL adapter to your panel's board, verify that the adapter is set to output 3.3VDC.
+Using a voltage higher than 3.3VDC, such as 5VDC, can damage your panel.
+4. To avoid short circuits, consider moving the panel's board away from the metal backing of the display.
+The use of a non-conductive tool, like the blue plastic one shown in the picture, can be helpful.
+5. Note the cross-connection of `RX` and `TX` pins.
+    The following pin-out should be used:
+    <!-- markdownlint-disable MD033 -->
+      | Panel's Board | TTL USB-to-Serial |
+      | :--: | :--: |
+      | `3V3` | `VCC`, `3V3`, or `3.3V` |
+      | `TX`  | `RX`  |
+      | `RX`  | `TX`  |
+      | `GND` | `GND` |
+      | `IO0` | `GND`<br>This can be connected to a `GND` pin on the panel's board. |
+    <!-- markdownlint-enable MD033 -->
+
+By following these guidelines and referring to the provided resources, you can safely prepare your NSPanel for firmware updates.
+
+#### Transferring the Firmware to Your Device
+After ensuring your device is properly connected, proceed to update or install the firmware using the ESPHome Dashboard.
+
+1. **Access the ESPHome Dashboard** and locate your NSPanel device.
+2. **Open the Installation Options:** Click on the three-dot menu next to your device and select **Install**.
+
+   ![ESPHome Dashboard Install Option](pics/ha_esphome_dashboard_install_01.png)
+
+3. **Choose the Installation Method:**
+   - If you're **updating** your panel, the **Wirelessly** option is typically the right choice.
+   This method will compile and transfer the firmware directly to your panel over Wi-Fi.
+   - For **initial installations** or updates via a USB-to-Serial TTL adapter, select either **Plug into this computer** or **Manual download**.
+   Both these options will compile the firmware and prompt you to download it to your computer.
+
+4. **Transfer Firmware via USB-to-Serial TTL:**
+   - Navigate to [ESPHome Web](https://web.esphome.io/) on your computer.
+   - Click **Connect** and choose the serial interface connected to your USB-to-Serial TTL adapter.
+
+     ![ESPHome Web Interface](pics/esphome_web_home.png)
+
+   - Once connected, opt to install an existing firmware to your panel.
+   Select the compiled firmware file and initiate the installation.
+
+The firmware installation process will take a few minutes.
+After completion, reassemble your panel and mount it back on the wall.
+Power it up, and it should appear online in the ESPHome Dashboard within a couple of minutes, running the latest firmware.
 
 ### Integrating your panel to Home Assistant
 Once your panel loaded the new ESPHome firmware, it should be automatically detected by Home Assistant and you should get a notification about that.
@@ -201,12 +253,38 @@ It might take a minute or two until the device's page gets fully populated, but 
 
 You can always get back to the device's page under your [ESPHome integration's page](https://my.home-assistant.io/redirect/integration/?domain=esphome).
 
-### Making changes Over The Air (OTA)
->>>>> Pending: (add instructions how to flash wirelessly)
+### Making Changes Over The Air (OTA)
+Once your NSPanel is flashed with ESPHome, updating the firmware wirelessly via Over The Air (OTA) updates is a straightforward process.
+This method eliminates the need for a USB-to-serial TTL adapter for most firmware updates.
 
-### Updating
->>>>> Pending: (add instructions how to flash wirelessly)
->>>>> Pending: (considerations - update all to the same version)
+#### Steps for OTA Updates
+1. After making your changes in the yaml editor, click the **Install** button located at the top of the editor.
+Alternatively, you can click the three-dot menu next to your device on the ESPHome Dashboard and select **Install**.
+
+   ![ESPHome Dashboard 3-dot Menu](pics/ha_esphome_dashboard_3dot_menu.png)
+
+2. A dialog box will appear with different installation options:
+
+   ![ESPHome Dashboard Installation Options](pics/ha_esphome_dashboard_install_01.png)
+
+3. Choose the first option to transfer the firmware **Wirelessly**.
+ESPHome will compile the firmware with the new settings and automatically transfer it to your device via Wi-Fi.
+
+   - The compilation and transfer process may take a few minutes.
+   - Once complete, your panel will restart automatically with the new firmware.
+
+Using OTA for firmware updates is a time-efficient way to keep your NSPanel updated with the latest changes and enhancements, ensuring a smooth and hassle-free user experience.
+
+### Updating Your NSPanel Firmware
+Regularly updating your NSPanel firmware ensures that you have the latest features and improvements from this project and ESPHome.
+To update your device's firmware to the latest version, simply follow the [Steps for OTA Updates](#steps-for-ota-updates) as outlined above.
+
+> [!IMPORTANT]  
+> This project comprises three integral parts: ESPHome, the TFT file, and the Blueprint.
+> It is crucial that all three components are updated to the same version to ensure compatibility and optimal performance.
+> When updating the ESPHome firmware, make sure to also update the TFT file and the Blueprint to the corresponding version.
+
+Keeping each component of the NSPanel HA Blueprint in sync with the same version enhances the stability and functionality of your smart panel.
 
 ### Migrating from other custom firmware
 The installation in a NSPanel with Sonoff's original firmware should be straighforward, however,
@@ -222,7 +300,22 @@ please [create a new issue](https://github.com/Blackymas/NSPanel_HA_Blueprint/is
 which custom firmware you have installed before migrating to NSPanel HA Blueprint.
 
 ## Upload TFT
->>>>> Pending:
+
+The NSPanel utilizes a Nextion display, which is equipped with its own controller, memory, and firmware.
+This setup enables the display to render UI components and respond to commands sent from ESPHome.
+The firmware and UI elements for the Nextion display are compiled into a TFT file, which needs to be loaded onto the display for proper functionality.
+
+ESPHome manages the transfer of the TFT file to the Nextion display.
+It does this by connecting to an HTTP/HTTPS server, downloading the required TFT file, and then transferring it to the display.
+This process is crucial for updating or changing the UI and functionality of the display.
+
+In our GitHub repository, you can find all the necessary TFT files for this project, catering to different models of the NSPanel.
+These files are specifically designed to work with the various functionalities and features provided in each update of the NSPanel HA Blueprint.
+
+Make sure to select and upload the correct TFT file corresponding to your specific model of NSPanel to ensure smooth operation and access to all the latest features.
+
+> [!TIP]
+> For troubleshooting TFT transfer issues, consult our [TFT Transfer Troubleshooting Guide](tft_upload.md).
 
 ### Select the right file
 Open the device's page under [ESPHome integration's page](https://my.home-assistant.io/redirect/integration/?domain=esphome)
@@ -269,7 +362,7 @@ If the transfer don't starts in a few seconds, ESPHome will retry automatically 
 Once started, the transfer shouldn't take more than 10 to 20 minutes. If after this time it isn't close to finnish, please cancel the process by restarting your device, then try it again.
 
 > [!TIP]
-> For troubleshooting TFT transfer issues, consult our [TFT Transfer Troubleshooting Guide](tft_upload.md) first.
+> For troubleshooting TFT transfer issues, consult our [TFT Transfer Troubleshooting Guide](tft_upload.md).
 
 ### Troubleshooting TFT transfer issues
 We have an useful guide for [troubleshooting TFT transfer issues](tft_upload.md). Please take a look there.

@@ -27,9 +27,11 @@ This upgrade is designed to significantly increase the available memory on the E
 While the change is around the corner, there's no need to rush. You have time to get ready for this transition.
 When it's time to switch, you’ll need to flash your device using a serial cable, similar to what you did for your first custom firmware installation.
 
-If you happen to need a serial firmware installation before March, consider giving `esp-idf` a try earlier. It’s already supported and a good step towards future-proofing your setup.
+If you happen to need a serial firmware installation before March, consider giving `esp-idf` a try earlier.
+It’s already supported and a good step towards future-proofing your setup.
 
-And if you're not able to make the switch by March or can't flash via serial, don't worry. You’ll still have the option to use the `arduino` framework and update your device wirelessly (OTA).
+And if you're not able to make the switch by March or can't flash via serial, don't worry.
+You’ll still have the option to use the `arduino` framework and update your device wirelessly (OTA).
 
 For all the details on customizing the framework, our [customization docs](docs/customization.md#framework-esp-idf) are there to help.
 We're committed to making this transition as smooth as possible, so reach out if you have any concerns or need assistance.
@@ -106,7 +108,8 @@ We did our best to support your legacy settings and avoid breaking your system, 
 12. ***Action required:* Reset your wake-up page selection.**
 
     We've enhanced the wake-up page functionality for improved consistency after power cycles.
-    Previously, the system didn't remember your selection following a power outage. With our latest update, this issue has been resolved.
+    Previously, the system didn't remember your selection following a power outage.
+    With our latest update, this issue has been resolved.
     However, this improvement requires you to reselect your wake-up page one more time.
     Thanks for your cooperation in making these settings more reliable for everyday use.
 
@@ -140,7 +143,8 @@ Expect a unified visual experience that aligns the look and feel of icons throug
 
 ### 2. Additional custom buttons on Home page
 
-It's that simple, now you have 7 buttons where used to be 3. Well, where used to be 4, as the space previously used by the Alarm button is now a custom button. 😉
+It's that simple, now you have 7 buttons where used to be 3.
+Well, where used to be 4, as the space previously used by the Alarm button is now a custom button. 😉
 
 ### 3. Outdoor temperature selectable font size
 
@@ -162,9 +166,11 @@ You can also select the size of the icons on the buttos pages:
 
 ### 5. Support to CJK languages (experimental)
 
-You will find 3 new TFT files on the repository for the CJK languages. These files are considerably bigger, as the fonts requires more memory, but it should work fine in your panel.
+You will find 3 new TFT files on the repository for the CJK languages.
+These files are considerably bigger, as the fonts requires more memory, but it should work fine in your panel.
 
-**ATTENTION:** This is an experimental feature and may contain bugs or some areas missing translations. Please report if you find anything.
+**ATTENTION:** This is an experimental feature and may contain bugs or some areas missing translations.
+Please report if you find anything.
 
 ### 6. Improved TFT transfer
 
@@ -197,13 +203,15 @@ To enable an alternative upload TFT baud rate, add the desired value in your sub
   upload_tft_baud_rate: "9600"
 ```
 
-If an invalid value is entered, 115200 bps will be used. The default value for this substitution (in case it is not set by users) will be 921600 bps.
+If an invalid value is entered, 115200 bps will be used.
+The default value for this substitution (in case it is not set by users) will be 921600 bps.
 
 During a TFT transfer, the system will always fall back to the standard baud rate (115200 bps) if other tentatives fails.
 
 ### 7. Multiple Alarm Control Panels
 
-Now alarm control panel entities can be assigned to chips and custom buttons in the Home page, but also to hardware buttons, any of the buttons pages or entities pages, similarly to other domains.
+Now alarm control panel entities can be assigned to chips and custom buttons in the Home page,
+but also to hardware buttons, any of the buttons pages or entities pages, similarly to other domains.
 
 ### 8. Support to `remote`
 
@@ -222,7 +230,8 @@ Chips now have an 'invert' option on the blueprint settings, providing additiona
 
 ### 11. Add swipe control to Screensaver page
 
-You can now navigate to button pages from the screensaver while your panel is in sleep mode. The swipe controls will function as they do on the Home page.
+You can now navigate to button pages from the screensaver while your panel is in sleep mode.
+The swipe controls will function as they do on the Home page.
 
 ### 12. Enhanced control for automation entities on buttons
 
@@ -232,15 +241,18 @@ This update allows for a more personalized and efficient control experience, tai
 
 #### Key features
 
-- **Toggle:** This action will enable or disable the automation. It is set as the default option.
+- **Toggle:** This action will enable or disable the automation.
+It is set as the default option.
 - **Trigger:** This action will execute the automation regardless of its current state, providing more flexibility.
 
 #### How to use
 
-1. Access your configuration for automation under **Services** > **Automations & Scenes**. Select the automation associated with your panel setup.
+1. Access your configuration for automation under **Services** > **Automations & Scenes**.
+Select the automation associated with your panel setup.
 1. Scroll to the **ADVANCED SETTINGS** section at the end.
 1. From the menu, select your desired action - either **Toggle** or **Trigger**.
-1. Apply the setting. This will then be effective across all relevant entities.
+1. Apply the setting.
+This will then be effective across all relevant entities.
 
 This update is specially designed to cater to diverse user needs, ensuring a more intuitive and responsive smart home experience.
 
@@ -265,11 +277,13 @@ This new add-on enables the NSPanel to manage both heating and cooling systems s
 #### Note to Users
 
 This feature enhances the capabilities of the NSPanel without compromising its existing functionalities.
-Users who previously used the NSPanel for single-mode (either heating or cooling) control can now explore dual-mode options for a more comprehensive climate control solution.
+Users who previously used the NSPanel for single-mode (either heating or cooling) control can
+now explore dual-mode options for a more comprehensive climate control solution.
 
 ### 14. Enhanced Climate Page for Dual Thermostat Control
 
-Leveraging the capabilities introduced with the Dual Thermostat Controller add-on, the existing climate page has been upgraded to support systems with dual temperature settings.
+Leveraging the capabilities introduced with the Dual Thermostat Controller add-on,
+the existing climate page has been upgraded to support systems with dual temperature settings.
 This enhancement allows users to effectively manage thermostats that require both heating and cooling target temperatures, directly from the NSPanel's interface.
 While originally developed to complement the new add-on,
 this refined climate page also seamlessly extends its functionality to existing thermostats with dual set capabilities,
@@ -279,7 +293,8 @@ offering a more versatile and comprehensive climate control experience.
 
 We have improved the functionality of our system by enhancing the timeout flexibility for Sleep, Page Fallback, and Dimming settings.
 The previous timeout limit of 300 seconds has been significantly expanded, offering users more control and customization options for these specific features.
-This enhancement allows for a wider range of use cases, catering to the needs of those who require extended periods for these settings, while still maintaining the option for shorter durations.
+This enhancement allows for a wider range of use cases, catering to the needs of those who require extended periods for these settings,
+while still maintaining the option for shorter durations.
 
 ### 16. Display time on the `screensaver` page
 
