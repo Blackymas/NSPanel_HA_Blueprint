@@ -1,7 +1,8 @@
 # ESPHome
 
-### Logging
-Avoid excessive log, or at least avoid excessive log at DEBUG level, but if you look around this project, many of the functionalities will log like this:
+## Logging
+Avoid excessive log, or at least avoid excessive log at DEBUG level,
+but if you look around this project, many of the functionalities will log like this:
 
 ```yaml
 sensor:
@@ -18,8 +19,12 @@ sensor:
           }
 ```
 
-### Page opened
-When a new page is opened, a script name `page_changed` (whith a parameter `page` containing a string with the page name) is called and that one will call a page specific script named `page_<page_name>`. In addition, pages with multiple pages (entitypageXX, buttonpageXX and weatherXX) will also call a generic page named `page_entitypage`, `page_buttonpage` or `page_weather` with a parameter `page_number` containing the number of the page called.
+## Page opened
+When a new page is opened, a script name `page_changed` (whith a parameter `page` containing a
+string with the page name) is called and that one will call a page specific script named `page_<page_name>`.
+In addition, pages with multiple pages (entitypageXX, buttonpageXX and weatherXX) will also call
+a generic page named `page_entitypage`, `page_buttonpage` or `page_weather` with a parameter
+`page_number` containing the number of the page called.
 
 If you want to execute expecific code when a page is opened, you can extend the functionality of that specific page:
 
@@ -42,11 +47,13 @@ script:
       # Code to run when buttonpage02 is opened
 ```
 
-#### Managing conflicts with Upload TFT
-The TFT upload is the most resource conmsuming task in this project and should have all the resources available, so when creating something, please take in account:
+## Managing conflicts with Upload TFT
+The TFT upload is the most resource conmsuming task in this project and should have all the resources available,
+so when creating something, please take in account:
 
-#### Stop your scripts before the upload starts
-If you create a new script that should be stopped previous a Upload TFT starts, please add your script to the `stop_all` script like this:
+### Stop your scripts before the upload starts
+If you create a new script that should be stopped previous a Upload TFT starts,
+please add your script to the `stop_all` script like this:
 
 ```yaml
 script:
@@ -55,8 +62,9 @@ script:
       - script.stop: my_new_script_id
 ```
 
-#### Check for upload status before starting any action
-There is a global `is_uploading_tft` which will be true when the upload TFT process starts, so you can use this in your code like this:
+### Check for upload status before starting any action
+There is a global `is_uploading_tft` which will be true when the upload TFT process starts,
+so you can use this in your code like this:
 
 ```yaml
 sensor:
