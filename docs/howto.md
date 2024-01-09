@@ -178,7 +178,7 @@ trigger:
 ```
 
 ## Climate control with Relays
-> Attention!! Although these instructions are still valid, since v4.0 there is a better way to setup a climate control using the panel's relays: https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-Add%E2%80%90on:-Climate
+> Attention!! Although these instructions are still valid, since v4.0 there is a better way to setup a climate control using the panel's relays an the [add-on climate](addon_climate.md).
 
 In order to use the NSPanel to control a radiator or underfloor heating, at least one Generic Thermostat must be created in the HA.
 More information can be found here: https://www.home-assistant.io/integrations/generic_thermostat/
