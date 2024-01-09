@@ -137,11 +137,14 @@ substitutions:
     
   # Add-on configuration (if needed)
   ## Add-on climate
-  heater_relay: "1"  # Possible values: "1" or "2"
-  temp_units: "°F"   # Temperatures in Fahrenheit
-  temp_min: "40"     # Min supported temperature is 40°F
-  temp_max: "80"     # Max supported temperature is 80°F
-  temp_step: "1"     # Temperature granularity is 1°F
+  heater_relay: "1"     # Possible values: "1" or "2"
+  temp_units: "°F"      # Temperatures in Fahrenheit
+  temp_min: "40"        # Min supported temperature is 40°F
+  temp_max: "80"        # Max supported temperature is 80°F
+  temp_step: "1"        # Temperature granularity is 1°F
+  cold_tolerance: "0.5" # lower set point
+  hot_tolerance: "0.5"  # upper set point
+
 
 # Customization area
 ##### My customization - Start #####
