@@ -332,13 +332,13 @@ You also have to set **Display Brightness Sleep** at the device's page (**Settin
 Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=due_date)
 
 ## Special thanks to
-
-- @bluefoxlee - For the CJK fonts and all the support with #1359.
+- @bluefoxlee - For the CJK fonts and all the support with #1359
 - @Floppe - Fix entity pages labels, #1455
 - @tikismoke - Customization guide: Exposing relay fallback switch to Home Assistant, #1537
+- @andythomas - Allow to set upper and lower set points for embedded thermostat, #1573
+- And to all users who helped with the tests during development and beta.
 
 ## Previous releases
-
 - [v4.1.4 - Support to Home Assistant 2023.12.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.4)
 - [v4.1.3 - Bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.3)
 - [v4.1.2 - Bug fixes and minor enhancements](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.2)
