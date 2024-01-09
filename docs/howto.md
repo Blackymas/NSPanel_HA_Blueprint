@@ -178,7 +178,7 @@ trigger:
 ```
 
 ## Climate control with Relays
-> Attention!! Although these instructions are still valid, since v4.0 there is a better way to setup a climate control using the panel's relays: https://github.com/Blackymas/NSPanel_HA_Blueprint/wiki/(EN)-Add%E2%80%90on:-Climate
+> Attention!! Although these instructions are still valid, since v4.0 there is a better way to setup a climate control using the panel's relays an the [add-on climate](addon_climate.md).
 
 In order to use the NSPanel to control a radiator or underfloor heating, at least one Generic Thermostat must be created in the HA.
 More information can be found here: https://www.home-assistant.io/integrations/generic_thermostat/
@@ -273,7 +273,8 @@ The required parameters for this service are as follows:
 Supported icons are listed on the [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) page.
 The code is a 4-character hex string found near the icon in the list. Prefix the icon code with `\u` to indicate it's a UTF-8 hex code.
 - **page_icon_color**: An RGB array with values from 0 to 255 for red, green, and blue.
-ESPHome automatically converts this array to a [16-bit RGB (RGB565)](https://en.wikipedia.org/wiki/List_of_monochrome_and_RGB_color_formats#16-bit_RGB_(also_known_as_RGB565)) format, which may lead to some color distortion.
+ESPHome automatically converts this array to a [16-bit RGB (RGB565)](https://en.wikipedia.org/wiki/List_of_monochrome_and_RGB_color_formats#16-bit_RGB_(also_known_as_RGB565)) format,
+which may lead to some color distortion.
 - **entity**: The `entity_id` from Home Assistant for the relevant entity.
 - **back_page**: The page to return to when the detailed page is manually closed or after a page timeout.
 Only [Basic pages](#basic-pages) are supported.
@@ -291,7 +292,9 @@ data:
 
 ### Wake-up Page
 
-You may have configured a specific **Wake-up page** on your device. This page is automatically displayed after the device boots up or wakes up from sleep mode (such as the `screensaver` page). To open this page, you have two options:
+You may have configured a specific **Wake-up page** on your device.
+This page is automatically displayed after the device boots up or wakes up from sleep mode (such as the `screensaver` page).
+To open this page, you have two options:
 
 1. Directly call the page if it is one of the [Basic pages](#basic-pages).
 2. Use the `esphome.xxxxx_wake_up` service as follows:

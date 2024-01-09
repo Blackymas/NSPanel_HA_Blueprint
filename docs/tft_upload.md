@@ -21,6 +21,24 @@ The "System data ERROR!" message, sometimes displayed upside-down, appears when 
 While it may seem alarming, this message simply indicates that the TFT file on the display is invalid.
 A successful TFT upload will resolve this issue.
 
+### Resolving "Model does not match" on Display
+![Model Does Not Match](pics/model_does_not_match.jpg)
+
+This is one more case where the message sounds more alarming than it actually is.
+Often, a simple reboot of the panel is enough to restore the previous TFT file.
+This issue typically arises from a corrupt TFT file or server response issues.
+For troubleshooting, refer to the following sections:
+- [Using a Local Source (Home Assistant)](#using-a-local-source-home-assistant)
+- [HTTP Instead of HTTPS](#http-instead-of-https) - Especially important when using the `arduino` framework.
+- [Check the File Size by Downloading to Your Computer](#check-the-file-size-by-downloading-to-your-computer)
+
+> [!TIP]
+> If the TFT transfer has started, your panel might not respond to the reset button on the
+> device's page in Home Assistant or to holding the hardware button for 15 seconds.
+> In such cases, you can either power cycle your device using the room's relay on your electrical plate
+> or use a pin to press the hardware restart button in a small hole behind the device.
+> ![Image](pics/eu_reset_button.png)
+
 ### Using the `nspanel_blank.tft` File to Assist
 
 Many TFT upload problems are associated with the Nextion Active Reparse Mode,
@@ -60,7 +78,7 @@ Observe any changes in the display or logs indicators to ensure the device is re
 
 ### HTTP Instead of HTTPS
 
-- **Issue**: HTTPS connections may be problematic with ESP.
+- **Issue**: HTTPS connections may be problematic with ESP, especially when using `arduino` as framework.
 - **Solution**: Use HTTP for hosting the TFT file and updating the `nextion_update_url`.
 - **Why HTTP?**: HTTP can be more stable for these connections.
 To switch, simply replace 'https' with 'http' in your URLs and make sure your http server supports non-secure connections.
@@ -113,10 +131,16 @@ Compare this with the size listed on GitHub or from the file you downlodaded dir
 ### Power Cycle Your Panel
 
 - **Issue**: General troubleshooting.
-- **Solution**: Turn off the power supply, wait a moment, and power it back on.
-If your panel is already installed in the wall, you probably can still power cycle using your electricity relay's panel and switching the relay connected to your panel.
-- **How Long to Wait**: Wait at least 30 seconds before turning the power back on.
-This ensures the system resets to a clean state.
+- **Solution**: Turn off the power supply, wait for a moment, and then power it back on.
+If your panel is already installed in the wall, you can often power cycle it by switching the relay connected to your panel in your electricity relay's panel.
+- **How Long to Wait**: It's recommended to wait at least 30 seconds before turning the power back on.
+This duration helps ensure that the system resets to a clean state.
+
+> [!TIP]
+> If you don't have easy access to your relay's panel, an alternative is to
+> use a pin to press the hardware restart button, located in a small hole behind the device.
+> Although this action does not replicate a full power cycle, it might resolve the issue in some cases.
+> ![Hardware Reset Button](pics/eu_reset_button.png)
 
 ### Flash your panel again
 
