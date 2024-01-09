@@ -99,12 +99,34 @@ We did our best to support your legacy settings and avoid breaking your system, 
 10. **Alarm page cannot be used as wake-up page.**
 
     As multiple alarms are supported now, the system don't know which one to show on the wake-up.
-11. **Changes in icon presentation.**
+11. **Refinement of Icon Presentation**
 
-    As part of our efforts to standardize icons across various pages, you might notice some differences in how they appear and behave.
-    This includes new colors for lights and climate icons, as well as the introduction of new icon designs.
-    While many aspects can still be customized through blueprint settings, the default presentation will now adhere to this new standardized format.
-    These changes might be a departure from what you're accustomed to in previous versions, but they aim to enhance overall consistency and user experience.
+    In our continuous pursuit to refine the user experience, we've embarked on standardizing the presentation of icons across various pages.
+    This initiative may lead to noticeable changes in icon appearance and behavior,
+    encompassing aspects like the introduction of new colors for alarms, lights, climate icons,
+    and the adoption of fresh icon designs.
+
+    Our aim with these modifications is to establish a default presentation that adheres to a unified standard,
+    enhancing both consistency and user experience across the platform.
+    While this approach simplifies the overall design,
+    it still preserves a degree of customization through blueprint settings.
+
+    The complexity of managing icon colors, especially for items with multi-state attributes like alarm control panels,
+    climate controls, and lights with adjustable brightness and color, has prompted us to rethink our approach.
+    The current version implements domain-based colors for multi-state items, with specific states for alarms and climate being hard-coded.
+    We're exploring ways to offer user-selectable colors for these states in future updates.
+
+    The new color logic is as follows:
+    - For the `off` state: Icons will be displayed in **gray**.
+    - For states other than `off`:
+        - For alarms and climate: Each state will have a specific, hard-coded color for immediate recognition.
+        - For lights: If supported, the icon will reflect the light's RGB color, proportionally dimmed to match its brightness.
+        - For other domains: Icons will be displayed in **white**.
+
+    This transition towards a more standardized icon presentation is a step forward in enhancing
+    the interface's intuitiveness while balancing it with the flexibility of customization.
+    We understand this change might be an adjustment from previous versions,
+    but our goal is to streamline the experience without compromising the essence of personalization.
 12. ***Action required:* Reset your wake-up page selection.**
 
     We've enhanced the wake-up page functionality for improved consistency after power cycles.

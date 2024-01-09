@@ -37,7 +37,7 @@ blueprint:
     🎉 Roadmap can be found here: [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
 
 
-    ℹ️ Version: v4.2beta.2
+    ℹ️ Version: v4.2beta.4
 
   source_url: https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/nspanel_blueprint.yaml
   domain: automation
@@ -3928,7 +3928,7 @@ trigger_variables:
 
 variables:
   ##### GENERAL #####
-  blueprint_version: '4.2beta.2'
+  blueprint_version: '4.2beta.4'
   date_format_temp: !input 'date_format'
   # Avoid breaking change for existing users with legacy type format
   date_format: >
@@ -7261,7 +7261,7 @@ action:
                 if overlap is defined and overlap.icon_color is defined and overlap.icon_color is sequence
                 else nextion.color.on
               )
-              if entity_state_is.on
+              if ((not entity_state_is.off) and (not entity_state_is.unknown))
               else nextion.color.off
             }}
           entity_friendly_name: '{{ state_attr(entity_id, "friendly_name") | default("") if entity_id_is_valid else None }}'
@@ -7270,14 +7270,16 @@ action:
             id: '{{ entity_id }}'
             valid: '{{ entity_id_is_valid }}'
             has_value: '{{ has_value(entity_id) if entity_id_is_valid else false }}'
-            state: '{{ entity_state }}'
+            state: '{{ entity_state if entity_id_is_valid else None }}'
             state_rounded: '{{ states(entity_id, rounded=true) if entity_state_is_number else entity_state }}'
             state_is: '{{ entity_state_is }}'
             state_mui: >
               {{
-                entity_state
-                if entity_domain != "alarm_control_panel"
-                else ( mui[language].alarm[entity_state | replace("armed_", "") | replace("disarmed", "disarm")] | default(entity_state) if entity_state else None )
+                (
+                  entity_state
+                  if entity_domain != "alarm_control_panel"
+                  else ( mui[language].alarm[entity_state | replace("armed_", "") | replace("disarmed", "disarm")] | default(entity_state) if entity_state else None )
+                ) if entity_id_is_valid else None
               }}
             state_is_number: '{{ entity_state_is_number }}'
             domain: '{{ entity_domain }}'
@@ -7285,14 +7287,17 @@ action:
             friendly_name: '{{ entity_friendly_name }}'
             name: >
               {{
-                overlap.name
-                if overlap is defined and overlap.name is defined and overlap.name is string and overlap.name | length > 0
-                else (entity_friendly_name if entity_friendly_name is string and entity_friendly_name | length > 0 else entity_id)
+                (
+                  overlap.name
+                  if overlap is defined and overlap.name is defined and overlap.name is string and overlap.name | length > 0
+                  else (entity_friendly_name if entity_friendly_name is string and entity_friendly_name | length > 0 else entity_id)
+                ) if entity_id_is_valid else None
               }}
             supported_features: '{{ state_attr(entity_id, "supported_features") | default(0) if entity_id_is_valid else 0 }}'
             icon: >
               {% set icon_domain = nextion.icon.domain[entity_domain] | default(all_icons.unknown) if entity_domain else all_icons.unknown %}
-              {% if overlap is defined and overlap.icon is defined and overlap.icon is string and overlap.icon | length > 0 %}
+              {% if not entity_id_is_valid %}{{ None }}
+              {% elif overlap is defined and overlap.icon is defined and overlap.icon is string and overlap.icon | length > 0 %}
                 {{ all_icons[overlap.icon.split(":")[1]] | default(icon_domain) if overlap.icon.split(":") | count == 2 else overlap.icon }}
               {% elif entity_domain == "climate" %}
                 {% set entity_hvac_action = state_attr(entity_id, "hvac_action") | default(None) %}
@@ -7325,7 +7330,7 @@ action:
                 }}
               {% endif %}
             icon_color: >
-              {% if overlap is defined and overlap.icon_color is defined and overlap.icon_color is sequence %}{{ overlap.icon_color }}
+              {% if not entity_id_is_valid %}{{ nextion.color.off }}
               {% elif entity_domain == "alarm_control_panel" %}
                 {% if entity_state == "disarmed" %}{{ nextion.color.off }}
                 {% elif entity_state in ["armed_home", "armed_away", "armed_night", "armed_vacation", "armed_bypass"] %}{{ nextion.color.green }}
@@ -7898,7 +7903,12 @@ action:
                                       icon: !input home_custom_button07_icon
                                       component: button07
                               - repeat:
-                                  for_each: '{{ home_page_custom_buttons }}'
+                                  for_each: >
+                                    {{
+                                      home_page_custom_buttons
+                                      | selectattr("entity", "defined")
+                                      | list
+                                    }}
                                   sequence:
                                     - &display_home_page_custom_buttons
                                       if: '{{ repeat.item.entity is defined and repeat.item.entity is string and repeat.item.entity | length > 0 }}'
@@ -7908,17 +7918,22 @@ action:
                                             overlap:
                                               icon: '{{ repeat.item.icon if repeat.item.icon is defined else None }}'
                                         - *variable_entity
-                                        - service: '{{ nextion.command.set_component_color }}'
-                                          data:
-                                            component: 'home.{{ repeat.item.component }}'
-                                            foreground: '{{ entity.icon_color }}'
-                                          continue_on_error: true
-                                        - *delay-default
-                                        - service: '{{ nextion.command.text_printf }}'
-                                          data:
-                                            component: 'home.{{ repeat.item.component }}'
-                                            message: '{{ entity.icon }}'
-                                          continue_on_error: true
+                                        - condition: '{{ entity.valid }}'
+                                        - if: '{{ entity.icon_color is defined }}'
+                                          then:
+                                            - service: '{{ nextion.command.set_component_color }}'
+                                              data:
+                                                component: 'home.{{ repeat.item.component }}'
+                                                foreground: '{{ entity.icon_color }}'
+                                              continue_on_error: true
+                                            - *delay-default
+                                        - if: '{{ entity.icon is defined }}'
+                                          then:
+                                            - service: '{{ nextion.command.text_printf }}'
+                                              data:
+                                                component: 'home.{{ repeat.item.component }}'
+                                                message: '{{ entity.icon }}'
+                                              continue_on_error: true
                                         - if: '{{ page.current == page.home }}'
                                           then:
                                             - *delay-default
@@ -7946,10 +7961,10 @@ action:
                                   - variables:
                                       entity_hvac_action: '{{ state_attr(entity_id, "hvac_action") | default(None) }}'
                                       entity_climate_action: '{{ (entity_hvac_action if entity_hvac_action not in ["unavailable", "unknown", "", None] else entity_state) }}'
-                                  - *delay-default
                                   - if: '{{ entity_climate_action in ["off", "heating", "heat", "cooling", "cool", "dry", "drying", "fan", "fan_only", "heat_cool", "auto", "idle"] }}'
                                     then:
                                       ### ICON Font Color ###
+                                      - *delay-default
                                       - service: '{{ nextion.command.set_component_color }}'
                                         data:
                                           component: home.icon_top_03
@@ -8012,7 +8027,12 @@ action:
                                   icon_color_rgb: !input 'chip07_icon_color'
                                   component: icon_top_10
                           - repeat:
-                              for_each: '{{ home_page_status_bar }}'
+                              for_each: >
+                                {{
+                                  home_page_status_bar
+                                  | selectattr("entity", "defined")
+                                  | list
+                                }}
                               sequence:
                                 - &display-home_page_status_bar
                                   if: '{{ repeat.item.entity is defined and repeat.item.entity is string and repeat.item.entity | length > 0 }}'
@@ -8023,22 +8043,27 @@ action:
                                           icon: '{{ repeat.item.icon if repeat.item.icon is defined else None }}'
                                           icon_color: '{{ repeat.item.icon_color_rgb if repeat.item.icon_color_rgb is defined else None }}'
                                     - *variable_entity
-                                    - *delay-default
+                                    - condition: '{{ entity.valid }}'
                                     - if: '{{ (entity.state_is.on and not repeat.item.inverted) or (entity.state_is.off and repeat.item.inverted) }}'
                                       then:
                                         ### ICON Font Color ###
-                                        - service: '{{ nextion.command.set_component_color }}'
-                                          data:
-                                            component: 'home.{{ repeat.item.component }}'
-                                            foreground: '{{ [ entity.icon_color ] if is_number(entity.icon_color) else entity.icon_color }}'
-                                          continue_on_error: true
+                                        - if: '{{ entity.icon_color is defined }}'
+                                          then:
+                                            - *delay-default
+                                            - service: '{{ nextion.command.set_component_color }}'
+                                              data:
+                                                component: 'home.{{ repeat.item.component }}'
+                                                foreground: '{{ entity.icon_color }}'
+                                              continue_on_error: true
                                         ### ICON Font ###
-                                        - *delay-default
-                                        - service: '{{ nextion.command.text_printf }}'
-                                          data:
-                                            component: 'home.{{ repeat.item.component }}'
-                                            message: '{{ entity.icon }}'
-                                          continue_on_error: true
+                                        - if: '{{ entity.icon is defined }}'
+                                          then:
+                                            - *delay-default
+                                            - service: '{{ nextion.command.text_printf }}'
+                                              data:
+                                                component: 'home.{{ repeat.item.component }}'
+                                                message: '{{ entity.icon }}'
+                                              continue_on_error: true
                                       else:
                                         - &hide-home_page-status_bar_chip
                                           service: '{{ nextion.command.text_printf }}'
@@ -8073,10 +8098,21 @@ action:
                                   page: home
                                   component: value03
                           - repeat:
-                              for_each: '{{ home_page_values }}'
+                              for_each: >
+                                {{
+                                  home_page_values
+                                  | selectattr("entity", "defined")
+                                  | list
+                                }}
                               sequence:
                                 - &display_value
-                                  if: '{{ repeat.item.entity is string and repeat.item.entity is match "sensor." and has_value(repeat.item.entity) }}'
+                                  if: >
+                                    {{
+                                      repeat.item.entity is defined and
+                                      repeat.item.entity is string and
+                                      repeat.item.entity is match "sensor." and
+                                      has_value(repeat.item.entity)
+                                    }}
                                   then:
                                     - variables:
                                         entity_id: '{{ repeat.item.entity }}'
@@ -8936,7 +8972,12 @@ action:
                                   page: climate
                                   component: value04
                           - repeat:
-                              for_each: '{{ climate_page_entities }}'
+                              for_each: >
+                                {{
+                                  climate_page_entities
+                                  | selectattr("entity", "defined")
+                                  | list
+                                }}
                               sequence: *display_value
 
                           ##### Slider & climate values #####
@@ -9287,6 +9328,7 @@ action:
                                           icon: '{{ repeat.item.icon if repeat.item.icon is defined else None }}'
                                           name: '{{ repeat.item.name if repeat.item.name is defined else None }}'
                                     - *variable_entity
+                                    - condition: '{{ entity.valid }}'
                                     - service: '{{ nextion.command.set_entity }}'
                                       data:
                                         ent_id: '{{ repeat.item.page }}.{{ repeat.item.component }}'
