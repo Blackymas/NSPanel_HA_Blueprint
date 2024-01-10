@@ -74,6 +74,11 @@ target_high|Optional|Number representing a temperature in the selected unit|`24`
 temp_min|Optional|Number representing a temperature in the selected unit|*cool: `15`*<br>*heat: `7`*<br>*dual: `7`* |The minimum temperature the climate device can reach. Used to set the range of the frontend gauge.
 temp_max|Optional|Number representing a temperature in the selected unit|*cool: `45`*<br>*heat: `35`*<br>*dual: `45`* |The maximum temperature the climate device can reach. Used to set the range of the frontend gauge.
 temp_step|Optional|Number representing a temperature in the selected unit|`0.5`|The granularity with which the target temperature can be controlled.
+cool_deadband|Optional|Number representing a temperature hysteresis in the selected unit|`0.5`|The minimum temperature differential (temperature above the set point) before engaging cooling.
+cool_overrun|Optional|Number representing a temperature hysteresis in the selected unit|`0.5`|The minimum temperature differential (cooling beyond the set point) before disengaging cooling.
+heat_deadband|Optional|Number representing a temperature hysteresis in the selected unit|`0.5`|The minimum temperature differential (temperature below the set point) before engaging heat.
+heat_overrun|Optional|Number representing a temperature hysteresis in the selected unit|`0.5`|The minimum temperature differential (heating beyond the set point) before disengaging heat.
+
 <!-- markdownlint-enable MD013 MD033 -->
 
 - All values must be delimited with `""`
@@ -95,11 +100,13 @@ substitutions:
     
   # Add-on configuration (if needed)
   ## Add-on climate
-  cooler_relay: "1"  # Possible values: "1" or "2"
-  temp_units: "°F"   # Temperatures in Fahrenheit
-  temp_min: "40"     # Min supported temperature is 40°F
-  temp_max: "80"     # Max supported temperature is 80°F
-  temp_step: "1"     # Temperature granularity is 1°F
+  cooler_relay: "1"     # Possible values: "1" or "2"
+  temp_units: "°F"      # Temperatures in Fahrenheit
+  temp_min: "40"        # Min supported temperature is 40°F
+  temp_max: "80"        # Max supported temperature is 80°F
+  temp_step: "1"        # Temperature granularity is 1°F
+  cool_deadband: "1.2"  # Temperature delta before engaging cooling
+  cool_overrun: "1.2"   # Temperature delta before disengaging cooling
 
 # Customization area
 ##### My customization - Start #####
@@ -137,11 +144,13 @@ substitutions:
     
   # Add-on configuration (if needed)
   ## Add-on climate
-  heater_relay: "1"  # Possible values: "1" or "2"
-  temp_units: "°F"   # Temperatures in Fahrenheit
-  temp_min: "40"     # Min supported temperature is 40°F
-  temp_max: "80"     # Max supported temperature is 80°F
-  temp_step: "1"     # Temperature granularity is 1°F
+  heater_relay: "1"     # Possible values: "1" or "2"
+  temp_units: "°F"      # Temperatures in Fahrenheit
+  temp_min: "40"        # Min supported temperature is 40°F
+  temp_max: "80"        # Max supported temperature is 80°F
+  temp_step: "1"        # Temperature granularity is 1°F
+  heat_deadband: "1.2"  # Temperature delta before engaging heat
+  heat_overrun: "1.2"   # Temperature delta before disengaging heat
 
 # Customization area
 ##### My customization - Start #####
@@ -179,12 +188,16 @@ substitutions:
     
   # Add-on configuration (if needed)
   ## Add-on climate
-  heater_relay: "1"  # Possible values: "1" or "2"
-  cooler_relay: "2"  # Possible values: "1" or "2"
-  temp_units: "°F"   # Temperatures in Fahrenheit
-  temp_min: "40"     # Min supported temperature is 40°F
-  temp_max: "80"     # Max supported temperature is 80°F
-  temp_step: "1"     # Temperature granularity is 1°F
+  heater_relay: "1"     # Possible values: "1" or "2"
+  cooler_relay: "2"     # Possible values: "1" or "2"
+  temp_units: "°F"      # Temperatures in Fahrenheit
+  temp_min: "40"        # Min supported temperature is 40°F
+  temp_max: "80"        # Max supported temperature is 80°F
+  temp_step: "1"        # Temperature granularity is 1°F
+  cool_deadband: "1.2"  # Temperature delta before engaging cooling
+  cool_overrun: "1.2"   # Temperature delta before disengaging cooling
+  heat_deadband: "1.2"  # Temperature delta before engaging heat
+  heat_overrun: "1.2"   # Temperature delta before disengaging heat
 
 # Customization area
 ##### My customization - Start #####

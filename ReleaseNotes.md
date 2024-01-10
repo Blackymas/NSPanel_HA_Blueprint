@@ -1,14 +1,12 @@
 # v4.2 - Multi-Alarm Control, Dual Thermostat Functionality, and More
 
 ## Support this project
-
 **As always, we would like to thank everyone who donated to this project and remind you that every donation helps to support this project
 So if you haven't made a donation yet, now would be a good time ;)**
 
 [![Paypal](https://user-images.githubusercontent.com/41958506/212499642-b2fd097a-0938-4bfc-b37b-74df64592c58.png)](https://www.paypal.com/donate/?hosted_button_id=S974SWQMB8PB2)
 
 ## General
-
 Hello everyone! In our latest update, we've made some great strides to enhance your experience.
 We've fine-tuned the TFT upload process, making it smoother and more user-friendly for both newbies and veterans.
 
@@ -20,7 +18,6 @@ Oh, and don't miss the new clock feature on the sleep page – it's a small but 
 Dive into the details below and see how these improvements can upgrade your day-to-day. Looking forward to your feedback!
 
 ### Upcoming Change: Switching to ESP-IDF Framework by March 2024
-
 Exciting news for our community – in just a couple of months, by March 2024, we'll be transitioning to the **ESP-IDF** as our default framework.
 This upgrade is designed to significantly increase the available memory on the ESP, making more room for new features and your customizations.
 
@@ -37,24 +34,20 @@ For all the details on customizing the framework, our [customization docs](docs/
 We're committed to making this transition as smooth as possible, so reach out if you have any concerns or need assistance.
 
 ## Updating
-
 Updates may come with changes on the blueprint inputs and we highly recommend you review your settings and make sure all fields have the correct selection.
 We did our best to support your legacy settings and avoid breaking your system, but please double check your settings if you see something not working as expected.
 
 ### Files that need to be reloaded
-
 1. nspanel_eu.tft,  nspanel_us.tft or nspanel_us_land.tft - v4.2
 2. nspanel_esphome.yaml - v4.2
 3. nspanel_blueprint.yaml - v4.2
 
 ### Instructions
-
  *You can find the update procedures following here:*
 
 - [How To - All important thing you should know - Update](docs/howto.md#update-blueprint)
 
 ## Breaking changes
-
 1. **The `background` parameter in the `esphome.xxxxx_set_component_color` service is now deprecated.**
 2. **On the home and climate pages, the button layout has changed.**
 
@@ -136,7 +129,6 @@ We did our best to support your legacy settings and avoid breaking your system, 
     Thanks for your cooperation in making these settings more reliable for everyday use.
 
 ## Overview of noteworthy changes
-
 1. Standardized entity icons
 2. Additional custom buttons on Home page
 3. Outdoor temperature selectable font size
@@ -157,60 +149,55 @@ We did our best to support your legacy settings and avoid breaking your system, 
 ## Details of noteworthy changes
 
 ### 1. Standardized entity icons
-
 The engine for defining the icons to be shown and it's color was standardize between all the pages, so now you may see a more consistent User's Interface.
 We've upgraded the icon definition engine to standardize the appearance and color of icons across all pages.
 This enhancement leads to a more consistent and harmonious user interface.
 Expect a unified visual experience that aligns the look and feel of icons throughout the system, contributing to improved navigation and aesthetic appeal.
 
 ### 2. Additional custom buttons on Home page
-
 It's that simple, now you have 7 buttons where used to be 3.
 Well, where used to be 4, as the space previously used by the Alarm button is now a custom button. 😉
 
 ### 3. Outdoor temperature selectable font size
-
 Now you can select the font size of your outdoor temperature display:
 
 ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/263f14d6-39f7-41d2-ae12-72f403d811fd)
 
-> Important: Long text with bigger fonts may exceed the limit of space reserved for this with incomplete information shown.
+> [!IMPORTANT]
+> Long text with bigger fonts may exceed the limit of space reserved for this with incomplete information shown.
 
 ### 4. Select icon size for button's pages
-
 You can also select the size of the icons on the buttos pages:
 
-![HA Blueprint - Buttons pages icon's size](docs/pics/ha_blueprint_buttons_pages_icon_size.png)
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/239e2682-c73b-44cc-b1fa-2bf07aeba78b)
 
-![EU Buttons pages - Small icons](docs/pics/eu_buttonpages_icon_small.png)
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/8e650642-c117-44eb-9150-c5c360075922)
 
-![EU Buttons pages - Large icons](docs/pics/eu_buttonpages_icon_large.png)
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/9f6471ae-2404-468a-82f1-208e807200bf)
 
 ### 5. Support to CJK languages (experimental)
-
 You will find 3 new TFT files on the repository for the CJK languages.
 These files are considerably bigger, as the fonts requires more memory, but it should work fine in your panel.
 
-**ATTENTION:** This is an experimental feature and may contain bugs or some areas missing translations.
-Please report if you find anything.
+> [!WARNING]
+> This is an experimental feature and may contain bugs or some areas missing translations.
+> Please report if you find anything.
 
 ### 6. Improved TFT transfer
 
 #### TFT file selectors
-
 We still working on the Upload TFT engine to make it easier for new and for experienced users.
 Now, together with the **Update TFT Display** button, you will find also **Update TFT Display - Model** and **Update TFT Display - Branch** (disabled by default)
 where you can select the different model you are using and the upload URL will be automatically adjusted to donwload the file directly from the repository on GitHub,
 making this process much easier and removing the need of flashing your device every time you want to play with another TFT file or install the `nspanel_blank.tft`.
 
-![HA Blueprint - Update TFT controls](docs/pics/ha_blueprint_upload_tft_controls.png)
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/73d5e552-f52f-41ee-8008-136596035004)
 
 If you have issues with the remote file and want to transfer it from your local server just as before, simply select **Use nextion_update_url** in **Update TFT Display - Model**.
 
 And you also can use the `esphome.xxxxx_upload_tft_url` service to upload using an alternative URL without the need of flash your panel again.
 
 #### Alternative baud rate for TFT uploads
-
 You can select an alternative baud rate for your TFT uploads.
 This allows faster TFT uploads and also supports displays previously set with baud rates not supported by this project (currently 115200 bps and 921600 bps).
 
@@ -231,44 +218,36 @@ The default value for this substitution (in case it is not set by users) will be
 During a TFT transfer, the system will always fall back to the standard baud rate (115200 bps) if other tentatives fails.
 
 ### 7. Multiple Alarm Control Panels
-
 Now alarm control panel entities can be assigned to chips and custom buttons in the Home page,
 but also to hardware buttons, any of the buttons pages or entities pages, similarly to other domains.
 
 ### 8. Support to `remote`
-
 Entities from the `remote` domain can now be assigned to buttons (hardware and buttons pages) and custom buttons (home and climate pages).
 
 The service `remote.toggle` will be called when the button is pressed.
 
 ### 9. Home page chips now supports covers
-
 That's it!
 Chips now include cover visualization, allowing for easy monitoring of covers directly from the Home page.
 
 ### 10. Chips can be inverted
-
 Chips now have an 'invert' option on the blueprint settings, providing additional customization flexibility.
 
 ### 11. Add swipe control to Screensaver page
-
 You can now navigate to button pages from the screensaver while your panel is in sleep mode.
 The swipe controls will function as they do on the Home page.
 
 ### 12. Enhanced control for automation entities on buttons
-
 We're pleased to announce a new feature that offers users enhanced control over their smart home setups.
 Now, you can globally select between **Toggle** and **Trigger** actions for button presses on automation entities.
 This update allows for a more personalized and efficient control experience, tailored to your unique preferences.
 
 #### Key features
-
 - **Toggle:** This action will enable or disable the automation.
 It is set as the default option.
 - **Trigger:** This action will execute the automation regardless of its current state, providing more flexibility.
 
 #### How to use
-
 1. Access your configuration for automation under **Services** > **Automations & Scenes**.
 Select the automation associated with your panel setup.
 1. Scroll to the **ADVANCED SETTINGS** section at the end.
@@ -279,31 +258,26 @@ This will then be effective across all relevant entities.
 This update is specially designed to cater to diverse user needs, ensuring a more intuitive and responsive smart home experience.
 
 ### 13. Dual thermostat controller support (add-on)
-
 This new add-on enables the NSPanel to manage both heating and cooling systems simultaneously, utilizing its dual relay functionality.
 
 #### Key Benefits
-
 - **Versatility:** Users can now configure their NSPanel to control both a heater and a cooler, offering increased flexibility in home temperature management.
 - **Efficiency:** With the ability to control both heating and cooling systems, the NSPanel can more effectively maintain desired temperatures, potentially leading to energy savings.
 - **User Experience:** This update simplifies the user interface by integrating control of both systems into one panel, making it easier to manage home climate.
 
 #### Implementation Details
-
 - The dual thermostat controller functionality allows the NSPanel to utilize both of its relays for separate heating and cooling control.
 
   Users can configure their heating and cooling settings independently, providing a tailored climate control experience.
 - The update is designed to be intuitive and user-friendly, ensuring a seamless transition for existing NSPanel users.
 - Additional Documentation: For detailed instructions and configurations, refer to the updated [add-on climate documentation](docs/addon_climate.md).
 
-#### Note to Users
-
-This feature enhances the capabilities of the NSPanel without compromising its existing functionalities.
-Users who previously used the NSPanel for single-mode (either heating or cooling) control can
-now explore dual-mode options for a more comprehensive climate control solution.
+> [!NOTE]
+> This feature enhances the capabilities of the NSPanel without compromising its existing functionalities.
+> Users who previously used the NSPanel for single-mode (either heating or cooling) control can
+> now explore dual-mode options for a more comprehensive climate control solution.
 
 ### 14. Enhanced Climate Page for Dual Thermostat Control
-
 Leveraging the capabilities introduced with the Dual Thermostat Controller add-on,
 the existing climate page has been upgraded to support systems with dual temperature settings.
 This enhancement allows users to effectively manage thermostats that require both heating and cooling target temperatures, directly from the NSPanel's interface.
@@ -312,14 +286,12 @@ this refined climate page also seamlessly extends its functionality to existing 
 offering a more versatile and comprehensive climate control experience.
 
 ### 15. Enhanced timeout flexibility for Sleep, Page fallback, and Dimming settings
-
 We have improved the functionality of our system by enhancing the timeout flexibility for Sleep, Page Fallback, and Dimming settings.
 The previous timeout limit of 300 seconds has been significantly expanded, offering users more control and customization options for these specific features.
 This enhancement allows for a wider range of use cases, catering to the needs of those who require extended periods for these settings,
 while still maintaining the option for shorter durations.
 
 ### 16. Display time on the `screensaver` page
-
 In this release, we're excited to introduce a new feature that adds a display time function to the Screensaver page.
 With this update, our screensaver not only serves its primary purpose of saving screen energy but also doubles as an informative display,
 reflecting our commitment to creating practical, user-friendly solutions.
@@ -328,17 +300,16 @@ You can enable this feature on the bueprint settings, at the **CUSTOM CONFIGURAT
 You also have to set **Display Brightness Sleep** at the device's page (**Settings** > **Devices & Services** > **ESPHome**).
 
 ## What's Next?
-
 Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=due_date)
 
 ## Special thanks to
-
-- @bluefoxlee - For the CJK fonts and all the support with #1359.
+- @bluefoxlee - For the CJK fonts and all the support with #1359
 - @Floppe - Fix entity pages labels, #1455
 - @tikismoke - Customization guide: Exposing relay fallback switch to Home Assistant, #1537
+- @andythomas - Allow to set upper and lower set points for embedded thermostat, #1573
+- And to all users who helped with the tests during development and beta.
 
 ## Previous releases
-
 - [v4.1.4 - Support to Home Assistant 2023.12.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.4)
 - [v4.1.3 - Bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.3)
 - [v4.1.2 - Bug fixes and minor enhancements](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.2)
