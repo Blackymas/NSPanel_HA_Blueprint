@@ -163,23 +163,25 @@ Now you can select the font size of your outdoor temperature display:
 
 ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/263f14d6-39f7-41d2-ae12-72f403d811fd)
 
-> Important: Long text with bigger fonts may exceed the limit of space reserved for this with incomplete information shown.
+> [!IMPORTANT]
+> Long text with bigger fonts may exceed the limit of space reserved for this with incomplete information shown.
 
 ### 4. Select icon size for button's pages
 You can also select the size of the icons on the buttos pages:
 
-![HA Blueprint - Buttons pages icon's size](docs/pics/ha_blueprint_buttons_pages_icon_size.png)
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/239e2682-c73b-44cc-b1fa-2bf07aeba78b)
 
-![EU Buttons pages - Small icons](docs/pics/eu_buttonpages_icon_small.png)
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/8e650642-c117-44eb-9150-c5c360075922)
 
-![EU Buttons pages - Large icons](docs/pics/eu_buttonpages_icon_large.png)
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/9f6471ae-2404-468a-82f1-208e807200bf)
 
 ### 5. Support to CJK languages (experimental)
 You will find 3 new TFT files on the repository for the CJK languages.
 These files are considerably bigger, as the fonts requires more memory, but it should work fine in your panel.
 
-**ATTENTION:** This is an experimental feature and may contain bugs or some areas missing translations.
-Please report if you find anything.
+> [!WARNING]
+> This is an experimental feature and may contain bugs or some areas missing translations.
+> Please report if you find anything.
 
 ### 6. Improved TFT transfer
 
@@ -189,7 +191,7 @@ Now, together with the **Update TFT Display** button, you will find also **Updat
 where you can select the different model you are using and the upload URL will be automatically adjusted to donwload the file directly from the repository on GitHub,
 making this process much easier and removing the need of flashing your device every time you want to play with another TFT file or install the `nspanel_blank.tft`.
 
-![HA Blueprint - Update TFT controls](docs/pics/ha_blueprint_upload_tft_controls.png)
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/73d5e552-f52f-41ee-8008-136596035004)
 
 If you have issues with the remote file and want to transfer it from your local server just as before, simply select **Use nextion_update_url** in **Update TFT Display - Model**.
 
@@ -270,10 +272,10 @@ This new add-on enables the NSPanel to manage both heating and cooling systems s
 - The update is designed to be intuitive and user-friendly, ensuring a seamless transition for existing NSPanel users.
 - Additional Documentation: For detailed instructions and configurations, refer to the updated [add-on climate documentation](docs/addon_climate.md).
 
-#### Note to Users
-This feature enhances the capabilities of the NSPanel without compromising its existing functionalities.
-Users who previously used the NSPanel for single-mode (either heating or cooling) control can
-now explore dual-mode options for a more comprehensive climate control solution.
+> [!NOTE]
+> This feature enhances the capabilities of the NSPanel without compromising its existing functionalities.
+> Users who previously used the NSPanel for single-mode (either heating or cooling) control can
+> now explore dual-mode options for a more comprehensive climate control solution.
 
 ### 14. Enhanced Climate Page for Dual Thermostat Control
 Leveraging the capabilities introduced with the Dual Thermostat Controller add-on,
