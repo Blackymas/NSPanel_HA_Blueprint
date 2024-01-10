@@ -188,7 +188,7 @@ These files are considerably bigger, as the fonts requires more memory, but it s
 
 ### 6. Improved TFT transfer
 
-#### TFT file selectors
+#### TFT file selectors (`ESP-IDF` framework required)
 We still working on the Upload TFT engine to make it easier for new and for experienced users.
 Now, together with the **Update TFT Display** button, you will find also **Update TFT Display - Model** and **Update TFT Display - Branch** (disabled by default)
 where you can select the different model you are using and the upload URL will be automatically adjusted to donwload the file directly from the repository on GitHub,

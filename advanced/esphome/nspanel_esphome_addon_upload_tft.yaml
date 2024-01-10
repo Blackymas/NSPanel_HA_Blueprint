@@ -65,6 +65,20 @@ display:
     tft_url: ${nextion_update_url}
     exit_reparse_on_start: true
 
+esphome:
+  on_boot:
+    - priority: 601.0
+      then:
+        - lambda: |-
+            // Hide TFT file selectors when using arduino
+            #ifdef ARDUINO
+            tft_file_branch->set_internal(true);
+            tft_file_model->set_internal(true);
+            #elif defined(ESP_PLATFORM)
+            tft_file_branch->set_internal(false);
+            tft_file_model->set_internal(false);
+            #endif
+
 globals:
   - id: baud_rate_original
     type: uint
@@ -217,7 +231,11 @@ script:
     then:
       - delay: 2s
       - lambda: |-
-          static const char *const TAG = "addon_upload_tft.script.set_tft_file";
+          #ifdef ARDUINO
+          static const char *const TAG = "addon_upload_tft.script.set_tft_file.arduino";
+          #elif defined(ESP_PLATFORM)
+          static const char *const TAG = "addon_upload_tft.script.set_tft_file.esp_idf";
+          #endif
           std::string branch = tft_file_branch->state;
           std::string model = tft_file_model->state;
           ESP_LOGD(TAG, "TFT URL set:");
@@ -229,8 +247,11 @@ script:
             id(tft_model) = tft_file_model->active_index().value();
 
           if (id(is_uploading_tft))
-            ESP_LOGW(TAG, "TFT Upload in progress.");
+            ESP_LOGW(TAG, "  TFT Upload in progress.");
           else {
+            #ifdef ARDUINO
+            std::string url = "${nextion_update_url}";
+            #elif defined(ESP_PLATFORM)
             std::string url;
             std::string file_name;
             if (model == "NSPanel Blank") file_name = "nspanel_blank.tft";
@@ -251,6 +272,7 @@ script:
                   url = url.substr(0, endPos + 1);
               }
             }
+            #endif
 
             ESP_LOGD(TAG, "  Full URL: %s", url.c_str());
             id(tft_url) = url;
@@ -308,6 +330,27 @@ script:
 
           // Upload URL
           ESP_LOGD(TAG, "  Upload URL:              %s", url.c_str());
+          #ifdef ARDUINO
+          auto startsWith = [](const std::string& str, const std::string& prefix) -> bool {
+            if (str.length() < prefix.length()) return false;
+
+            std::string lowerStr = str.substr(0, prefix.length());
+            std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(),
+                          [](unsigned char c){ return std::tolower(c); });
+
+            std::string lowerPrefix = prefix;
+            std::transform(lowerPrefix.begin(), lowerPrefix.end(), lowerPrefix.begin(),
+                          [](unsigned char c){ return std::tolower(c); });
+
+            return lowerStr == lowerPrefix;
+          };
+
+          if (startsWith(url, "https")) {
+            ESP_LOGE(TAG, "HTTPS is not supported by Arduino framework.");
+            ESP_LOGE(TAG, "This transfer will most likely fail.");
+            ESP_LOGE(TAG, "Please use HTTP instead.");
+          }
+          #endif
           disp1->set_tft_url(url.c_str());
 
           nextion_uart_command->execute("bkcmd=3");
@@ -1237,7 +1280,7 @@ select:
     initial_option: "main"
     optimistic: true
     restore_value: true
-    internal: false
+    internal: true
     entity_category: config
     disabled_by_default: true
     icon: mdi:file-sync
@@ -1259,7 +1302,7 @@ select:
     initial_option: "Use nextion_update_url"
     optimistic: true
     restore_value: true
-    internal: false
+    internal: true
     entity_category: config
     disabled_by_default: false
     icon: mdi:file-sync
