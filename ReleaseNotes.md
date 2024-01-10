@@ -11,7 +11,7 @@ Hello everyone! Our latest update introduces a range of enhancements designed to
 This update is focused on improving user interaction, featuring a more intuitive TFT upload process and expanded customization options.
 Key enhancements include upgraded functionality for Alarm Control Panels & Thermostats and new personalization features on the Home page.
 
-We're enthusiastic about our ongoing work to make the NSPanel firmware more user-friendly and accessible.
+We're enthusiastic about our ongoing work to [make the NSPanel firmware more user-friendly and accessible](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues/1583).
 This release marks significant progress in this direction, with improvements such as the
 streamlined TFT upload process and initial steps towards adopting `esp-idf` as the default framework.
 Additionally, our documentation has been revamped for greater clarity and user-friendliness.
