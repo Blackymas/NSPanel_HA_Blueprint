@@ -303,7 +303,7 @@ You can enable this feature on the bueprint settings, at the **CUSTOM CONFIGURAT
 You also have to set **Display Brightness Sleep** at the device's page (**Settings** > **Devices & Services** > **ESPHome**).
 
 ## What's Next?
-Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=due_date)
+Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open)
 
 ## Special thanks to
 - @bluefoxlee - For the CJK fonts and all the support with #1359
