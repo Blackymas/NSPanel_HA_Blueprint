@@ -89,8 +89,8 @@ use_blueprint:
 
 ## Update Blueprint
 
->IMPORTANT: To install a new version of the NSPanel, the Blueprint, ESPHome and the TFT must be updated!
-![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/31b056e9-7b40-4a6c-ba9f-7a94ff6e27c0)
+> [!IMPORTANT]
+> To install a new version of the NSPanel, the Blueprint, ESPHome and the TFT must be updated!
 
 1. In Home Assistant, go to Settings > Automation & Scenes, select the tab Blueprints and find the blueprint named "NSPanel Configuration"
 2. Click the 3-dot menu and select "Re-import blueprint":
@@ -103,11 +103,13 @@ Settings that have already been made are adopted.
 6. Please review the blueprint settings (under Automations tab) for new settings available with the new version.
 
 ## Update ESPHome
+<!-- markdownlint-disable MD028 -->
+> [!IMPORTANT]
+> To install a new version of the NSPanel, the Blueprint, ESPHome and the TFT must be updated!
 
-***IMPORTANT:***
-
-- *To install a new version of the NSPanel, the Blueprint, ESPHome and the TFT must be updated!*
-- *These instructions are for updating a panel where an older version of these files are already installed.*
+> [!IMPORTANT]
+> These instructions are for updating a panel where an older version of these files are already installed.
+<!-- markdownlint-enable MD028 -->
 
 These are the steps to flash your panel with an updated version from this project:
 
@@ -128,8 +130,8 @@ The new firmware will be built and then flashed to your panel, which will restar
 
 
 ## Update TFT
-
->IMPORTANT: To install a new version of the NSPanel, the Blueprint, ESPHome and the TFT must be updated!
+> [!IMPORTANT]
+> These instructions are for updating a panel where an older version of these files are already installed.
 
 The display can be updated via the UI:
 
