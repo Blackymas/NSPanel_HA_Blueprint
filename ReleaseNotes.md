@@ -309,7 +309,9 @@ Discover what's next and what we are working on right now in our [Milestones](ht
 - @bluefoxlee - For the CJK fonts and all the support with #1359
 - @Floppe - Fix entity pages labels, #1455
 - @tikismoke - Customization guide: Exposing relay fallback switch to Home Assistant, #1537
-- @andythomas - Allow to set upper and lower set points for embedded thermostat, #1573
+- @andythomas:
+    - Allow to set upper and lower set points for embedded thermostat, #1573
+    - Bugfix for embedded climate/cool functionality, #1587
 - And to all users who helped with the tests during development and beta.
 
 ## Previous releases
