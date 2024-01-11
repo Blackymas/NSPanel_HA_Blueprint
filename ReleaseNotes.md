@@ -306,7 +306,11 @@ You also have to set **Display Brightness Sleep** at the device's page (**Settin
 Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open)
 
 ## Special thanks to
-- @bluefoxlee - For the CJK fonts and all the support with #1359
+- @bluefoxlee:
+    - For the CJK fonts and all the support with #1359
+    - Update T.Chinese translation and Zi fonts, #1453
+    - Update CJK fonts and T.Chinese translation, #1532
+    - Update CJK character set for future reference, #1589
 - @Floppe - Fix entity pages labels, #1455
 - @tikismoke - Customization guide: Exposing relay fallback switch to Home Assistant, #1537
 - @andythomas:
