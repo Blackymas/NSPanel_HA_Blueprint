@@ -1,6 +1,7 @@
 # NSPanel Custom with HA Blueprint
 
-This innovative solution is designed to revolutionize how you interact with your Sonoff NSPanel. Our goal? To make the customization of your NSPanel seamless, intuitive, and completely code-free!
+This innovative solution is designed to revolutionize how you interact with your Sonoff NSPanel.
+Our goal? To make the customization of your NSPanel seamless, intuitive, and completely code-free!
 
 *Are you happy with our version for NSPanel? Please consider supporting us with a donation.*
 
