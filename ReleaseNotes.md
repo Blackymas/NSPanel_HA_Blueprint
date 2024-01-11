@@ -303,13 +303,19 @@ You can enable this feature on the bueprint settings, at the **CUSTOM CONFIGURAT
 You also have to set **Display Brightness Sleep** at the device's page (**Settings** > **Devices & Services** > **ESPHome**).
 
 ## What's Next?
-Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=due_date)
+Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open)
 
 ## Special thanks to
-- @bluefoxlee - For the CJK fonts and all the support with #1359
+- @bluefoxlee:
+    - For the CJK fonts and all the support with #1359
+    - Update T.Chinese translation and Zi fonts, #1453
+    - Update CJK fonts and T.Chinese translation, #1532
+    - Update CJK character set for future reference, #1589
 - @Floppe - Fix entity pages labels, #1455
 - @tikismoke - Customization guide: Exposing relay fallback switch to Home Assistant, #1537
-- @andythomas - Allow to set upper and lower set points for embedded thermostat, #1573
+- @andythomas:
+    - Allow to set upper and lower set points for embedded thermostat, #1573
+    - Bugfix for embedded climate/cool functionality, #1587
 - And to all users who helped with the tests during development and beta.
 
 ## Previous releases
