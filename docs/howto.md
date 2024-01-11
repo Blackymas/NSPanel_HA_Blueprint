@@ -90,6 +90,7 @@ use_blueprint:
 ## Update Blueprint
 
 >IMPORTANT: To install a new version of the NSPanel, the Blueprint, ESPHome and the TFT must be updated!
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/31b056e9-7b40-4a6c-ba9f-7a94ff6e27c0)
 
 1. In Home Assistant, go to Settings > Automation & Scenes, select the tab Blueprints and find the blueprint named "NSPanel Configuration"
 2. Click the 3-dot menu and select "Re-import blueprint":
