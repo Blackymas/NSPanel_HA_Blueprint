@@ -14,7 +14,9 @@ In developer tools the weather entity should have the attribute 'attribution: Da
 ![Screenshot 2023-01-30 214739](https://user-images.githubusercontent.com/123868814/215602730-87093a5d-1a67-460d-9a9c-27a93371ea82.png)
 
 ## If you are still having issues
-Its likely you weather integrations are clashing. 1 method we have found to resolve this is to delete ALL weather integrations and just re add Accuweather - Be aware you will lose your existing weather integrations and any associated data / entities.
+Its likely you weather integrations are clashing.
+A method we have found to resolve this is to delete ALL weather integrations and just re-add Accuweather.
+Be aware you will lose your existing weather integrations and any associated data / entities.
 
 1. Delete the Standard and AccuWeather integrations
 2. Add Accuweather & Enable forcasts
