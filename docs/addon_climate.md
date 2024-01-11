@@ -27,8 +27,6 @@ substitutions:
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
 
-  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_us.tft"
-    
   # Add-on configuration (if needed)
   ## Add-on climate
   heater_relay: "1"  # Possible values: "1" or "2"
@@ -96,8 +94,6 @@ substitutions:
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
 
-  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_us.tft"
-    
   # Add-on configuration (if needed)
   ## Add-on climate
   cooler_relay: "1"     # Possible values: "1" or "2"
@@ -140,8 +136,6 @@ substitutions:
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
 
-  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_us.tft"
-    
   # Add-on configuration (if needed)
   ## Add-on climate
   heater_relay: "1"     # Possible values: "1" or "2"
@@ -184,8 +178,6 @@ substitutions:
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
 
-  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_us.tft"
-    
   # Add-on configuration (if needed)
   ## Add-on climate
   heater_relay: "1"     # Possible values: "1" or "2"

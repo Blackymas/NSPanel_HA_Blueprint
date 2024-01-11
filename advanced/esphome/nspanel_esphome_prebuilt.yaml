@@ -11,15 +11,34 @@ substitutions:
   wifi_password: NSPanel_Blueprint
   pre_built: "true"
 
+##### External components #####
+external_components:
+  - source: github://pr#5586  # Remove this and update min ver when that PR is released
+    components:
+      - ota_http
+    refresh: 300s
+
 packages:
   core_package: !include ./nspanel_esphome_core.yaml  # Core package
   upload_tft_package: !include ./nspanel_esphome_addon_upload_tft.yaml  # Core package
 
 button:
-  - platform: factory_reset
-    name: Factory reset
+  - name: Factory reset
+    platform: factory_reset
     disabled_by_default: true
     internal: false
+
+  - id: bt_firmware_update
+    name: Firmware update
+    platform: template
+    on_press:
+      then:
+        - ota_http.flash:
+            url: !lambda return id(firmware_url).state;
+            verify_ssl: false
+        - lambda: |-
+            static const char *const TAG = "prebuilt.button.bt_firmware_update";
+            ESP_LOGE(TAG, "Firmware update failed!");
 
 # In combination with the `ap` this allows the user
 # to provision wifi credentials to the device.
@@ -43,6 +62,12 @@ esphome:
   project:
     name: esphome.NSPanel_HA_Blueprint
     version: "${version}"
+  on_boot:
+    - priority: 602.0
+      then:
+        - text_sensor.template.publish:
+            id: firmware_url
+            state: https://raw.githubusercontent.com/Blackymas/NSPanel_HA_Blueprint/main/nspanel_esphome_prebuilt.bin
 
 # Sets up the improv via serial client for Wi-Fi provisioning
 improv_serial:
@@ -53,6 +78,8 @@ logger:
 ota:
   id: my_ota
   password: ""
+
+ota_http:
 
 script:
   - id: !extend watchdog
@@ -74,9 +101,15 @@ select:
       - "NSPanel US Landscape (CJK languages)"
     initial_option: "NSPanel Blank"
 
+text_sensor:
+  - id: firmware_url
+    name: Firmware update - URL
+    platform: template
+    update_interval: 60s
+    internal: true
+
 web_server:
   id: web_server_std
-  #ota: true  # Not available for ESP-IDF
 
 wifi:
   ap: {}
