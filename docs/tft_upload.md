@@ -67,6 +67,33 @@ If you haven't installed any TFT yet, look for Nextion related messages on ESPHo
 - **Additional Guidance**: Knowing when the device is fully booted and ready to accept the TFT upload can prevent many issues.
 Observe any changes in the display or logs indicators to ensure the device is ready.
 
+### Consider changing the framework
+
+- **Issue**: You might be facing some situation where the transfer engine used by your framework cannot handle it properly.
+- **Solution**: Temporarily switch between the frameworks.
+- **Additional Guidance**: This project supports both `arduino` (ESPHome default) or `esp-idf` frameworks.
+Those have totally independently upload TFT engines, so changing the framework may cause a significant change.
+In our experience, `esp-idf` have a better memory management and therefore is more efficient with uploading TFT.
+In addition to that, `esp-idf` supports HTTPS and even the download directly from GitHub, which is not indicated with `arduino`.
+
+You can set the framework you want by adding this to your ESPHome yaml:
+
+#### ESP-IDF
+
+```yaml
+esp32:
+  framework:
+    type: esp-idf
+```
+
+#### Arduino
+
+```yaml
+esp32:
+  framework:
+    type: arduino
+```
+
 ### Using a Local Source (Home Assistant)
 
 - **Issue**: Problems with downloading the TFT from GitHub.
@@ -95,31 +122,6 @@ Pay special attention to memory-intensive customizations.
 - **Issue**: DNS may cause connection problems.
 - **Solution**: Use the IP address of your Home Assistant directly.
 - **Example**: Replace `http://homeassistant.local:8123/local/nspanel_blank.tft` with `http://192.168.0.100:8123/local/nspanel_blank.tft`.
-
-### Consider changing the framework
-
-- **Issue**: You might be facing some situation where the transfer engine used by your framework cannot handle it properly.
-- **Solution**: Temporarily switch between the frameworks.
-- **Additional Guidance**: This project supports both `arduino` (ESPHome default) or `esp-idf` frameworks.
-Those have totally independently upload TFT engines, so changing the framework may cause a significant change.
-In our experience, `esp-idf` have a better memory management and therefore is more efficient with uploading TFT, however the support to HTTPS is a bit better (although not indicated) with `arduino`.
-You can set the framework you want by adding this to your ESPHome yaml:
-
-#### ESP-IDF
-
-```yaml
-esp32:
-  framework:
-    type: esp-idf
-```
-
-#### Arduino
-
-```yaml
-esp32:
-  framework:
-    type: arduino
-```
 
 ### Check the File Size by Downloading to Your Computer
 
