@@ -89,7 +89,8 @@ use_blueprint:
 
 ## Update Blueprint
 
->IMPORTANT: To install a new version of the NSPanel, the Blueprint, ESPHome and the TFT must be updated!
+> [!IMPORTANT]
+> To install a new version of the NSPanel, the Blueprint, ESPHome and the TFT must be updated!
 
 1. In Home Assistant, go to Settings > Automation & Scenes, select the tab Blueprints and find the blueprint named "NSPanel Configuration"
 2. Click the 3-dot menu and select "Re-import blueprint":
@@ -102,28 +103,26 @@ Settings that have already been made are adopted.
 6. Please review the blueprint settings (under Automations tab) for new settings available with the new version.
 
 ## Update ESPHome
+<!-- markdownlint-disable MD028 -->
+> [!IMPORTANT]
+> To install a new version of the NSPanel, the Blueprint, ESPHome and the TFT must be updated!
 
-***IMPORTANT:***
+> [!IMPORTANT]
+> These instructions are for updating a panel where an older version of these files are already installed.
+<!-- markdownlint-enable MD028 -->
 
-- *To install a new version of the NSPanel, the Blueprint, ESPHome and the TFT must be updated!*
-- *These instructions are for updating a panel where an older version of these files are already installed.*
+These are the steps to flash your panel with an updated version from this project:
 
-To flash your panel with an updated version from this project, go to the ESPHome dashboard (in your Home Assistant) and find the device you want to update.
-Then click the 3-dot menu and select the option "Validate":
+1. Go to the ESPHome dashboard (in your Home Assistant) and find the device you want to update.
+    Then click the 3-dot menu and select the option "Clean Build Files" to make sure you clean-up your system from the previous versions files:
+    ![Clean Build Files menu](pics/esphome_dashboard_clean_build_files.png)
 
-![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/e393ced5-78d4-475a-8630-893c05734f5d)
+2. When the clean-up process is done, click on **Install** button:
+    ![Install button on Clean Build Files dialog](pics/esphome_dashboard_clean_build_files_install_button.png)
 
-The system will go thru all the settings, combining your entries in "substitutions" and the ESPHome file(s) from the GitHub repository and validate the final setup.
-It might take some time.
-
-If everything goes well, you will see a green check mark in the top of the dialog window.
-When you get that, you can click "Install":
-
-![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/bc67533b-4f2e-4034-8e7e-34063a26f1c3)
-
-As your panel is probably already connected to the Wi-Fi, you may select to install "Wirelessly", as it is much easier and you don't have to unassemble your panel.
-
-![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/c9b53549-c78a-4a02-bcde-31582905d0c4)
+3. As your panel is probably already connected to the Wi-Fi, you may select to install **Wirelessly**,
+    as it is much easier and you don't have to unassemble your panel.
+    ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/c9b53549-c78a-4a02-bcde-31582905d0c4)
 
 The new firmware will be built and then flashed to your panel, which will restart at the end of this process and start sending logs again:
 
@@ -131,8 +130,8 @@ The new firmware will be built and then flashed to your panel, which will restar
 
 
 ## Update TFT
-
->IMPORTANT: To install a new version of the NSPanel, the Blueprint, ESPHome and the TFT must be updated!
+> [!IMPORTANT]
+> These instructions are for updating a panel where an older version of these files are already installed.
 
 The display can be updated via the UI:
 
