@@ -11,7 +11,7 @@ Hello everyone! Our latest update introduces a range of enhancements designed to
 This update is focused on improving user interaction, featuring a more intuitive TFT upload process and expanded customization options.
 Key enhancements include upgraded functionality for Alarm Control Panels & Thermostats and new personalization features on the Home page.
 
-We're enthusiastic about our ongoing work to [make the NSPanel firmware more user-friendly and accessible](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues/1583).
+We're enthusiastic about our ongoing work to [make the NSPanel firmware more user-friendly and accessible](https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions/1602).
 This release marks significant progress in this direction, with improvements such as the
 streamlined TFT upload process and initial steps towards adopting `esp-idf` as the default framework.
 Additionally, our documentation has been revamped for greater clarity and user-friendliness.
@@ -33,7 +33,7 @@ trying out `esp-idf` earlier could be a beneficial move towards adapting to futu
 If you're unable to switch by March or if serial flashing isn't an option for you,
 the `arduino` framework will still be available for Over-The-Air (OTA) updates.
 
-For detailed guidance on framework customization, check out our [customization documentation](docs/customization.md#framework-esp-idf).
+For detailed guidance on framework customization, check out our [customization documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md).
 We're dedicated to facilitating a smooth transition and are here to assist with any queries or concerns.
 
 ## Updating
@@ -48,7 +48,7 @@ We did our best to support your legacy settings and avoid breaking your system, 
 ### Instructions
  *You can find the update procedures following here:*
 
-- [How To - All important thing you should know - Update](docs/howto.md#update-blueprint)
+- [How To - All important thing you should know - Update](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/howto.md#update-blueprint)
 
 ## Breaking changes
 1. **The `background` parameter in the `esphome.xxxxx_set_component_color` service is now deprecated.**
@@ -302,6 +302,24 @@ reflecting our commitment to creating practical, user-friendly solutions.
 You can enable this feature on the bueprint settings, at the **CUSTOM CONFIGURATION** section (almost at the end).
 You also have to set **Display Brightness Sleep** at the device's page (**Settings** > **Devices & Services** > **ESPHome**).
 
+## Patch v4.2.1
+This patch introduces minor updates aimed at enhancing the user experience and improving documentation.
+Below you'll find a detailed list of the changes.
+While this update is designed to integrate smoothly with existing v4.2 components,
+we recommend updating all components to this latest version for the best performance.
+
+### Overview of Changes
+| Change | Criticality | Affected Components |
+| :-- | :--: | :--: |
+| Resolved issue with the dimming feature not activating when button is held (#1599) | Minor | `Blueprint` |
+| Added "Clean Build Files" step to the update instructions for clarity (#1601) | Minor | `Documentation` |
+
+### Key Improvements
+- **Dimming Feature Fix**: Addressed an issue where the long press in the buttons was not responding as expected,
+ensuring smoother light control from your panel.
+- **Updated Documentation**: Enhanced our update instructions to include a "Clean Build Files" step,
+providing clearer guidance for a more efficient update process.
+
 ## What's Next?
 Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open)
 
@@ -319,6 +337,7 @@ Discover what's next and what we are working on right now in our [Milestones](ht
 - And to all users who helped with the tests during development and beta.
 
 ## Previous releases
+- [v4.2 - Multi-Alarm Control, Dual Thermostat Functionality, and More](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2)
 - [v4.1.4 - Support to Home Assistant 2023.12.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.4)
 - [v4.1.3 - Bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.3)
 - [v4.1.2 - Bug fixes and minor enhancements](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.2)
