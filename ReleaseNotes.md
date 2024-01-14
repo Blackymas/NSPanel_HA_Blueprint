@@ -308,17 +308,26 @@ Below you'll find a detailed list of the changes.
 While this update is designed to integrate smoothly with existing v4.2 components,
 we recommend updating all components to this latest version for the best performance.
 
-### Overview of Changes
+**Overview of Changes:**
 | Change | Criticality | Affected Components |
 | :-- | :--: | :--: |
 | Resolved issue with the dimming feature not activating when button is held (#1599) | Minor | `Blueprint` |
 | Added "Clean Build Files" step to the update instructions for clarity (#1601) | Minor | `Documentation` |
 
-### Key Improvements
+**Key Improvements:**
 - **Dimming Feature Fix**: Addressed an issue where the long press in the buttons was not responding as expected,
 ensuring smoother light control from your panel.
 - **Updated Documentation**: Enhanced our update instructions to include a "Clean Build Files" step,
 providing clearer guidance for a more efficient update process.
+
+## Patch v4.2.2
+TEXT TO BE ADDED LATER
+
+**Overview of Changes:**
+| Change | Criticality | Affected Components |
+| :-- | :--: | :--: |
+| Add ISO8601 date formatting as an option (#1610) | Enhancement | `Blueprint` |
+`Documentation` |
 
 ## What's Next?
 Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open)
@@ -334,6 +343,7 @@ Discover what's next and what we are working on right now in our [Milestones](ht
 - @andythomas:
     - Allow to set upper and lower set points for embedded thermostat, #1573
     - Bugfix for embedded climate/cool functionality, #1587
+- @PaulAntonDeen: Add ISO8601 date formatting as an option, #1610
 - And to all users who helped with the tests during development and beta.
 
 ## Previous releases
