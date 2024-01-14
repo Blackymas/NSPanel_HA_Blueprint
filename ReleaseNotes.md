@@ -308,13 +308,13 @@ Below you'll find a detailed list of the changes.
 While this update is designed to integrate smoothly with existing v4.2 components,
 we recommend updating all components to this latest version for the best performance.
 
-### Overview of Changes
+**Overview of Changes:**
 | Change | Criticality | Affected Components |
 | :-- | :--: | :--: |
 | Resolved issue with the dimming feature not activating when button is held (#1599) | Minor | `Blueprint` |
 | Added "Clean Build Files" step to the update instructions for clarity (#1601) | Minor | `Documentation` |
 
-### Key Improvements
+**Key Improvements:**
 - **Dimming Feature Fix**: Addressed an issue where the long press in the buttons was not responding as expected,
 ensuring smoother light control from your panel.
 - **Updated Documentation**: Enhanced our update instructions to include a "Clean Build Files" step,
@@ -323,7 +323,7 @@ providing clearer guidance for a more efficient update process.
 ## Patch v4.2.2
 TEXT TO BE ADDED LATER
 
-### Overview of Changes
+**Overview of Changes:**
 | Change | Criticality | Affected Components |
 | :-- | :--: | :--: |
 | Add ISO8601 date formatting as an option (#1610) | Enhancement | `Blueprint` |
