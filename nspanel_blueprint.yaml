@@ -42,7 +42,7 @@ blueprint:
   source_url: https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/nspanel_blueprint.yaml
   domain: automation
   homeassistant:
-    min_version: 2023.9.0
+    min_version: 2023.12.0
 
 # yamllint disable rule:indentation rule:comments-indentation
   input:
@@ -9453,22 +9453,26 @@ action:
 
                           ##### Display weather data only when available #####
                           - variables:
-                              ha_core_update_entity: >
-                                {% for u in integration_entities("hassio") | select("search", "^update[.]") if (device_attr(u, "identifiers") | first)[1] == "core" %}
-                                  {{ u }}
-                                {% endfor %}
-                              ha_core_current_version: '{{ state_attr(ha_core_update_entity, "installed_version") }}'
-                              use_new_forecasts: '{{ ha_core_current_version | version >= "2023.12.0b1" if ha_core_current_version else false }}'
-                          - service: '{{ "weather.get_forecasts" if use_new_forecasts else "weather.get_forecast" }}'
+                              weather_entity_supported_features: '{{ state_attr(weather_entity, "supported_features") | int(0) }}'
+                              forecast_type: >
+                                {% if weather_entity_supported_features == 0 or weather_entity_supported_features | bitwise_and(1) > 0 %}
+                                  daily
+                                {% elif weather_entity_supported_features | bitwise_and(4) > 0 %}
+                                  twice_daily
+                                {% elif weather_entity_supported_features | bitwise_and(2) > 0 %}
+                                  hourly
+                                {% endif %}
+                          - condition: '{{ forecast_type in ["daily", "twice_daily", "hourly"] }}'
+                          - service: 'weather.get_forecasts'
                             target:
                               entity_id: '{{ weather_entity }}'
                             data:
-                              type: daily
+                              type: '{{ forecast_type }}'
                             response_variable: service_response_var
                             continue_on_error: true
                           - variables:
                               forecast: >
-                                {% if use_new_forecasts and service_response_var is defined
+                                {% if service_response_var is defined
                                       and service_response_var[weather_entity] is defined
                                       and service_response_var[weather_entity].forecast is defined %}
                                   {{ service_response_var[weather_entity].forecast }}

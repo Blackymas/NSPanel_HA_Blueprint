@@ -324,41 +324,46 @@ providing clearer guidance for a more efficient update process.
 This update focuses on enhancing user customization, improving data management, and fixing minor issues in our system.
 We strive to continuously enhance the usability and efficiency of our product.
 
+> [!IMPORTANT]
+> **Breaking Change**: This patch requires Home Assistant v2023.12.0 or higher to ensure compatibility with new enhancements.
+> Please update your Home Assistant installation before applying this patch.
+
 We encourage all users to update their components to this latest version for the best experience.
-This update, while compatible with existing v4.2 components, offers optimized performance and usability when fully updated.
+While this update is compatible with existing v4.2 components, it offers optimized performance and usability when fully updated.
 
 **Overview of Changes:**
 | Change | Criticality | Affected Components |
 | :-- | :--: | :--: |
-| Fix Wi-Fi reference on QR code example (#1609) | Minor | `Blueprint` |
-| Fixes the incorrect labelling of the entity pages alignment (#1628) | Minor | `Blueprint` |
-| Fix for Lights with no brightness supported_features (#1633) | Minor | `Blueprint` |
-| Add ISO8601 date formatting as an option (#1610) | Enhancement | `Blueprint` |
-| Dynamic icons using device_class (#1635) | Enhancement | `Blueprint` |
+| Fix weather pages crashing when Home Assistant OS is not used (#1630) | Medium | `Blueprint` |
+| Correct Wi-Fi reference in QR code example (#1609) | Minor | `Documentation` |
+| Resolve incorrect labelling on entity pages (#1628) | Minor | `Blueprint` |
+| Address lights with no brightness in 'supported_features' (#1633) | Minor | `Blueprint` |
+| Implement ISO8601 date formatting option (#1610) | Enhancement | `Blueprint` |
+| Enable dynamic icons based on device_class (#1635) | Enhancement | `Blueprint` |
 
 **Key Improvements:**
-- **Wi-Fi Reference Fix on QR Code Example**: Corrected the Wi-Fi reference in the QR code example (#1609),
-ensuring accurate and reliable QR code generation for easier connectivity.
-- **Corrected Labeling of Entity Pages Alignment**: Addressed the issue of incorrect labeling on entity pages (#1628),
-enhancing clarity and accuracy in user interface components.
-- **Fix for Lights with No Brightness 'supported_features'**: Resolved an issue with lights lacking brightness in 'supported_features' (#1633),
-improving the responsiveness and functionality of light control features.
-- **ISO8601 Date Formatting**: The introduction of ISO8601 date formatting as a new feature (#1610)
-enhances the user interface by offering a more standardized and widely recognized date format.
-This update is designed to improve the readability and consistency of date information for our users.
-- **Dynamic Icons Based on Device Class**: Enhancing our dynamic icons feature to use device_class (#1635)
-enables more intuitive and relevant iconography based on device type.
-This update provides a more personalized and context-aware user interface, greatly enhancing the user's interaction with the system.
+- **Fix for Weather Pages Crashing**: Addressed an issue causing weather pages to crash when Home Assistant Operating System (HAOS) is not used (#1630).
+This fix ensures stability and reliability of weather-related features across various Home Assistant installation modes,
+such as containerized installations and other setups.
+- **Wi-Fi Reference Update in QR Code Example**: Updated the Wi-Fi reference in the QR code example (#1609) to prevent user errors during system setup.
+This documentation change aids in clearer guidance for configuring connections.
+- **Entity Pages Configuration Labeling**: Corrected the labeling of options in the blueprint for entity page configuration (#1628).
+This fix ensures that the labels accurately reflect the behavior on the pages, enhancing the configuration experience.
+- **Handling Lights Without Brightness Feature**: Improved handling of information for lights that lack brightness control in 'supported_features' (#1633).
+This update resolves the issue of incorrectly displaying brightness levels (as "0%") for lights that do not support brightness adjustment,
+ensuring more accurate display of buttons.
+- **ISO8601 Date Formatting**: Introduced ISO8601 date formatting (#1610) to improve date readability and consistency in the user interface.
+- **Dynamic Icons Using Device Class**: Upgraded dynamic icons to utilize device_class (#1635), offering a more intuitive and context-aware UI.
 
-For support, feedback, or more detailed information about this update,
-please visit our GitHub repository in the [issues](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues)
-and [discussions](https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions) sections,
-or refer to our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
+For support, feedback, or detailed information about this update,
+visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
+or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
 
-Special thanks to @PaulAntonDeen and @illuzn for their invaluable contributions to these enhancements. Your feedback and support are crucial to our continuous improvement.
+Special thanks to @PaulAntonDeen and @illuzn for their invaluable contributions to these enhancements.
+Your feedback and support are crucial to our continuous improvement.
 
 ## What's Next?
-Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open)
+Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open).
 
 ## Special thanks to
 - @bluefoxlee:
