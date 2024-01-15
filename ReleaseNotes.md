@@ -321,13 +321,31 @@ ensuring smoother light control from your panel.
 providing clearer guidance for a more efficient update process.
 
 ## Patch v4.2.2
-TEXT TO BE ADDED LATER
+This update focuses on enhancing user customization and improving data management in our system.
+As always, we strive to provide features that enhance the usability and efficiency of our product.
+
+We encourage all users to update their components to this latest version for the best experience.
+This update, while compatible with existing v4.2 components, offers optimized performance and usability when fully updated.
 
 **Overview of Changes:**
 | Change | Criticality | Affected Components |
 | :-- | :--: | :--: |
-| Add ISO8601 date formatting as an option (#1610) | Enhancement | `Blueprint` |
-`Documentation` |
+| Add ISO8601 date formatting as an option (#1610) | Enhancement | `Blueprint`, `Documentation` |
+| Dynamic icons using device_class (#1635) | Enhancement | `Blueprint`, `Documentation` |
+
+**Key Improvements:**
+- **ISO8601 Date Formatting**: The introduction of ISO8601 date formatting as a new feature (#1610)
+enhances the user interface by offering a more standardized and widely recognized date format.
+This update is designed to improve the readability and consistency of date information for our users.
+- **Dynamic Icons Based on Device Class**: Enhancing our dynamic icons feature to use device_class (#1635)
+enables more intuitive and relevant iconography based on device type.
+This update provides a more personalized and context-aware user interface, greatly enhancing the user's interaction with the system.
+
+For support, feedback, or more detailed information about this update,
+please visit our GitHub repository in the issues and discussions sections, or refer to our online documentation.
+
+Special thanks to @PaulAntonDeen and @illuzn for their invaluable contributions to these enhancements.
+Your feedback and support are crucial to our continuous improvement.
 
 ## What's Next?
 Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open)
@@ -343,7 +361,8 @@ Discover what's next and what we are working on right now in our [Milestones](ht
 - @andythomas:
     - Allow to set upper and lower set points for embedded thermostat, #1573
     - Bugfix for embedded climate/cool functionality, #1587
-- @PaulAntonDeen: Add ISO8601 date formatting as an option, #1610
+- @PaulAntonDeen: Add ISO8601 date formatting as an option, #1610 - Patch v4.2.2
+- @illuzn: Implement dynamic icons and use device_class, #1635 - Patch v4.2.2
 - And to all users who helped with the tests during development and beta.
 
 ## Previous releases
