@@ -363,6 +363,29 @@ or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/
 Special thanks to @PaulAntonDeen and @illuzn for their invaluable contributions to these enhancements.
 Your feedback and support are crucial to our continuous improvement.
 
+## Patch v4.2.3
+Bug fixes only.
+
+We encourage all users to update their components to this latest version for the best experience.
+While this update is compatible with existing v4.2 components, it offers optimized performance and usability when fully updated.
+
+**Overview of Changes:**
+<!-- markdownlint-disable MD013 MD033 -->
+| Change | Criticality | Affected Components |
+| :-- | :--: | :--: |
+| Fix device temperature gap since v4.2 (#1620) | Critical | `Blueprint`<br>`ESPHome`<br>`TFT` |
+| Fix crash when rendering a climate entity with no `hvac_action` (#1647) | Critical | `Blueprint` | 
+<!-- markdownlint-enable MD013 MD033 -->
+
+**Key Improvements:**
+- **Fix for Device Temperature Gap**: Resolved a critical issue with the panel getting warmer on v4.2, pottentially affecting it's temperature measurements.
+- **Fix for Crash When Rendering Climate Entities**: Resolves a critical issue where the blueprint was crashing when trying to render icons for climate entities with no `hvac_action` attributes,
+preventing pages to be fully loaded.
+
+For support, feedback, or detailed information about this update,
+visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
+or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
+
 ## What's Next?
 Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open).
 
@@ -387,6 +410,7 @@ Discover what's next and what we are working on right now in our [Milestones](ht
 - And to all users who helped with the tests during development and beta.
 
 ## Previous releases
+- [v4.2.2 - Bug fixes and minor enhancements](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.2)
 - [v4.2.1 - Bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.1)
 - [v4.2 - Multi-Alarm Control, Dual Thermostat Functionality, and More](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2)
 - [v4.1.4 - Support to Home Assistant 2023.12.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.4)
