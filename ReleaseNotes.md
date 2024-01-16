@@ -308,20 +308,63 @@ Below you'll find a detailed list of the changes.
 While this update is designed to integrate smoothly with existing v4.2 components,
 we recommend updating all components to this latest version for the best performance.
 
-### Overview of Changes
+**Overview of Changes:**
 | Change | Criticality | Affected Components |
 | :-- | :--: | :--: |
 | Resolved issue with the dimming feature not activating when button is held (#1599) | Minor | `Blueprint` |
 | Added "Clean Build Files" step to the update instructions for clarity (#1601) | Minor | `Documentation` |
 
-### Key Improvements
+**Key Improvements:**
 - **Dimming Feature Fix**: Addressed an issue where the long press in the buttons was not responding as expected,
 ensuring smoother light control from your panel.
 - **Updated Documentation**: Enhanced our update instructions to include a "Clean Build Files" step,
 providing clearer guidance for a more efficient update process.
 
+## Patch v4.2.2
+This update focuses on enhancing user customization, improving data management, and addressing a range of issues from minor to critical in our system.
+Our commitment is to continuously enhance the usability, stability, and efficiency of your panel.
+
+> [!IMPORTANT]
+> **Breaking Change**: This patch requires Home Assistant v2023.12.0 or higher to ensure compatibility with new enhancements.
+> Please update your Home Assistant installation before applying this patch.
+
+We encourage all users to update their components to this latest version for the best experience.
+While this update is compatible with existing v4.2 components, it offers optimized performance and usability when fully updated.
+
+**Overview of Changes:**
+| Change | Criticality | Affected Components |
+| :-- | :--: | :--: |
+| Fix Climate page not working with embedded climate (#1627) | Critical | `ESPHome` |
+| Fix weather pages crashing when Home Assistant OS is not used (#1630) | Medium | `Blueprint` |
+| Correct Wi-Fi reference in QR code example (#1609) | Minor | `Documentation` |
+| Resolve incorrect labelling on entity pages (#1628) | Minor | `Blueprint` |
+| Address lights with no brightness in 'supported_features' (#1633) | Minor | `Blueprint` |
+| Implement ISO8601 date formatting option (#1610) | Enhancement | `Blueprint` |
+| Enable dynamic icons based on device_class (#1635) | Enhancement | `Blueprint` |
+
+**Key Improvements:**
+- **Fix for Climate Page Not Working**: Resolved a critical issue with the climate page not functioning properly when using embedded climate controls (#1627).
+This fix enhances system stability and user interaction with climate features.
+- **Fix for Weather Pages Crashing**: Addressed an issue causing weather pages to crash when Home Assistant Operating System (HAOS) is not used (#1630).
+This fix ensures stability and reliability of weather-related features across various Home Assistant installation modes, such as containerized installations and other setups.
+- **Wi-Fi Reference Update in QR Code Example**: Updated the Wi-Fi reference in the QR code example (#1609) to prevent user errors during system setup.
+This documentation change aids in clearer guidance for configuring connections.
+- **Entity Pages Configuration Labeling**: Corrected the labeling of options in the blueprint for entity page configuration (#1628).
+This fix ensures that the labels accurately reflect the behavior on the pages, enhancing the configuration experience.
+- **Handling Lights Without Brightness Feature**: Improved handling of information for lights that lack brightness control in 'supported_features' (#1633).
+This update resolves the issue of incorrectly displaying brightness levels (as "0%") for lights that do not support brightness adjustment, ensuring more accurate display of buttons.
+- **ISO8601 Date Formatting**: Introduced ISO8601 date formatting (#1610) to improve date readability and consistency in the user interface.
+- **Dynamic Icons Using Device Class**: Upgraded dynamic icons to utilize device_class (#1635), offering a more intuitive and context-aware UI.
+
+For support, feedback, or detailed information about this update,
+visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
+or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
+
+Special thanks to @PaulAntonDeen and @illuzn for their invaluable contributions to these enhancements.
+Your feedback and support are crucial to our continuous improvement.
+
 ## What's Next?
-Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open)
+Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open).
 
 ## Special thanks to
 - @bluefoxlee:
@@ -334,9 +377,17 @@ Discover what's next and what we are working on right now in our [Milestones](ht
 - @andythomas:
     - Allow to set upper and lower set points for embedded thermostat, #1573
     - Bugfix for embedded climate/cool functionality, #1587
+- @PaulAntonDeen:
+    - Add ISO8601 date formatting as an option, #1610 - Patch v4.2.2
+    - Fix Wi-Fi reference on QR code example, #1609 - Patch v4.2.2
+- @illuzn:
+    - Fix for Lights with no brightness supported_features, #1633 - Patch v4.2.2
+    - Implement dynamic icons and use device_class, #1635 - Patch v4.2.2
+    - Fixes the incorrect labelling of the entity pages alignment, #1628 - Patch v4.2.2
 - And to all users who helped with the tests during development and beta.
 
 ## Previous releases
+- [v4.2.1 - Bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.1)
 - [v4.2 - Multi-Alarm Control, Dual Thermostat Functionality, and More](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2)
 - [v4.1.4 - Support to Home Assistant 2023.12.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.4)
 - [v4.1.3 - Bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.3)
