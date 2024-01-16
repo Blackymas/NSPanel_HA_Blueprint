@@ -364,7 +364,7 @@ Special thanks to @PaulAntonDeen and @illuzn for their invaluable contributions 
 Your feedback and support are crucial to our continuous improvement.
 
 ## Patch v4.2.3
-Bug fixes only.
+Bug fixes and minor enhancements.
 
 We encourage all users to update their components to this latest version for the best experience.
 While this update is compatible with existing v4.2 components, it offers optimized performance and usability when fully updated.
@@ -375,12 +375,15 @@ While this update is compatible with existing v4.2 components, it offers optimiz
 | :-- | :--: | :--: |
 | Fix device temperature gap since v4.2 (#1620) | Critical | `Blueprint`<br>`ESPHome`<br>`TFT` |
 | Fix crash when rendering a climate entity with no `hvac_action` (#1647) | Critical | `Blueprint` | 
+| Add Dutch/Italian date format (#1658) | Enhancement | `Blueprint` |
 <!-- markdownlint-enable MD013 MD033 -->
 
 **Key Improvements:**
-- **Fix for Device Temperature Gap**: Resolved a critical issue with the panel getting warmer on v4.2, pottentially affecting it's temperature measurements.
-- **Fix for Crash When Rendering Climate Entities**: Resolves a critical issue where the blueprint was crashing when trying to render icons for climate entities with no `hvac_action` attributes,
-preventing pages to be fully loaded.
+- **Fix for Device Temperature Gap**: Resolved a critical issue with the panel getting warmer on v4.2, potentially affecting its temperature measurements.
+- **Fix for Crash When Rendering Climate Entities**: Resolves a critical issue where the blueprint was crashing when trying to render icons for climate entities
+with no `hvac_action` attributes, preventing pages from being fully loaded.
+- **Add Dutch/Italian Date Format**: Expanding the existing pre-listed date formats, we've added the **Weekday, DD-MM (ex. "Friday, 22-03")** format.
+This enhancement caters to our Dutch and Italian users, adding a touch of local flair to their experience.
 
 For support, feedback, or detailed information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
@@ -407,6 +410,7 @@ Discover what's next and what we are working on right now in our [Milestones](ht
     - Fix for Lights with no brightness supported_features, #1633 - Patch v4.2.2
     - Implement dynamic icons and use device_class, #1635 - Patch v4.2.2
     - Fixes the incorrect labelling of the entity pages alignment, #1628 - Patch v4.2.2
+- @bkbartk - Add Dutch/Italian date format, #1658 - Patch v4.2.3
 - And to all users who helped with the tests during development and beta.
 
 ## Previous releases
