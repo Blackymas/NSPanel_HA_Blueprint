@@ -133,14 +133,13 @@ The new firmware will be built and then flashed to your panel, which will restar
 > [!IMPORTANT]
 > These instructions are for updating a panel where an older version of these files are already installed.
 
-The display can be updated via the UI:
-
-1. Go to ***Settings --> Devices & Services --> Integrations*** , select the display under the ESPHome integration.
-2. Press the switch "Update TFT Display" under Configuration.
-3. The display starts the update process and then restarts.
+1. (**Arduino only**) Download from our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint/) the latest version of the TFT file relative to your panel's model.
+2. (**Arduino only**) Upload this file to your local www (http) server. Please use the same URL as indicated by the substitution `nextion_update_url` in your device's YAML.
+3. Go to ***Settings --> Devices & Services --> Integrations***, select the display under the ESPHome integration.
+4. Press the switch "**Update TFT Display**" under **Configuration**.
+5. The display starts the update process and then restarts.
 
 ## Notification via HA
-
 To show a notification on the NSPAnel, the following service call can be used:
 
 ```yaml

@@ -5,9 +5,9 @@
 - [HowTo | All important things you should know](howto.md)
 
 ## Common issues
-- [Common Issues | TFT Upload](tft_upload.md)
-- [Common Issues | Stuck on Initializing](error_initializing.md)
-- [Common Issues | AccuWeather Setup & Blank weather pages](weather.md)
+- [TFT Upload](tft_upload.md)
+- [Stuck on Initializing](error_initializing.md)
+- [Compiling Errors](error_compiling.md)
 
 ## Advanced settings
 - [Customization](customization.md)

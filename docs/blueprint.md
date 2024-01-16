@@ -121,7 +121,7 @@ String, which is shown as a QR Code on the NSPanel.
 This can be a simple text, a URL or could also be used for a simplified login to the Wi-Fi.
 Here is an example (simply change SSID and password to your credentials and either use "WPA" or "WEP"):
 
-`Wi-Fi:S:SSID;T:WPA/WEP;P:PASSWORD;;`
+`WIFI:S:SSID;T:WPA/WEP;P:PASSWORD;;`
 
 #### Example:
 
@@ -132,7 +132,7 @@ For a network with the following parameters:
 
 Your QR code string will look like this:
 
-`Wi-Fi:S:my_ssid;T:WPA;P:MySecurePa$$w0rd;;`
+`WIFI:S:my_ssid;T:WPA;P:MySecurePa$$w0rd;;`
 
 For more details about these specifications, please visit the [WPA3™ Specification v3.1, chapter 7](https://www.wi-fi.org/system/files/WPA3%20Specification%20v3.1.pdf#page=24).
 
