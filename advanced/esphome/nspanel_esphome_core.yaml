@@ -1637,42 +1637,32 @@ text_sensor:
                 else service_call_alarm_control_panel->execute(entity.c_str(), key.c_str(), code_format.c_str(), "");
               }
             else if (page == "climate") {
-              if (embedded==1)
-                addon_climate_service_call->execute(key.c_str(), value.c_str());
-              else if (key == "temperature" or key == "target_temp_high" or key == "target_temp_low")
-                ha_call_service->execute("climate.set_temperature", key.c_str(), to_string(stof(value) / 10), entity.c_str());
-              else if (key == "hvac_mode")
-                ha_call_service->execute("climate.set_hvac_mode", key.c_str(), value.c_str(), entity.c_str());
+              change_climate_state->execute((embedded==1), key.c_str(), value.c_str());
             }
-            else if (page == "cover")
-              {
-                if (key == "position") ha_call_service->execute("cover.set_cover_position", key.c_str(), value.c_str(), entity.c_str());
-                else ha_call_service->execute((std::string("cover.") + key.c_str()), "", "", entity.c_str());
+            else if (page == "cover") {
+              if (key == "position") ha_call_service->execute("cover.set_cover_position", key.c_str(), value.c_str(), entity.c_str());
+              else ha_call_service->execute((std::string("cover.") + key.c_str()), "", "", entity.c_str());
+            }
+            else if (page == "fan") {
+              if (key == "stop" or value == "0") ha_call_service->execute("fan.turn_off", "", "", entity.c_str());
+              else ha_call_service->execute("fan.turn_on", key.c_str(), value.c_str(), entity.c_str());
+            }
+            else if (page == "keyb_num") {
+              std::string base_domain = doc["base_domain"];
+              if (base_domain == "alarm") {
+                std::string code_format = doc["code_format"];
+                std::string pin = doc["pin"];
+                service_call_alarm_control_panel->execute(entity.c_str(), key.c_str(), code_format.c_str(), pin.c_str());
               }
-            else if (page == "fan")
-              {
-                if (key == "stop" or value == "0") ha_call_service->execute("fan.turn_off", "", "", entity.c_str());
-                else ha_call_service->execute("fan.turn_on", key.c_str(), value.c_str(), entity.c_str());
-              }
-            else if (page == "keyb_num")
-              {
-                std::string base_domain = doc["base_domain"];
-                if (base_domain == "alarm")
-                {
-                  std::string code_format = doc["code_format"];
-                  std::string pin = doc["pin"];
-                  service_call_alarm_control_panel->execute(entity.c_str(), key.c_str(), code_format.c_str(), pin.c_str());
-                }
-                else if (base_domain == "" or base_domain.empty()) base_domain = "home";
-                disp1->goto_page(base_domain.c_str());
-              }
+              else if (base_domain == "" or base_domain.empty()) base_domain = "home";
+              disp1->goto_page(base_domain.c_str());
+            }
             else if (page == "light") ha_call_service->execute("light.turn_on", key.c_str(), value.c_str(), entity.c_str());
-            else if (page == "media_player")
-              {
-                if (key == "volume_mute") ha_call_service->execute("media_player.volume_mute", "is_volume_muted", value.c_str(), entity.c_str());
-                else if (key == "volume_set") ha_call_service->execute("media_player.volume_set", "volume_level", to_string(stof(value) / 100), entity.c_str());
-                else if (not key.empty()) ha_call_service->execute((std::string("media_player.") + key.c_str()), "", "", entity.c_str());
-              }
+            else if (page == "media_player") {
+              if (key == "volume_mute") ha_call_service->execute("media_player.volume_mute", "is_volume_muted", value.c_str(), entity.c_str());
+              else if (key == "volume_set") ha_call_service->execute("media_player.volume_set", "volume_level", to_string(stof(value) / 100), entity.c_str());
+              else if (not key.empty()) ha_call_service->execute((std::string("media_player.") + key.c_str()), "", "", entity.c_str());
+            }
 
   - id: version_tft
     name: ${name} TFT version
@@ -1693,12 +1683,20 @@ text_sensor:
 
 ### Scripts ######
 script:
-  - id: addon_climate_service_call
+  - id: change_climate_state
     mode: restart
     parameters:
+      embedded: bool
       key: string
       value: string
-    then:  # Reserved for Add-on Climate
+    then:
+      - lambda: |-
+          if (!embedded) {
+            if (key == "temperature" or key == "target_temp_high" or key == "target_temp_low")
+              ha_call_service->execute("climate.set_temperature", key.c_str(), to_string(stof(value) / 10), detailed_entity->state.c_str());
+            else if (key == "hvac_mode")
+              ha_call_service->execute("climate.set_hvac_mode", key.c_str(), value.c_str(), detailed_entity->state.c_str());
+          }
 
   - id: check_versions
     mode: restart
@@ -2805,7 +2803,7 @@ script:
       - lambda: |-
           static const char *const TAG = "script.stop_all";
           ESP_LOGD(TAG, "Stopping scripts...");
-          addon_climate_service_call->stop();
+          change_climate_state->stop();
           check_versions->stop();
           display_embedded_temp->stop();
           display_wrapped_text->stop();
