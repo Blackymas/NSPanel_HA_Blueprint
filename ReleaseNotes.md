@@ -67,7 +67,7 @@ We did our best to support your legacy settings and avoid breaking your system, 
     bluetooth_proxy:
     # Set Wi-Fi power save mode to "LIGHT" as required for Bluetooth on ESP32
     wifi:
-    power_save_mode: LIGHT
+      power_save_mode: LIGHT
     ##### My customization - End #####
     ```
 
