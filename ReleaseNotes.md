@@ -321,8 +321,8 @@ ensuring smoother light control from your panel.
 providing clearer guidance for a more efficient update process.
 
 ## Patch v4.2.2
-This update focuses on enhancing user customization, improving data management, and fixing minor issues in our system.
-We strive to continuously enhance the usability and efficiency of our product.
+This update focuses on enhancing user customization, improving data management, and addressing a range of issues from minor to critical in our system.
+Our commitment is to continuously enhance the usability, stability, and efficiency of your panel.
 
 > [!IMPORTANT]
 > **Breaking Change**: This patch requires Home Assistant v2023.12.0 or higher to ensure compatibility with new enhancements.
@@ -334,6 +334,7 @@ While this update is compatible with existing v4.2 components, it offers optimiz
 **Overview of Changes:**
 | Change | Criticality | Affected Components |
 | :-- | :--: | :--: |
+| Fix Climate page not working with embedded climate (#1627) | Critical | `ESPHome` |
 | Fix weather pages crashing when Home Assistant OS is not used (#1630) | Medium | `Blueprint` |
 | Correct Wi-Fi reference in QR code example (#1609) | Minor | `Documentation` |
 | Resolve incorrect labelling on entity pages (#1628) | Minor | `Blueprint` |
@@ -342,16 +343,16 @@ While this update is compatible with existing v4.2 components, it offers optimiz
 | Enable dynamic icons based on device_class (#1635) | Enhancement | `Blueprint` |
 
 **Key Improvements:**
+- **Fix for Climate Page Not Working**: Resolved a critical issue with the climate page not functioning properly when using embedded climate controls (#1627).
+This fix enhances system stability and user interaction with climate features.
 - **Fix for Weather Pages Crashing**: Addressed an issue causing weather pages to crash when Home Assistant Operating System (HAOS) is not used (#1630).
-This fix ensures stability and reliability of weather-related features across various Home Assistant installation modes,
-such as containerized installations and other setups.
+This fix ensures stability and reliability of weather-related features across various Home Assistant installation modes, such as containerized installations and other setups.
 - **Wi-Fi Reference Update in QR Code Example**: Updated the Wi-Fi reference in the QR code example (#1609) to prevent user errors during system setup.
 This documentation change aids in clearer guidance for configuring connections.
 - **Entity Pages Configuration Labeling**: Corrected the labeling of options in the blueprint for entity page configuration (#1628).
 This fix ensures that the labels accurately reflect the behavior on the pages, enhancing the configuration experience.
 - **Handling Lights Without Brightness Feature**: Improved handling of information for lights that lack brightness control in 'supported_features' (#1633).
-This update resolves the issue of incorrectly displaying brightness levels (as "0%") for lights that do not support brightness adjustment,
-ensuring more accurate display of buttons.
+This update resolves the issue of incorrectly displaying brightness levels (as "0%") for lights that do not support brightness adjustment, ensuring more accurate display of buttons.
 - **ISO8601 Date Formatting**: Introduced ISO8601 date formatting (#1610) to improve date readability and consistency in the user interface.
 - **Dynamic Icons Using Device Class**: Upgraded dynamic icons to utilize device_class (#1635), offering a more intuitive and context-aware UI.
 
@@ -386,6 +387,7 @@ Discover what's next and what we are working on right now in our [Milestones](ht
 - And to all users who helped with the tests during development and beta.
 
 ## Previous releases
+- [v4.2.1 - Bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.1)
 - [v4.2 - Multi-Alarm Control, Dual Thermostat Functionality, and More](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2)
 - [v4.1.4 - Support to Home Assistant 2023.12.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.4)
 - [v4.1.3 - Bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.3)
