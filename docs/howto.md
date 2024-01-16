@@ -140,7 +140,6 @@ The new firmware will be built and then flashed to your panel, which will restar
 5. The display starts the update process and then restarts.
 
 ## Notification via HA
-
 To show a notification on the NSPAnel, the following service call can be used:
 
 ```yaml
