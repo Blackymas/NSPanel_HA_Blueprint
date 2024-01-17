@@ -404,6 +404,25 @@ For support, feedback, or detailed information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
 or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
 
+## Patch v4.2.4
+
+We highly recommend all users update their components to this latest version for an optimized and enhanced user experience.
+While this update is compatible with existing v4.2 components, fully updating ensures the best performance and usability.
+
+**Overview of Changes:**
+<!-- markdownlint-disable MD013 MD033 -->
+| Change | Criticality | Affected Components |
+| :-- | :--: | :--: |
+| Nextion is not connected for too long time on boot (#1667 & #1674) | Critical | `TFT` |
+<!-- markdownlint-enable MD013 MD033 -->
+
+**Key Improvements:**
+- **Fix for Panel Long Boot Process**: Resolved an issue with the panel getting very long time on the Boot page ("Initializing...").
+
+For support, feedback, or detailed information about this update,
+visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
+or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
+
 ## What's Next?
 Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open).
 
