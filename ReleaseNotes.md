@@ -405,6 +405,7 @@ visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
 or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
 
 ## Patch v4.2.4
+In this update, we have focused on addressing critical issues to enhance the reliability and performance of our system.
 
 We highly recommend all users update their components to this latest version for an optimized and enhanced user experience.
 While this update is compatible with existing v4.2 components, fully updating ensures the best performance and usability.
@@ -414,10 +415,14 @@ While this update is compatible with existing v4.2 components, fully updating en
 | Change | Criticality | Affected Components |
 | :-- | :--: | :--: |
 | Nextion is not connected for too long time on boot (#1667 & #1674) | Critical | `TFT` |
+| Panel not starting when no climate entity is selected (#1676 & #1677) | Critical | `Blueprint` |
 <!-- markdownlint-enable MD013 MD033 -->
 
 **Key Improvements:**
-- **Fix for Panel Long Boot Process**: Resolved an issue with the panel getting very long time on the Boot page ("Initializing...").
+- **Fix for Panel Long Boot Process**: Resolved an issue with the panel taking an excessively long time on the Boot page ("Initializing..."),
+ensuring a quicker startup and more efficient operation.
+- **Fix for Panel Not Starting Without Climate Entity**: Addressed a critical issue where the panel would not start if no climate entity was selected.
+This fix ensures smooth operation and startup of the panel regardless of the climate entity configuration.
 
 For support, feedback, or detailed information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
