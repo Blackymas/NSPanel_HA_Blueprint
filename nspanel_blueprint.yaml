@@ -7291,7 +7291,7 @@ action:
           entity_state_is:
             "on": '{{ entity_state in enum.states.on if entity_id_is_valid else false }}'
             "off": '{{ entity_state in enum.states.off if entity_id_is_valid else false }}'
-            unknown: '{{ entity_state in enum.states.unknown if entity_id_is_valid else true }}'
+            unknown: '{{ entity_state in enum.states.unknown if entity_id_is_valid and entity_state else true }}'
           entity_domain: '{{ entity_id.split(".")[0] if entity_id_is_valid else "unknown" }}'
           entity_icon: '{{ state_attr(entity_id, "icon") | default("") if entity_id_is_valid else "" }}'
           entity_icon_color: >
@@ -7902,14 +7902,14 @@ action:
                               - variables:
                                   left_button_state: '{{ states(hardware.buttons.left.entity) | default("unavailable") if hardware.buttons.left.entity is string else "unavailable" }}'
                                   right_button_state: '{{ states(hardware.buttons.right.entity) | default("unavailable") if hardware.buttons.right.entity is string else "unavailable" }}'
-                              - if: '{{ left_button_state not in enum.states.unknown }}'
+                              - if: '{{ left_button_state and left_button_state not in enum.states.unknown }}'
                                 then:
                                   - *delay-default
                                   - service: '{{ nextion.command.printf }}'
                                     data:
                                       cmd: home.left_bt_pic.val={{ 1 if left_button_state in enum.states.on else 0 }}
                                     continue_on_error: true
-                              - if: '{{ right_button_state not in enum.states.unknown }}'
+                              - if: '{{ right_button_state and right_button_state not in enum.states.unknown }}'
                                 then:
                                   - *delay-default
                                   - service: '{{ nextion.command.printf }}'
@@ -8003,7 +8003,7 @@ action:
                                 then:
                                   - variables:
                                       entity_hvac_action: '{{ state_attr(entity_id, "hvac_action") | default(None) }}'
-                                      entity_climate_action: '{{ (entity_hvac_action if entity_hvac_action not in enum.states.unknown else entity_state) }}'
+                                      entity_climate_action: '{{ (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state) }}'
                                   - if: '{{ entity_climate_action in ["off", "heating", "heat", "cooling", "cool", "dry", "drying", "fan", "fan_only", "heat_cool", "auto", "idle"] }}'
                                     then:
                                       ### ICON Font Color ###
@@ -8721,9 +8721,10 @@ action:
 
                           ##### COVER Battery ICON Yes / NO #####
                           - variables:
+                              battery_attribute: '{{ state_attr(cover_entity, "battery") | default("unavailable") }}'
                               battery_level: >
-                                {% if state_attr(cover_entity, "battery") | default("unavailable") not in enum.states.unknown %}
-                                  {{ state_attr(cover_entity, "battery") | default("unavailable") }}
+                                {% if battery_attribute and battery_attribute not in enum.states.unknown %}
+                                  {{ battery_attribute }}
                                 {% elif expand(device_entities(device_id(cover_entity)))
                                         | selectattr("attributes.device_class", "defined")
                                         | selectattr("attributes.device_class", "eq", "battery")
@@ -8748,6 +8749,17 @@ action:
                                 {% endif %}
                           - if: '{{ is_number(battery_level) }}'
                             then:
+                              - variables:
+                                  battery_icon: >
+                                    {% if battery_level >= 80 %}
+                                      battery-high
+                                    {% elif battery_level >= 40 %}
+                                      battery-medium
+                                    {% elif battery_level >= 15 %}
+                                      battery-low
+                                    {% else %}
+                                      battery-outline
+                                    {% endif %}
                               - *delay-default
                               - service: '{{ nextion.command.text_printf }}'
                                 data:
@@ -8766,7 +8778,7 @@ action:
                               - service: '{{ nextion.command.text_printf }}'
                                 data:
                                   component: cover.battery_icon
-                                  message: '{{ all_icons["battery-medium"] }}'
+                                  message: '{{ all_icons[battery_icon] }}'
                                 continue_on_error: true
 
                       ## PAGE FAN ##
@@ -9050,7 +9062,7 @@ action:
                                   climate_state: '{{ states(climate_entity) | default("unavailable") if climate_entity is string else "unavailable" }}'
                                   hvac_action: '{{ state_attr(climate_entity, "hvac_action") }}'
                                   hvac_modes: '{{ state_attr(climate_entity, "hvac_modes") }}'
-                                  climate_action: '{{ hvac_action if hvac_action not in enum.states.unknown else climate_state }}'
+                                  climate_action: '{{ hvac_action if hvac_action and hvac_action not in enum.states.unknown else climate_state }}'
                                   climate_icon: >
                                     {% if "off" in climate_action %}{{ all_icons.blank }}
                                     {% elif "heating" in climate_action or "heat" in climate_action %}{{ all_icons["thermometer-lines"] }}
