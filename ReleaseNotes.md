@@ -366,6 +366,11 @@ Your feedback and support are crucial to our continuous improvement.
 ## Patch v4.2.3
 Bug fixes and minor enhancements.
 
+> [!IMPORTANT]
+> **Breaking Change**: If you are using the [Customization "Set display as a light"](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md#set-display-as-a-light)
+> please change the line `call.set_brightness(static_cast<float>(id(display_last_brightness)) / 100.0f);` to `call.set_brightness(static_cast<float>(current_brightness->state) / 100.0f);`
+> as that global variable was replaced by a new sensor.
+
 We encourage all users to update their components to this latest version for the best experience.
 While this update is compatible with existing v4.2 components, it offers optimized performance and usability when fully updated.
 
