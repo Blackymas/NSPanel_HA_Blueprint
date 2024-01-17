@@ -424,6 +424,7 @@ Discover what's next and what we are working on right now in our [Milestones](ht
     - Implement dynamic icons and use device_class, #1635 - Patch v4.2.2
     - Fixes the incorrect labelling of the entity pages alignment, #1628 - Patch v4.2.2
 - @bkbartk - Add Dutch/Italian date format, #1658 - Patch v4.2.3
+- @shing6326 - Fix crash on climate page, fix climate icon and color, #1649 - Patch v4.2.3
 - And to all users who helped with the tests during development and beta.
 
 ## Previous releases
