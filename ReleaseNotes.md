@@ -391,12 +391,14 @@ While this update is compatible with existing v4.2 components, fully updating en
 - **Fix for Device Temperature Gap**: Resolved a critical issue with the panel getting warmer on v4.2, potentially affecting its temperature measurements.
 - **Fix for Crash When Rendering Climate Entities**: Resolves a critical issue where the blueprint was crashing when trying to render icons for climate entities with no `hvac_action` attributes,
 preventing pages from being fully loaded.
-- **Fix for Battery Indicator**: Addressed the issue where the battery indicator was not displayed correctly on cover pages.
+- **Fix for Battery Indicator**: Addressed the issue where the battery indicator was not displayed correctly on cover pages. As a bonus, the icon now changes based on the battery level. 😉
 - **Add Dutch/Italian Date Format**: Expanding the existing pre-listed date formats, we've added the **Weekday, DD-MM (ex. "Friday, 22-03")** format.
 This enhancement caters to our Dutch and Italian users, adding a touch of local flair to their experience.
 
-A special thanks to the community for their support and contributions, particularly @andythomas for his useful, informative, and visually appealing temperature trend plots.
-Your efforts greatly aid in enhancing the quality of our project.
+A special thanks to the community for their support and contributions,
+especially to @andythomas for providing useful, informative, and visually appealing temperature trend plots,
+and to @shing6326 for their dedicated efforts in resolving the crashes with climate entities.
+Your contributions significantly enhance the quality of our project.
 
 For support, feedback, or detailed information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
