@@ -105,7 +105,7 @@ globals:
     restore_value: true
     initial_value: '0'
 
-  - id: tft_upload_try
+  - id: tft_upload_attempt
     type: uint
     restore_value: false
     initial_value: '0'
@@ -116,6 +116,17 @@ globals:
     initial_value: '"${nextion_update_url}"'
 
 script:
+  - id: exit_reparse_v414
+    mode: restart
+    then:
+      - logger.log: "Exit reparse"
+      - uart.write:
+          id: tf_uart
+          data: "DRAKJHSUYDGBNCJHGJKSHBDN"
+      - uart.write:
+          id: tf_uart
+          data: [0xFF, 0xFF, 0xFF]
+
   - id: nextion_uart_command
     mode: queued
     parameters:
@@ -316,6 +327,7 @@ script:
 
           ESP_LOGD(TAG, "  Target upload baud rate: %d bps", id(baud_rate_target));
           ESP_LOGD(TAG, "  Current baud rate:       %" PRIu32 " bps", tf_uart->get_baud_rate());
+          ESP_LOGD(TAG, "  Valid TFT:               %s", id(tft_is_valid) ? "True" : "False");
 
           // Upload URL
           ESP_LOGD(TAG, "  Upload URL:              %s", url.c_str());
@@ -371,126 +383,58 @@ script:
             - lambda: !lambda return (!id(tft_is_valid));
           timeout: 1s
 
-      ### Try twice at the target baud rate
-      - script.execute: nextion_status
-      - script.wait: nextion_status
+      ### Attempt twice with upload engine from v4.1.4 (115200bps) when TFT isn't detected
+      # - if:
+      #     condition:
+      #       - lambda: !lambda return (not id(tft_is_valid));
+      #     then:
+      #       - script.execute:
+      #           id: upload_tft_sequence_attempt_v414
+      #           url: !lambda return url.c_str();
+      #           baud_rate: 115200
+      #       - script.wait: upload_tft_sequence_attempt_v414
+
+      ### Attempt twice at the target baud rate
       - script.execute:
-          id: report_upload_progress
-          message: "Setting baud rate"
-      - script.wait: report_upload_progress
-      - script.execute:
-          id: set_baud_rate
+          id: upload_tft_sequence_attempt
           baud_rate: !lambda return id(baud_rate_target);
-          definitive: false
-      - script.wait: set_baud_rate
-      - delay: 2s
-      # Try #1
-      - script.execute: upload_tft_try
-      - script.wait: upload_tft_try
-      - delay: 5s
-      # Try #2
-      - script.execute: upload_tft_try
-      - script.wait: upload_tft_try
-      - delay: 5s
+      - script.wait: upload_tft_sequence_attempt
 
-      ### Try twice at the original baud rate
-      - script.execute: nextion_status
-      - script.wait: nextion_status
+      ### Attempt twice at the original baud rate
       - script.execute:
-          id: report_upload_progress
-          message: "Setting baud rate"
-      - script.wait: report_upload_progress
-      - script.execute:
-          id: set_baud_rate
+          id: upload_tft_sequence_attempt
           baud_rate: !lambda return id(baud_rate_original);
-          definitive: false
-      - script.wait: set_baud_rate
-      - delay: 2s
-      # Try #3
-      - script.execute: upload_tft_try
-      - script.wait: upload_tft_try
-      - delay: 5s
-      # Try #4
-      - script.execute: upload_tft_try
-      - script.wait: upload_tft_try
-      - delay: 5s
+      - script.wait: upload_tft_sequence_attempt
 
-      ### Try twice at the Nextion's default baud rate (115200bps)
-      - script.execute: nextion_status
-      - script.wait: nextion_status
+      ### Attempt twice at the Nextion's default baud rate (115200bps)
       - script.execute:
-          id: report_upload_progress
-          message: "Setting baud rate"
-      - script.wait: report_upload_progress
-      - script.execute:
-          id: set_baud_rate
+          id: upload_tft_sequence_attempt
           baud_rate: 115200
-          definitive: false
-      - script.wait: set_baud_rate
-      - delay: 2s
-      # Try #5
-      - script.execute: upload_tft_try
-      - script.wait: upload_tft_try
-      - delay: 5s
-      # Try #6
-      - script.execute: upload_tft_try
-      - script.wait: upload_tft_try
-      - delay: 5s
+      - script.wait: upload_tft_sequence_attempt
 
-      ### Exit reparse and try twice again
-      - script.execute: nextion_status
-      - script.wait: nextion_status
+      ### Attempt twice with upload engine from v4.1.4 (115200bps)
+      - script.execute:
+          id: upload_tft_sequence_attempt_v414
+          url: !lambda return url.c_str();
+          baud_rate: 115200
+      - script.wait: upload_tft_sequence_attempt_v414
+
+      ### Exit reparse and attempt twice again
       - script.execute:
           id: report_upload_progress
           message: "Exiting reparse mode"
-      - script.wait: report_upload_progress
-      - script.execute: exit_reparse
-      - script.wait: exit_reparse
-      - delay: 5s
-      - script.execute: nextion_status
-      - script.wait: nextion_status
       - script.execute:
-          id: report_upload_progress
-          message: "Setting baud rate"
-      - script.wait: report_upload_progress
-      - script.execute:
-          id: set_baud_rate
+          id: upload_tft_sequence_attempt
           baud_rate: 115200
-          definitive: false
-      - script.wait: set_baud_rate
-      - delay: 2s
-      # Try #7
-      - script.execute: upload_tft_try
-      - script.wait: upload_tft_try
-      - delay: 5s
-      # Try #8
-      - script.execute: upload_tft_try
-      - script.wait: upload_tft_try
-      - delay: 5s
+      - script.wait: upload_tft_sequence_attempt
 
-      ### Then try twice again at 9600bps
-      - script.execute: nextion_status
-      - script.wait: nextion_status
+      ### Then attempt twice again at 9600bps
       - script.execute:
-          id: report_upload_progress
-          message: "Setting baud rate"
-      - script.wait: report_upload_progress
-      - script.execute:
-          id: set_baud_rate
+          id: upload_tft_sequence_attempt
           baud_rate: 9600
-          definitive: false
-      - script.wait: set_baud_rate
-      - delay: 2s
-      # Try #9
-      - script.execute: upload_tft_try
-      - script.wait: upload_tft_try
-      - delay: 5s
-      # Try #10
-      - script.execute: upload_tft_try
-      - script.wait: upload_tft_try
-      - delay: 5s
+      - script.wait: upload_tft_sequence_attempt
 
-      ### Restart Nextion and try twice again at default baud rate (115200bps)
+      ### Restart Nextion and attempt twice again at default baud rate (115200bps)
       - script.execute:
           id: report_upload_progress
           message: "Restarting Nextion display"
@@ -503,26 +447,10 @@ script:
       - delay: 2s
       - switch.turn_on: screen_power
       - delay: 5s
-      - script.execute: nextion_status
-      - script.wait: nextion_status
       - script.execute:
-          id: report_upload_progress
-          message: "Setting baud rate"
-      - script.wait: report_upload_progress
-      - script.execute:
-          id: set_baud_rate
+          id: upload_tft_sequence_attempt
           baud_rate: 115200
-          definitive: false
-      - script.wait: set_baud_rate
-      - delay: 2s
-      # Try #11
-      - script.execute: upload_tft_try
-      - script.wait: upload_tft_try
-      - delay: 5s
-      # Try #12
-      - script.execute: upload_tft_try
-      - script.wait: upload_tft_try
-      - delay: 5s
+      - script.wait: upload_tft_sequence_attempt
 
       ### All tries failed ###
       - script.execute:
@@ -555,14 +483,726 @@ script:
           screen_power->publish_state(true);
           ESP_LOGE(TAG, "TFT upload finished unsuccessfully!");
 
-  - id: upload_tft_try
+  - id: upload_tft_sequence_attempt
+    mode: single
+    parameters:
+      baud_rate: uint
+    then:
+      - script.execute: nextion_status
+      - script.wait: nextion_status
+      - script.execute:
+          id: report_upload_progress
+          message: "Setting baud rate"
+      - script.wait: report_upload_progress
+      - script.execute:
+          id: set_baud_rate
+          baud_rate: !lambda return baud_rate;
+          definitive: false
+      - script.wait: set_baud_rate
+      - delay: 2s
+      # First attempt
+      - script.execute: upload_tft_attempt
+      - script.wait: upload_tft_attempt
+      - delay: 5s
+      # Backup attempt
+      - script.execute: upload_tft_attempt
+      - script.wait: upload_tft_attempt
+      - delay: 5s
+
+  - id: upload_tft_sequence_attempt_v414
+    mode: single
+    parameters:
+      url: string
+      baud_rate: uint
+    then:
+      - script.execute: nextion_status
+      - script.wait: nextion_status
+      - script.execute:
+          id: report_upload_progress
+          message: "Setting baud rate"
+      - script.wait: report_upload_progress
+      - script.execute:
+          id: set_baud_rate
+          baud_rate: !lambda return baud_rate;
+          definitive: false
+      - script.wait: set_baud_rate
+      - delay: 2s
+      # Attempt #7
+      - script.execute:
+          id: upload_tft_v414
+          url: !lambda return url.c_str();
+      - script.wait: upload_tft_v414
+      - delay: 5s
+      # Attempt #8
+      - script.execute:
+          id: upload_tft_v414
+          url: !lambda return url.c_str();
+      - script.wait: upload_tft_v414
+      - delay: 5s
+
+  - id: upload_tft_v414
+    mode: single
+    parameters:
+      url: string
+    then:
+      - lambda: |-
+          static const char *const TAG = "addon_upload_tft.script.upload_tft_v414";
+          ESP_LOGD(TAG, "Attempting to upload TFT");
+          id(tft_upload_attempt)++;
+          char update_msg[128];
+          sprintf(update_msg, "Attempt #%d at %" PRIu32 " bps", id(tft_upload_attempt), tf_uart->get_baud_rate());
+          report_upload_progress->execute(update_msg);
+      - script.wait: report_upload_progress
+      - wait_until:
+          condition:
+            - lambda: !lambda return (!id(tft_is_valid));
+          timeout: 1s
+      - lambda: |-
+          static const char *const TAG = "addon_upload_tft.script.upload_tft_v414";
+          ESP_LOGD(TAG, "Starting...");
+          std::vector<uint8_t> buffer_;
+
+          bool is_updating_ = false;
+
+          bool upload_first_chunk_sent_ = false;
+
+          int content_length_ = 0;
+          int tft_size_ = 0;
+
+          auto delay_seconds_ = [](int seconds) {
+            ESP_LOGD(TAG, "Wait %i seconds", seconds);
+            for (int i = 0; i < (seconds*4); i++) {
+              #ifdef ARDUINO
+              delay(250);
+              #elif defined(USE_ESP_IDF)
+              vTaskDelay(pdMS_TO_TICKS(250));
+              #endif
+              App.feed_wdt();
+            }
+          };
+
+          auto set_baud_rate_ = [](int baud_rate) {
+            #ifdef USE_ARDUINO
+            auto *uart = reinterpret_cast<uart::ESP32ArduinoUARTComponent *>(tf_uart);
+            #endif
+            #ifdef USE_ESP_IDF
+            auto *uart = reinterpret_cast<uart::IDFUARTComponent *>(tf_uart);
+            #endif
+            uart->set_baud_rate(baud_rate);
+            uart->setup();
+          };
+
+          auto send_nextion_command = [](const std::string &command) -> bool
+            {
+              static const char *const TAG = "addon_upload_tft.script.upload_tft.send_nextion_command";
+              ESP_LOGD(TAG, "Sending: %s", command.c_str());
+              id(tf_uart).write_str(command.c_str());
+              const uint8_t to_send[3] = {0xFF, 0xFF, 0xFF};
+              id(tf_uart).write_array(to_send, sizeof(to_send));
+              return true;
+            };
+
+          auto recv_ret_string_ = [](std::string &response, uint32_t timeout, bool recv_flag) -> uint16_t
+            {
+              static const char *const TAG = "script.upload_tft.recv_ret_string_";
+              uint16_t ret;
+              uint8_t c = 0;
+              uint8_t nr_of_ff_bytes = 0;
+              uint64_t start;
+              bool exit_flag = false;
+              bool ff_flag = false;
+
+              start = millis();
+
+              while ((timeout == 0 && id(tf_uart).available()) || millis() - start <= timeout)
+                {
+                  if (!id(tf_uart).available())
+                    {
+                      App.feed_wdt();
+                      continue;
+                    }
+
+                  id(tf_uart).read_byte(&c);
+                  if (c == 0xFF)
+                    {
+                      nr_of_ff_bytes++;
+                    }
+                  else
+                    {
+                      nr_of_ff_bytes = 0;
+                      ff_flag = false;
+                    }
+
+                  if (nr_of_ff_bytes >= 3)
+                    ff_flag = true;
+
+                  response += (char) c;
+                  if (recv_flag)
+                    {
+                      if (response.find(0x05) != std::string::npos)
+                        {
+                          exit_flag = true;
+                        }
+                    }
+                  App.feed_wdt();
+                  delay(2);
+
+                  if (exit_flag || ff_flag)
+                    {
+                      break;
+                    }
+                }
+
+              if (ff_flag)
+                response = response.substr(0, response.length() - 3); // Remove last 3 0xFF
+
+              ret = response.length();
+              return ret;
+            };
+
+          auto upload_end_ = [&](bool completed) -> bool
+            {
+              static const char *const TAG = "script.upload_tft.upload_end_";
+              ESP_LOGD(TAG, "Completed: %s", completed ? "True" : "False");
+              //ESP_LOGD(TAG, "Restarting Nextion");
+              //send_nextion_command("rest");
+              #ifdef ARDUINO
+              delay(1500);
+              #elif defined(ESP_PLATFORM)
+              //vTaskDelay(pdMS_TO_TICKS(1500));
+              #endif
+
+              is_updating_ = false;
+              if (!completed) ESP_LOGD(TAG, "Nextion TFT upload will attempt again");
+              return completed;
+            };
+
+          #ifdef ARDUINO // arduino # To do: Move to Nextion component on ESPHome
+          size_t transfer_buffer_size_ = 0;
+          uint8_t *transfer_buffer_{nullptr};
+          auto upload_by_chunks_arduino = [&](HTTPClient *http, const std::string &url, int range_start) -> int
+            {
+              static const char *const TAG = "script.upload_tft.upload_by_chunks_arduino";
+              int range_end;
+
+              if (range_start == 0 && transfer_buffer_size_ > 16384) { // Start small at the first run in case of a big skip
+                range_end = 16384 - 1;
+              } else {
+                range_end = range_start + transfer_buffer_size_ - 1;
+              }
+
+              if (range_end > tft_size_)
+                range_end = tft_size_;
+
+              char range_header[64];
+              sprintf(range_header, "bytes=%d-%d", range_start, range_end);
+
+              ESP_LOGD(TAG, "Requesting range: %s", range_header);
+
+              int tries = 1;
+              int code;
+              bool begin_status;
+              while (tries <= 10) {
+                begin_status = http->begin(url.c_str());
+
+                ++tries;
+                if (!begin_status) {
+                  ESP_LOGD(TAG, "Connection failed");
+                  delay(1000);
+                  continue;
+                };
+
+                http->addHeader("Range", range_header);
+
+                code = http->GET();
+                if (code == 200 || code == 206) {
+                  break;
+                }
+                ESP_LOGW(TAG, "HTTP Request failed; URL: %s; Error: %s, retries(%d/10)", url.c_str(),
+                        HTTPClient::errorToString(code).c_str(), tries);
+                http->end();
+                delay(1000);
+              }
+
+              if (tries > 10) {
+                return -1;
+              }
+
+              std::string recv_string;
+              size_t size;
+              int fetched = 0;
+              int range = range_end - range_start;
+              int write_len;
+
+              // fetch next segment from HTTP stream
+              while (fetched < range) {
+                size = http->getStreamPtr()->available();
+                if (!size) {
+                  App.feed_wdt();
+                  delay(2);
+                  continue;
+                }
+                int c = http->getStreamPtr()->readBytes(
+                    &transfer_buffer_[fetched], ((size > transfer_buffer_size_) ? transfer_buffer_size_ : size));
+                fetched += c;
+              }
+              http->end();
+              ESP_LOGD(TAG, "Fetched %d bytes", fetched);
+
+              // upload fetched segments to the display in 4KB chunks
+              for (int i = 0; i < range; i += 4096) {
+                App.feed_wdt();
+                write_len = content_length_ < 4096 ? content_length_ : 4096;
+                id(tf_uart).write_array(&transfer_buffer_[i], write_len);
+                content_length_ -= write_len;
+                ESP_LOGD(TAG, "Uploaded %0.1f %%, remaining %d bytes",
+                        100.0 * (tft_size_ - content_length_) / tft_size_,
+                        content_length_);
+
+                if (!upload_first_chunk_sent_) {
+                  upload_first_chunk_sent_ = true;
+                  delay(500);
+                }
+
+                recv_ret_string_(recv_string, 5000, true);
+                if (recv_string[0] != 0x05) { // 0x05 == "ok"
+                  ESP_LOGD(TAG, "recv_string [%s]",
+                          format_hex_pretty(reinterpret_cast<const uint8_t *>(recv_string.data()), recv_string.size()).c_str());
+                }
+
+                // handle partial upload request
+                if (recv_string[0] == 0x08 && recv_string.size() == 5) {
+                  uint32_t result = 0;
+                  for (int j = 0; j < 4; ++j) {
+                    result += static_cast<uint8_t>(recv_string[j + 1]) << (8 * j);
+                  }
+                  if (result > 0) {
+                    ESP_LOGD(TAG, "Nextion reported new range %d", result);
+                    content_length_ = tft_size_ - result;
+                    return result;
+                  }
+                }
+
+                recv_string.clear();
+              }
+              return range_end + 1;
+            };
+          auto upload_tft_ = [&](const std::string &url, uint32_t update_baud_rate_) -> bool
+            {
+              static const char *const TAG = "addon_upload_tft.script.upload_tft.upload_tft_arduino";
+              ESP_LOGD(TAG, "Nextion TFT upload requested");
+              ESP_LOGD(TAG, "  url: %s", url.c_str());
+              ESP_LOGD(TAG, "  baud_rate: %" PRIu32, update_baud_rate_);
+
+              if (is_updating_) {
+                ESP_LOGD(TAG, "Currently updating");
+                return upload_end_(false);
+              }
+
+              if (!network::is_connected()) {
+                ESP_LOGD(TAG, "Network is not connected");
+                return upload_end_(false);
+              }
+
+              if (!disp1->is_setup()) {
+                ESP_LOGD(TAG, "Setting Nextion protocol reparse mode to passive");
+                exit_reparse_v414->execute();
+                delay_seconds_(5);
+              }
+
+              is_updating_ = true;
+
+              HTTPClient http;
+              http.setTimeout(15000); // Yes 15 seconds.... Helps 8266s along
+              http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+              bool begin_status = http.begin(url.c_str());
+              if (!begin_status) {
+                is_updating_ = false;
+                ESP_LOGD(TAG, "Connection failed");
+                ExternalRAMAllocator<uint8_t> allocator(ExternalRAMAllocator<uint8_t>::ALLOW_FAILURE);
+                allocator.deallocate(transfer_buffer_, transfer_buffer_size_);
+                return upload_end_(false);
+              } else {
+                ESP_LOGD(TAG, "Connected");
+              }
+
+              http.addHeader("Range", "bytes=0-255");
+              const char *header_names[] = {"Content-Range"};
+              http.collectHeaders(header_names, 1);
+              ESP_LOGD(TAG, "Requesting URL: %s", url.c_str());
+
+              http.setReuse(true);
+              // attempt up to 5 times. DNS sometimes needs a second attempt or so
+              int tries = 1;
+              int code = http.GET();
+              delay(100);
+
+              while (code != 200 && code != 206 && tries <= 5) {
+                ESP_LOGW(TAG, "HTTP Request failed; URL: %s; Error: %s, reattempting (%d/5)", url.c_str(),
+                        HTTPClient::errorToString(code).c_str(), tries);
+
+                delay(250);
+                code = http.GET();
+                ++tries;
+              }
+
+              if ((code != 200 && code != 206) || tries > 5) {
+                return upload_end_(false);
+              }
+
+              String content_range_string = http.header("Content-Range");
+              content_range_string.remove(0, 12);
+              content_length_ = content_range_string.toInt();
+              tft_size_ = content_length_;
+              http.end();
+
+              if (content_length_ < 4096) {
+                ESP_LOGE(TAG, "Failed to get file size");
+                return upload_end_(false);
+              }
+
+              ESP_LOGD(TAG, "Updating Nextion");
+              // The Nextion will ignore the update command if it is sleeping
+
+              char command[128];
+              // Tells the Nextion the content length of the tft file and baud rate it will be sent at
+              // Once the Nextion accepts the command it will wait until the file is successfully uploaded
+              // If it fails for any reason a power cycle of the display will be needed
+              sprintf(command, "whmi-wris %d,%d,1", content_length_, update_baud_rate_);
+
+              ESP_LOGD(TAG, "Clear serial receive buffer: %d", id(tf_uart).available());
+              // Clear serial receive buffer
+              uint8_t d;
+              while (id(tf_uart).available()) {
+                id(tf_uart).read_byte(&d);
+              };
+
+              send_nextion_command(command);
+
+              if (update_baud_rate_ != id(tf_uart).get_baud_rate()) {
+                set_baud_rate_(update_baud_rate_);
+                //id(tf_uart).set_baud_rate(update_baud_rate_);
+                //id(tf_uart).setup();
+                //delay_seconds_(2);
+              }
+
+              ESP_LOGD(TAG, "Waiting for upgrade response");
+              std::string response;
+              recv_ret_string_(response, 5000, true); // This can take some time to return
+              // The Nextion display will, if it's ready to accept data, send a 0x05 byte.
+              ESP_LOGD(TAG, "Upgrade response is [%s]",
+                      format_hex_pretty(reinterpret_cast<const uint8_t *>(response.data()), response.size()).c_str());
+
+              if (response.find(0x05) != std::string::npos) {
+                ESP_LOGD(TAG, "Preparation for tft update done");
+              } else {
+                ESP_LOGD(TAG, "Preparation for tft update failed %d \"%s\"", response[0], response.c_str());
+                return upload_end_(false);
+              }
+
+              // Nextion wants 4096 bytes at a time. Make chunk_size a multiple of 4096
+              uint32_t chunk_size = 8192;
+              if (ESP.getFreeHeap() > 81920) { // Ensure some FreeHeap to other things and limit chunk size
+                chunk_size = ESP.getFreeHeap() - 65536;
+                chunk_size = int(chunk_size / 4096) * 4096;
+                chunk_size = chunk_size > ${upload_tft_chunk_size_max} ? ${upload_tft_chunk_size_max} : chunk_size;
+              } else if (ESP.getFreeHeap() < 32768) {
+                chunk_size = 4096;
+              }
+
+              if (transfer_buffer_ == nullptr) {
+                ExternalRAMAllocator<uint8_t> allocator(ExternalRAMAllocator<uint8_t>::ALLOW_FAILURE);
+                ESP_LOGD(TAG, "Allocating buffer size %d, Heap size is %" PRIu32, chunk_size, ESP.getFreeHeap());
+                transfer_buffer_ = allocator.allocate(chunk_size);
+                if (transfer_buffer_ == nullptr) { // Attempt a smaller size
+                  ESP_LOGD(TAG, "Could not allocate buffer size: %d attempting 4096 instead", chunk_size);
+                  chunk_size = 4096;
+                  ESP_LOGD(TAG, "Allocating %d buffer", chunk_size);
+                  transfer_buffer_ = allocator.allocate(chunk_size);
+
+                  if (!transfer_buffer_)
+                    {
+                      return upload_end_(false);
+                    }
+                }
+
+                transfer_buffer_size_ = chunk_size;
+              }
+
+              ESP_LOGD(TAG, "Updating tft from \"%s\" with a file size of %d using %zu chunksize, Heap Size %" PRIu32,
+                      url.c_str(), content_length_, transfer_buffer_size_, ESP.getFreeHeap());
+
+              int result = 0;
+              while (content_length_ > 0) {
+                result = upload_by_chunks_arduino(&http, url, result);
+                if (result < 0) {
+                  ESP_LOGD(TAG, "Error updating Nextion!");
+                  return upload_end_(false);
+                }
+                App.feed_wdt();
+                ESP_LOGD(TAG, "Heap Size %" PRIu32 ", Bytes left %d", ESP.getFreeHeap(), content_length_);
+              }
+              is_updating_ = false;
+              ESP_LOGD(TAG, "Successfully updated Nextion!");
+
+              return upload_end_(true);
+            };
+          #elif defined(ESP_PLATFORM) // esp-idf # To do: Move to Nextion component on ESPHome
+          auto upload_range_esp_idf_ = [&](const std::string &url, int range_start) -> int {
+              static const char *const TAG = "addon_upload_tft.script.upload_tft.upload_range_esp_idf_";
+              ESP_LOGVV(TAG, "url: %s", url.c_str());
+              uint32_t range_size_ = tft_size_ - range_start;
+              ESP_LOGVV(TAG, "tft_size_: %i", tft_size_);
+              ESP_LOGV(TAG, "Available heap: %" PRIu32, esp_get_free_heap_size());
+              int range_end = (range_start == 0) ? std::min(tft_size_, 16383) : tft_size_;
+              if (range_size_ <= 0 or range_end <= range_start) {
+                ESP_LOGE(TAG, "Invalid range");
+                ESP_LOGD(TAG, "Range start: %i", range_start);
+                ESP_LOGD(TAG, "Range end: %i", range_end);
+                ESP_LOGD(TAG, "Range size: %" PRIu32, range_size_);
+                return -1;
+              }
+
+              esp_http_client_config_t config = {
+                  .url = url.c_str(),
+                  .cert_pem = nullptr,
+              };
+              esp_http_client_handle_t client = esp_http_client_init(&config);
+
+              char range_header[64];
+              sprintf(range_header, "bytes=%d-%d", range_start, range_end);
+              ESP_LOGV(TAG, "Requesting range: %s", range_header);
+              esp_http_client_set_header(client, "Range", range_header);
+              ESP_LOGVV(TAG, "Available heap: %u", esp_get_free_heap_size());
+              ESP_LOGV(TAG, "Opening http connetion");
+              esp_err_t err;
+              if ((err = esp_http_client_open(client, 0)) != ESP_OK) {
+                  ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
+                  esp_http_client_cleanup(client);
+                  return -1;
+              }
+
+              ESP_LOGV(TAG, "Fetch content length");
+              int content_length = esp_http_client_fetch_headers(client);
+              ESP_LOGV(TAG, "content_length = %d", content_length);
+              if (content_length <= 0) {
+                ESP_LOGE(TAG, "Failed to get content length: %d", content_length);
+                esp_http_client_cleanup(client);
+                return -1;
+              }
+
+              int total_read_len = 0, read_len;
+
+              ESP_LOGV(TAG, "Allocate buffer");
+              uint8_t* buffer = new uint8_t[4096];
+              std::string recv_string;
+              if (buffer == nullptr) {
+                ESP_LOGE(TAG, "Failed to allocate memory for buffer");
+                ESP_LOGV(TAG, "Available heap: %" PRIu32, esp_get_free_heap_size());
+              } else {
+                ESP_LOGV(TAG, "Memory for buffer allocated successfully");
+
+                while (true) {
+                  App.feed_wdt();
+                  ESP_LOGVV(TAG, "Available heap: %u", esp_get_free_heap_size());
+                  int read_len = esp_http_client_read(client, reinterpret_cast<char*>(buffer), 4096);
+                  ESP_LOGVV(TAG, "Read %d bytes from HTTP client, writing to UART", read_len);
+                  if (read_len > 0) {
+                    tf_uart->write_array(buffer, read_len);
+                    ESP_LOGVV(TAG, "Write to UART successful");
+                    recv_ret_string_(recv_string, 5000, true);
+                    content_length_ -= read_len;
+                    ESP_LOGD(TAG, "Uploaded %0.2f %%, remaining %d bytes",
+                            100.0 * (tft_size_ - content_length_) / tft_size_,
+                            content_length_);
+                    if (recv_string[0] != 0x05) {  // 0x05 == "ok"
+                      ESP_LOGD(TAG, "recv_string [%s]",
+                              format_hex_pretty(reinterpret_cast<const uint8_t *>(recv_string.data()), recv_string.size()).c_str());
+                    }
+                    // handle partial upload request
+                    if (recv_string[0] == 0x08 && recv_string.size() == 5) {
+                      uint32_t result = 0;
+                      for (int j = 0; j < 4; ++j) {
+                        result += static_cast<uint8_t>(recv_string[j + 1]) << (8 * j);
+                      }
+                      if (result > 0) {
+                        ESP_LOGI(TAG, "Nextion reported new range %" PRIu32, result);
+                        content_length_ = tft_size_ - result;
+                        // Deallocate the buffer when done
+                        delete[] buffer;
+                        ESP_LOGVV(TAG, "Memory for buffer deallocated");
+                        esp_http_client_cleanup(client);
+                        esp_http_client_close(client);
+                        return result;
+                      }
+                    }
+                    recv_string.clear();
+                  } else if (read_len == 0) {
+                    ESP_LOGV(TAG, "End of HTTP response reached");
+                    break;  // Exit the loop if there is no more data to read
+                  } else {
+                    ESP_LOGE(TAG, "Failed to read from HTTP client, error code: %d", read_len);
+                    break;  // Exit the loop on error
+                  }
+                }
+
+                // Deallocate the buffer when done
+                delete[] buffer;
+                ESP_LOGVV(TAG, "Memory for buffer deallocated");
+              }
+              esp_http_client_cleanup(client);
+              esp_http_client_close(client);
+              return range_end + 1;
+            };
+          auto upload_tft_ = [&](const std::string &url, unsigned int update_baud_rate_) -> bool {
+              static const char *const TAG = "addon_upload_tft.script.upload_tft.upload_tft_esp_idf";
+              ESP_LOGD(TAG, "Nextion TFT upload requested");
+              ESP_LOGD(TAG, "  url: %s", url.c_str());
+              ESP_LOGD(TAG, "  baud_rate: %u", update_baud_rate_);
+
+              if (is_updating_) {
+                ESP_LOGW(TAG, "Currently updating");
+                return upload_end_(false);
+              }
+
+              if (!network::is_connected()) {
+                ESP_LOGE(TAG, "Network is not connected");
+                return upload_end_(false);
+              }
+
+              if (!disp1->is_setup()) {
+                ESP_LOGD(TAG, "Setting Nextion protocol reparse mode to passive");
+                exit_reparse_v414->execute();
+                delay_seconds_(5);
+              }
+
+              is_updating_ = true;
+
+              // Define the configuration for the HTTP client
+              ESP_LOGV(TAG, "Establishing connection to HTTP server");
+              ESP_LOGVV(TAG, "Available heap: %u", esp_get_free_heap_size());
+              esp_http_client_config_t config = {
+                  .url = url.c_str(),
+                  .cert_pem = nullptr,
+                  .method = HTTP_METHOD_HEAD,
+                  .timeout_ms = 15000,
+              };
+
+              // Initialize the HTTP client with the configuration
+              ESP_LOGV(TAG, "Initializing HTTP client");
+              ESP_LOGV(TAG, "Available heap: %" PRIu32, esp_get_free_heap_size());
+              esp_http_client_handle_t http = esp_http_client_init(&config);
+              if (!http) {
+                  ESP_LOGE(TAG, "Failed to initialize HTTP client.");
+                  return upload_end_(false);  // return -1 to indicate an error
+              }
+
+              // Perform the HTTP request
+              ESP_LOGV(TAG, "Check if the client could connect");
+              ESP_LOGV(TAG, "Available heap: %" PRIu32, esp_get_free_heap_size());
+              esp_err_t err = esp_http_client_perform(http);
+              if (err != ESP_OK) {
+                  ESP_LOGE(TAG, "HTTP request failed: %s", esp_err_to_name(err));
+                  esp_http_client_cleanup(http);
+                  return upload_end_(false);
+              }
+
+              // Check the HTTP Status Code
+              int status_code = esp_http_client_get_status_code(http);
+              ESP_LOGV(TAG, "HTTP Status Code: %d", status_code);
+              size_t tft_file_size = esp_http_client_get_content_length(http);
+              ESP_LOGD(TAG, "TFT file size: %zu", tft_file_size);
+
+              if (tft_file_size < 4096) {
+                  ESP_LOGE(TAG, "File size check failed. Size: %zu", tft_file_size);
+                  esp_http_client_cleanup(http);
+                  return upload_end_(false);
+              } else {
+                  ESP_LOGD(TAG, "File size check passed. Proceeding...");
+              }
+              content_length_ = tft_file_size;
+              tft_size_ = tft_file_size;
+
+              ESP_LOGD(TAG, "Updating Nextion");
+              // The Nextion will ignore the update command if it is sleeping
+
+              char command[128];
+              // Tells the Nextion the content length of the tft file and baud rate it will be sent at
+              // Once the Nextion accepts the command it will wait until the file is successfully uploaded
+              // If it fails for any reason a power cycle of the display will be needed
+              sprintf(command, "whmi-wris %d,%d,1", content_length_, update_baud_rate_);
+
+              // Clear serial receive buffer
+              uint8_t d;
+              while (id(tf_uart).available()) {
+                id(tf_uart).read_byte(&d);
+              };
+
+              send_nextion_command(command);
+
+              if (update_baud_rate_ != id(tf_uart).get_baud_rate()) {
+                set_baud_rate_(update_baud_rate_);
+                //id(tf_uart).set_baud_rate(update_baud_rate_);
+                //id(tf_uart).setup();
+              }
+
+              std::string response;
+              ESP_LOGD(TAG, "Waiting for upgrade response");
+              recv_ret_string_(response, 2000, true); // This can take some time to return
+
+              // The Nextion display will, if it's ready to accept data, send a 0x05 byte.
+              ESP_LOGD(TAG, "Upgrade response is [%s]",
+                      format_hex_pretty(reinterpret_cast<const uint8_t *>(response.data()), response.size()).c_str());
+
+              if (response.find(0x05) != std::string::npos) {
+                ESP_LOGV(TAG, "Preparation for tft update done");
+              } else {
+                ESP_LOGE(TAG, "Preparation for tft update failed %d \"%s\"", response[0], response.c_str());
+                esp_http_client_cleanup(http);
+                return upload_end_(false);
+              }
+
+              ESP_LOGD(TAG, "Updating tft from \"%s\" with a file size of %d, Heap Size %" PRIu32,
+                      url.c_str(), content_length_, esp_get_free_heap_size());
+
+              ESP_LOGV(TAG, "Starting transfer by chunks loop");
+              int result = 0;
+              while (content_length_ > 0) {
+                  result = upload_range_esp_idf_(url.c_str(), result);
+                  if (result < 0) {
+                      ESP_LOGE(TAG, "Error updating Nextion!");
+                      esp_http_client_cleanup(http);
+                      return upload_end_(false);
+                  }
+                  App.feed_wdt();
+                  ESP_LOGV(TAG, "Heap Size %" PRIu32 ", Bytes left %d", esp_get_free_heap_size(), content_length_);
+              }
+
+              is_updating_ = false;
+              ESP_LOGD(TAG, "Successfully updated Nextion!");
+
+              ESP_LOGD(TAG, "Close HTTP connection");
+              esp_http_client_close(http);
+              esp_http_client_cleanup(http);
+              return upload_end_(true);
+            };
+          #endif
+
+          if (upload_tft_(url, 115200)) App.safe_reboot();
+          char update_msg[128];
+          sprintf(update_msg, "Attempt #%d at %" PRIu32 " bps failed!", id(tft_upload_attempt), tf_uart->get_baud_rate());
+          report_upload_progress->execute(update_msg);
+          ESP_LOGD(TAG, "Finished!");
+      - script.wait: report_upload_progress
+
+  - id: upload_tft_attempt
     mode: single
     then:
-      - logger.log: "Trying to upload TFT"
-      - lambda: !lambda id(tft_upload_try)++;
+      - logger.log: "Attempting to upload TFT"
+      - lambda: !lambda id(tft_upload_attempt)++;
       - lambda: |-
           char update_msg[128];
-          sprintf(update_msg, "Try #%d at %" PRIu32 " bps", id(tft_upload_try), tf_uart->get_baud_rate());
+          sprintf(update_msg, "Attempt #%d at %" PRIu32 " bps", id(tft_upload_attempt), tf_uart->get_baud_rate());
           report_upload_progress->execute(update_msg);
       - script.wait: report_upload_progress
       - wait_until:
@@ -573,7 +1213,7 @@ script:
       - script.wait: nextion_upload
       - lambda: |-
           char update_msg[128];
-          sprintf(update_msg, "Try #%d at %" PRIu32 " bps failed!", id(tft_upload_try), tf_uart->get_baud_rate());
+          sprintf(update_msg, "Attempt #%d at %" PRIu32 " bps failed!", id(tft_upload_attempt), tf_uart->get_baud_rate());
           report_upload_progress->execute(update_msg);
       - script.wait: report_upload_progress
 
@@ -622,5 +1262,12 @@ sensor:
     on_value:
       then:
         lambda: |-
+          static const char *const TAG = "addon_upload_tft.sensor.display_mode";
           id(tft_is_valid) = (display_mode->state > 0 and display_mode->state < 4);
+          if (id(tft_is_valid))
+            ESP_LOGD(TAG, "Valid TFT: True");
+          else {
+            ESP_LOGW(TAG, "Display mode: %i", int(display_mode->state));
+            ESP_LOGW(TAG, "Valid TFT:    False");
+          }
 ...

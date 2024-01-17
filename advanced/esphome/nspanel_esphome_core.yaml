@@ -17,7 +17,7 @@ substitutions:
   name: ${device_name}
   wifi_timeout: '15'
   ##### DON'T CHANGE THIS ######
-  version: "4.2.2"
+  version: "4.2.3"
   ##############################
 
 ##### External components #####
@@ -50,7 +50,7 @@ esp32:
 ##### WIFI SETUP #####
 wifi:
   id: wifi_component
-  power_save_mode: NONE
+  power_save_mode: LIGHT
   networks:
     - id: wifi_default
       ssid: ${wifi_ssid}
@@ -109,8 +109,7 @@ time:
       - seconds: 0
         then:
           - script.execute: refresh_datetime
-      - minutes: /5
-        seconds: 30
+      - seconds: 30
         then:
           - script.execute: watchdog
 
@@ -821,13 +820,6 @@ globals:
     restore_value: true
     initial_value: '10'
 
-  ##### Remember last brighness value sent to Nextion #####
-  - id: display_last_brightness
-    type: uint
-    restore_value: false
-    initial_value: '100'
-
-  ##### Temperature unit #####
   ##### Is embedded sensor used for indoor temperature? #####
   - id: embedded_indoor_temp
     type: bool
@@ -1115,6 +1107,7 @@ number:
             if (current_page->state != "screensaver")
               {
                 disp1->set_backlight_brightness(x/100);
+                current_brightness->update();
                 timer_dim->execute(current_page->state.c_str(), int(timeout_dim->state));
                 timer_sleep->execute(current_page->state.c_str(), int(timeout_sleep->state));
                 if (current_page->state == "settings") disp1->set_component_text_printf("bright_text", "%i%%", int(x));
@@ -1138,7 +1131,7 @@ number:
             id(display_dim_brightness_global) = int(x);
             disp1->send_command_printf("brightness_dim=%i", int(x));
             disp1->send_command_printf("settings.dimslider.val=%i", int(x));
-            if (current_page->state != "screensaver" and (id(display_last_brightness) <= id(display_dim_brightness_global)))
+            if (current_page->state != "screensaver" and (current_brightness->state <= id(display_dim_brightness_global)))
               {
                 set_brightness->execute(x);
                 timer_sleep->execute(current_page->state.c_str(), int(timeout_sleep->state));
@@ -1309,6 +1302,7 @@ sensor:
     platform: ntc
     sensor: resistance_sensor
     unit_of_measurement: ${temp_units}
+    internal: false
     calibration:
       b_constant: 3950
       reference_temperature: 25°C
@@ -1353,11 +1347,31 @@ sensor:
         - lambda: |-
             timer_reset_all->execute("settings");
 
+  ###### Display Brightness - Current value (%) #####
+  - id: current_brightness
+    name: ${name} Display Current brightness
+    platform: nextion
+    variable_name: dim
+    precision: 0
+    accuracy_decimals: 0
+    unit_of_measurement: "%"
+    icon: mdi:brightness-percent
+    #update_interval: 60s
+    internal: false
+    disabled_by_default: true
+    on_value:
+      then:
+        - lambda: |-
+            static const char *const TAG = "sensor.current_brightness";
+            ESP_LOGD(TAG, "Current brightness: %i%%", int(x));
+
+  ###### Page Id - Current #####
   - id: page_id
     name: ${name} Page Id
     platform: nextion
     variable_name: dp
     precision: 0
+    accuracy_decimals: 0
     internal: true
     entity_category: diagnostic
     on_value:
@@ -1380,6 +1394,7 @@ sensor:
     platform: nextion
     variable_name: display_mode
     precision: 0
+    accuracy_decimals: 0
     internal: true
     entity_category: diagnostic
 
@@ -1389,6 +1404,7 @@ sensor:
     platform: nextion
     variable_name: charset
     precision: 0
+    accuracy_decimals: 0
     internal: true
     entity_category: diagnostic
 
@@ -2224,8 +2240,14 @@ script:
             static const char *const TAG = "script.page_screensaver";
             ESP_LOGV(TAG, "Updating screensaver page");
             disp1->send_command_printf("back_page_id=%i", id(wakeup_page_id));
-            set_component_color->execute("screensaver.text",id(screensaver_display_time_color));
-            refresh_datetime->execute();
+            if (id(screensaver_display_time)) {
+              disp1->show_component("text");
+              set_component_color->execute("screensaver.text",id(screensaver_display_time_color));
+              refresh_datetime->execute();
+            } else {
+              disp1->set_backlight_brightness(0.0f);
+            }
+            current_brightness->update();
           }
 
   - id: page_settings
@@ -2484,7 +2506,9 @@ script:
             disp1->send_command_printf("wakeup_timer.en=1");
           else
             disp1->set_backlight_brightness(static_cast<float>(brightness) / 100.0f);
-          id(display_last_brightness) = brightness;
+          current_brightness->update();
+      - delay: 5s
+      - lambda: current_brightness->update();
 
   - id: set_climate
     mode: restart
@@ -2779,6 +2803,7 @@ script:
             - lambda: |-
                 static const char *const TAG = "script.setup_sequence";
                 ESP_LOGE(TAG, "A non-compatible TFT is installed");
+                ESP_LOGE(TAG, "Display mode: %f", display_mode->state);
       - lambda: |-
           static const char *const TAG = "script.setup_sequence";
           ESP_LOGD(TAG, "Nextion setup sequence finished!");
@@ -2902,7 +2927,7 @@ script:
     then:
       - lambda: |-
           ESP_LOGV("script.timer_dim", "Reset timer: %is", timeout);
-          if (id(display_last_brightness) <= id(display_dim_brightness_global)
+          if (current_brightness->state <= id(display_dim_brightness_global)
               and page != "screensaver"
               and page != "boot"
               and page != "blank-screensaver") {

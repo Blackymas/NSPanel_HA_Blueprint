@@ -388,12 +388,12 @@ script:
     then:
       - lambda: |-
           ESP_LOGD("script.set_brightness(custom)", "brightness: %i%%", brightness);
-          uint8_t current_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
-          ESP_LOGV("script.set_brightness(custom)", "current_brightness: %i%%", current_brightness);
-          if (brightness != current_brightness) {
+          uint8_t current_light_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
+          ESP_LOGV("script.set_brightness(custom)", "current_light_brightness: %i%%", current_light_brightness);
+          if (brightness != current_light_brightness) {
             if (current_page->state != "screensaver" and brightness > 0) {
               auto call = display_light->turn_on();
-              call.set_brightness(static_cast<float>(id(display_last_brightness)) / 100.0f);
+              call.set_brightness(static_cast<float>(current_brightness->state) / 100.0f);
               call.perform();
             } else if (display_light->current_values.is_on()) {
               auto call = display_light->turn_off();
@@ -401,6 +401,7 @@ script:
               call.perform();
             }
           }
+
 ```
 
 ### Scheduled actions
