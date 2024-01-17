@@ -67,7 +67,7 @@ We did our best to support your legacy settings and avoid breaking your system, 
     bluetooth_proxy:
     # Set Wi-Fi power save mode to "LIGHT" as required for Bluetooth on ESP32
     wifi:
-    power_save_mode: LIGHT
+      power_save_mode: LIGHT
     ##### My customization - End #####
     ```
 
@@ -363,6 +363,47 @@ or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/
 Special thanks to @PaulAntonDeen and @illuzn for their invaluable contributions to these enhancements.
 Your feedback and support are crucial to our continuous improvement.
 
+## Patch v4.2.3
+This release focuses on targeted bug fixes and enhancements to enhance system stability and functionality.
+Major updates include a critical fix for an issue where the panel was getting warmer,
+potentially affecting temperature measurements, and resolving a crash issue associated with climate entity rendering.
+Additionally, this update introduces new Dutch/Italian date formats for improved localization,
+and addresses a minor display issue with the battery indicator on cover pages.
+
+> [!IMPORTANT]
+> **Breaking Change**: If you are using the [Customization "Set display as a light"](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md#set-display-as-a-light),
+> please update the code related to the extension to `script`/`set_brightness` as the global variable `display_last_brightness` was replaced by the new sensor `current_brightness`.
+
+We highly recommend all users update their components to this latest version for an optimized and enhanced user experience.
+While this update is compatible with existing v4.2 components, fully updating ensures the best performance and usability.
+
+**Overview of Changes:**
+<!-- markdownlint-disable MD013 MD033 -->
+| Change | Criticality | Affected Components |
+| :-- | :--: | :--: |
+| Fix device temperature gap since v4.2 (#1620) | Critical | `Blueprint`<br>`ESPHome`<br>`TFT` |
+| Fix crash when rendering a climate entity with no `hvac_action` (#1647) | Critical | `Blueprint` |
+| Fix battery indicator not showing on cover pages (#1661) | Minor | `Blueprint` |
+| Add Dutch/Italian date format (#1658) | Enhancement | `Blueprint` |
+<!-- markdownlint-enable MD013 MD033 -->
+
+**Key Improvements:**
+- **Fix for Device Temperature Gap**: Resolved a critical issue with the panel getting warmer on v4.2, potentially affecting its temperature measurements.
+- **Fix for Crash When Rendering Climate Entities**: Resolves a critical issue where the blueprint was crashing when trying to render icons for climate entities with no `hvac_action` attributes,
+preventing pages from being fully loaded.
+- **Fix for Battery Indicator**: Addressed the issue where the battery indicator was not displayed correctly on cover pages. As a bonus, the icon now changes based on the battery level. 😉
+- **Add Dutch/Italian Date Format**: Expanding the existing pre-listed date formats, we've added the **Weekday, DD-MM (ex. "Friday, 22-03")** format.
+This enhancement caters to our Dutch and Italian users, adding a touch of local flair to their experience.
+
+A special thanks to the community for their support and contributions,
+especially to @andythomas for providing useful, informative, and visually appealing temperature trend plots,
+and to @shing6326 for their dedicated efforts in resolving the crashes with climate entities.
+Your contributions significantly enhance the quality of our project.
+
+For support, feedback, or detailed information about this update,
+visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
+or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
+
 ## What's Next?
 Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open).
 
@@ -384,9 +425,12 @@ Discover what's next and what we are working on right now in our [Milestones](ht
     - Fix for Lights with no brightness supported_features, #1633 - Patch v4.2.2
     - Implement dynamic icons and use device_class, #1635 - Patch v4.2.2
     - Fixes the incorrect labelling of the entity pages alignment, #1628 - Patch v4.2.2
+- @bkbartk - Add Dutch/Italian date format, #1658 - Patch v4.2.3
+- @shing6326 - Fix crash on climate page, fix climate icon and color, #1649 - Patch v4.2.3
 - And to all users who helped with the tests during development and beta.
 
 ## Previous releases
+- [v4.2.2 - Bug fixes and minor enhancements](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.2)
 - [v4.2.1 - Bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.1)
 - [v4.2 - Multi-Alarm Control, Dual Thermostat Functionality, and More](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2)
 - [v4.1.4 - Support to Home Assistant 2023.12.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.1.4)
