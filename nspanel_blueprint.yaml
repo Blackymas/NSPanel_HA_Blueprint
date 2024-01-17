@@ -98,8 +98,6 @@ blueprint:
                     value: '%A %-d-%-m'
                   - label: Weekday M-D (ex. "Friday 3-22")
                     value: '%A %-m-%-d'
-                  - label: Weekday, DD-MM (ex. "Friday, 22-03")
-                    value: "%A, %d-%m"
 
           time_format:
             name: Time Format
@@ -7289,13 +7287,13 @@ action:
       - &variable_entity
         variables:
           entity_id_is_valid: '{{ entity_id is defined and entity_id is string and entity_id.split(".") | count == 2 }}'
-          entity_state: '{{ states(entity_id) | default(None) if entity_id_is_valid else None }}'
+          entity_state: '{{ states(entity_id) | default("unknown") if entity_id_is_valid else "unknown" }}'
           entity_state_is:
             "on": '{{ entity_state in enum.states.on if entity_id_is_valid else false }}'
             "off": '{{ entity_state in enum.states.off if entity_id_is_valid else false }}'
             unknown: '{{ entity_state in enum.states.unknown if entity_id_is_valid else true }}'
-          entity_domain: '{{ entity_id.split(".")[0] if entity_id_is_valid else None }}'
-          entity_icon: '{{ state_attr(entity_id, "icon") | default(None) if entity_id_is_valid else None }}'
+          entity_domain: '{{ entity_id.split(".")[0] if entity_id_is_valid else "unknown" }}'
+          entity_icon: '{{ state_attr(entity_id, "icon") | default("") if entity_id_is_valid else "" }}'
           entity_icon_color: >
             {{
               (
@@ -7306,25 +7304,26 @@ action:
               if ((not entity_state_is.off) and (not entity_state_is.unknown))
               else nextion.color.off
             }}
-          entity_friendly_name: '{{ state_attr(entity_id, "friendly_name") | default("") if entity_id_is_valid else None }}'
+          entity_friendly_name: '{{ state_attr(entity_id, "friendly_name") | default("") if entity_id_is_valid else "" }}'
           entity_state_is_number: '{{ is_number(entity_state) if entity_id_is_valid else false }}'
           entity_unit_of_measurement: '{{ state_attr(entity_id, "unit_of_measurement") | default("") if entity_id_is_valid and entity_state_is_number else "" }}'
           entity_device_class: '{{ state_attr(entity_id, "device_class") | default("") if entity_id_is_valid else "" }}'
+          entity_state_mui: >  # Needs translation string for "unknown"
+            {{
+              (
+                entity_state
+                if entity_domain != "alarm_control_panel"
+                else ( mui[language].alarm[entity_state | replace("armed_", "") | replace("disarmed", "disarm")] | default(entity_state) if entity_state else "unknown" )
+              ) if entity_id_is_valid else "unknown"
+            }}
           entity:
             id: '{{ entity_id }}'
             valid: '{{ entity_id_is_valid }}'
             has_value: '{{ has_value(entity_id) if entity_id_is_valid else false }}'
-            state: '{{ entity_state if entity_id_is_valid else None }}'
+            state: '{{ entity_state if entity_id_is_valid else "unknown" }}'
             state_rounded: '{{ states(entity_id, rounded=true) if entity_state_is_number else entity_state }}'
             state_is: '{{ entity_state_is }}'
-            state_mui: >
-              {{
-                (
-                  entity_state
-                  if entity_domain != "alarm_control_panel"
-                  else ( mui[language].alarm[entity_state | replace("armed_", "") | replace("disarmed", "disarm")] | default(entity_state) if entity_state else None )
-                ) if entity_id_is_valid else None
-              }}
+            state_mui: '{{ entity_state_mui }}'
             state_is_number: '{{ entity_state_is_number }}'
             domain: '{{ entity_domain }}'
             unit_of_measurement: '{{ entity_unit_of_measurement if entity_unit_of_measurement else "" }}'
@@ -7335,7 +7334,7 @@ action:
                   overlap.name
                   if overlap is defined and overlap.name is defined and overlap.name is string and overlap.name | length > 0
                   else (entity_friendly_name if entity_friendly_name is string and entity_friendly_name | length > 0 else entity_id)
-                ) if entity_id_is_valid else None
+                ) if entity_id_is_valid else ""
               }}
             supported_features: '{{ state_attr(entity_id, "supported_features") | default(0) if entity_id_is_valid else 0 }}'
             device_class: '{{ entity_device_class }}'
@@ -7344,7 +7343,7 @@ action:
               {% if overlap is defined and overlap.icon is defined and overlap.icon is string and overlap.icon | length > 0 %}
                 {{ all_icons[overlap.icon.split(":")[1]] | default(icon_domain) if overlap.icon.split(":") | count == 2 else overlap.icon }}
               {% elif entity_domain == "climate" %}
-                {% set entity_hvac_action = state_attr(entity_id, "hvac_action") | default(None) %}
+                {% set entity_hvac_action = state_attr(entity_id, "hvac_action") | default("") %}
                 {% set entity_climate_action = (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state) %}
                 {% if "off" in entity_climate_action %}{{ all_icons.thermostat }}
                 {% elif "heating" in entity_climate_action or "heat" in entity_climate_action %}{{ all_icons["thermometer-lines"] }}
@@ -7387,7 +7386,7 @@ action:
                 {% else %}{{ entity_icon_color }}
                 {% endif %}
               {% elif entity_domain == "climate" %}
-                {% set entity_hvac_action = state_attr(entity_id, "hvac_action") | default(None) %}
+                {% set entity_hvac_action = state_attr(entity_id, "hvac_action") | default("") %}
                 {% set entity_climate_action = (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state) %}
                 {% if "off" in entity_climate_action %}{{ nextion.color.off }}
                 {% elif "heating" in entity_climate_action or "heat" in entity_climate_action %}{{ nextion.color.deep_orange}}
@@ -7402,10 +7401,10 @@ action:
               {% elif entity_domain == "light" %}
                 {% if not entity_state_is.on %}{{ nextion.color.off }}
                 {% else %}
-                  {% set entity_rgb_color_attr = state_attr(entity_id, "rgb_color") | default(None) %}
+                  {% set entity_rgb_color_attr = state_attr(entity_id, "rgb_color") | default("") %}
                   {% set entity_rgb_color = entity_rgb_color_attr if entity_rgb_color_attr is sequence and entity_rgb_color_attr | count == 3 else entity_icon_color %}
-                  {% set entity_brightness = state_attr(entity_id, "brightness") | default(None) %}
-                  {% set entity_brightness_index = (entity_brightness | int(255))/255 if entity_brightness else 1 %}
+                  {% set entity_brightness = state_attr(entity_id, "brightness") | default("") %}
+                  {% set entity_brightness_index = (entity_brightness | int(255))/255 if is_number(entity_brightness) else 1 %}
                   {{
                     [
                       min(255,entity_rgb_color[0] * entity_brightness_index) | round(0),
