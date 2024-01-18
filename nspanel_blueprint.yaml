@@ -37,7 +37,7 @@ blueprint:
     🎉 Roadmap can be found here: [Roadmap](https://github.com/Blackymas/NSPanel_HA_Blueprint/labels/roadmap)
 
 
-    ℹ️ Version: v4.2.4
+    ℹ️ Version: v4.2.5dev
 
   source_url: https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/nspanel_blueprint.yaml
   domain: automation
@@ -3962,7 +3962,7 @@ trigger_variables:
 
 variables:
   ##### GENERAL #####
-  blueprint_version: '4.2.4'
+  blueprint_version: '4.2.5dev'
   date_format_temp: !input 'date_format'
   # Avoid breaking change for existing users with legacy type format
   date_format: >
@@ -6556,6 +6556,12 @@ variables:
       "on": ["on", "open", "opening", "true", "True", true, True, "playing", "heat", "cold", "dry", "armed_home", "armed_away", "armed_vacation", "armed_custom_bypass", "triggered", "pending", "arming", 1]
       "off": ["off", "closed", "closing", "false", "False", false, False, "standby", "paused", "idle", "disarmed", "disarming", 0]
       unknown: ["unknown", "unavailable", None, none, ""]
+      climate:
+        "on": ["heat_cool", "heat", "heating", "cold", "cooling", "dry", "drying", "fan", "fan_only", "auto"]
+        "off": ["off", "idle"]
+      alarm_control_panel:
+        "on": ["armed_home", "armed_away", "armed_vacation", "armed_custom_bypass", "triggered", "pending", "arming"]
+        "off": ["disarmed", "disarming"]
   # yamllint enable rule:truthy rule:line-length rule:comments-indentation
 
 #############################################################
@@ -7288,11 +7294,31 @@ action:
         variables:
           entity_id_is_valid: '{{ entity_id is defined and entity_id is string and entity_id.split(".") | count == 2 }}'
           entity_state: '{{ states(entity_id) | default("unknown") if entity_id_is_valid else "unknown" }}'
-          entity_state_is:
-            "on": '{{ entity_state in enum.states.on if entity_id_is_valid else false }}'
-            "off": '{{ entity_state in enum.states.off if entity_id_is_valid else false }}'
-            unknown: '{{ entity_state in enum.states.unknown if entity_id_is_valid and entity_state else true }}'
           entity_domain: '{{ entity_id.split(".")[0] if entity_id_is_valid else "unknown" }}'
+          entity_state_has_value: '{{ has_value(entity_id) if entity_id_is_valid else false }}'
+          entity_state_is_on: >
+              {% if entity_domain == "climate" %}
+                {% set entity_hvac_action = state_attr(entity_id, "hvac_action") | default("") %}
+                {% set entity_state_tmp = (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state) %}
+              {% else %}
+                {% set entity_state_tmp = entity_state %}
+              {% endif %}
+              {{
+                entity_state_tmp in enum.states.on or (entity_domain in enum.states and entity_state_tmp in enum.states[entity_domain].on)
+                if entity_state_has_value else false
+              }}
+          entity_state_is_off: >
+              {% if entity_domain == "climate" %}
+                {% set entity_hvac_action = state_attr(entity_id, "hvac_action") | default("") %}
+                {% set entity_state_tmp = (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state) %}
+              {% else %}
+                {% set entity_state_tmp = entity_state %}
+              {% endif %}
+              {{
+                entity_state_tmp in enum.states.off or (entity_domain in enum.states and entity_state_tmp in enum.states[entity_domain].off)
+                if entity_state_has_value else false
+              }}
+          entity_state_is_unknown: '{{ false if entity_state_is_on or entity_state_is_off else true }}'
           entity_icon: '{{ state_attr(entity_id, "icon") | default("") if entity_id_is_valid else "" }}'
           entity_icon_color: >
             {{
@@ -7301,7 +7327,7 @@ action:
                 if overlap is defined and overlap.icon_color is defined and overlap.icon_color is sequence and overlap.icon_color | count == 3
                 else nextion.color.on
               )
-              if ((not entity_state_is.off) and (not entity_state_is.unknown))
+              if ((not entity_state_is_off) and (not entity_state_is_unknown))
               else nextion.color.off
             }}
           entity_friendly_name: '{{ state_attr(entity_id, "friendly_name") | default("") if entity_id_is_valid else "" }}'
@@ -7319,10 +7345,13 @@ action:
           entity:
             id: '{{ entity_id }}'
             valid: '{{ entity_id_is_valid }}'
-            has_value: '{{ has_value(entity_id) if entity_id_is_valid else false }}'
+            has_value: '{{ entity_state_has_value }}'
             state: '{{ entity_state if entity_id_is_valid else "unknown" }}'
             state_rounded: '{{ states(entity_id, rounded=true) if entity_state_is_number else entity_state }}'
-            state_is: '{{ entity_state_is }}'
+            state_is:
+              "on": '{{ entity_state_is_on }}'
+              "off": '{{ entity_state_is_off }}'
+              unknown: '{{ entity_state_is_unknown }}'
             state_mui: '{{ entity_state_mui }}'
             state_is_number: '{{ entity_state_is_number }}'
             domain: '{{ entity_domain }}'
@@ -7399,7 +7428,7 @@ action:
                 {% else %}{{ entity_icon_color }}
                 {% endif %}
               {% elif entity_domain == "light" %}
-                {% if not entity_state_is.on %}{{ nextion.color.off }}
+                {% if not entity_state_is_on %}{{ nextion.color.off }}
                 {% else %}
                   {% set entity_rgb_color_attr = state_attr(entity_id, "rgb_color") | default("") %}
                   {% set entity_rgb_color = entity_rgb_color_attr if entity_rgb_color_attr is sequence and entity_rgb_color_attr | count == 3 else entity_icon_color %}
