@@ -438,11 +438,13 @@ While this update is compatible with existing v4.2 components, fully updating en
 <!-- markdownlint-disable MD013 MD033 -->
 | Change | Criticality | Affected Components |
 | :-- | :--: | :--: |
-| Fix display of climate icons on chips (#1675) | Minor | `TFT` |
+| Fix display of climate icons on chips (#1675) | Minor | `Blueprint` |
+| Enable long click action when no entity is assigned to HW button (#1637) | Minor | `Blueprint` |
 <!-- markdownlint-enable MD013 MD033 -->
 
 **Key Improvements:**
 - **Fix display of climate icons on chips**: ...
+- **Enable long click action when no entity is assigned to HW button**: ...
 
 For support, feedback, or detailed information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
