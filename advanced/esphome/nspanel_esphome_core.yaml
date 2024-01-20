@@ -17,7 +17,7 @@ substitutions:
   name: ${device_name}
   wifi_timeout: '15'
   ##### DON'T CHANGE THIS ######
-  version: "4.2.4"
+  version: "4.2.5dev"
   ##############################
 
 ##### External components #####
@@ -109,7 +109,8 @@ time:
       - seconds: 0
         then:
           - script.execute: refresh_datetime
-      - seconds: 30
+      - minutes: /5
+        seconds: 30
         then:
           - script.execute: watchdog
 
@@ -903,12 +904,6 @@ globals:
     restore_value: false
     initial_value: '{64, 64, 64}'
 
-  ##### Versions #####
-  - id: version_blueprint
-    type: std::string
-    restore_value: false
-    initial_value: ''
-
   - id: page_names
     type: std::vector<std::string>
     restore_value: false
@@ -1358,7 +1353,7 @@ sensor:
     icon: mdi:brightness-percent
     #update_interval: 60s
     internal: false
-    disabled_by_default: true
+    disabled_by_default: false
     on_value:
       then:
         - lambda: |-
@@ -1395,7 +1390,8 @@ sensor:
     variable_name: display_mode
     precision: 0
     accuracy_decimals: 0
-    internal: true
+    internal: false
+    icon: mdi:phone-rotate-portrait
     entity_category: diagnostic
 
   ##### Charset (1 = International (original), 2 = CJK languages)
@@ -1405,15 +1401,17 @@ sensor:
     variable_name: charset
     precision: 0
     accuracy_decimals: 0
-    internal: true
+    internal: false
+    icon: mdi:translate
     entity_category: diagnostic
 
-  ##### WIFI Signal stregth
+  ##### Wi-Fi Signal stregth
   - name: ${name} RSSI
     id: wifi_rssi
     platform: wifi_signal
     internal: false
-    disabled_by_default: true
+    disabled_by_default: false
+    icon: mdi:wifi
     entity_category: diagnostic
 
 ##### START - SWITCH CONFIGURATION #####
@@ -1481,8 +1479,8 @@ switch:
       number: 4
       inverted: true
     restore_mode: ALWAYS_ON
-    internal: false
-    disabled_by_default: true
+    internal: true
+    disabled_by_default: false
     on_turn_on:
       - wait_until:
           condition:
@@ -1677,16 +1675,59 @@ text_sensor:
               else if (not key.empty()) ha_call_service->execute((std::string("media_player.") + key.c_str()), "", "", entity.c_str());
             }
 
+  ##### Versioning #####
+  - id: version_blueprint
+    name: ${name} Version Blueprint
+    platform: template
+    entity_category: diagnostic
+    icon: mdi:tag-text-outline
+    internal: false
+    lambda: |-
+      return {"unknown"};
+    update_interval: never
+    on_value:
+      - lambda: |-
+          static const char *const TAG = "text_sensor.version_blueprint";
+          ESP_LOGD(TAG, "Blueprint version: %s", x.c_str());
+          if (current_page->state == "boot") {
+            disp1->set_component_text_printf("boot.bluep_version", "%s", x.c_str());
+            disp1->send_command_printf("tm_esphome.en=0");
+            page_boot->execute();
+            timer_reset_all->execute("boot");
+          }
+          check_versions->execute();
+
+  - id: version_esphome
+    name: ${name} Version ESPHome
+    platform: template
+    entity_category: diagnostic
+    icon: mdi:tag-text-outline
+    internal: false
+    lambda: |-
+      return {"${version}"};
+    on_value:
+      - lambda: |-
+          static const char *const TAG = "text_sensor.version_esphome";
+          ESP_LOGD(TAG, "ESPHome version: %s", x.c_str());
+          if (current_page->state == "boot") {
+            disp1->set_component_text_printf("esph_version", x.c_str());
+            disp1->send_command_printf("tm_esphome.en=0");
+            page_boot->execute();
+            timer_reset_all->execute("boot");
+          }
+          check_versions->execute();
+
   - id: version_tft
-    name: ${name} TFT version
+    name: ${name} Version TFT
     platform: nextion
     component_name: tft_version
     entity_category: diagnostic
-    internal: true
+    icon: mdi:tag-text-outline
+    internal: false
     on_value:
       - lambda: |-
           static const char *const TAG = "text_sensor.version_tft";
-          ESP_LOGD(TAG, "TFT version: %s", version_tft->state.c_str());
+          ESP_LOGD(TAG, "TFT version: %s", x.c_str());
           if (current_page->state == "boot") {
             disp1->send_command_printf("tm_esphome.en=0");
             page_boot->execute();
@@ -1727,7 +1768,7 @@ script:
 
                     return (major1 == major2) && (minor1 == minor2);
                   };
-                return (compareVersions("${version}", version_tft->state.c_str()) and compareVersions("${version}", id(version_blueprint).c_str()));
+                return (compareVersions("${version}", version_tft->state.c_str()) and compareVersions("${version}", version_blueprint->state.c_str()));
           timeout: 60s
       - lambda: |-
           static const char *const TAG = "script.check_versions";
@@ -1744,8 +1785,8 @@ script:
           ESP_LOGD(TAG, "ESPHome version: ${version}");
           ESP_LOGD(TAG, "TFT version: %s", version_tft->state.c_str());
           if (not compareVersions("${version}", version_tft->state.c_str())) ESP_LOGE(TAG, "TFT version mismatch!");
-          ESP_LOGD(TAG, "Blueprint version: %s", id(version_blueprint).c_str());
-          if (not compareVersions("${version}", id(version_blueprint).c_str())) ESP_LOGE(TAG, "Blueprint version mismatch!");
+          ESP_LOGD(TAG, "Blueprint version: %s", version_blueprint->state.c_str());
+          if (not compareVersions("${version}", version_blueprint->state.c_str())) ESP_LOGE(TAG, "Blueprint version mismatch!");
 
           std::string framework = "unknown";
           #ifdef ARDUINO
@@ -1762,7 +1803,7 @@ script:
               {"type", "version"},
               {"tft", version_tft->state.c_str()},
               {"esphome", "${version}"},
-              {"blueprint", id(version_blueprint).c_str()},
+              {"blueprint", version_blueprint->state.c_str()},
               {"framework", framework.c_str()},
               {"baud_rate", to_string(id(tf_uart).get_baud_rate())}
             });
@@ -1843,7 +1884,7 @@ script:
           static const char *const TAG = "script.global_settings";
           // Blueprint version
           ESP_LOGV(TAG, "Check Blueprint version");
-          id(version_blueprint) = blueprint_version;
+          version_blueprint->publish_state(blueprint_version.c_str());
           check_versions->execute();
 
           // Embedded thermostat
@@ -3148,9 +3189,9 @@ script:
             }
 
             // Report blueprint version
-            id(is_blueprint_updated) = id(is_blueprint_updated) and wifi_connected and api_connected and (not id(version_blueprint).empty());
+            id(is_blueprint_updated) = id(is_blueprint_updated) and wifi_connected and api_connected and (not version_blueprint->state.empty());
             if (id(is_blueprint_updated))
-              ESP_LOGI(TAG, "Blueprint:     %s", id(version_blueprint).c_str());
+              ESP_LOGI(TAG, "Blueprint:     %s", version_blueprint->state.c_str());
             else {
               ESP_LOGW(TAG, "Blueprint:     %s", (wifi_connected and api_connected) ? "Pending" : "DISCONNECTED");
               ESP_LOGI(TAG, "Requesting blueprint settings");
