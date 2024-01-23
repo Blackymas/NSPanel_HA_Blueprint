@@ -39,11 +39,12 @@ Then check the option "Allow the device to make Home Assistant service calls":
 
 ### Blueprint settings
 
-Open the automation based on the NSPanel Blueprint and look for a section related to "Alarm Control Panel".
+Alarm Control Panels entities can be assigned to any of the **Custom buttons** on the Home page or any button in the buttons pages.
 
-Select your alarm control panel entity, click "Save", and your are done. :sunglasses:
+Open the automation based on the NSPanel Blueprint and look for one of these sections,
+choose the button you want to use, select your alarm control panel entity, click "Save", and your are done. :sunglasses:
 
-![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/859d3f4b-9a05-4694-9e2c-c32ab3a5e22f)
+![image](pics/ha_blueprint_home_custom_buttons_alarm.png)
 
 ## Controlling your alarm from your panel
 
