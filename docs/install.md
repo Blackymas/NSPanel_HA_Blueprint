@@ -8,7 +8,7 @@ Let’s embark on this journey together to create a smart home that’s uniquely
 
 <!-- markdownlint-disable MD028 -->
 > [!TIP]
-> For troubleshooting TFT transfer issues, the most popular topic for new sers, please consult our [TFT Transfer Troubleshooting Guide](tft_upload.md).
+> For troubleshooting TFT transfer issues, the most popular topic for new users, please consult our [TFT Transfer Troubleshooting Guide](tft_upload.md).
 
 > [!NOTE]
 > We encourage users with absolute beginner-level knowledge in Home Assistant, ESPHome, or YAML editing to familiarize themselves with the basics of these platforms.
@@ -59,6 +59,12 @@ If flashing it for the first time, please look for additional preparation and to
 To flash your NSPanel, ESPHome firmware is required.
 ESPHome can be integrated into your setup in various ways, including as a Home Assistant add-on or through a local installation on your computer.
 This guide is based on using the ESPHome dashboard, which is available in all standard implementations.
+
+> [!NOTE]
+> 4GB of memory are recommended if you are installing ESPHome as a Home Assistant add-on. 
+Therefore, a RasPi 4 with 4GB RAM is the minimum if you are using a Raspberry Pi. 
+A manual installation requires at least 2GB of memory and 500MB of swap space or 3GB of memory. 
+With less memory the compiler will crash!
 
 - **Installing ESPHome as a Home Assistant Add-On**: For seamless integration with Home Assistant, ESPHome can be installed as an add-on.
 This method provides an easy-to-navigate interface and direct integration with your Home Assistant setup.
