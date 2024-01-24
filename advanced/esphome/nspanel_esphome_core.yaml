@@ -17,12 +17,12 @@ substitutions:
   name: ${device_name}
   wifi_timeout: '15'
   ##### DON'T CHANGE THIS ######
-  version: "4.2.3"
+  version: "4.2.5dev"
   ##############################
 
 ##### External components #####
 external_components:
-  - source: github://pr#6051  # Remove this and update min ver when that PR is released (Hopefully v2024.1.0)
+  - source: github://pr#6128  # Remove this and update min ver when that PR is released (Hopefully v2024.1.0)
     components:
       - nextion
     refresh: 300s
@@ -453,12 +453,12 @@ api:
         reset_timer: bool
       then:
         - lambda: |-
-            if (current_page->state == "screensaver") disp1->goto_page(id(wakeup_page_id));
+            if (current_page->state == "screensaver") disp1->goto_page(wakeup_page_name->state.c_str());
             if (reset_timer)
-              timer_reset_all->execute(id(page_names)[id(wakeup_page_id)].c_str());
+              timer_reset_all->execute(wakeup_page_name->state.c_str());
             else {
-              timer_sleep->execute(id(page_names)[id(wakeup_page_id)].c_str(), int(timeout_sleep->state));
-              timer_dim->execute(id(page_names)[id(wakeup_page_id)].c_str(), int(timeout_dim->state));
+              timer_sleep->execute(wakeup_page_name->state.c_str(), int(timeout_sleep->state));
+              timer_dim->execute(wakeup_page_name->state.c_str(), int(timeout_dim->state));
             }
 
     #### Service to set the entities ####
@@ -732,12 +732,6 @@ display:
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
-  ##### Wake-up page id #####
-  - id: wakeup_page_id
-    type: uint
-    restore_value: true
-    initial_value: '0'
-
   ##### Wi-Fi timeout #####
   - id: wifi_timeout
     type: uint
@@ -758,12 +752,6 @@ globals:
 
   ##### Is global settings loaded #####
   - id: is_global_settings_loaded
-    type: bool
-    restore_value: false
-    initial_value: 'false'
-
-  ##### Is settings restored ####
-  - id: is_restored_settings
     type: bool
     restore_value: false
     initial_value: 'false'
@@ -903,12 +891,6 @@ globals:
     restore_value: false
     initial_value: '{64, 64, 64}'
 
-  ##### Versions #####
-  - id: version_blueprint
-    type: std::string
-    restore_value: false
-    initial_value: ''
-
   - id: page_names
     type: std::vector<std::string>
     restore_value: false
@@ -942,6 +924,11 @@ globals:
         "media_player",
         "confirm"
       }'
+
+  - id: framework
+    type: uint8_t
+    restore_value: false
+    initial_value: '0'  # 0 = unknown, 1 = Arduino, 2 = ESP-IDF
 
 ##### START - BINARY SENSOR CONFIGURATION #####
 binary_sensor:
@@ -1079,10 +1066,31 @@ binary_sensor:
 
 ##### START - BUTTON CONFIGURATION #####
 button:
+  ###### Factory Reset button #####
+  - name: ${name} Factory reset
+    platform: factory_reset
+    id: nspanel_factory_reset
+    internal: false
+    disabled_by_default: true
+    icon: mdi:restart-alert
+
   ###### REBOOT BUTTON #####
   - name: ${name} Restart
     platform: restart
     id: restart_nspanel
+
+  ###### Power cycle Nextion Display ######
+  - name: ${name} Nextion display - Power cycle
+    id: screen_power_cycle
+    platform: template
+    internal: false
+    disabled_by_default: true
+    icon: mdi:power-cycle
+    entity_category: diagnostic
+    on_press:
+      - switch.turn_off: screen_power
+      - delay: 1s
+      - switch.turn_on: screen_power
 
 ##### START - NUMBER CONFIGURATION #####
 number:
@@ -1276,9 +1284,7 @@ select:
       - lambda: |-
           static const char *const TAG = "select.wakeup_page_name";
           ESP_LOGD(TAG, "New wake-up page selected: %s", x.c_str());
-          if (id(is_restored_settings))
-            set_page_id->execute("wakeup_page_id", x.c_str());
-      - script.execute: page_screensaver
+          page_screensaver->execute();
 
 ##### START - SENSOR CONFIGURATION #####
 sensor:
@@ -1358,7 +1364,7 @@ sensor:
     icon: mdi:brightness-percent
     #update_interval: 60s
     internal: false
-    disabled_by_default: true
+    disabled_by_default: false
     on_value:
       then:
         - lambda: |-
@@ -1395,7 +1401,8 @@ sensor:
     variable_name: display_mode
     precision: 0
     accuracy_decimals: 0
-    internal: true
+    internal: false
+    icon: mdi:phone-rotate-portrait
     entity_category: diagnostic
 
   ##### Charset (1 = International (original), 2 = CJK languages)
@@ -1405,15 +1412,17 @@ sensor:
     variable_name: charset
     precision: 0
     accuracy_decimals: 0
-    internal: true
+    internal: false
+    icon: mdi:translate
     entity_category: diagnostic
 
-  ##### WIFI Signal stregth
+  ##### Wi-Fi Signal stregth
   - name: ${name} RSSI
     id: wifi_rssi
     platform: wifi_signal
     internal: false
-    disabled_by_default: true
+    disabled_by_default: false
+    icon: mdi:wifi
     entity_category: diagnostic
 
 ##### START - SWITCH CONFIGURATION #####
@@ -1481,8 +1490,8 @@ switch:
       number: 4
       inverted: true
     restore_mode: ALWAYS_ON
-    internal: false
-    disabled_by_default: true
+    internal: true
+    disabled_by_default: false
     on_turn_on:
       - wait_until:
           condition:
@@ -1491,7 +1500,7 @@ switch:
       - lambda: |-
           if (id(setup_sequence_completed)) {
             nextion_init->publish_state(disp1->is_setup());
-            disp1->goto_page(id(wakeup_page_id));
+            disp1->goto_page(wakeup_page_name->state.c_str());
           }
     on_turn_off:
       - lambda: |-
@@ -1523,6 +1532,27 @@ switch:
 
 ##### START - TEXT SENSOR CONFIGURATION #####
 text_sensor:
+
+  ##### Device name - Used for the Blueprint to identify service names when device is renamed
+  - id: device_name
+    name: ${name} Device name
+    internal: false
+    platform: template
+    update_interval: never
+    lambda: |-
+      return {"${name}"};
+    filters:
+      - to_lower:
+      - lambda: |-
+          std::replace(x.begin(), x.end(), ' ', '_');
+          return x;
+      - substitute:
+          - "- -> _"
+          - "___ -> _"
+          - "__ -> _"
+          - "__ -> _"
+          - "__ -> _"
+          - "__ -> _"
 
   ##### Entity Id of the entity displayed on the detailed pages
   - name: ${name} Detailed Entity
@@ -1677,16 +1707,61 @@ text_sensor:
               else if (not key.empty()) ha_call_service->execute((std::string("media_player.") + key.c_str()), "", "", entity.c_str());
             }
 
+  ##### Versioning #####
+  - id: version_blueprint
+    name: ${name} Version Blueprint
+    platform: template
+    entity_category: diagnostic
+    icon: mdi:tag-text-outline
+    internal: false
+    update_interval: never
+    lambda: |-
+      return {"unknown"};
+    on_value:
+      - lambda: |-
+          static const char *const TAG = "text_sensor.version_blueprint";
+          ESP_LOGD(TAG, "Blueprint version: %s", x.c_str());
+          if (current_page->state == "boot") {
+            disp1->set_component_text_printf("boot.bluep_version", "%s", x.c_str());
+            disp1->send_command_printf("tm_esphome.en=0");
+            page_boot->execute();
+            timer_reset_all->execute("boot");
+          }
+          check_versions->execute();
+
+  - id: version_esphome
+    name: ${name} Version ESPHome
+    platform: template
+    entity_category: diagnostic
+    icon: mdi:tag-text-outline
+    internal: false
+    update_interval: never
+    lambda: |-
+      return {"${version}"};
+    on_value:
+      - lambda: |-
+          static const char *const TAG = "text_sensor.version_esphome";
+          ESP_LOGD(TAG, "ESPHome version: %s", x.c_str());
+          if (current_page->state == "boot") {
+            disp1->set_component_text_printf("esph_version", x.c_str());
+            disp1->send_command_printf("tm_esphome.en=0");
+            page_boot->execute();
+            timer_reset_all->execute("boot");
+          }
+          check_versions->execute();
+
   - id: version_tft
-    name: ${name} TFT version
+    name: ${name} Version TFT
     platform: nextion
     component_name: tft_version
     entity_category: diagnostic
-    internal: true
+    icon: mdi:tag-text-outline
+    internal: false
+    update_interval: never
     on_value:
       - lambda: |-
           static const char *const TAG = "text_sensor.version_tft";
-          ESP_LOGD(TAG, "TFT version: %s", version_tft->state.c_str());
+          ESP_LOGD(TAG, "TFT version: %s", x.c_str());
           if (current_page->state == "boot") {
             disp1->send_command_printf("tm_esphome.en=0");
             page_boot->execute();
@@ -1727,7 +1802,7 @@ script:
 
                     return (major1 == major2) && (minor1 == minor2);
                   };
-                return (compareVersions("${version}", version_tft->state.c_str()) and compareVersions("${version}", id(version_blueprint).c_str()));
+                return (compareVersions("${version}", version_tft->state.c_str()) and compareVersions("${version}", version_blueprint->state.c_str()));
           timeout: 60s
       - lambda: |-
           static const char *const TAG = "script.check_versions";
@@ -1744,17 +1819,8 @@ script:
           ESP_LOGD(TAG, "ESPHome version: ${version}");
           ESP_LOGD(TAG, "TFT version: %s", version_tft->state.c_str());
           if (not compareVersions("${version}", version_tft->state.c_str())) ESP_LOGE(TAG, "TFT version mismatch!");
-          ESP_LOGD(TAG, "Blueprint version: %s", id(version_blueprint).c_str());
-          if (not compareVersions("${version}", id(version_blueprint).c_str())) ESP_LOGE(TAG, "Blueprint version mismatch!");
-
-          std::string framework = "unknown";
-          #ifdef ARDUINO
-          framework = "arduino";
-          #elif defined(USE_ESP_IDF)
-          framework = "esp-idf";
-          #endif
-          ESP_LOGD(TAG, "Framework: %s", framework.c_str());
-          ESP_LOGD(TAG, "Baud rate: %" PRIu32, id(tf_uart).get_baud_rate());
+          ESP_LOGD(TAG, "Blueprint version: %s", version_blueprint->state.c_str());
+          if (not compareVersions("${version}", version_blueprint->state.c_str())) ESP_LOGE(TAG, "Blueprint version mismatch!");
 
           auto ha_event = new esphome::api::CustomAPIDevice();
           ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
@@ -1762,9 +1828,7 @@ script:
               {"type", "version"},
               {"tft", version_tft->state.c_str()},
               {"esphome", "${version}"},
-              {"blueprint", id(version_blueprint).c_str()},
-              {"framework", framework.c_str()},
-              {"baud_rate", to_string(id(tf_uart).get_baud_rate())}
+              {"blueprint", version_blueprint->state.c_str()}
             });
 
   - id: display_embedded_temp
@@ -1843,7 +1907,7 @@ script:
           static const char *const TAG = "script.global_settings";
           // Blueprint version
           ESP_LOGV(TAG, "Check Blueprint version");
-          id(version_blueprint) = blueprint_version;
+          version_blueprint->publish_state(blueprint_version.c_str());
           check_versions->execute();
 
           // Embedded thermostat
@@ -1907,9 +1971,9 @@ script:
                         - rtttl.play:
                             rtttl: 'two short:d=4,o=5,b=100:16e6,16e6'
                   - lambda: |-
-                      ESP_LOGD("script.global_settings", "Jump to wake-up page: %s", id(page_names)[id(wakeup_page_id)].c_str());
-                      disp1->goto_page(id(wakeup_page_id));
-                      timer_reset_all->execute(id(page_names)[id(wakeup_page_id)].c_str());
+                      ESP_LOGD("script.global_settings", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
+                      disp1->goto_page(wakeup_page_name->state.c_str());
+                      timer_reset_all->execute(wakeup_page_name->state.c_str());
 
       - lambda: |-
           ESP_LOGV("script.global_settings", "Finished");
@@ -2020,14 +2084,9 @@ script:
       - lambda: |-
           static const char *const TAG = "script.page_blank";
           ESP_LOGV(TAG, "Construct blank page");
-          std::string framework = "unknown";
-          #ifdef ARDUINO
-          framework = "arduino";
-          #elif defined(USE_ESP_IDF)
-          framework = "esp-idf";
-          #endif
           disp1->set_component_text_printf("esp_version", "ESP: ${version}");  // ESPHome version
-          disp1->set_component_text_printf("framework", framework.c_str());    // ESPHome framework
+          disp1->set_component_text_printf("framework", "%s", id(framework) == 1 ? "Arduino" :
+                                                        (id(framework) == 2 ? "ESP-IDF" : "Unknown"));  // ESPHome framework
           disp1->send_command_printf("tm_esphome.en=0");
 
   - id: page_boot
@@ -2038,15 +2097,11 @@ script:
           ESP_LOGV(TAG, "Construct boot page");
           set_brightness->execute(100);
 
-          std::string framework = "unknown";
-          #ifdef ARDUINO
-          framework = "arduino";
-          #elif defined(USE_ESP_IDF)
-          framework = "esp-idf";
-          #endif
-          disp1->set_component_text_printf("esph_version", "${version}");    // ESPHome version
-          disp1->set_component_text_printf("framework", framework.c_str());  // ESPHome framework
-          disp1->show_component("bt_reboot");
+          disp1->set_component_text_printf("esph_version", "${version}");  // ESPHome version
+          disp1->set_component_text_printf("framework", "%s", id(framework) == 1 ? "Arduino" :
+                                                        (id(framework) == 2 ? "ESP-IDF" : "Unknown"));  // ESPHome framework
+          disp1->send_command_printf("tm_esphome.en=0");
+          // disp1->show_component("bt_reboot");
 
   - id: page_buttonpage
     mode: restart
@@ -2239,7 +2294,8 @@ script:
           if (current_page->state == "screensaver" and not id(is_uploading_tft)) {
             static const char *const TAG = "script.page_screensaver";
             ESP_LOGV(TAG, "Updating screensaver page");
-            disp1->send_command_printf("back_page_id=%i", id(wakeup_page_id));
+            set_page_id->execute("back_page_id", wakeup_page_name->state.c_str());
+            // disp1->send_command_printf("back_page_id=%i", id(wakeup_page_id));
             if (id(screensaver_display_time)) {
               disp1->show_component("text");
               set_component_color->execute("screensaver.text",id(screensaver_display_time_color));
@@ -2414,16 +2470,24 @@ script:
           static const char *const TAG = "script.restore_settings";
           ESP_LOGD(TAG, "Restoring settings");
 
+          device_name->update();
+
+          #ifdef ARDUINO
+          id(framework) = 1;
+          #elif defined(USE_ESP_IDF)
+          id(framework) = 2;
+          #endif
+
           ESP_LOGV(TAG, "Restoring baud rate");
           set_baud_rate->execute(stoi(baud_rate->state), true);
 
-          ESP_LOGV(TAG, "Restoring wake-up page selector");
-          auto wakeup_page_name_call = id(wakeup_page_name).make_call();
-          wakeup_page_name_call.set_option(id(page_names)[id(wakeup_page_id)]);
-          wakeup_page_name_call.perform();
+          // ESP_LOGV(TAG, "Restoring wake-up page selector");
+          // auto wakeup_page_name_call = id(wakeup_page_name).make_call();
+          // wakeup_page_name_call.set_option(id(page_names)[id(wakeup_page_id)]);
+          // wakeup_page_name_call.perform();
 
+          // id(is_restored_settings) = true;
           ESP_LOGV(TAG, "Finishing");
-          id(is_restored_settings) = true;
 
   - id: service_call_alarm_control_panel
     mode: restart
@@ -2648,10 +2712,7 @@ script:
 
           uint detected_page_id = pageIndex(page.c_str());
           ESP_LOGV(TAG, "%s=%i", variable.c_str(), detected_page_id);
-          if (variable == "wakeup_page_id")
-            id(wakeup_page_id) = detected_page_id;
-          else
-            disp1->send_command_printf("%s=%i", variable.c_str(), detected_page_id);
+          disp1->send_command_printf("%s=%i", variable.c_str(), detected_page_id);
 
   - id: setup_sequence
     mode: restart
@@ -2798,7 +2859,7 @@ script:
                           state: boot
                 timeout: 10s
             - lambda: |-
-                if (current_page->state == "boot") disp1->goto_page(id(wakeup_page_id));
+                if (current_page->state == "boot") disp1->goto_page(wakeup_page_name->state.c_str());
           else:  # Unknown TFT
             - lambda: |-
                 static const char *const TAG = "script.setup_sequence";
@@ -3148,9 +3209,9 @@ script:
             }
 
             // Report blueprint version
-            id(is_blueprint_updated) = id(is_blueprint_updated) and wifi_connected and api_connected and (not id(version_blueprint).empty());
+            id(is_blueprint_updated) = id(is_blueprint_updated) and wifi_connected and api_connected and (not version_blueprint->state.empty());
             if (id(is_blueprint_updated))
-              ESP_LOGI(TAG, "Blueprint:     %s", id(version_blueprint).c_str());
+              ESP_LOGI(TAG, "Blueprint:     %s", version_blueprint->state.c_str());
             else {
               ESP_LOGW(TAG, "Blueprint:     %s", (wifi_connected and api_connected) ? "Pending" : "DISCONNECTED");
               ESP_LOGI(TAG, "Requesting blueprint settings");
@@ -3167,10 +3228,17 @@ script:
             ESP_LOGI(TAG, "  Version:     ${version}");
             // Report framework
             #ifdef ARDUINO
-            ESP_LOGI(TAG, "  Framework:   arduino");
+            size_t total_heap_size = ESP.getHeapSize();
+            size_t free_heap_size = ESP.getFreeHeap();
             #elif defined(USE_ESP_IDF)
-            ESP_LOGI(TAG, "  Framework:   esp-idf");
+            size_t total_heap_size = heap_caps_get_total_size(MALLOC_CAP_DEFAULT);
+            size_t free_heap_size = esp_get_free_heap_size();
             #endif
+            if (total_heap_size != 0)
+              ESP_LOGI(TAG, "  Heap:        %zu bytes (%d%%)", free_heap_size,
+                      int(round(((float)free_heap_size / total_heap_size) * 100.0f)));
+            ESP_LOGI(TAG, "  Framework:   %s", id(framework) == 1 ? "Arduino" :
+                                              (id(framework) == 2 ? "ESP-IDF" : "Unknown"));  // ESPHome framework
 
             // Report UART
             ESP_LOGI(TAG, "UART:");

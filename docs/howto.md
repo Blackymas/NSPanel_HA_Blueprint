@@ -94,9 +94,11 @@ use_blueprint:
 
 1. In Home Assistant, go to Settings > Automation & Scenes, select the tab Blueprints and find the blueprint named "NSPanel Configuration"
 2. Click the 3-dot menu and select "Re-import blueprint":
-  ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/afb433e8-f29c-4b3f-8d6b-16a12b181422)
+
+    ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/afb433e8-f29c-4b3f-8d6b-16a12b181422)
 3. Click "Re-import" button:
-  ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/1db36411-e5a4-4cef-bcef-575a08019a67)
+
+    ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/1db36411-e5a4-4cef-bcef-575a08019a67)
 4. Reload automations or restart Home Assistant.
 5. The new Blueprint is now available.
 Settings that have already been made are adopted.

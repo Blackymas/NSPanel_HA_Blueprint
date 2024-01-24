@@ -404,6 +404,52 @@ For support, feedback, or detailed information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
 or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
 
+## Patch v4.2.4
+In this update, we have focused on addressing critical issues to enhance the reliability and performance of our system.
+
+We highly recommend all users update their components to this latest version for an optimized and enhanced user experience.
+While this update is compatible with existing v4.2 components, fully updating ensures the best performance and usability.
+
+**Overview of Changes:**
+<!-- markdownlint-disable MD013 MD033 -->
+| Change | Criticality | Affected Components |
+| :-- | :--: | :--: |
+| Nextion is not connected for too long time on boot (#1667 & #1674) | Critical | `TFT` |
+| Panel not starting when no climate entity is selected (#1676 & #1677) | Critical | `Blueprint` |
+<!-- markdownlint-enable MD013 MD033 -->
+
+**Key Improvements:**
+- **Fix for Panel Long Boot Process**: Resolved an issue with the panel taking an excessively long time on the Boot page ("Initializing..."),
+ensuring a quicker startup and more efficient operation.
+- **Fix for Panel Not Starting Without Climate Entity**: Addressed a critical issue where the panel would not start if no climate entity was selected.
+This fix ensures smooth operation and startup of the panel regardless of the climate entity configuration.
+
+For support, feedback, or detailed information about this update,
+visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
+or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
+
+## Patch v4.2.5
+In this update, we have focused on ...
+
+We highly recommend all users update their components to this latest version for an optimized and enhanced user experience.
+While this update is compatible with existing v4.2 components, fully updating ensures the best performance and usability.
+
+**Overview of Changes:**
+<!-- markdownlint-disable MD013 MD033 -->
+| Change | Criticality | Affected Components |
+| :-- | :--: | :--: |
+| Fix display of climate icons on chips (#1675) | Minor | `Blueprint` |
+| Enable long click action when no entity is assigned to HW button (#1637) | Minor | `Blueprint` |
+<!-- markdownlint-enable MD013 MD033 -->
+
+**Key Improvements:**
+- **Fix display of climate icons on chips**: ...
+- **Enable long click action when no entity is assigned to HW button**: ...
+
+For support, feedback, or detailed information about this update,
+visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
+or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
+
 ## What's Next?
 Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open).
 
@@ -430,6 +476,8 @@ Discover what's next and what we are working on right now in our [Milestones](ht
 - And to all users who helped with the tests during development and beta.
 
 ## Previous releases
+- [v4.2.4 - Critical bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.4)
+- [v4.2.3 - Bug fixes and minor enhancements](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.3)
 - [v4.2.2 - Bug fixes and minor enhancements](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.2)
 - [v4.2.1 - Bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.1)
 - [v4.2 - Multi-Alarm Control, Dual Thermostat Functionality, and More](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2)
