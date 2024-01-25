@@ -57,7 +57,6 @@ They're created for each new release, allowing easy access to different project 
 > Older versions of the components may not be compatible with the latest ESPHome compiler or Home Assistant.
 > 
 > Ensure you are using a compatible version of Home Assistant and the compiler when working with older project versions to avoid potential issues.
->
 > You can use our [Version compatibility matrix](version_compatibility.md) to identify the minimum requirement per version as a reference for possible version incompatibility, although we don't have a register of the "Maximum version" supported.
 
 ### For Nextion TFT Component
