@@ -29,6 +29,7 @@ Table of contents:
   - [Climate custom presets](#climate-custom-presets)
   - [Push button / Momentary switch](#push-button--momentary-switch)
   - [Expose relay fallback switch](#expose-relay-fallback-switch)
+  - [Relay Interlocking](#relay-interlocking)
 
 &nbsp;
 &nbsp;
@@ -601,4 +602,21 @@ switch:
     internal: false
   - id: !extend relay2_local
     internal: false
+```
+
+### Relay Interlocking
+This is using ESPHome capability to prevents the two relays to be active at the same time, which could be useful in some cases, like to control a cover like discussed in [#965](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues/965).
+
+> [!ATTENTION]
+> There are some considerations about using software interlocking on the [ESPHome GPIO Switch documentation](https://esphome.io/components/switch/gpio.html#interlocking). Please read that carefully to understand what this is doing.
+
+```yaml
+switch:
+  # Prevents the two relays to be on simultaneously
+  - id: !extend relay_1
+    interlock: [relay_1, relay_2]
+    interlock_wait_time: 500ms  # Please adjust this accordingly
+  - id: !extend relay_2
+    interlock: [relay_1, relay_2]
+    interlock_wait_time: 500ms  # Please adjust this accordingly
 ```
