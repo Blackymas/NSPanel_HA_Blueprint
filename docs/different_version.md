@@ -49,6 +49,7 @@ They're created for each new release, allowing easy access to different project 
 
 3. Save your settings and then install it.
 
+<!-- markdownlint-disable MD028 -->
 > [!IMPORTANT]
 > Older versions may require `arduino` framework.
 > Please refer to this guide for setting the framework properly: [Change framework](customization.md#frameworks)
@@ -57,7 +58,9 @@ They're created for each new release, allowing easy access to different project 
 > Older versions of the components may not be compatible with the latest ESPHome compiler or Home Assistant.
 > 
 > Ensure you are using a compatible version of Home Assistant and the compiler when working with older project versions to avoid potential issues.
-> You can use our [Version compatibility matrix](version_compatibility.md) to identify the minimum requirement per version as a reference for possible version incompatibility, although we don't have a register of the "Maximum version" supported.
+> You can use our [Version compatibility matrix](version_compatibility.md) to identify the minimum requirement per version as a reference for possible version incompatibility,
+> although we don't have a register of the "Maximum version" supported.
+<!-- markdownlint-enable MD028 -->
 
 ### For Nextion TFT Component
 The instructions to upload TFT will vary depending on the branch or version you are installing and the framework you are using.

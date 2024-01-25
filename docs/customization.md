@@ -605,10 +605,12 @@ switch:
 ```
 
 ### Relay Interlocking
-This is using ESPHome capability to prevents the two relays to be active at the same time, which could be useful in some cases, like to control a cover like discussed in [#965](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues/965).
+This is using ESPHome capability to prevents the two relays to be active at the same time, which could be useful in some cases,
+like to control a cover like discussed in [#965](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues/965).
 
 > [!ATTENTION]
-> There are some considerations about using software interlocking on the [ESPHome GPIO Switch documentation](https://esphome.io/components/switch/gpio.html#interlocking). Please read that carefully to understand what this is doing.
+> There are some considerations about using software interlocking on the [ESPHome GPIO Switch documentation](https://esphome.io/components/switch/gpio.html#interlocking).
+Please read that carefully to understand what this is doing.
 
 ```yaml
 switch:
