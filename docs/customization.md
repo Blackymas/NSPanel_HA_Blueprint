@@ -21,7 +21,9 @@ Table of contents:
   - [Scheduled actions](#scheduled-actions)
     - [Scheduled relay](#scheduled-relay)
     - [Scheduled climate](#scheduled-climate)
-  - [Framework `esp-idf`](#framework-esp-idf)
+  - [Frameworks](#frameworks)
+    - [Framework `arduino`](#framework-arduino)
+    - [Framework `esp-idf`](#framework-esp-idf)
   - [Bluetooth proxy](#bluetooth-proxy)
   - [Logger via UART](#logger-via-uart)
   - [Climate custom presets](#climate-custom-presets)
@@ -474,7 +476,7 @@ time:
               target_temperature: 18°C
 ```
 
-### Framework `esp-idf`
+### Frameworks
 > [!IMPORTANT]
 > When switching from `arduino` to `esp-idf`, make sure to update the device with a serial cable as the partition table is different between the two frameworks
 as [OTA Update Component](https://esphome.io/components/ota) updates will not change the partition table.
@@ -489,6 +491,14 @@ In any case, you can overlap the settings with this customization.
 > [!NOTE]
 > For more info about frameworks, please visit [ESPHome docs](https://esphome.io/components/esp32).
 
+#### Framework `arduino`
+```yaml
+# Change framework to `arduino`
+esp32:
+  framework:
+    type: arduino
+```
+#### Framework `esp-idf`
 ```yaml
 # Change framework to `esp-idf`
 esp32:
