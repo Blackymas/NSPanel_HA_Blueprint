@@ -428,23 +428,51 @@ For support, feedback, or detailed information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
 or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
 
-## Patch v4.2.5
-In this update, we have focused on ...
+## Patch v4.2.5: Interface Refinements and Essential Documentation Updates
 
-We highly recommend all users update their components to this latest version for an optimized and enhanced user experience.
-While this update is compatible with existing v4.2 components, fully updating ensures the best performance and usability.
+In this release, we've focused on enhancing the user interface and providing crucial information for a better user experience.
+Key updates include refined control mechanisms for climate and cover entities, improved functionality for hardware buttons,
+and the introduction of support for ESPHome's `friendly_name`.
+Moreover, we have updated our documentation to include comprehensive guidelines on memory requirements for ESPHome,
+ensuring users are well-informed for successful system setup and operation.
 
 **Overview of Changes:**
 <!-- markdownlint-disable MD013 MD033 -->
 | Change | Criticality | Affected Components |
 | :-- | :--: | :--: |
-| Fix display of climate icons on chips (#1675) | Minor | `Blueprint` |
-| Enable long click action when no entity is assigned to HW button (#1637) | Minor | `Blueprint` |
+| Fix Display of Climate Icons on Chips (#1675) | Minor | `Blueprint` |
+| Long Click Action Bug Fix for Hardware Button (#1637) | Minor | `Blueprint` |
+| Enhanced Consistency in Cover Controls (#1688) | Enhancement | `Blueprint` |
+| Support ESPHome `friendly_name` (#1719) | Enhancement | `Blueprint`<br>`ESPHome` |
+| Motion Sensor for Display Wake-Up (#1687) | Enhancement | `Blueprint` |
+| Update docs (install.md) with memory requirements (#1720) | Documentation | `Documentation` |
 <!-- markdownlint-enable MD013 MD033 -->
 
 **Key Improvements:**
-- **Fix display of climate icons on chips**: ...
-- **Enable long click action when no entity is assigned to HW button**: ...
+- **Fix Display of Climate Icons on Chips**: Enhanced the functionality of climate entity chips.
+Now, the chip is displayed only when the climate entity has an active HVAC action.
+This change ensures that the chip is hidden in states like 'Idle' or other non-active states,
+aligning the display behavior with the operational status of the climate entity for improved accuracy and user experience.
+- **Long Click Action Bug Fix for Hardware Button**: Resolved a bug where long click actions weren't executing on hardware buttons if no entity was assigned.
+This fix ensures that custom actions linked to long presses will now run as intended, regardless of whether an entity is assigned to the button,
+offering greater flexibility and reliability in user interactions.
+- **Enhanced Consistency in Cover Controls**: Building upon the dynamic icons feature introduced in v4.2.2, we've further refined the cover controls.
+This enhancement extends the use of `device_class` to the detailed cover page,
+ensuring that the icons for opening and closing covers are more accurately representative of the cover type.
+This update is a step towards our goal of extending context-aware UI enhancements to other supported domains in future updates.
+- **Friendly Name Support in ESPHome**: Enhanced the Blueprint's compatibility with ESPHome's `friendly_name` feature.
+Previously, using `friendly_name` could disrupt communication between the Blueprint and ESPHome due to mismatches in entity and service names.
+This update resolves these issues, ensuring seamless integration.
+Users can now utilize the `friendly_name` substitution in their YAML setup to assign more intuitive and descriptive names to their devices,
+significantly improving the ease of device identification and overall user experience.
+- **Motion Sensor for Display Wake-Up**: We've introduced a feature that allows users to specify a motion, presence, or door sensor to wake up the display, enhancing the panel's responsiveness.
+Each detected motion or sensor activation event triggers the panel to wake up, with the sleep timer resetting with every new detection.
+While the panel will still follow the pre-set sleep duration settings regardless of continuous motion or sensor activity,
+this initial implementation marks a significant step in making user interactions more dynamic and intuitive.
+- **Documentation Update on Memory Requirements for ESPHome**: Enhanced the installation documentation to include detailed guidelines on memory requirements.
+This update addresses frequent user-reported compilation errors in ESPHome, attributed to insufficient memory on compiler servers.
+The updated section outlines recommended memory configurations for different installation scenarios, ensuring smoother compilation processes.
+A special acknowledgement to @andythomas for his valuable contributions to this update.
 
 For support, feedback, or detailed information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
@@ -464,6 +492,7 @@ Discover what's next and what we are working on right now in our [Milestones](ht
 - @andythomas:
     - Allow to set upper and lower set points for embedded thermostat, #1573
     - Bugfix for embedded climate/cool functionality, #1587
+    - Update docs (install.md) with memory requirements, #1720 - Patch v4.2.5
 - @PaulAntonDeen:
     - Add ISO8601 date formatting as an option, #1610 - Patch v4.2.2
     - Fix Wi-Fi reference on QR code example, #1609 - Patch v4.2.2
