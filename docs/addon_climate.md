@@ -23,7 +23,8 @@ and after the `remote_package` (base code), as shown bellow (for `heat` in this 
 ```yaml
 substitutions:
   # Settings - Editable values
-  device_name: "YOUR_NSPANEL_NAME" 
+  device_name: "YOUR_NSPANEL_NAME"
+  friendly_name: "Your panel's friendly name"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
 
@@ -90,7 +91,8 @@ and [ESPHome Climate Thermostat - Additional actions behavior](https://esphome.i
 ```yaml
 substitutions:
   # Settings - Editable values
-  device_name: "YOUR_NSPANEL_NAME" 
+  device_name: "YOUR_NSPANEL_NAME"
+  friendly_name: "Your panel's friendly name"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
 
@@ -132,7 +134,8 @@ esp32:
 ```yaml
 substitutions:
   # Settings - Editable values
-  device_name: "YOUR_NSPANEL_NAME" 
+  device_name: "YOUR_NSPANEL_NAME"
+  friendly_name: "Your panel's friendly name"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
 
@@ -174,7 +177,8 @@ esp32:
 ```yaml
 substitutions:
   # Settings - Editable values
-  device_name: "YOUR_NSPANEL_NAME" 
+  device_name: "YOUR_NSPANEL_NAME"
+  friendly_name: "Your panel's friendly name"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
 

@@ -58,7 +58,8 @@ You should add your customizations at the end of your ESPHome yaml, as in the ex
 ```yaml
 substitutions:
   # Settings - Editable values
-  device_name: "YOUR_NSPANEL_NAME" 
+  device_name: "YOUR_NSPANEL_NAME"
+  friendly_name: "Your panel's friendly name"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
 
@@ -228,7 +229,7 @@ Creates a binary sensor to indicate either when the display is showing some page
 ```yaml
 # Is display awake?
 binary_sensor:
-  - name: ${device_name} Display state
+  - name: Display state
     id: display_state
     platform: template
     lambda: |-
@@ -240,7 +241,7 @@ You can easily invert the meaning to have a sensor for display sleeping:
 ```yaml
 # Is display sleeping?
 binary_sensor:
-  - name: ${device_name} Display sleeping
+  - name: Display sleeping
     id: display_sleeping
     platform: template
     lambda: |-
@@ -309,7 +310,7 @@ There are several ways to wake-up or put your panel to sleep, but in this exampl
 ```yaml
 button:
   # Adds a button to put the panel to sleep
-  - name: ${device_name} Sleep
+  - name: Sleep
     id: force_sleep
     platform: template
     icon: mdi:sleep
@@ -320,7 +321,7 @@ button:
             if (id(current_page).state != "screensaver") id(disp1).goto_page("screensaver");
   
   # Adds a button to wake-up the panel (similar to the existing service)
-  - name: ${device_name} Wake-up
+  - name: Wake-up
     id: force_wake_up
     platform: template
     icon: mdi:alarm
@@ -341,7 +342,7 @@ and even use this in your automation to control when your panel is on with the s
 ```yaml
 light:
   # Add the display as a light in Home Assistant
-  - name: ${device_name} Display
+  - name: Display
     id: display_light
     icon: mdi:tablet-dashboard
     platform: monochromatic

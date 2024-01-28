@@ -96,7 +96,8 @@ Follow these steps to add a new device in the ESPHome Dashboard:
     ```yaml
     substitutions:
       # Settings - Editable values
-      device_name: "YOUR_NSPANEL_NAME" 
+      device_name: "YOUR_NSPANEL_NAME"
+      friendly_name: "Your panel's friendly name"
       wifi_ssid: !secret wifi_ssid
       wifi_password: !secret wifi_password
       nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"  # Optional for `esp-idf` framework
@@ -443,7 +444,8 @@ To use a local copy of `nspanel_esphome.yaml`, copy the file from GitHub to your
 ```yaml
 substitutions:
   # Editable settings
-  device_name: "YOUR_NSPANEL_NAME" 
+  device_name: "YOUR_NSPANEL_NAME"
+  friendly_name: "Your panel's friendly name"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
   nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"

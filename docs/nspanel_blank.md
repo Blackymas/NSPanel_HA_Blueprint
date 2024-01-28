@@ -30,7 +30,8 @@ On your ESPHome settings, you have entered a url for `nextion_update_url`, in th
 ```yaml
 substitutions:
   ###### CHANGE ME START ######
-  device_name: "YOUR_NSPANEL_NAME" 
+  device_name: "YOUR_NSPANEL_NAME"
+  friendly_name: "Your panel's friendly name"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
 
