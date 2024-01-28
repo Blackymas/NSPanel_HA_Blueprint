@@ -429,7 +429,6 @@ visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
 or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
 
 ## Patch v4.2.5: Interface Refinements and Essential Documentation Updates
-
 In this release, we've focused on enhancing the user interface and providing crucial information for a better user experience.
 Key updates include refined control mechanisms for climate and cover entities, improved functionality for hardware buttons,
 and the introduction of support for ESPHome's `friendly_name`.
