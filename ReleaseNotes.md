@@ -446,6 +446,7 @@ ensuring users are well-informed for successful system setup and operation.
 | :-- | :--: | :--: |
 | Fix Display of Climate Icons on Chips (#1675) | Minor | `Blueprint` |
 | Long Click Action Bug Fix for Hardware Button (#1637) | Minor | `Blueprint` |
+| Enhanced Memory Allocation When Uploading TFT (`esp-idf` only) | Enhancement | `ESPHome` |
 | Enhanced Consistency in Cover Controls (#1688) | Enhancement | `Blueprint` |
 | Support ESPHome `friendly_name` (#1719) | Enhancement | `Blueprint`<br>`ESPHome` |
 | Motion Sensor for Display Wake-Up (#1687) | Enhancement | `Blueprint` |
@@ -461,6 +462,10 @@ aligning the display behavior with the operational status of the climate entity 
 - **Long Click Action Bug Fix for Hardware Button**: Resolved a bug where long click actions weren't executing on hardware buttons if no entity was assigned.
 This fix ensures that custom actions linked to long presses will now run as intended, regardless of whether an entity is assigned to the button,
 offering greater flexibility and reliability in user interactions.
+- **Enhanced Memory Allocation When Uploading TFT (esp-idf only)**: Optimized memory management for TFT uploads on systems using the `esp-idf` framework.
+This update prevents simultaneous HTTP server connections, allowing for better memory allocation and reducing the risk of system crashes due to memory shortages.
+It does not affect users on the `arduino` framework.
+Additionally, the log for the upload process now includes detailed memory usage data, providing valuable insights for troubleshooting and system performance enhancement.
 - **Enhanced Consistency in Cover Controls**: Building upon the dynamic icons feature introduced in v4.2.2, we've further refined the cover controls.
 This enhancement extends the use of `device_class` to the detailed cover page,
 ensuring that the icons for opening and closing covers are more accurately representative of the cover type.
