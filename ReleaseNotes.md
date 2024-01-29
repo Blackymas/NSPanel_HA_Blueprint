@@ -449,6 +449,7 @@ ensuring users are well-informed for successful system setup and operation.
 | Enhanced Consistency in Cover Controls (#1688) | Enhancement | `Blueprint` |
 | Support ESPHome `friendly_name` (#1719) | Enhancement | `Blueprint`<br>`ESPHome` |
 | Motion Sensor for Display Wake-Up (#1687) | Enhancement | `Blueprint` |
+| Clean-up Blueprint Inputs (#1722) | Enhancement | `Blueprint` |
 | Update docs (install.md) with memory requirements (#1720) | Documentation | `Documentation` |
 <!-- markdownlint-enable MD013 MD033 -->
 
@@ -469,10 +470,13 @@ Previously, using `friendly_name` could disrupt communication between the Bluepr
 This update resolves these issues, ensuring seamless integration.
 Users can now utilize the `friendly_name` substitution in their YAML setup to assign more intuitive and descriptive names to their devices,
 significantly improving the ease of device identification and overall user experience.
-- **Motion Sensor for Display Wake-Up**: We've introduced a feature that allows users to specify a motion, presence, or door sensor to wake up the display, enhancing the panel's responsiveness.
+- **Motion Sensor for Display Wake-Up**: We've introduced a feature that allows users to specify a motion,
+presence, or door sensor to wake up the display, enhancing the panel's responsiveness.
 Each detected motion or sensor activation event triggers the panel to wake up, with the sleep timer resetting with every new detection.
 While the panel will still follow the pre-set sleep duration settings regardless of continuous motion or sensor activity,
 this initial implementation marks a significant step in making user interactions more dynamic and intuitive.
+- **Clean-up Blueprint Inputs**: Simplified the naming of Blueprint inputs for better clarity and ease of use.
+Labels such as *"Button14"* have been updated to more descriptive formats like *"Button page 2, Button 6"*, enhancing the user's ability to understand and navigate
 - **Documentation Update on Memory Requirements for ESPHome**: Enhanced the installation documentation to include detailed guidelines on memory requirements.
 This update addresses frequent user-reported compilation errors in ESPHome, attributed to insufficient memory on compiler servers.
 The updated section outlines recommended memory configurations for different installation scenarios, ensuring smoother compilation processes.
