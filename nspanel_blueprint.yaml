@@ -6805,34 +6805,12 @@ action:
             name: '{{ None }}'
       - &variable_entity
         variables:
-          entity_id_is_valid: '{{ entity_id is defined and entity_id is string and entity_id.split(".") | count == 2 }}'
-          entity_state: '{{ states(entity_id) | default("unknown") if entity_id_is_valid else "unknown" }}'
-          entity_domain: '{{ entity_id.split(".")[0] if entity_id_is_valid else "unknown" }}'
-          entity_state_has_value: '{{ has_value(entity_id) if entity_id_is_valid else false }}'
-          entity_state_is_on: >
-              {% if entity_domain == "climate" %}
-                {% set entity_hvac_action = state_attr(entity_id, "hvac_action") | default("") %}
-                {% set entity_state_tmp = (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state) %}
-              {% else %}
-                {% set entity_state_tmp = entity_state %}
-              {% endif %}
-              {{
-                entity_state_tmp in enum.states.on or (entity_domain in enum.states and entity_state_tmp in enum.states[entity_domain].on)
-                if entity_state_has_value else false
-              }}
-          entity_state_is_off: >
-              {% if entity_domain == "climate" %}
-                {% set entity_hvac_action = state_attr(entity_id, "hvac_action") | default("") %}
-                {% set entity_state_tmp = (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state) %}
-              {% else %}
-                {% set entity_state_tmp = entity_state %}
-              {% endif %}
-              {{
-                entity_state_tmp in enum.states.off or (entity_domain in enum.states and entity_state_tmp in enum.states[entity_domain].off)
-                if entity_state_has_value else false
-              }}
-          entity_state_is_unknown: '{{ false if entity_state_is_on or entity_state_is_off else true }}'
-          entity_icon: '{{ state_attr(entity_id, "icon") | default("") if entity_id_is_valid else "" }}'
+          entity_state: '{{ states(entity_id) | default("unknown") }}'
+          entity_domain: '{{ entity_id.split(".")[0] }}'
+          entity_icon: '{{ state_attr(entity_id, "icon") | default("") }}'
+          entity_state_is_on: '{{ entity_state in enum.states.on or (entity_domain in enum.states and entity_state in enum.states[entity_domain].on) }}'
+          entity_state_is_off: '{{ entity_state in enum.states.off or (entity_domain in enum.states and entity_state in enum.states[entity_domain].off) }}'
+          entity_state_is_unknown: '{{ (not entity_state_is_on) and (not entity_state_is_off) }}'
           entity_icon_color: >
             {{
               (
@@ -6843,43 +6821,23 @@ action:
               if ((not entity_state_is_off) and (not entity_state_is_unknown))
               else nextion.color.off
             }}
-          entity_friendly_name: '{{ state_attr(entity_id, "friendly_name") | default("") if entity_id_is_valid else "" }}'
-          entity_state_is_number: '{{ is_number(entity_state) if entity_id_is_valid else false }}'
-          entity_unit_of_measurement: '{{ state_attr(entity_id, "unit_of_measurement") | default("") if entity_id_is_valid and entity_state_is_number else "" }}'
-          entity_device_class: '{{ state_attr(entity_id, "device_class") | default("") if entity_id_is_valid else "" }}'
-          entity_state_mui: >
-            {{
-              (
+          entity_friendly_name: '{{ state_attr(entity_id, "friendly_name") | default("") }}'
+          entity_device_class: '{{ state_attr(entity_id, "device_class") | default("") }}'
+          entity:
+            state_mui: >
+              {{
                 entity_state
                 if entity_domain != "alarm_control_panel"
                 else ( mui[language].alarm[entity_state | replace("armed_", "") | replace("disarmed", "disarm")] | default(entity_state) if entity_state else "unknown" )
-              ) if entity_id_is_valid else (mui[language].unavailable if entity_state == "unavailable" else mui[language].unknown)
-            }}
-          entity:
-            id: '{{ entity_id }}'
-            valid: '{{ entity_id_is_valid }}'
-            has_value: '{{ entity_state_has_value }}'
-            state: '{{ entity_state if entity_id_is_valid else "unknown" }}'
-            state_rounded: '{{ states(entity_id, rounded=true) if entity_state_is_number else entity_state }}'
-            state_is:
-              "on": '{{ entity_state_is_on }}'
-              "off": '{{ entity_state_is_off }}'
-              unknown: '{{ entity_state_is_unknown }}'
-            state_mui: '{{ entity_state_mui }}'
-            state_is_number: '{{ entity_state_is_number }}'
-            domain: '{{ entity_domain }}'
-            unit_of_measurement: '{{ entity_unit_of_measurement if entity_unit_of_measurement else "" }}'
-            friendly_name: '{{ entity_friendly_name }}'
+              }}
             name: >
               {{
                 (
                   overlap.name
                   if overlap is defined and overlap.name is defined and overlap.name is string and overlap.name | length > 0
                   else (entity_friendly_name if entity_friendly_name is string and entity_friendly_name | length > 0 else entity_id)
-                ) if entity_id_is_valid else ""
+                )
               }}
-            supported_features: '{{ state_attr(entity_id, "supported_features") | default(0) if entity_id_is_valid else 0 }}'
-            device_class: '{{ entity_device_class }}'
             icon: >
               {% set icon_domain = nextion.icon.domain[entity_domain] | default(all_icons.unknown) if entity_domain else all_icons.unknown %}
               {% if overlap is defined and overlap.icon is defined and overlap.icon is string and overlap.icon | length > 0 %}
@@ -6919,8 +6877,7 @@ action:
                 {{ icon_domain }}
               {% endif %}
             icon_color: >
-              {% if not entity_id_is_valid %}{{ nextion.color.off }}
-              {% elif entity_domain == "alarm_control_panel" %}
+              {% if entity_domain == "alarm_control_panel" %}
                 {% if entity_state == "disarmed" %}{{ nextion.color.off }}
                 {% elif entity_state in ["armed_home", "armed_away", "armed_night", "armed_vacation", "armed_bypass"] %}{{ nextion.color.green }}
                 {% elif entity_state in ["pending", "arming", "disarming"] %}{{ nextion.color.amber }}
@@ -6941,7 +6898,7 @@ action:
                 {% else %}{{ entity_icon_color }}
                 {% endif %}
               {% elif entity_domain == "light" %}
-                {% if not entity_state_is_on %}{{ nextion.color.off }}
+                {% if entity_state != "on" %}{{ nextion.color.off }}
                 {% else %}
                   {% set entity_rgb_color_attr = state_attr(entity_id, "rgb_color") | default("") %}
                   {% set entity_rgb_color = entity_rgb_color_attr if entity_rgb_color_attr is sequence and entity_rgb_color_attr | count == 3 else entity_icon_color %}
@@ -7511,7 +7468,6 @@ action:
                                             overlap:
                                               icon: '{{ repeat.item.icon if repeat.item.icon is defined else None }}'
                                         - *variable_entity
-                                        - condition: '{{ entity.valid }}'
                                         - if: '{{ entity.icon_color is defined }}'
                                           then:
                                             - service: '{{ nextion.command.set_component_color }}'
@@ -7549,11 +7505,11 @@ action:
                               - variables:
                                   entity_id: '{{ climate }}'
                               - *variable_entity
-                              - if: '{{ entity.has_value }}'
+                              - if: '{{ has_value(entity_id) }}'
                                 then:
                                   - variables:
                                       entity_hvac_action: '{{ state_attr(entity_id, "hvac_action") }}'
-                                      entity_climate_action: '{{ (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity.state) }}'
+                                      entity_climate_action: '{{ (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state) }}'
                                   - if: >
                                       {{
                                         entity_climate_action and
@@ -7639,10 +7595,25 @@ action:
                                         overlap:
                                           icon: '{{ repeat.item.icon if repeat.item.icon is defined else None }}'
                                           icon_color: '{{ repeat.item.icon_color_rgb if repeat.item.icon_color_rgb is defined else None }}'
-                                    - *variable_entity
-                                    - condition: '{{ entity.valid }}'
-                                    - if: '{{ (entity.state_is.on and not repeat.item.inverted) or (entity.state_is.off and repeat.item.inverted) }}'
+                                        entity_domain: '{{ entity_id.split(".")[0] }}'
+                                        entity_state_tmp: '{{ states(entity_id) | default("unknown") }}'
+                                        entity_hvac_action: '{{ state_attr(entity_id, "hvac_action") | default("") if entity_domain == "climate" else "unknown" }}'
+                                        entity_state: >
+                                          {{
+                                            (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state_tmp)
+                                            if entity_domain == "climate" else entity_state_tmp
+                                          }}
+                                    - if:
+                                        - '{{ has_value(entity_id) }}'
+                                        - or:
+                                            - and:
+                                                - '{{ not repeat.item.inverted }}'
+                                                - '{{ entity_state in enum.states.on or (entity_domain in enum.states and entity_state in enum.states[entity_domain].on) }}'
+                                            - and:
+                                                - '{{ repeat.item.inverted }}'
+                                                - '{{ entity_state in enum.states.off or (entity_domain in enum.states and entity_state in enum.states[entity_domain].off) }}'
                                       then:
+                                        - *variable_entity
                                         ### ICON Font Color ###
                                         - if: '{{ entity.icon_color is defined }}'
                                           then:
@@ -7717,7 +7688,7 @@ action:
                                           icon: '{{ repeat.item.icon if repeat.item.icon is defined else None }}'
                                           icon_color: '{{ repeat.item.icon_color_rgb if repeat.item.icon_color_rgb is defined else None }}'
                                     - *variable_entity
-                                    - if: '{{ entity.has_value }}'
+                                    - if: '{{ has_value(entity_id) }}'
                                       then:
                                         ### ICON Font Color ###
                                         - *delay-default
@@ -7745,7 +7716,7 @@ action:
                                         - service: '{{ nextion.command.text_printf }}'
                                           data:
                                             component: '{{ repeat.item.page }}.{{ repeat.item.component }}{{ "_state" if repeat.item.page == page.home }}'
-                                            message: '{{ (entity.state_rounded ~ entity.unit_of_measurement) if entity.has_value else mui[language].unavailable }}'
+                                            message: '{{ (states(entity,id, rounded=true) ~ (state_attr(entity_id, "unit_of_measurement") | default(""))) if has_value(entity_id) else mui[language].unavailable }}'
                                           continue_on_error: true
 
                       ## BUTTON PAGES 01 - 04 ##
@@ -8047,6 +8018,7 @@ action:
                                       | list
                                     }}
                                   sequence: &display_button_page_button
+                                    - condition: '{{ repeat.item.entity is defined and repeat.item.entity is string and repeat.item.entity | length > 0 }}'
                                     - variables:
                                         entity_id: '{{ repeat.item.entity }}'
                                         overlap:
@@ -8054,69 +8026,60 @@ action:
                                           icon_color: '{{ repeat.item.icon_color_rgb if repeat.item.icon_color_rgb is defined else None }}'
                                           name: '{{ repeat.item.name if repeat.item.name is defined else None }}'
                                     - *variable_entity
-                                    - if: '{{ entity.valid }}'
+                                    - variables:
+                                        current_entity_state_available: '{{ entity_state not in ["unavailable"] }}'
+                                        btn_state: >  # Button state (on = true or off = false)
+                                          {{
+                                            (entity_state in enum.states.on and entity_domain not in ["automation"])
+                                            or (entity_domain == "climate" and entity_state != "off")
+                                            or (entity_domain in ["button","input_button","scene","automation","remote"] and trigger.id is match "current_state_entity")
+                                          }}
+                                        btn_bri_txt: >  # Buttons value (brightness, temperature, etc.)
+                                          {% if not has_value(entity_id) %} 0
+                                          {% elif entity_domain == "light" and entity_state == "on" %}
+                                            {% set entity_brightness = state_attr(entity_id, "brightness") %}
+                                            {% set entity_brightness_index = entity_brightness/255 if entity_brightness and is_number(entity_brightness) else 0 %}
+                                            {{ (entity_brightness_index*100) | round(0) }}%
+                                          {% elif entity_domain == "fan" and entity_state == "on" and state_attr(entity_id, "percentage") | int(0) > 0 %}
+                                            {{ state_attr(entity_id, "percentage") | round(0, default=0) }}%
+                                          {% elif entity_domain == "cover" and entity_state in ["open", "opening", "closing"] and is_number(state_attr(entity_id, "current_position")) %}
+                                            {{ (state_attr(entity_id, "current_position") | int(100)) | round(0) }}%
+                                          {% elif entity_domain == "climate" and is_number(state_attr(entity_id, 'current_temperature')) %}
+                                            {% set current_temperature = state_attr(entity_id, 'current_temperature') | float %}
+                                            {{ current_temperature | round(0 if current_temperature >= 100 or temperature_units in ["F", "f", "°F", "°f", "K", "k"] else 1) }}{{ temperature_units}}
+                                          {% else %} 0
+                                          {% endif %}
+                                    - *delay-default
+                                    - service: '{{ nextion.command.set_button }}'
+                                      data:
+                                        page: '{{ repeat.item.page }}'
+                                        id: '{{ repeat.item.component }}'
+                                        state: '{{ btn_state if btn_state else false }}'
+                                        icon: '{{ entity.icon }}'
+                                        icon_color: '{{ entity.icon_color }}'
+                                        icon_font: '{{ button_pages_icon_size if is_number(button_pages_icon_size) else 8 }}'
+                                        bri: '{{ btn_bri_txt if btn_bri_txt and btn_bri_txt != "0%" else "" }}'
+                                        label: '{{ entity.name }}'
+                                      continue_on_error: true
+                                    - if: >
+                                        {{
+                                          (entity_domain in ["button", "input_button", "scene"] and trigger.id is match "current_state_entity")
+                                          or entity_domain in ["automation", "remote"]
+                                        }}
                                       then:
-                                        - variables:
-                                            current_entity_state_available: '{{ entity.state not in ["unavailable"] }}'
-                                            btn_state: >  # Button state (on = true or off = false)
-                                              {{
-                                                (entity.state in enum.states.on and entity.domain not in ["automation"])
-                                                or (entity.domain == "climate" and entity.state != "off")
-                                                or (entity.domain in ["button","input_button","scene","automation","remote"] and trigger.id is match "current_state_entity")
-                                              }}
-                                            btn_bri_txt: >  # Buttons value (brightness, temperature, etc.)
-                                              {% if not entity.has_value %} 0
-                                              {% elif entity.domain == "light" and entity.state == "on" %}
-                                                {% set entity_brightness = state_attr(entity.id, "brightness") %}
-                                                {% set entity_brightness_index = entity_brightness/255 if entity_brightness and is_number(entity_brightness) else 0 %}
-                                                {{ (entity_brightness_index*100) | round(0) }}%
-                                              {% elif entity.domain == "fan" and entity.state == "on" and state_attr(entity.id, "percentage") | int(0) > 0 %}
-                                                {{ state_attr(entity.id, "percentage") | round(0, default=0) }}%
-                                              {% elif
-                                                      entity.domain == "cover" and
-                                                      entity.state in ["open", "opening", "closing"] and
-                                                      is_number(state_attr(entity.id, "current_position")) %}
-                                                {{ (state_attr(entity.id, "current_position") | int(100)) | round(0) }}%
-                                              {% elif entity.domain == "climate" and is_number(state_attr(entity.id, 'current_temperature')) %}
-                                                {% set current_temperature = state_attr(entity.id, 'current_temperature') | float %}
-                                                {{
-                                                  current_temperature | round(0)
-                                                  if current_temperature >= 100 or temperature_units in ["F", "f", "°F", "°f", "K", "k"]
-                                                  else current_temperature | round(1)
-                                                }}{{ temperature_units}}
-                                              {% else %} 0
-                                              {% endif %}
-                                        - *delay-default
+                                        - delay:
+                                            milliseconds: 800
                                         - service: '{{ nextion.command.set_button }}'
                                           data:
                                             page: '{{ repeat.item.page }}'
                                             id: '{{ repeat.item.component }}'
-                                            state: '{{ btn_state if btn_state else false }}'
+                                            state: false
                                             icon: '{{ entity.icon }}'
-                                            icon_color: '{{ entity.icon_color }}'
+                                            icon_color: '{{ nextion.color.grey_light }}'
                                             icon_font: '{{ button_pages_icon_size if is_number(button_pages_icon_size) else 8 }}'
-                                            bri: '{{ btn_bri_txt if btn_bri_txt and btn_bri_txt != "0%" else "" }}'
+                                            bri: '{{ btn_bri_txt }}'
                                             label: '{{ entity.name }}'
                                           continue_on_error: true
-                                        - if: >
-                                            {{
-                                              (entity.domain in ["button","input_button","scene"] and trigger.id is match "current_state_entity")
-                                              or entity.domain in ["automation", "remote"]
-                                            }}
-                                          then:
-                                            - delay:
-                                                milliseconds: 800
-                                            - service: '{{ nextion.command.set_button }}'
-                                              data:
-                                                page: '{{ repeat.item.page }}'
-                                                id: '{{ repeat.item.component }}'
-                                                state: false
-                                                icon: '{{ entity.icon }}'
-                                                icon_color: '{{ nextion.color.grey_light }}'
-                                                icon_font: '{{ button_pages_icon_size if is_number(button_pages_icon_size) else 8 }}'
-                                                bri: '{{ btn_bri_txt }}'
-                                                label: '{{ entity.name }}'
-                                              continue_on_error: true
                               ###### SHOW All component when page loading done #####
                               - if: '{{ not show_while_loading }}'
                                 then:
@@ -8545,20 +8508,21 @@ action:
                             then:
                               - variables:
                                   entity_id: '{{ alarm_entity }}'
+                                  supported_features: '{{ state_attr(entity_id, "supported_features") | default(0) }}'
                               - *variable_entity
-                              - condition: '{{ entity.supported_features > 0 }}'
+                              - condition: '{{ supported_features > 0 }}'
                               - variables:  # https://github.com/home-assistant/core/blob/dev/homeassistant/components/alarm_control_panel/const.py
                                   alarm:
-                                    code_format: '{{ state_attr(entity.id, "code_format") }}'
-                                    code_arm_required: '{{ state_attr(entity.id, "code_arm_required") | default(true) }}'
+                                    code_format: '{{ state_attr(entity_id, "code_format") }}'
+                                    code_arm_required: '{{ state_attr(entity_id, "code_arm_required") | default(true) }}'
                               - service: '{{ nextion.command.alarm_settings }}'
                                 data:
                                   page_title: '{{ entity.name }}'
-                                  state: '{{ entity.state }}'
-                                  supported_features: '{{ entity.supported_features }}'
+                                  state: '{{ entity_state }}'
+                                  supported_features: '{{ supported_features }}'
                                   code_format: '{{ alarm.code_format if alarm.code_format else "none" }}'
                                   code_arm_required: '{{ alarm.code_arm_required if alarm.code_arm_required else false }}'
-                                  entity: '{{ entity.id }}'
+                                  entity: '{{ entity_id }}'
                                   mui_alarm: '{{ dict.values(mui[language].alarm) | list }}'
                                 continue_on_error: true
 
@@ -8752,7 +8716,6 @@ action:
                                           icon: '{{ repeat.item.icon }}'
                                           icon_color: '{{ repeat.item.icon_color_rgb }}'
                                     - *variable_entity
-                                    - condition: '{{ entity.valid }}'
                                     ### ICON Font Color ###
                                     - *delay-default
                                     - service: '{{ nextion.command.set_component_color }}'
@@ -8974,23 +8937,21 @@ action:
                           - repeat:
                               for_each: '{{ entity_pages_entities[first_entity:last_entity] }}'
                               sequence: &update_entity_page_entity
-                                - if: '{{ repeat.item.entity is string and repeat.item.entity | length > 0 }}'
-                                  then:
-                                    - variables:
-                                        entity_id: '{{ repeat.item.entity }}'
-                                        overlap:
-                                          icon: '{{ repeat.item.icon if repeat.item.icon is defined else None }}'
-                                          name: '{{ repeat.item.name if repeat.item.name is defined else None }}'
-                                    - *variable_entity
-                                    - condition: '{{ entity.valid }}'
-                                    - service: '{{ nextion.command.set_entity }}'
-                                      data:
-                                        ent_id: '{{ repeat.item.page }}.{{ repeat.item.component }}'
-                                        ent_icon: '{{ entity.icon }}'
-                                        ent_label: '{{ entity.name }}'
-                                        ent_value: '{{ (entity.state_rounded ~ entity.unit_of_measurement) if entity.has_value else mui[language].unavailable }}'
-                                        ent_value_xcen: '{{ entitypages_value_alignment }}'
-                                      continue_on_error: true
+                                - condition: '{{ repeat.item.entity is string and repeat.item.entity | length > 0 }}'
+                                - variables:
+                                    entity_id: '{{ repeat.item.entity }}'
+                                    overlap:
+                                      icon: '{{ repeat.item.icon if repeat.item.icon is defined else None }}'
+                                      name: '{{ repeat.item.name if repeat.item.name is defined else None }}'
+                                - *variable_entity
+                                - service: '{{ nextion.command.set_entity }}'
+                                  data:
+                                    ent_id: '{{ repeat.item.page }}.{{ repeat.item.component }}'
+                                    ent_icon: '{{ entity.icon }}'
+                                    ent_label: '{{ entity.name }}'
+                                    ent_value: '{{ (states(entity,id, rounded=true) ~ (state_attr(entity_id, "unit_of_measurement") | default(""))) if has_value(entity_id) else mui[language].unavailable }}'
+                                    ent_value_xcen: '{{ entitypages_value_alignment }}'
+                                  continue_on_error: true
 
                       ## PAGE WEATHER (WEATHER01 to WEATHER05) ##
                       - alias: Weather pages
@@ -9518,25 +9479,24 @@ action:
                           - choose:
                               - alias: Long click
                                 conditions:
-                                  - '{{ nspanel_event.command == "long_click" or entity.domain in ["climate", "media_player"] }}'
+                                  - '{{ nspanel_event.command == "long_click" or entity_domain in ["climate", "media_player"] }}'
                                 sequence:
                                   - choose:
                                       - alias: Default
                                         conditions:
-                                          - '{{ entity.valid }}'
                                           - '{{ last_click_button.hold_select == "Default" }}'
-                                          - '{{ entity.domain in ["alarm_control_panel", "climate", "cover", "light", "fan", "media_player"] }}'
+                                          - '{{ entity_domain in ["alarm_control_panel", "climate", "cover", "light", "fan", "media_player"] }}'
                                         sequence:
                                           - variables:
                                               back_page: '{{ page.home }}'
                                           - &open_entity_settings_page
                                             service: '{{ nextion.command.open_entity_settings_page }}'
                                             data:
-                                              page: '{{ entity.domain }}'
+                                              page: '{{ entity_domain }}'
                                               page_label: '{{ entity.name }}'
                                               page_icon: '{{ entity.icon }}'
                                               page_icon_color: '{{ entity.icon_color }}'
-                                              entity: '{{ "embedded_climate" if entity.id == thermostat_embedded else entity.id }}'
+                                              entity: '{{ "embedded_climate" if entity_id == thermostat_embedded else entity_id }}'
                                               back_page: '{{ back_page }}'
                                             continue_on_error: true
                                       - alias: Custom action - Left
@@ -9547,7 +9507,6 @@ action:
                                         sequence: !input right_button_hold_custom_action
                               - alias: Short click
                                 conditions:
-                                  - '{{ entity.valid }}'
                                   - '{{ nspanel_event.command == "short_click" and entity_domain not in ["climate", "media_player"] }}'
                                 sequence:
                                   - condition: '{{ last_click_button.entity | length > 0 }}'
@@ -9610,20 +9569,19 @@ action:
                                 icon: '{{ last_click_button.icon if last_click_button.icon is defined else None }}'
                                 name: '{{ last_click_button.name if last_click_button.name is defined else None }}'
                           - *variable_entity
-                          - condition: '{{ entity.valid }}'
                           - choose:
                               - alias: Long click
                                 conditions:
-                                  - '{{ nspanel_event.command == "long_click" or entity.domain in ["climate", "media_player"] }}'
-                                  - '{{ entity.domain in ["alarm_control_panel", "climate", "cover", "light", "fan", "media_player"] }}'
+                                  - '{{ nspanel_event.command == "long_click" or entity_domain in ["climate", "media_player"] }}'
+                                  - '{{ entity_domain in ["alarm_control_panel", "climate", "cover", "light", "fan", "media_player"] }}'
                                 sequence:
                                   - variables:
                                       back_page: '{{ nspanel_event.page }}'
                                   - *open_entity_settings_page
                               - alias: Short click
                                 conditions:
-                                  - '{{ nspanel_event.command == "short_click" and entity.domain not in ["alarm_control_panel", "climate", "media_player"] }}'
-                                  - '{{ entity.domain not in ["unknown", "person", "binary_sensor", "sensor"] }}'
+                                  - '{{ nspanel_event.command == "short_click" and entity_domain not in ["alarm_control_panel", "climate", "media_player"] }}'
+                                  - '{{ entity_domain not in ["unknown", "person", "binary_sensor", "sensor"] }}'
                                 sequence:
                                   - *short_press-service_call
 
@@ -9677,9 +9635,8 @@ action:
                                 icon: '{{ last_click_button.icon if last_click_button.icon is defined else None }}'
                                 name: '{{ last_click_button.name if last_click_button.name is defined else None }}'
                           - *variable_entity
-                          - condition: '{{ entity.valid }}'
                           - if:
-                              - '{{ entity.domain in ["alarm_control_panel", "climate", "cover", "fan", "light", "media_player"] }}'
+                              - '{{ entity_domain in ["alarm_control_panel", "climate", "cover", "fan", "light", "media_player"] }}'
                             then:
                               - variables:
                                   back_page: '{{ page.home }}'
@@ -9768,7 +9725,6 @@ action:
                               entity_id: '{{ climate }}'
                               back_page: '{{ page.home }}'
                           - *variable_entity
-                          - condition: '{{ entity.valid }}'
                           - *open_entity_settings_page
 
                       - alias: Show button - Notification clear
