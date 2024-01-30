@@ -82,29 +82,31 @@ script:
   - id: !extend change_climate_state
     then:
       - lambda: |-
-          auto FahrenheitToCelsius = [](float fahrenheit) -> float {
-            return (fahrenheit - 32.0) * 5.0 / 9.0;
-          };
-
           if (embedded) {
             static const char *const TAG = "addon_climate_base.script.change_climate_state";
-            id(is_addon_climate_visible) = true;
-            disp1->set_component_value("climate.embedded", 1);
+            auto FahrenheitToCelsius = [](float fahrenheit) -> float {
+              return (fahrenheit - 32.0) * 5.0 / 9.0;
+            };
+            std::string temp_units = "${temp_units}";
+            bool temp_unit_fahrenheit = (temp_units == "°F" || temp_units == "F" || temp_units == "°f" || temp_units == "f");
             auto call = thermostat_embedded->make_call();
             float temperature;
+
+            id(is_addon_climate_visible) = true;
+            disp1->set_component_value("climate.embedded", 1);
             if (key == "temperature") {
               temperature = stof(value) / 10;
-              if (id(temp_unit_fahrenheit)) temperature = FahrenheitToCelsius(temperature);
+              if (temp_unit_fahrenheit) temperature = FahrenheitToCelsius(temperature);
               ESP_LOGD(TAG, "set_target_temperature(%f)", temperature);
               call.set_target_temperature(temperature);
             } else if (key == "target_temp_high") {
               temperature = stof(value) / 10;
-              if (id(temp_unit_fahrenheit)) temperature = FahrenheitToCelsius(temperature);
+              if (temp_unit_fahrenheit) temperature = FahrenheitToCelsius(temperature);
               ESP_LOGD(TAG, "set_target_temperature_high(%f)", temperature);
               call.set_target_temperature_high(temperature);
             } else if (key == "target_temp_low") {
               temperature = stof(value) / 10;
-              if (id(temp_unit_fahrenheit)) temperature = FahrenheitToCelsius(temperature);
+              if (temp_unit_fahrenheit) temperature = FahrenheitToCelsius(temperature);
               ESP_LOGD(TAG, "set_target_temperature_low(%f)", temperature);
               call.set_target_temperature_low(temperature);
             } else if (key == "hvac_mode") {
@@ -133,18 +135,20 @@ script:
   - id: !extend page_climate
     then:
       - lambda: |-
-          auto CelsiusToFahrenheit = [](float celsius) -> float {
-            return (celsius * 9 / 5) + 32;
-          };
-
           id(is_addon_climate_visible) = (current_page->state == "climate" and detailed_entity->state == "embedded_climate");
           if (id(is_addon_climate_visible)) {
             static const char *const TAG = "addon_climate_base.script.page_climate";
+            auto CelsiusToFahrenheit = [](float celsius) -> float {
+              return (celsius * 9 / 5) + 32;
+            };
+            std::string temp_units = "${temp_units}";
+            bool temp_unit_fahrenheit = (temp_units == "°F" || temp_units == "F" || temp_units == "°f" || temp_units == "f");
+            ClimateTraits traits = thermostat_embedded->get_traits();
+
             ESP_LOGV(TAG, "Climate page constructor:");
             ESP_LOGV(TAG, "  Add-on mode: %s", (${addon_climate_dual}) ? "Dual" : ((${addon_climate_heat}) ? "Heat" : ((${addon_climate_cool}) ? "Cool" : "Unknown")));
-            ESP_LOGV(TAG, "  Temp. units: %s", id(temp_unit_fahrenheit) ? "Fahrenheit" : "Celsius");
+            ESP_LOGV(TAG, "  Temp. units: %s", temp_unit_fahrenheit ? "Fahrenheit" : "Celsius");
             disp1->set_component_text_printf("page_label", id(addon_climate_friendly_name).c_str());
-            ClimateTraits traits = thermostat_embedded->get_traits();
             float temp_step = traits.get_visual_target_temperature_step();
             float temp_offset = traits.get_visual_min_temperature();
             float temp_max = traits.get_visual_max_temperature();
@@ -152,7 +156,7 @@ script:
             float temp_target_high = thermostat_embedded->target_temperature_high;
             float temp_target_low = thermostat_embedded->target_temperature_low;
             float temp_current = thermostat_embedded->current_temperature;
-            if (id(temp_unit_fahrenheit)) {
+            if (temp_unit_fahrenheit) {
               //temp_step = CelsiusToFahrenheit(temp_step);
               temp_step = temp_step * 1.8;
               temp_offset = CelsiusToFahrenheit(temp_offset);
