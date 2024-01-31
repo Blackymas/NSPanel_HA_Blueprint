@@ -445,6 +445,7 @@ ensuring users are well-informed for successful system setup and operation.
 | Change | Criticality | Affected Components |
 | :-- | :--: | :--: |
 | Fix Display of Climate Icons on Chips (#1675) | Minor | `Blueprint` |
+| Fix Icon's Colors on Home Page Values (#1694) | Minor | `Blueprint` |
 | Long Click Action Bug Fix for Hardware Button (#1637) | Minor | `Blueprint` |
 | Enhanced Memory Allocation When Uploading TFT (`esp-idf` only) | Enhancement | `ESPHome` |
 | Enhanced Consistency in Cover Controls (#1688) | Enhancement | `Blueprint` |
@@ -459,6 +460,8 @@ ensuring users are well-informed for successful system setup and operation.
 Now, the chip is displayed only when the climate entity has an active HVAC action.
 This change ensures that the chip is hidden in states like 'Idle' or other non-active states,
 aligning the display behavior with the operational status of the climate entity for improved accuracy and user experience.
+- **Fix Icon's Colors on Home Page Values**: Addressed an issue where icons for sensor domain entities on the home page were incorrectly displaying colors indicative of an "entity disabled" state.
+This fix ensures that the icons now reflect their correct status, enhancing the visual accuracy and user interface experience.
 - **Long Click Action Bug Fix for Hardware Button**: Resolved a bug where long click actions weren't executing on hardware buttons if no entity was assigned.
 This fix ensures that custom actions linked to long presses will now run as intended, regardless of whether an entity is assigned to the button,
 offering greater flexibility and reliability in user interactions.
