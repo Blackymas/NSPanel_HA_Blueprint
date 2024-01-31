@@ -446,6 +446,7 @@ ensuring users are well-informed for successful system setup and operation.
 | :-- | :--: | :--: |
 | Fix Display of Climate Icons on Chips (#1675) | Minor | `Blueprint` |
 | Fix Icon's Colors on Home Page Values (#1694) | Minor | `Blueprint` |
+| Fix Update of Media Player Icons on Custom Buttons (#1716) | Minor | `Blueprint` |
 | Long Click Action Bug Fix for Hardware Button (#1637) | Minor | `Blueprint` |
 | Enhanced Memory Allocation When Uploading TFT (`esp-idf` only) | Enhancement | `ESPHome` |
 | Enhanced Consistency in Cover Controls (#1688) | Enhancement | `Blueprint` |
@@ -463,6 +464,8 @@ This change ensures that the chip is hidden in states like 'Idle' or other non-a
 aligning the display behavior with the operational status of the climate entity for improved accuracy and user experience.
 - **Fix Icon's Colors on Home Page Values**: Addressed an issue where icons for sensor domain entities on the home page were incorrectly displaying colors indicative of an "entity disabled" state.
 This fix ensures that the icons now reflect their correct status, enhancing the visual accuracy and user interface experience.
+- **Fix Update of Media Player Icons on Custom Buttons**: Corrected an issue where media player icons on custom buttons were not updating in real-time to reflect the current playback status.
+This fix ensures that the icons dynamically represent the media player's state, improving the interface's responsiveness and accuracy.
 - **Long Click Action Bug Fix for Hardware Button**: Resolved a bug where long click actions weren't executing on hardware buttons if no entity was assigned.
 This fix ensures that custom actions linked to long presses will now run as intended, regardless of whether an entity is assigned to the button,
 offering greater flexibility and reliability in user interactions.
