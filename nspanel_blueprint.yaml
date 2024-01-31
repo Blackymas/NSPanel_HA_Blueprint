@@ -3217,11 +3217,11 @@ blueprint:
             description: >
               *SYSTEM settings*
 
-              *When this is enable, the pages will be shown earlier, but some information might not be visible from the begining and will be shown when available.*
-              *When disabled (default), the pages will be shown when all the data is loaded and ready to be displayed.*
+              *When this is enable (default), the pages will be shown earlier, but some information might not be visible from the begining and will be shown when available.*
+              *When disabled, the pages will be shown when all the data is loaded and ready to be displayed.*
 
               **This may be useful when your pages takes too long to load and can help you identifying the elements slowing down the page construction.**
-            default: false
+            default: true
             selector:
               boolean:
       ##### Media player update #####
@@ -3303,19 +3303,82 @@ trace:
 trigger_variables:
   nspanel_deviceid: !input 'nspanel_name'
   nspanel_entities: '{{ device_entities(nspanel_deviceid) }}'
-  left_button: '{{ nspanel_entities | selectattr(None, "search", "binary_sensor.*_left_button") | list | last }}'
-  right_button: '{{ nspanel_entities | selectattr(None, "search", "binary_sensor.*_right_button") | list | last }}'
-  nextion_inited: '{{ nspanel_entities | selectattr(None, "search", "binary_sensor.*_nextion_display") | list | last }}'
-  currentpage: '{{ nspanel_entities | selectattr(None, "search", "sensor.*_current_page") | list | last }}'
-  nspaneltemp: '{{ nspanel_entities | selectattr(None, "search", "sensor.*_temperature") | list | last }}'
-  detailed_entity: '{{ nspanel_entities | selectattr(None, "search", "sensor.*_detailed_entity") | list | last }}'
-  relay01_entity: '{{ nspanel_entities | selectattr(None, "search", "switch.*_relay_1") | list | last }}'
-  relay02_entity: '{{ nspanel_entities | selectattr(None, "search", "switch.*_relay_2") | list | last }}'
-  notification_unread: '{{ nspanel_entities | selectattr(None, "search", "switch.*_notification_unread") | list | last }}'
+  nspanel_name: >
+    {%- if nspanel_entities | count > 0 %}
+      {{ (nspanel_entities | selectattr(None, "search", "_nextion_display") | list | first).split(".")[1].split("_nextion_display")[0] }}
+    {%- elif nspanel_deviceid is string %}
+      {{ nspanel_deviceid | regex_replace("[^a-zA-Z0-9]", "_") | regex_replace("_+", "_") | lower }}
+    {%- endif %}
+
+  left_button: >
+    {{
+      nspanel_entities | selectattr(None, "search", "binary_sensor.*_left_button") | list | last
+      if nspanel_entities | selectattr(None, "search", "binary_sensor.*_left_button") | list | count > 0
+      else ("binary_sensor." ~ nspanel_name ~ "_left_button")
+    }}
+  right_button: >
+    {{
+      nspanel_entities | selectattr(None, "search", "binary_sensor.*_right_button") | list | last
+      if nspanel_entities | selectattr(None, "search", "binary_sensor.*_right_button") | list | count > 0
+      else ("binary_sensor." ~ nspanel_name ~ "_right_button")
+    }}
+
+  relay01_entity: >
+    {{
+      nspanel_entities | selectattr(None, "search", "switch.*_relay_1") | list | last
+      if nspanel_entities | selectattr(None, "search", "switch.*_relay_1") | list | count > 0
+      else ("switch." ~ nspanel_name ~ "_relay_1")
+    }}
+  relay02_entity: >
+    {{
+      nspanel_entities | selectattr(None, "search", "switch.*_relay_2") | list | last
+      if nspanel_entities | selectattr(None, "search", "switch.*_relay_2") | list | count > 0
+      else ("switch." ~ nspanel_name ~ "_relay_2")
+    }}
+
+  blueprint_entity: >
+    {{
+      nspanel_entities | selectattr(None, "search", "binary_sensor.*_blueprint") | list | last
+      if nspanel_entities | selectattr(None, "search", "binary_sensor.*_blueprint") | list | count > 0
+      else ("binary_sensor." ~ nspanel_name ~ "_blueprint")
+    }}
+  currentpage: >
+    {{
+      nspanel_entities | selectattr(None, "search", "sensor.*_current_page") | list | last
+      if nspanel_entities | selectattr(None, "search", "sensor.*_current_page") | list | count > 0
+      else ("sensor." ~ nspanel_name ~ "_current_page")
+    }}
+  detailed_entity: >
+    {{
+      nspanel_entities | selectattr(None, "search", "sensor.*_detailed_entity") | list | last
+      if nspanel_entities | selectattr(None, "search", "sensor.*_detailed_entity") | list | count > 0
+      else ("sensor." ~ nspanel_name ~ "_detailed_entity")
+    }}
+  nextion_inited: >
+    {{
+      nspanel_entities | selectattr(None, "search", "binary_sensor.*_nextion_display") | list | last
+      if nspanel_entities | selectattr(None, "search", "binary_sensor.*_nextion_display") | list | count > 0
+      else ("binary_sensor." ~ nspanel_name ~ "_nextion_display")
+    }}
+
+  nspaneltemp: >
+    {{
+      nspanel_entities | selectattr(None, "search", "sensor.*_temperature") | list | last
+      if nspanel_entities | selectattr(None, "search", "sensor.*_temperature") | list | count > 0
+      else ("sensor." ~ nspanel_name ~ "_temperature")
+    }}
+  notification_unread: >
+    {{
+      nspanel_entities | selectattr(None, "search", "switch.*_notification_unread") | list | last
+      if nspanel_entities | selectattr(None, "search", "switch.*_notification_unread") | list | count > 0
+      else ("switch." ~ nspanel_name ~ "_notification_unread")
+    }}
+
   thermostat_embedded: >
     {{
       nspanel_entities | selectattr(None, "search", "climate.*_thermostat") | list | last
       if nspanel_entities | selectattr(None, "search", "climate.*_thermostat") | list | count > 0
+      else ("climate." ~ nspanel_name ~ "_thermostat")
     }}
 
 variables:
@@ -6047,15 +6110,21 @@ trigger:
 
     ##### Reboot - Trigger 'nspanel_boot_init' #####
     - platform: template
-      value_template: '{{ is_state(nextion_inited, "on") | default(false) if nextion_inited is string else false }}'
+      value_template: '{{ is_state(nextion_inited, "on") | default(false) }}'
       for:
         seconds: 1
       id: nspanel_boot_init
     - platform: template
-      value_template: '{{ is_state(currentpage, "boot") | default(false) if currentpage is string else false }}'
+      value_template: '{{ is_state(blueprint_entity, "off") | default(false) }}'
       for:
         seconds: 1
       id: nspanel_boot_init
+    - platform: template
+      value_template: '{{ is_state(currentpage, "boot") | default(false) }}'
+      for:
+        seconds: 1
+      id: nspanel_boot_init
+
     ##### Automation reload or HA started
     - platform: event
       event_type: automation_reloaded
