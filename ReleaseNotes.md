@@ -451,7 +451,7 @@ ensuring users are well-informed for successful system setup and operation.
 | Enhanced Consistency in Cover Controls (#1688) | Enhancement | `Blueprint` |
 | Support ESPHome `friendly_name` (#1719) | Enhancement | `Blueprint`<br>`ESPHome` |
 | Motion Sensor for Display Wake-Up (#1687) | Enhancement | `Blueprint` |
-| Media Player on Chips | Enhancement | `Blueprint` |
+| Expanded Visualization on Chips | Enhancement | `Blueprint` |
 | Clean-up Blueprint Inputs (#1722) | Enhancement | `Blueprint` |
 | Update docs (install.md) with memory requirements (#1720) | Documentation | `Documentation` |
 <!-- markdownlint-enable MD013 MD033 -->
@@ -484,8 +484,8 @@ presence, or door sensor to wake up the display, enhancing the panel's responsiv
 Each detected motion or sensor activation event triggers the panel to wake up, with the sleep timer resetting with every new detection.
 While the panel will still follow the pre-set sleep duration settings regardless of continuous motion or sensor activity,
 this initial implementation marks a significant step in making user interactions more dynamic and intuitive.
-- **Media Player Visualization on Chips**: Updated the home page chips to support the display of Media Player entities.
-It enriches the home page with informative visual feedback on media playback status, contributing to a more informative and visually engaging user interface.
+- **Expanded Visualization on Chips**: Enhanced the home page chips to display not only Media Player entities but now also Fan entities, among previously supported domains.
+This update broadens the informative visual feedback available on the home page, offering a more comprehensive and visually engaging snapshot of the device status within the user interface.
 - **Clean-up Blueprint Inputs**: Simplified the naming of Blueprint inputs for better clarity and ease of use.
 Labels such as *"Button14"* have been updated to more descriptive formats like *"Button page 2, Button 6"*, enhancing the user's ability to understand and navigate
 - **Documentation Update on Memory Requirements for ESPHome**: Enhanced the installation documentation to include detailed guidelines on memory requirements.
