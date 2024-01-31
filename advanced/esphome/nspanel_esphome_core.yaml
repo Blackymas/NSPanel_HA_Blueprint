@@ -762,12 +762,6 @@ globals:
     restore_value: false
     initial_value: 'false'
 
-  ##### Is blueprint updated #####
-  - id: is_blueprint_updated
-    type: bool
-    restore_value: false
-    initial_value: 'false'
-
   ##### Is global settings loaded #####
   - id: is_global_settings_loaded
     type: bool
@@ -1081,6 +1075,23 @@ binary_sensor:
     on_state:
       then:
         - script.execute: watchdog
+
+  - name: Blueprint
+    id: blueprint_status
+    platform: template
+    device_class: connectivity
+    publish_initial_state: false
+    entity_category: diagnostic
+    icon: mdi:link-variant
+    internal: false
+    disabled_by_default: false
+    on_state:
+      then:
+        - lambda: |-
+            static const char *const TAG = "binary_sensor.blueprint_status";
+            ESP_LOGD(TAG, "Blueprint synced: %s", x ? "True" : "False");
+            // Update api value on Nextion
+            disp1->send_command_printf("api=%i", x ? 1 : 0);
 
 ##### START - BUTTON CONFIGURATION #####
 button:
@@ -1749,7 +1760,7 @@ text_sensor:
     entity_category: diagnostic
     icon: mdi:tag-text-outline
     internal: false
-    update_interval: never
+    #update_interval: never
     lambda: |-
       return {"${version}"};
     on_value:
@@ -1932,7 +1943,7 @@ script:
           page_screensaver->execute();
 
           id(is_global_settings_loaded) = true;
-          id(is_blueprint_updated) = true;
+          blueprint_status->publish_state(true);
           disp1->send_command_printf("api=1");
 
           if (current_page->state != "boot") {
@@ -2424,12 +2435,12 @@ script:
       - lambda: |-
           if (nextion_init->state) {
             // Update Wi-Fi icon color
-            disp1->set_component_font_color("home.wifi_icon", (id(is_blueprint_updated)) ? (wifi_rssi->state > -70 ? 33808 : 64992) : 63488);
+            disp1->set_component_font_color("home.wifi_icon", (blueprint_status->state) ? (wifi_rssi->state > -70 ? 33808 : 64992) : 63488);
             // Update Wi-Fi icon
             disp1->set_component_text_printf("home.wifi_icon", "%s",
                                               wifi_component->is_connected() ?
                                                 (api_server->is_connected() ?
-                                                  (id(is_blueprint_updated) ? "\uE5A8" :  // mdi:wifi - All right!
+                                                  (blueprint_status->state ? "\uE5A8" :  // mdi:wifi - All right!
                                                   "\uE7CF") :                             // mdi:home-assistant - Blueprint is out
                                                 "\uF256") :                               // mdi:api-off
                                               "\uE5A9");                                  // mdi:wifi-off
@@ -3191,13 +3202,13 @@ script:
             }
 
             // report API status
-            bool previous_blueprint_status = id(is_blueprint_updated);
+            bool previous_blueprint_status = blueprint_status->state;
             bool api_connected = api_server->is_connected();
             if (api_connected) {
               ESP_LOGI(TAG, "API:           Connected");
             } else {
               ESP_LOGW(TAG, "API:           DISCONNECTED");
-              id(is_blueprint_updated) = false;
+              blueprint_status->publish_state(false);
               if (current_page->state != "blank" and
                   current_page->state != "boot" and
                   current_page->state != "home" and
@@ -3210,8 +3221,8 @@ script:
             }
 
             // Report blueprint version
-            id(is_blueprint_updated) = id(is_blueprint_updated) and wifi_connected and api_connected and (not version_blueprint->state.empty());
-            if (id(is_blueprint_updated))
+            blueprint_status->publish_state(blueprint_status->state and wifi_connected and api_connected and (not version_blueprint->state.empty()));
+            if (blueprint_status->state)
               ESP_LOGI(TAG, "Blueprint:     %s", version_blueprint->state.c_str());
             else {
               ESP_LOGW(TAG, "Blueprint:     %s", (wifi_connected and api_connected) ? "Pending" : "DISCONNECTED");
@@ -3259,8 +3270,6 @@ script:
             }
             if (nextion_init->state) {
               ESP_LOGI(TAG, "  Init:        True");
-              // Update api value on Nextion
-              if (id(is_blueprint_updated) != previous_blueprint_status) disp1->send_command_printf("api=%i", id(is_blueprint_updated) ? 1 : 0);
             } else
               ESP_LOGW(TAG, "  Init:        False");
             if (version_tft->state.empty())
