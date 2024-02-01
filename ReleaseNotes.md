@@ -433,9 +433,11 @@ In this release, we've focused on enhancing the user interface and providing cru
 Key updates include refined control mechanisms for climate and cover entities, improved functionality for hardware buttons,
 and the introduction of support for ESPHome's `friendly_name`. 
 
-**Breaking Changes:** This update brings a change in handling custom entities.
+**Breaking Changes:**
+1. **Custom entities naming changed**.
 If your setup includes custom entities using `${device_name}` in their names, please modify these entities to omit `${device_name}`.
 ESPHome will now automatically append the `friendly_name` or `device_name` from your substitutions, simplifying the naming process.
+2. **Show while loading** input is deprecated and all pages will show components while loading as default.
 
 Additionally, we have updated our documentation to include comprehensive guidelines on memory requirements for ESPHome,
 ensuring users are well-informed for successful system setup and operation.
