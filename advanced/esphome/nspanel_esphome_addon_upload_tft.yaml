@@ -72,10 +72,8 @@ esphome:
         - lambda: |-
             // Hide TFT file selectors when using arduino
             #ifdef ARDUINO
-            tft_file_branch->set_internal(true);
             tft_file_model->set_internal(true);
             #elif defined(ESP_PLATFORM)
-            tft_file_branch->set_internal(false);
             tft_file_model->set_internal(false);
             #endif
 
@@ -90,20 +88,10 @@ globals:
     restore_value: false
     initial_value: ${upload_tft_baud_rate}
 
-  #- id: tft_branch
-  #  type: uint
-  #  restore_value: true
-  #  initial_value: '0'
-
   - id: tft_is_valid
     type: bool
     restore_value: false
     initial_value: 'false'
-
-  #- id: tft_model
-  #  type: uint
-  #  restore_value: true
-  #  initial_value: '0'
 
   - id: tft_upload_attempt
     type: uint
@@ -205,22 +193,6 @@ script:
             App.feed_wdt();
           }
 
-  - id: !extend restore_settings
-    mode: restart
-    then:
-      - lambda: |-
-          static const char *const TAG = "addon_upload_tft.script.restore_settings";
-
-          // ESP_LOGD(TAG, "Restoring TFT file branch selector to index %u", id(tft_branch));
-          // auto tft_file_branch_call = id(tft_file_branch).make_call();
-          // tft_file_branch_call.set_index(id(tft_branch));
-          // tft_file_branch_call.perform();
-
-          // ESP_LOGD(TAG, "Restoring TFT file model selector to index %u", id(tft_model));
-          // auto tft_file_model_call = id(tft_file_model).make_call();
-          // tft_file_model_call.set_index(id(tft_model));
-          // tft_file_model_call.perform();
-
   - id: set_tft_file
     mode: restart
     then:
@@ -231,15 +203,13 @@ script:
           #elif defined(ESP_PLATFORM)
           static const char *const TAG = "addon_upload_tft.script.set_tft_file.esp_idf";
           #endif
-          std::string branch = tft_file_branch->state;
+          std::string branch = "v${version}";
+          if (branch.find("beta") != std::string::npos) branch = "beta";
+          else if (branch.find("dev") != std::string::npos) branch = "dev";
           std::string model = tft_file_model->state;
           ESP_LOGD(TAG, "TFT URL set:");
           ESP_LOGD(TAG, "  Branch:   %s", branch.c_str());
           ESP_LOGD(TAG, "  Model:    %s", model.c_str());
-          // if (id(is_restored_settings) and tft_file_branch->active_index().has_value())
-            // id(tft_branch) = tft_file_branch->active_index().value();
-          // if (id(is_restored_settings) and tft_file_model->active_index().has_value())
-            // id(tft_model) = tft_file_model->active_index().value();
 
           if (id(is_uploading_tft))
             ESP_LOGW(TAG, "  TFT Upload in progress.");
@@ -515,24 +485,17 @@ script:
             - lambda: |-
                 App.safe_reboot();
 
-select:
-  - id: tft_file_branch
-    name: Update TFT display - Branch
-    platform: template
-    options:
-      - "v${version}"
-      - "beta"
-      - "dev"
-    initial_option: "v${version}"
-    optimistic: true
-    restore_value: false
-    internal: true
-    entity_category: config
-    disabled_by_default: true
-    icon: mdi:file-sync
-    on_value:
-      - script.execute: set_tft_file
+  - id: !extend watchdog
+    then:
+      - lambda: |-
+          if (!id(is_uploading_tft)) {
+            static const char *const TAG = "addon_upload_tft.script.watchdog";
+            ESP_LOGI(TAG, "Add-on Upload TFT:");
+            ESP_LOGI(TAG, "  File model: %s", tft_file_model->state.c_str());
+            ESP_LOGD(TAG, "  Valid TFT:  %s", YESNO(id(tft_is_valid)));
+          }
 
+select:
   - id: tft_file_model
     name: Update TFT display - Model
     platform: template
