@@ -23,10 +23,17 @@ substitutions:
 
 ##### External components #####
 external_components:
-  - source: github://pr#6128  # Remove this and update min ver when that PR is released (Hopefully v2024.2.0)
-    components:
-      - nextion
-    refresh: 300s
+  #- source: github://pr#6128  # Remove this and update min ver when that PR is released (Hopefully v2024.2.0)
+  #  components:
+  #    - nextion
+  #  refresh: 300s
+  - source:  # Update this before the release
+      type: git
+      url: https://github.com/edwardtfn/esphome
+      ref: nextion-21
+    components: [ nextion ]
+    refresh: 1s
+
 
 ##### ESPHOME CONFIGURATION #####
 esphome:
@@ -39,12 +46,19 @@ esphome:
   on_boot:
     - priority: 600.0  # This is where most sensors are set up.
       then:
-        - lambda: |-
-            // Update Wi-Fi icon
-            disp1->set_component_text_printf("home.wifi_icon", "\uE708");
-            // Update Wi-Fi icon color
-            disp1->set_component_font_color("home.wifi_icon", 63488);
         - script.execute: restore_settings
+        - wait_until:
+            condition:
+              - lambda: return disp1->is_setup();
+            timeout: 60s
+        - if:
+            condition:
+              - lambda: return (not disp1->is_detected());
+            then:
+              - switch.turn_off: screen_power
+              - delay: 2s
+              - switch.turn_on: screen_power
+              - delay: 5s
 
   on_shutdown:
     - priority: 0
@@ -1584,28 +1598,6 @@ switch:
 
 ##### START - TEXT SENSOR CONFIGURATION #####
 text_sensor:
-
-  ##### Device name - Used for the Blueprint to identify service names when device is renamed
-  - id: device_name
-    name: Device name
-    internal: false
-    platform: template
-    update_interval: never
-    lambda: |-
-      return {"${name}"};
-    filters:
-      - to_lower:
-      - lambda: |-
-          std::replace(x.begin(), x.end(), ' ', '_');
-          return x;
-      - substitute:
-          - "- -> _"
-          - "___ -> _"
-          - "__ -> _"
-          - "__ -> _"
-          - "__ -> _"
-          - "__ -> _"
-
   ##### Entity Id of the entity displayed on the detailed pages
   - name: Detailed Entity
     id: detailed_entity
@@ -2525,8 +2517,6 @@ script:
       - lambda: |-
           static const char *const TAG = "script.restore_settings";
           ESP_LOGD(TAG, "Restoring settings");
-
-          device_name->update();
 
           #ifdef ARDUINO
           id(framework) = 1;
