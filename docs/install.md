@@ -100,7 +100,7 @@ Follow these steps to add a new device in the ESPHome Dashboard:
       friendly_name: "Your panel's friendly name"
       wifi_ssid: !secret wifi_ssid
       wifi_password: !secret wifi_password
-      nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"  # Optional for `esp-idf` framework
+      nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"  # Optional
       # Add-on configuration (if needed)
       # heater_relay: "1"  # Possible values: "1" or "2"
 
@@ -132,7 +132,7 @@ Follow these steps to add a new device in the ESPHome Dashboard:
    ![Edit Settings](pics/ha_esphome_dashboard_new_device_06b.png)
 10. For Wi-Fi credentials, use `!secret` for added security or input them directly.
 Learn about secrets in ESPHome: [Home Assistant Secrets in ESPHome](https://www.youtube.com/watch?v=eW4vKDeHh7Y).
-11. (Optionally when using `esp-idf`) Adjust `nextion_update_url` to the URL of a TFT file hosted on an HTTP or HTTPS server,
+11. (Optional) Adjust `nextion_update_url` to the URL of a TFT file hosted on an HTTP or HTTPS server,
     ensuring that the file is accessible to the NSPanel.
     This URL will be used by ESPHome to download the TFT file to your panel.
     For more information on hosting the TFT file and setting up the URL, see the [Upload TFT](#upload-tft) section.
@@ -448,7 +448,7 @@ substitutions:
   friendly_name: "Your panel's friendly name"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
-  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"
+  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"  # Optional
   # Add-on configuration
   # heater_relay: "1" - possible values: 1/2
 

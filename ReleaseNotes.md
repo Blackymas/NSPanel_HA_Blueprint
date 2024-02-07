@@ -428,10 +428,12 @@ For support, feedback, or detailed information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
 or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
 
-## Patch v4.2.5: Interface Refinements and Essential Documentation Updates
-In this release, we've focused on enhancing the user interface and providing crucial information for a better user experience.
-Key updates include refined control mechanisms for climate and cover entities, improved functionality for hardware buttons,
-and the introduction of support for ESPHome's `friendly_name`. 
+## Patch v4.2.5: Celebrating 1000 Stars with Minor Bug Fixes and UI Enhancements
+To celebrate crossing the 1000-star milestone on our GitHub repository, we're thrilled to bring you Patch v4.2.5.
+This update focuses on improving user interactions and system stability, featuring refined controls for climate and cover entities,
+enhanced hardware button functionality, and the introduction of ESPHome's `friendly_name` support for improved device identification.
+Additionally, we've simplified the TFT transfer process for Arduino users, now allowing direct downloads from GitHub, a convenience previously exclusive to ESP-IDF users.
+This milestone reflects our community's support and enthusiasm, inspiring us to continue delivering quality improvements.
 
 **Breaking Changes:**
 1. **Custom entities naming changed**.
@@ -456,6 +458,7 @@ ensuring users are well-informed for successful system setup and operation.
 | Motion Sensor for Display Wake-Up (#1687) | Enhancement | `Blueprint` |
 | Expanded Visualization on Chips | Enhancement | `Blueprint` |
 | Clean-up Blueprint Inputs (#1722) | Enhancement | `Blueprint` |
+| Direct TFT Transfer from GitHub for Arduino Users | Enhancement | `ESPHome` |
 | Update docs (install.md) with memory requirements (#1720) | Documentation | `Documentation` |
 <!-- markdownlint-enable MD013 MD033 -->
 
@@ -497,6 +500,9 @@ Labels such as *"Button14"* have been updated to more descriptive formats like *
 This update addresses frequent user-reported compilation errors in ESPHome, attributed to insufficient memory on compiler servers.
 The updated section outlines recommended memory configurations for different installation scenarios, ensuring smoother compilation processes.
 A special acknowledgement to @andythomas for his valuable contributions to this update.
+- **Direct TFT Transfer from GitHub for Arduino Users**: Enhanced the TFT update process for Arduino users by enabling direct transfer of TFT files from GitHub to Nextion displays,
+mirroring the functionality previously available to ESP-IDF users.
+This streamlines the update workflow, removing the need for intermediate steps like using a local HTTP server, and making it easier to keep Nextion displays up-to-date.
 
 For support, feedback, or detailed information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
