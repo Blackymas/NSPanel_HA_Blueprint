@@ -70,9 +70,6 @@ use_blueprint:
     accuweather: home_wetter
     outdoortemp: sensor.terrasse_garage_motion_sensor_temperature
     humidity: sensor.kinderzimmer_lea_temperatur_sensor_humidity
-    hotwatertemp: sensor.hotwater_temp
-    hotwatercharge: switch.charge
-    heatingsystemflame: binary_sensor.flamestatus
     climate: climate.nspanel_buro
     left_button_entity: light.haustur_spot_2
     right_button_entity: light.haustur_spot_1
