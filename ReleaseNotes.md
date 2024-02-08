@@ -448,36 +448,40 @@ ensuring users are well-informed for successful system setup and operation.
 <!-- markdownlint-disable MD013 MD033 -->
 | Change | Criticality | Affected Components |
 | :-- | :--: | :--: |
+| Long Click Action Bug Fix for Hardware Button (#1637) | Minor | `Blueprint` |
 | Fix Display of Climate Icons on Chips (#1675) | Minor | `Blueprint` |
 | Fix Icon's Colors on Home Page Values (#1694) | Minor | `Blueprint` |
+| Alarm Keypad Arm/Disarm Fix for US Model (#1705) | Minor | `TFT file (US model only)` |
 | Fix Update of Media Player Icons on Custom Buttons (#1716) | Minor | `Blueprint` |
-| Long Click Action Bug Fix for Hardware Button (#1637) | Minor | `Blueprint` |
-| Enhanced Memory Allocation When Uploading TFT (`esp-idf` only) | Enhancement | `ESPHome` |
+| Motion Sensor for Display Wake-Up (#1687) | Enhancement | `Blueprint` |
 | Enhanced Consistency in Cover Controls (#1688) | Enhancement | `Blueprint` |
 | Support ESPHome `friendly_name` (#1719) | Enhancement | `Blueprint`<br>`ESPHome` |
-| Motion Sensor for Display Wake-Up (#1687) | Enhancement | `Blueprint` |
-| Expanded Visualization on Chips | Enhancement | `Blueprint` |
 | Clean-up Blueprint Inputs (#1722) | Enhancement | `Blueprint` |
+| Enhanced Memory Allocation When Uploading TFT (`esp-idf` only) | Enhancement | `ESPHome` |
+| Expanded Visualization on Chips | Enhancement | `Blueprint` |
 | Direct TFT Transfer from GitHub for Arduino Users | Enhancement | `ESPHome` |
 | Update docs (install.md) with memory requirements (#1720) | Documentation | `Documentation` |
 <!-- markdownlint-enable MD013 MD033 -->
 
 **Key Improvements:**
+- **Long Click Action Bug Fix for Hardware Button**: Resolved a bug where long click actions weren't executing on hardware buttons if no entity was assigned.
+This fix ensures that custom actions linked to long presses will now run as intended, regardless of whether an entity is assigned to the button,
+offering greater flexibility and reliability in user interactions.
 - **Fix Display of Climate Icons on Chips**: Enhanced the functionality of climate entity chips.
 Now, the chip is displayed only when the climate entity has an active HVAC action.
 This change ensures that the chip is hidden in states like 'Idle' or other non-active states,
 aligning the display behavior with the operational status of the climate entity for improved accuracy and user experience.
 - **Fix Icon's Colors on Home Page Values**: Addressed an issue where icons for sensor domain entities on the home page were incorrectly displaying colors indicative of an "entity disabled" state.
 This fix ensures that the icons now reflect their correct status, enhancing the visual accuracy and user interface experience.
+- **Alarm Keypad Arm/Disarm Fix for US Model**: Resolved an issue specific to the US model, where alarms requiring a PIN to arm/disarm were not functioning correctly.
+This fix, applied through an update to the TFT file, ensures that users with these alarm systems can reliably arm and disarm their security devices.
 - **Fix Update of Media Player Icons on Custom Buttons**: Corrected an issue where media player icons on custom buttons were not updating in real-time to reflect the current playback status.
 This fix ensures that the icons dynamically represent the media player's state, improving the interface's responsiveness and accuracy.
-- **Long Click Action Bug Fix for Hardware Button**: Resolved a bug where long click actions weren't executing on hardware buttons if no entity was assigned.
-This fix ensures that custom actions linked to long presses will now run as intended, regardless of whether an entity is assigned to the button,
-offering greater flexibility and reliability in user interactions.
-- **Enhanced Memory Allocation When Uploading TFT (esp-idf only)**: Optimized memory management for TFT uploads on systems using the `esp-idf` framework.
-This update prevents simultaneous HTTP server connections, allowing for better memory allocation and reducing the risk of system crashes due to memory shortages.
-It does not affect users on the `arduino` framework.
-Additionally, the log for the upload process now includes detailed memory usage data, providing valuable insights for troubleshooting and system performance enhancement.
+- **Motion Sensor for Display Wake-Up**: We've introduced a feature that allows users to specify a motion,
+presence, or door sensor to wake up the display, enhancing the panel's responsiveness.
+Each detected motion or sensor activation event triggers the panel to wake up, with the sleep timer resetting with every new detection.
+While the panel will still follow the pre-set sleep duration settings regardless of continuous motion or sensor activity,
+this initial implementation marks a significant step in making user interactions more dynamic and intuitive.
 - **Enhanced Consistency in Cover Controls**: Building upon the dynamic icons feature introduced in v4.2.2, we've further refined the cover controls.
 This enhancement extends the use of `device_class` to the detailed cover page,
 ensuring that the icons for opening and closing covers are more accurately representative of the cover type.
@@ -487,22 +491,21 @@ Previously, using `friendly_name` could disrupt communication between the Bluepr
 This update resolves these issues, ensuring seamless integration.
 Users can now utilize the `friendly_name` substitution in their YAML setup to assign more intuitive and descriptive names to their devices,
 significantly improving the ease of device identification and overall user experience.
-- **Motion Sensor for Display Wake-Up**: We've introduced a feature that allows users to specify a motion,
-presence, or door sensor to wake up the display, enhancing the panel's responsiveness.
-Each detected motion or sensor activation event triggers the panel to wake up, with the sleep timer resetting with every new detection.
-While the panel will still follow the pre-set sleep duration settings regardless of continuous motion or sensor activity,
-this initial implementation marks a significant step in making user interactions more dynamic and intuitive.
-- **Expanded Visualization on Chips**: Enhanced the home page chips to display not only Media Player entities but now also Fan entities, among previously supported domains.
-This update broadens the informative visual feedback available on the home page, offering a more comprehensive and visually engaging snapshot of the device status within the user interface.
 - **Clean-up Blueprint Inputs**: Simplified the naming of Blueprint inputs for better clarity and ease of use.
 Labels such as *"Button14"* have been updated to more descriptive formats like *"Button page 2, Button 6"*, enhancing the user's ability to understand and navigate
+- **Enhanced Memory Allocation When Uploading TFT (esp-idf only)**: Optimized memory management for TFT uploads on systems using the `esp-idf` framework.
+This update prevents simultaneous HTTP server connections, allowing for better memory allocation and reducing the risk of system crashes due to memory shortages.
+It does not affect users on the `arduino` framework.
+Additionally, the log for the upload process now includes detailed memory usage data, providing valuable insights for troubleshooting and system performance enhancement.
+- **Expanded Visualization on Chips**: Enhanced the home page chips to display not only Media Player entities but now also Fan entities, among previously supported domains.
+This update broadens the informative visual feedback available on the home page, offering a more comprehensive and visually engaging snapshot of the device status within the user interface.
+- **Direct TFT Transfer from GitHub for Arduino Users**: Enhanced the TFT update process for Arduino users by enabling direct transfer of TFT files from GitHub to Nextion displays,
+mirroring the functionality previously available to ESP-IDF users.
+This streamlines the update workflow, removing the need for intermediate steps like using a local HTTP server, and making it easier to keep Nextion displays up-to-date.
 - **Documentation Update on Memory Requirements for ESPHome**: Enhanced the installation documentation to include detailed guidelines on memory requirements.
 This update addresses frequent user-reported compilation errors in ESPHome, attributed to insufficient memory on compiler servers.
 The updated section outlines recommended memory configurations for different installation scenarios, ensuring smoother compilation processes.
 A special acknowledgement to @andythomas for his valuable contributions to this update.
-- **Direct TFT Transfer from GitHub for Arduino Users**: Enhanced the TFT update process for Arduino users by enabling direct transfer of TFT files from GitHub to Nextion displays,
-mirroring the functionality previously available to ESP-IDF users.
-This streamlines the update workflow, removing the need for intermediate steps like using a local HTTP server, and making it easier to keep Nextion displays up-to-date.
 
 For support, feedback, or detailed information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
