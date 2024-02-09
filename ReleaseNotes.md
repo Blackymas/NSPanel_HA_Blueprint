@@ -428,7 +428,7 @@ For support, feedback, or detailed information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
 or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
 
-## Patch v4.2.5: Celebrating 1000 Stars with Minor Bug Fixes and UI Enhancements
+## Patch v4.2.5: Celebrating 1000 Stars with Bug Fixes and UI Enhancements
 To celebrate crossing the 1000-star milestone on our GitHub repository, we're thrilled to bring you Patch v4.2.5.
 This update focuses on improving user interactions and system stability, featuring refined controls for climate and cover entities,
 enhanced hardware button functionality, and the introduction of ESPHome's `friendly_name` support for improved device identification.
