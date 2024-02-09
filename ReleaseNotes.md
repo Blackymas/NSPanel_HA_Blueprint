@@ -460,6 +460,7 @@ ensuring users are well-informed for successful system setup and operation.
 | Enhanced Memory Allocation When Uploading TFT (`esp-idf` only) | Enhancement | `ESPHome` |
 | Expanded Visualization on Chips | Enhancement | `Blueprint` |
 | Direct TFT Transfer from GitHub for Arduino Users | Enhancement | `ESPHome` |
+| Baud Rate Adjustment for TFT Uploads | Enhancement | `ESPHome` |
 | Update docs (install.md) with memory requirements (#1720) | Documentation | `Documentation` |
 <!-- markdownlint-enable MD013 MD033 -->
 
@@ -506,6 +507,10 @@ This streamlines the update workflow, removing the need for intermediate steps l
 This update addresses frequent user-reported compilation errors in ESPHome, attributed to insufficient memory on compiler servers.
 The updated section outlines recommended memory configurations for different installation scenarios, ensuring smoother compilation processes.
 A special acknowledgement to @andythomas for his valuable contributions to this update.
+- **Baud Rate Adjustment for TFT Uploads**: This update introduces a baud rate selector in the device's "Configuration" area,
+allowing users to lower the transfer speed from the default 921600 bps.
+This enhancement is particularly useful for troubleshooting transfer issues,
+providing a straightforward method to improve transfer reliability by adjusting the speed to accommodate different system capabilities.
 
 For support, feedback, or detailed information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
