@@ -495,7 +495,8 @@ Previously, using `friendly_name` could disrupt communication between the Bluepr
 This update resolves these issues, ensuring seamless integration.
 Users can now utilize the `friendly_name` substitution in their YAML setup to assign more intuitive and descriptive names to their devices,
 significantly improving the ease of device identification and overall user experience.
-- **Improved Blueprint Input Clarity**: Simplified the naming of Blueprint inputs for better clarity and ease of use. Labels such as *"Button14"* have been updated to more descriptive formats like *"Button page 2, Button 6"*.
+- **Improved Blueprint Input Clarity**: Simplified the naming of Blueprint inputs for better clarity and ease of use.
+Labels such as *"Button14"* have been updated to more descriptive formats like *"Button page 2, Button 6"*.
 Additionally, terms like "LABEL COLOR" have been refined to "Text Color" to improve understanding related to sensor display customization.
 - **Enhanced Memory Allocation When Uploading TFT (esp-idf only)**: Optimized memory management for TFT uploads on systems using the `esp-idf` framework.
 This update prevents simultaneous HTTP server connections, allowing for better memory allocation and reducing the risk of system crashes due to memory shortages.
