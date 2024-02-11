@@ -452,6 +452,7 @@ ensuring users are well-informed for successful system setup and operation.
 | Fix Display of Climate Icons on Chips (#1675) | Minor | `Blueprint` |
 | Fix Icon's Colors on Home Page Values (#1694) | Minor | `Blueprint` |
 | Alarm Keypad Arm/Disarm Fix for US Model (#1705) | Minor | `TFT file (US model only)` |
+| LocalTuya Fan Speed Controls Fix (#1706) | Minor | `Blueprint` |
 | Fix Update of Media Player Icons on Custom Buttons (#1716) | Minor | `Blueprint` |
 | Motion Sensor for Display Wake-Up (#1687) | Enhancement | `Blueprint` |
 | Enhanced Consistency in Cover Controls (#1688) | Enhancement | `Blueprint` |
@@ -476,6 +477,8 @@ aligning the display behavior with the operational status of the climate entity 
 This fix ensures that the icons now reflect their correct status, enhancing the visual accuracy and user interface experience.
 - **Alarm Keypad Arm/Disarm Fix for US Model**: Resolved an issue specific to the US model, where alarms requiring a PIN to arm/disarm were not functioning correctly.
 This fix, applied through an update to the TFT file, ensures that users with these alarm systems can reliably arm and disarm their security devices.
+- **LocalTuya Fan Speed Controls Fix**: Addressed an issue with LocalTuya fan speed controls not functioning as expected.
+Users can now seamlessly adjust their fan speeds through the Blueprint interface, enhancing control and interaction with smart home devices.
 - **Fix Update of Media Player Icons on Custom Buttons**: Corrected an issue where media player icons on custom buttons were not updating in real-time to reflect the current playback status.
 This fix ensures that the icons dynamically represent the media player's state, improving the interface's responsiveness and accuracy.
 - **Motion Sensor for Display Wake-Up**: We've introduced a feature that allows users to specify a motion,
