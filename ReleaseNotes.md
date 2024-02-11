@@ -457,7 +457,7 @@ ensuring users are well-informed for successful system setup and operation.
 | Motion Sensor for Display Wake-Up (#1687) | Enhancement | `Blueprint` |
 | Enhanced Consistency in Cover Controls (#1688) | Enhancement | `Blueprint` |
 | Support ESPHome `friendly_name` (#1719) | Enhancement | `Blueprint`<br>`ESPHome` |
-| Clean-up Blueprint Inputs (#1722) | Enhancement | `Blueprint` |
+| Improved Blueprint Input Clarity (#1722 and #1782) | Enhancement | `Blueprint` |
 | Enhanced Memory Allocation When Uploading TFT (`esp-idf` only) | Enhancement | `ESPHome` |
 | Expanded Visualization on Chips | Enhancement | `Blueprint` |
 | Direct TFT Transfer from GitHub for Arduino Users | Enhancement | `ESPHome` |
@@ -495,8 +495,8 @@ Previously, using `friendly_name` could disrupt communication between the Bluepr
 This update resolves these issues, ensuring seamless integration.
 Users can now utilize the `friendly_name` substitution in their YAML setup to assign more intuitive and descriptive names to their devices,
 significantly improving the ease of device identification and overall user experience.
-- **Clean-up Blueprint Inputs**: Simplified the naming of Blueprint inputs for better clarity and ease of use.
-Labels such as *"Button14"* have been updated to more descriptive formats like *"Button page 2, Button 6"*, enhancing the user's ability to understand and navigate
+- **Improved Blueprint Input Clarity**: Simplified the naming of Blueprint inputs for better clarity and ease of use. Labels such as *"Button14"* have been updated to more descriptive formats like *"Button page 2, Button 6"*.
+Additionally, terms like "LABEL COLOR" have been refined to "Text Color" to improve understanding related to sensor display customization.
 - **Enhanced Memory Allocation When Uploading TFT (esp-idf only)**: Optimized memory management for TFT uploads on systems using the `esp-idf` framework.
 This update prevents simultaneous HTTP server connections, allowing for better memory allocation and reducing the risk of system crashes due to memory shortages.
 It does not affect users on the `arduino` framework.
