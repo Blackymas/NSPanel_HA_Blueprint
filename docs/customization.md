@@ -21,12 +21,15 @@ Table of contents:
   - [Scheduled actions](#scheduled-actions)
     - [Scheduled relay](#scheduled-relay)
     - [Scheduled climate](#scheduled-climate)
-  - [Framework `esp-idf`](#framework-esp-idf)
+  - [Frameworks](#frameworks)
+    - [Framework `arduino`](#framework-arduino)
+    - [Framework `esp-idf`](#framework-esp-idf)
   - [Bluetooth proxy](#bluetooth-proxy)
   - [Logger via UART](#logger-via-uart)
   - [Climate custom presets](#climate-custom-presets)
   - [Push button / Momentary switch](#push-button--momentary-switch)
   - [Expose relay fallback switch](#expose-relay-fallback-switch)
+  - [Relay Interlocking](#relay-interlocking)
 
 &nbsp;
 &nbsp;
@@ -55,7 +58,8 @@ You should add your customizations at the end of your ESPHome yaml, as in the ex
 ```yaml
 substitutions:
   # Settings - Editable values
-  device_name: "YOUR_NSPANEL_NAME" 
+  device_name: "YOUR_NSPANEL_NAME"
+  friendly_name: "Your panel's friendly name"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
 
@@ -225,7 +229,7 @@ Creates a binary sensor to indicate either when the display is showing some page
 ```yaml
 # Is display awake?
 binary_sensor:
-  - name: ${device_name} Display state
+  - name: Display state
     id: display_state
     platform: template
     lambda: |-
@@ -237,7 +241,7 @@ You can easily invert the meaning to have a sensor for display sleeping:
 ```yaml
 # Is display sleeping?
 binary_sensor:
-  - name: ${device_name} Display sleeping
+  - name: Display sleeping
     id: display_sleeping
     platform: template
     lambda: |-
@@ -306,7 +310,7 @@ There are several ways to wake-up or put your panel to sleep, but in this exampl
 ```yaml
 button:
   # Adds a button to put the panel to sleep
-  - name: ${device_name} Sleep
+  - name: Sleep
     id: force_sleep
     platform: template
     icon: mdi:sleep
@@ -317,7 +321,7 @@ button:
             if (id(current_page).state != "screensaver") id(disp1).goto_page("screensaver");
   
   # Adds a button to wake-up the panel (similar to the existing service)
-  - name: ${device_name} Wake-up
+  - name: Wake-up
     id: force_wake_up
     platform: template
     icon: mdi:alarm
@@ -338,7 +342,7 @@ and even use this in your automation to control when your panel is on with the s
 ```yaml
 light:
   # Add the display as a light in Home Assistant
-  - name: ${device_name} Display
+  - name: Display
     id: display_light
     icon: mdi:tablet-dashboard
     platform: monochromatic
@@ -474,7 +478,7 @@ time:
               target_temperature: 18°C
 ```
 
-### Framework `esp-idf`
+### Frameworks
 > [!IMPORTANT]
 > When switching from `arduino` to `esp-idf`, make sure to update the device with a serial cable as the partition table is different between the two frameworks
 as [OTA Update Component](https://esphome.io/components/ota) updates will not change the partition table.
@@ -489,6 +493,14 @@ In any case, you can overlap the settings with this customization.
 > [!NOTE]
 > For more info about frameworks, please visit [ESPHome docs](https://esphome.io/components/esp32).
 
+#### Framework `arduino`
+```yaml
+# Change framework to `arduino`
+esp32:
+  framework:
+    type: arduino
+```
+#### Framework `esp-idf`
 ```yaml
 # Change framework to `esp-idf`
 esp32:
@@ -591,4 +603,23 @@ switch:
     internal: false
   - id: !extend relay2_local
     internal: false
+```
+
+### Relay Interlocking
+This is using ESPHome capability to prevents the two relays to be active at the same time, which could be useful in some cases,
+like to control a cover like discussed in [#965](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues/965).
+
+> [!ATTENTION]
+> There are some considerations about using software interlocking on the [ESPHome GPIO Switch documentation](https://esphome.io/components/switch/gpio.html#interlocking).
+Please read that carefully to understand what this is doing.
+
+```yaml
+switch:
+  # Prevents the two relays to be on simultaneously
+  - id: !extend relay_1
+    interlock: [relay_1, relay_2]
+    interlock_wait_time: 500ms  # Please adjust this accordingly
+  - id: !extend relay_2
+    interlock: [relay_1, relay_2]
+    interlock_wait_time: 500ms  # Please adjust this accordingly
 ```

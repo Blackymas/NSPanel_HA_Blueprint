@@ -70,9 +70,6 @@ use_blueprint:
     accuweather: home_wetter
     outdoortemp: sensor.terrasse_garage_motion_sensor_temperature
     humidity: sensor.kinderzimmer_lea_temperatur_sensor_humidity
-    hotwatertemp: sensor.hotwater_temp
-    hotwatercharge: switch.charge
-    heatingsystemflame: binary_sensor.flamestatus
     climate: climate.nspanel_buro
     left_button_entity: light.haustur_spot_2
     right_button_entity: light.haustur_spot_1
@@ -135,11 +132,10 @@ The new firmware will be built and then flashed to your panel, which will restar
 > [!IMPORTANT]
 > These instructions are for updating a panel where an older version of these files are already installed.
 
-1. (**Arduino only**) Download from our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint/) the latest version of the TFT file relative to your panel's model.
-2. (**Arduino only**) Upload this file to your local www (http) server. Please use the same URL as indicated by the substitution `nextion_update_url` in your device's YAML.
-3. Go to ***Settings --> Devices & Services --> Integrations***, select the display under the ESPHome integration.
-4. Press the switch "**Update TFT Display**" under **Configuration**.
-5. The display starts the update process and then restarts.
+1. Go to ***Settings --> Devices & Services --> Integrations***, select the display under the ESPHome integration.
+2. Select the "**Update TFT Display - Model**" accordingly, under **Configuration**. 
+3. Press the button "**Update TFT Display**".
+4. The display starts the update process and then restarts.
 
 ## Notification via HA
 To show a notification on the NSPAnel, the following service call can be used:
