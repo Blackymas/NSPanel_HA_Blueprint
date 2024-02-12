@@ -434,6 +434,9 @@ This update refines climate and cover entity interfaces, boosts hardware button 
 We've also expanded direct TFT download capabilities from GitHub to Arduino users, previously only available for ESP-IDF users.
 This achievement, powered by community support, is a significant stride towards [simplifying user experience for NSPanel firmware](https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions/1602).
 
+We highly recommend all users update their components to this latest version for an optimized and enhanced user experience.
+While this update is compatible with existing v4.2 components, fully updating ensures the best performance and usability.
+
 **Breaking Changes:**
 1. **Custom entities naming changed**.
 If your setup includes custom entities using `${device_name}` in their names, please modify these entities to omit `${device_name}`.
