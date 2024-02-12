@@ -8,7 +8,7 @@ Let’s embark on this journey together to create a smart home that’s uniquely
 
 <!-- markdownlint-disable MD028 -->
 > [!TIP]
-> For troubleshooting TFT transfer issues, the most popular topic for new sers, please consult our [TFT Transfer Troubleshooting Guide](tft_upload.md).
+> For troubleshooting TFT transfer issues, the most popular topic for new users, please consult our [TFT Transfer Troubleshooting Guide](tft_upload.md).
 
 > [!NOTE]
 > We encourage users with absolute beginner-level knowledge in Home Assistant, ESPHome, or YAML editing to familiarize themselves with the basics of these platforms.
@@ -60,6 +60,12 @@ To flash your NSPanel, ESPHome firmware is required.
 ESPHome can be integrated into your setup in various ways, including as a Home Assistant add-on or through a local installation on your computer.
 This guide is based on using the ESPHome dashboard, which is available in all standard implementations.
 
+> [!NOTE]
+> 4GB of memory are recommended if you are installing ESPHome as a Home Assistant add-on. 
+Therefore, a RasPi 4 with 4GB RAM is the minimum if you are using a Raspberry Pi. 
+A manual installation requires at least 2GB of memory and 500MB of swap space or 3GB of memory. 
+With less memory the compiler will crash!
+
 - **Installing ESPHome as a Home Assistant Add-On**: For seamless integration with Home Assistant, ESPHome can be installed as an add-on.
 This method provides an easy-to-navigate interface and direct integration with your Home Assistant setup.
 For detailed instructions on this installation method, refer to [Getting Started with ESPHome and Home Assistant](https://esphome.io/guides/getting_started_hassio).
@@ -90,10 +96,11 @@ Follow these steps to add a new device in the ESPHome Dashboard:
     ```yaml
     substitutions:
       # Settings - Editable values
-      device_name: "YOUR_NSPANEL_NAME" 
+      device_name: "YOUR_NSPANEL_NAME"
+      friendly_name: "Your panel's friendly name"
       wifi_ssid: !secret wifi_ssid
       wifi_password: !secret wifi_password
-      nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"  # Optional for `esp-idf` framework
+      nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"  # Optional
       # Add-on configuration (if needed)
       # heater_relay: "1"  # Possible values: "1" or "2"
 
@@ -125,7 +132,7 @@ Follow these steps to add a new device in the ESPHome Dashboard:
    ![Edit Settings](pics/ha_esphome_dashboard_new_device_06b.png)
 10. For Wi-Fi credentials, use `!secret` for added security or input them directly.
 Learn about secrets in ESPHome: [Home Assistant Secrets in ESPHome](https://www.youtube.com/watch?v=eW4vKDeHh7Y).
-11. (Optionally when using `esp-idf`) Adjust `nextion_update_url` to the URL of a TFT file hosted on an HTTP or HTTPS server,
+11. (Optional) Adjust `nextion_update_url` to the URL of a TFT file hosted on an HTTP or HTTPS server,
     ensuring that the file is accessible to the NSPanel.
     This URL will be used by ESPHome to download the TFT file to your panel.
     For more information on hosting the TFT file and setting up the URL, see the [Upload TFT](#upload-tft) section.
@@ -437,10 +444,11 @@ To use a local copy of `nspanel_esphome.yaml`, copy the file from GitHub to your
 ```yaml
 substitutions:
   # Editable settings
-  device_name: "YOUR_NSPANEL_NAME" 
+  device_name: "YOUR_NSPANEL_NAME"
+  friendly_name: "Your panel's friendly name"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
-  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"
+  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"  # Optional
   # Add-on configuration
   # heater_relay: "1" - possible values: 1/2
 

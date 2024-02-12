@@ -3,6 +3,7 @@
 - [First Steps | Installation and Setup](install.md)
 - [Blueprint | Setup and explanation of the Blueprint](blueprint.md)
 - [HowTo | All important things you should know](howto.md)
+- [Version compatibility matrix](version_compatibility.md)
 
 ## Common issues
 - [TFT Upload](tft_upload.md)
@@ -13,6 +14,7 @@
 - [Customization](customization.md)
 - [Add-on climate](addon_climate.md)
 - [Alarm Control Panel](alarm.md)
+- [Using Different Versions of This Project](different_version.md)
 
 ## Setup and overview videos:
 - **_[Overview and features](https://www.youtube.com/watch?v=b7vW4YtUaTs) - Mark Watt Tech_**

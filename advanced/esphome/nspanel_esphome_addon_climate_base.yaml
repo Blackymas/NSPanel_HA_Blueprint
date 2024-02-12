@@ -34,7 +34,7 @@ substitutions:
 
 climate:
   - platform: thermostat
-    name: ${name} Thermostat
+    name: Thermostat
     id: thermostat_embedded
     sensor: temp_nspanel
     min_idle_time: ${min_idle_time}s
@@ -71,7 +71,7 @@ globals:
 
 switch:
   ##### PHYSICAL SWITCH 0 (Dummy) - Used when relay is not set #####
-  - name: ${name} Relay 0 (dummy)
+  - name: Relay 0 (dummy)
     platform: template
     id: relay_0
     lambda: !lambda return false;
@@ -82,26 +82,39 @@ script:
   - id: !extend change_climate_state
     then:
       - lambda: |-
-          if (embedded) {
+          if (embedded and !id(is_uploading_tft)) {
             static const char *const TAG = "addon_climate_base.script.change_climate_state";
+            auto FahrenheitToCelsius = [](float fahrenheit) -> float {
+              return (fahrenheit - 32.0) * 5.0 / 9.0;
+            };
+            std::string temp_units = "${temp_units}";
+            bool temp_unit_fahrenheit = (temp_units == "°F" || temp_units == "F" || temp_units == "°f" || temp_units == "f");
+            auto call = thermostat_embedded->make_call();
+            float temperature;
+
             id(is_addon_climate_visible) = true;
             disp1->set_component_value("climate.embedded", 1);
-            auto call = thermostat_embedded->make_call();
             if (key == "temperature") {
-              ESP_LOGD(TAG, "set_target_temperature(%f)", (stof(value) / 10));
-              call.set_target_temperature(stof(value) / 10);
+              temperature = stof(value) / 10;
+              if (temp_unit_fahrenheit) temperature = FahrenheitToCelsius(temperature);
+              ESP_LOGD(TAG, "set_target_temperature(%f)", temperature);
+              call.set_target_temperature(temperature);
             } else if (key == "target_temp_high") {
-              ESP_LOGD(TAG, "set_target_temperature_high(%f)", (stof(value) / 10));
-              call.set_target_temperature_high(stof(value) / 10);
+              temperature = stof(value) / 10;
+              if (temp_unit_fahrenheit) temperature = FahrenheitToCelsius(temperature);
+              ESP_LOGD(TAG, "set_target_temperature_high(%f)", temperature);
+              call.set_target_temperature_high(temperature);
             } else if (key == "target_temp_low") {
-              ESP_LOGD(TAG, "set_target_temperature_low(%f)", (stof(value) / 10));
-              call.set_target_temperature_low(stof(value) / 10);
+              temperature = stof(value) / 10;
+              if (temp_unit_fahrenheit) temperature = FahrenheitToCelsius(temperature);
+              ESP_LOGD(TAG, "set_target_temperature_low(%f)", temperature);
+              call.set_target_temperature_low(temperature);
             } else if (key == "hvac_mode") {
               ESP_LOGD(TAG, "hvac_mode(%s)", value.c_str());
               call.set_mode(value);
             } else {
               ESP_LOGE(TAG, "Invalid call:");
-              ESP_LOGE(TAG, "  Embedded: %s", embedded ? "True" : "False");
+              ESP_LOGE(TAG, "  Embedded: %s", YESNO(embedded));
               ESP_LOGE(TAG, "  Key:      %s", key.c_str());
               ESP_LOGE(TAG, "  Value:    %s", value.c_str());
             }
@@ -123,27 +136,49 @@ script:
     then:
       - lambda: |-
           id(is_addon_climate_visible) = (current_page->state == "climate" and detailed_entity->state == "embedded_climate");
-          if (id(is_addon_climate_visible)) {
+          if (id(is_addon_climate_visible) and !id(is_uploading_tft)) {
             static const char *const TAG = "addon_climate_base.script.page_climate";
+            auto CelsiusToFahrenheit = [](float celsius) -> float {
+              return (celsius * 9 / 5) + 32;
+            };
+            std::string temp_units = "${temp_units}";
+            bool temp_unit_fahrenheit = (temp_units == "°F" || temp_units == "F" || temp_units == "°f" || temp_units == "f");
+            ClimateTraits traits = thermostat_embedded->get_traits();
+
             ESP_LOGV(TAG, "Climate page constructor:");
             ESP_LOGV(TAG, "  Add-on mode: %s", (${addon_climate_dual}) ? "Dual" : ((${addon_climate_heat}) ? "Heat" : ((${addon_climate_cool}) ? "Cool" : "Unknown")));
+            ESP_LOGV(TAG, "  Temp. units: %s", temp_unit_fahrenheit ? "Fahrenheit" : "Celsius");
             disp1->set_component_text_printf("page_label", id(addon_climate_friendly_name).c_str());
-            float temp_step = ${temp_step};
-            float temp_offset = ${temp_min};
-            float temp_max = ${temp_max};
+            float temp_step = traits.get_visual_target_temperature_step();
+            float temp_offset = traits.get_visual_min_temperature();
+            float temp_max = traits.get_visual_max_temperature();
+            float temp_target = thermostat_embedded->target_temperature;
+            float temp_target_high = thermostat_embedded->target_temperature_high;
+            float temp_target_low = thermostat_embedded->target_temperature_low;
+            float temp_current = thermostat_embedded->current_temperature;
+            if (temp_unit_fahrenheit) {
+              //temp_step = CelsiusToFahrenheit(temp_step);
+              temp_step = temp_step * 1.8;
+              temp_offset = CelsiusToFahrenheit(temp_offset);
+              temp_max = CelsiusToFahrenheit(temp_max);
+              temp_target = CelsiusToFahrenheit(temp_target);
+              temp_target_high = CelsiusToFahrenheit(temp_target_high);
+              temp_target_low = CelsiusToFahrenheit(temp_target_low);
+              temp_current = CelsiusToFahrenheit(temp_current);
+            }
             float total_steps = (temp_max-temp_offset)/temp_step;
             set_climate->execute
               (
-                thermostat_embedded->current_temperature,                                         // current_temp
-                0,                                                                                // supported_features
-                ((${addon_climate_dual}) ? -999 : thermostat_embedded->target_temperature),       // target_temp
-                ((${addon_climate_dual}) ? thermostat_embedded->target_temperature_high : -999),  // target_temp_high
-                ((${addon_climate_dual}) ? thermostat_embedded->target_temperature_low : -999),   // target_temp_low
-                int(round(${temp_step}*10)),                                                      // temp_step
-                int(round(total_steps)),                                                          // total_steps
-                int(round(${temp_min}*10)),                                                       // temp_offset
-                "",                                                                               // climate_icon
-                true                                                                              // embedded_climate
+                temp_current,                                         // current_temp
+                0,                                                    // supported_features
+                ((${addon_climate_dual}) ? -999 : temp_target),       // target_temp
+                ((${addon_climate_dual}) ? temp_target_high : -999),  // target_temp_high
+                ((${addon_climate_dual}) ? temp_target_low : -999),   // target_temp_low
+                int(round(temp_step*10)),                             // temp_step
+                int(round(total_steps)),                              // total_steps
+                int(round(temp_offset*10)),                           // temp_offset
+                "",                                                   // climate_icon
+                true                                                  // embedded_climate
               );
 
               // Update target temp icon
@@ -172,57 +207,59 @@ script:
     then:
       - lambda: |-
           // Update chips
-          if (id(is_embedded_thermostat))
+          if (id(is_embedded_thermostat) and !id(is_uploading_tft))
             update_climate_icon->execute("home.icon_top_03", int(thermostat_embedded->action), int(thermostat_embedded->mode));
 
   - id: !extend set_climate
     then:
       - lambda: |-
-          if (current_page->state == "climate")
+          if (current_page->state == "climate" and !id(is_uploading_tft))
             id(is_addon_climate_visible) = embedded_climate;
 
   - id: !extend watchdog
     then:
       - lambda: |-
-          static const char *const TAG = "addon_climate_base.script.watchdog";
-          bool addon_climate_cool = ${addon_climate_cool};
-          bool addon_climate_heat = ${addon_climate_heat};
-          bool addon_climate_dual = ${addon_climate_dual};
-          uint cooler_relay = ${cooler_relay};
-          uint heater_relay = ${heater_relay};
-          ESP_LOGI(TAG, "Add-on climate:");
-          if (addon_climate_cool) {
-            ESP_LOGI(TAG, "  Cool:  %s", addon_climate_cool ? "Enabled" : "Disabled");
-            if (cooler_relay == 1 or cooler_relay == 2)
-              ESP_LOGI(TAG, "  Relay: %u", cooler_relay);
-            else
-              ESP_LOGE(TAG, "  Relay: %u", cooler_relay);
-          }
-          if (addon_climate_heat) {
-            ESP_LOGI(TAG, "  Heat:  %s", addon_climate_heat ? "Enabled" : "Disabled");
-            if (heater_relay == 1 or heater_relay == 2)
-              ESP_LOGI(TAG, "  Relay: %u", heater_relay);
-            else
-              ESP_LOGE(TAG, "  Relay: %u", heater_relay);
-          }
-          if (addon_climate_dual) {
-            ESP_LOGI(TAG, "  Dual:  %s", addon_climate_dual ? "Enabled" : "Disabled");
-            if (cooler_relay == 1 or cooler_relay == 2)
-              ESP_LOGI(TAG, "  Relay (cooler): %u", cooler_relay);
-            else
-              ESP_LOGE(TAG, "  Relay (cooler): %u", cooler_relay);
-            if (heater_relay == 1 or heater_relay == 2)
-              ESP_LOGI(TAG, "  Relay (heater): %u", heater_relay);
-            else
-              ESP_LOGE(TAG, "  Relay (heater): %u", heater_relay);
-            if (cooler_relay == heater_relay)
-              ESP_LOGE(TAG, "  Double relay assignment");
-          }
+          if (!id(is_uploading_tft)) {
+            static const char *const TAG = "addon_climate_base.script.watchdog";
+            bool addon_climate_cool = ${addon_climate_cool};
+            bool addon_climate_heat = ${addon_climate_heat};
+            bool addon_climate_dual = ${addon_climate_dual};
+            uint cooler_relay = ${cooler_relay};
+            uint heater_relay = ${heater_relay};
+            ESP_LOGI(TAG, "Add-on climate:");
+            if (addon_climate_cool) {
+              ESP_LOGI(TAG, "  Cool:  %s", addon_climate_cool ? "Enabled" : "Disabled");
+              if (cooler_relay == 1 or cooler_relay == 2)
+                ESP_LOGI(TAG, "  Relay: %u", cooler_relay);
+              else
+                ESP_LOGE(TAG, "  Relay: %u", cooler_relay);
+            }
+            if (addon_climate_heat) {
+              ESP_LOGI(TAG, "  Heat:  %s", addon_climate_heat ? "Enabled" : "Disabled");
+              if (heater_relay == 1 or heater_relay == 2)
+                ESP_LOGI(TAG, "  Relay: %u", heater_relay);
+              else
+                ESP_LOGE(TAG, "  Relay: %u", heater_relay);
+            }
+            if (addon_climate_dual) {
+              ESP_LOGI(TAG, "  Dual:  %s", addon_climate_dual ? "Enabled" : "Disabled");
+              if (cooler_relay == 1 or cooler_relay == 2)
+                ESP_LOGI(TAG, "  Relay (cooler): %u", cooler_relay);
+              else
+                ESP_LOGE(TAG, "  Relay (cooler): %u", cooler_relay);
+              if (heater_relay == 1 or heater_relay == 2)
+                ESP_LOGI(TAG, "  Relay (heater): %u", heater_relay);
+              else
+                ESP_LOGE(TAG, "  Relay (heater): %u", heater_relay);
+              if (cooler_relay == heater_relay)
+                ESP_LOGE(TAG, "  Double relay assignment");
+            }
 
-          if ((addon_climate_cool && addon_climate_heat) ||
-              (addon_climate_cool && addon_climate_dual) ||
-              (addon_climate_heat && addon_climate_dual) ||
-              (!addon_climate_cool && !addon_climate_heat && !addon_climate_dual)) {
-            ESP_LOGE(TAG, "Invalid settings for add-on Climate");
+            if ((addon_climate_cool && addon_climate_heat) ||
+                (addon_climate_cool && addon_climate_dual) ||
+                (addon_climate_heat && addon_climate_dual) ||
+                (!addon_climate_cool && !addon_climate_heat && !addon_climate_dual)) {
+              ESP_LOGE(TAG, "Invalid settings for add-on Climate");
+            }
           }
 ...
