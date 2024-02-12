@@ -428,12 +428,11 @@ For support, feedback, or detailed information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
 or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
 
-## Patch v4.2.5: Celebrating 1000 Stars with Bug Fixes and UI Enhancements
-To celebrate crossing the 1000-star milestone on our GitHub repository, we're thrilled to bring you Patch v4.2.5.
-This update focuses on improving user interactions and system stability, featuring refined controls for climate and cover entities,
-enhanced hardware button functionality, and the introduction of ESPHome's `friendly_name` support for improved device identification.
-Additionally, we've simplified the TFT transfer process for Arduino users, now allowing direct downloads from GitHub, a convenience previously exclusive to ESP-IDF users.
-This milestone reflects our community's support and enthusiasm, inspiring us to continue delivering quality improvements.
+## Patch v4.2.5: Celebrating 1000 Stars with Enhanced Functionality and UI Improvements
+With the 1000-star milestone on GitHub, we're excited to share Patch v4.2.5, enhancing the NSPanel Firmware experience in our spare time.
+This update refines climate and cover entity interfaces, boosts hardware button responsiveness, and integrates ESPHome's `friendly_name` for easier device identification.
+We've also expanded direct TFT download capabilities from GitHub to Arduino users, previously only available for ESP-IDF users.
+This achievement, powered by community support, is a significant stride towards [simplifying user experience for NSPanel firmware](https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions/1602).
 
 **Breaking Changes:**
 1. **Custom entities naming changed**.
