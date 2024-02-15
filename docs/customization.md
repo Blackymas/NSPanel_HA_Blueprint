@@ -566,10 +566,20 @@ esp32:
 ```
 
 ### Bluetooth proxy
+<!-- markdownlint-disable MD028 -->
 > [!IMPORTANT]
 > The [ESP32 Platform](#framework-esp-idf) component should be configured to use the `esp-idf` framework,
 > as the `arduino` framework uses significantly more memory and performs poorly with the Bluetooth proxy enabled.
 
+> [!NOTE]
+> The Bluetooth proxy component significantly reduces device RAM, leaving less than 10k RAM free.
+> Enabling this with additional customizations/components may lead to crashes due to low memory.
+> HTTPS connections might be erratic, and local TFT flashing could fail due to insufficient RAM.
+>
+> Solutions include:
+> 1. Flash the device (remove Bluetooth proxy) while updating TFT.
+> 2. Flash from a local (HTTP) source at a low baud rate (9600 or lower) to avoid memory crashes. This method is slower, taking over 10 minutes.
+<!-- markdownlint-enable MD028 -->
 ```yaml
 # Enable Bluetooth proxy
 bluetooth_proxy:
