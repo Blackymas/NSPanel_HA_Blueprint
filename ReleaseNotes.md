@@ -522,6 +522,50 @@ For support, feedback, or detailed information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
 or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
 
+## Patch v4.2.6: Bug fixes
+Patch v4.2.6 addresses a mix of medium and minor bugs alongside UI enhancements, focusing on streamlining user experiences with the NSPanel Firmware.
+Key fixes include improving responsiveness in button pages for automation and scenes entities, correcting sensor display issues, and smoothing out TFT uploads.
+Notable improvements also include syncing with HA core 2024.2 and refining documentation for memory usage during customizations,
+reflecting a responsive and evolving approach to user feedback and system performance and reliability.
+
+**Overview of Changes:**
+<!-- markdownlint-disable MD013 MD033 -->
+| Change | Criticality | Affected Components |
+| :-- | :--: | :--: |
+| Buttons pages slow when constructing `automation` and `scene` entities (#1746) | Medium | Blueprint |
+| Fix Sensors Displaying "None" as Units (#1792 and #1804) | Medium | Blueprint |
+| Fix compilation error when installing `nspanel_esphome_core.yaml` without Upload TFT add-on (#1803) | Medium | ESPHome |
+| Long Click Action Bug Fix for Hardware Button (#1637) | Minor | Blueprint |
+| Fix `Nextion reported variable name invalid!` when uploading TFT (#1794) | Minor | ESPHome |
+| Calendar/Schedule icon permanently displayed when using climate entity. #1265 | Minor | Blueprint |
+| Sync icons with HA core 2024.2 (#1800) | Enhancement | Blueprint |
+| Improved documentation about memory considerations when using customizations (#1801) | Enhancement | Documentation |
+<!-- markdownlint-enable MD013 MD033 -->
+
+**Key Improvements:**
+- **Buttons pages slow when constructing `automation` and `scene` entities**:
+Improved the load times and responsiveness of button pages when constructing `automation` and `scene` entities, enhancing the user interface's efficiency.
+- **Fix Sensors Displaying "None" as Units**: Corrected an issue where sensors improperly displayed "None" for units of measurement,
+ensuring accurate and meaningful data representation.
+- **Fix compilation error when installing `nspanel_esphome_core.yaml` without Upload TFT add-on**:
+Addressed a compilation error that occurred when the Upload TFT add-on was not included, streamlining the installation process for users.
+- **Long Click Action Bug Fix for Hardware Button**: Resolved a bug where long click actions weren't executing on hardware buttons if no entity was assigned.
+This fix ensures that custom actions linked to long presses will now run as intended, regardless of whether an entity is assigned to the button,
+offering greater flexibility and reliability in user interactions.
+This was supposed to be fixed with v4.2.5, however the bug was reintroduced before the release.
+- **Fix `Nextion reported variable name invalid!` when uploading TFT**: Resolved an error message logged during the TFT file upload process, where Nextion displays reported a variable name as invalid.
+This fix ensures a smoother and error-free update experience for TFT files, enhancing the reliability of display updates.
+- **Calendar/Schedule icon permanently displayed when using climate entity**:
+Resolved a bug where the calendar/schedule chip was shown when the climate is in `auto` mode, now ensuring icons reflect the current status accurately.
+- **Sync icons with HA core 2024.2**: Updated the Blueprint icons to align with Home Assistant core 2024.2,
+refreshing the visual elements and ensuring consistency with the broader HA ecosystem. Thanks again to @illuzn.
+- **Improved documentation about memory considerations when using customizations**: Updated the documentation to include detailed memory usage considerations,
+particularly focusing on `bluetooth_proxy`. Special thanks to @illuzn for their contributions to this enhancement.
+
+For support, feedback, or detailed information about this update,
+visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
+or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
+
 ## What's Next?
 Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open).
 
@@ -544,11 +588,14 @@ Discover what's next and what we are working on right now in our [Milestones](ht
     - Fix for Lights with no brightness supported_features, #1633 - Patch v4.2.2
     - Implement dynamic icons and use device_class, #1635 - Patch v4.2.2
     - Fixes the incorrect labelling of the entity pages alignment, #1628 - Patch v4.2.2
+    - Sync icons with HA core 2024.2, #1800 - Patch v4.2.6
+    - Improved documentation about memory considerations when using customizations, #1801 - Patch v4.2.6
 - @bkbartk - Add Dutch/Italian date format, #1658 - Patch v4.2.3
 - @shing6326 - Fix crash on climate page, fix climate icon and color, #1649 - Patch v4.2.3
 - And to all users who helped with the tests during development and beta.
 
 ## Previous releases
+- [v4.2.5 - Celebrating 1000 Stars with Enhanced Functionality and UI Improvements](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.5)
 - [v4.2.4 - Critical bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.4)
 - [v4.2.3 - Bug fixes and minor enhancements](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.3)
 - [v4.2.2 - Bug fixes and minor enhancements](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.2)
