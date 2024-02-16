@@ -3,6 +3,8 @@
 Table of contents:
 - [Description](#description)
 - [Instructions](#instructions)
+- [Memory Management](#memory-management)
+- [Removing Standard Settings](#removing-standard-settings)
 - [Examples](#examples)
   - [API encryption](#api-encryption)
   - [Custom OTA password](#custom-ota-password)
@@ -99,6 +101,61 @@ esp32:
   framework:
     type: esp-idf
 ```
+
+## Memory Management
+When adding new components or code to your ESP32, it's important to be mindful of memory usage.
+Your device has limited memory, and every addition uses some of this precious resource.
+
+### Understanding Memory Usage
+After compiling your firmware, you'll see a summary showing how much memory your firmware needs.
+Here's what it might look like:
+
+```log
+Successfully created esp32 image.
+Linking .pioenvs/office-workstation-panel/firmware.elf
+RAM:   [=         ]  10.5% (used 34484 bytes from 327680 bytes)
+Flash: [=======   ]  67.5% (used 1239253 bytes from 1835008 bytes)
+Building .pioenvs/office-workstation-panel/firmware.bin
+Creating esp32 image...
+Successfully created esp32 image.
+```
+
+- **Static Memory**: This is the memory required to load your firmware.
+Running your firmware requires additional memory.
+- **Dynamic Memory**: This is the memory allocated while your firmware is running.
+ESPHome checks if your static memory usage exceeds your device's limits to prevent installation issues, but it doesn't check dynamic memory usage.
+**Aim to keep static RAM usage below 20% and static Flash usage below 75%** to ensure there's enough room for dynamic operations.
+
+### Risks of Exceeding Memory Limits
+Exceeding memory limits can lead to issues:
+- **During Compilation**: ESPHome might prevent firmware installation if static memory is too high.
+- **During Runtime**: Exceeding dynamic memory can cause unexpected restarts.
+- **During Startup**: If your device runs out of memory at startup, it may not load the firmware, resulting in a black screen and an unresponsive device.
+The solution is to use a serial cable to reflash your device with a lighter firmware.
+
+### Tips for Managing Memory
+- Be cautious when adding memory-intensive components like `bluetooth_proxy`.
+- Compile your firmware with the option to download it before installation.
+This lets you check static memory usage without risking wireless installation issues.
+
+## Removing Standard Settings
+You can use customizations to remove certain default components or settings from this project.
+This is useful for altering standard settings or freeing up memory for additional components.
+Here's how you might remove some default settings:
+
+```yaml
+# Removes the `captive_portal` component
+captive_portal: !remove
+
+# Removes the OTA password
+ota:
+  password: !remove
+```
+
+> [!ATTENTION]
+> Be aware of the implications before removing components or settings.
+> Some of them are crucial for allowing your panel to interact correctly with the blueprint or for enabling ESPHome to install the firmware Over The Air.
+> Incorrect removals could render your panel unusable, potentially requiring a reflash via a serial cable.
 
 ## Examples
 
@@ -509,10 +566,20 @@ esp32:
 ```
 
 ### Bluetooth proxy
+<!-- markdownlint-disable MD028 -->
 > [!IMPORTANT]
 > The [ESP32 Platform](#framework-esp-idf) component should be configured to use the `esp-idf` framework,
 > as the `arduino` framework uses significantly more memory and performs poorly with the Bluetooth proxy enabled.
 
+> [!NOTE]
+> The Bluetooth proxy component significantly reduces device RAM, leaving less than 10k RAM free.
+> Enabling this with additional customizations/components may lead to crashes due to low memory.
+> HTTPS connections might be erratic, and local TFT flashing could fail due to insufficient RAM.
+>
+> Solutions include:
+> 1. Flash the device (remove Bluetooth proxy) while updating TFT.
+> 2. Flash from a local (HTTP) source at a low baud rate (9600 or lower) to avoid memory crashes. This method is slower, taking over 10 minutes.
+<!-- markdownlint-enable MD028 -->
 ```yaml
 # Enable Bluetooth proxy
 bluetooth_proxy:
