@@ -83,23 +83,19 @@ logger:
 
 ##### My customization - End #####
 
-# Core and optional configurations
+# Basic and optional configurations
 packages:
   remote_package:
     url: https://github.com/Blackymas/NSPanel_HA_Blueprint
     ref: main
     files:
-      - nspanel_esphome.yaml # Core package
+      - nspanel_esphome.yaml # Basic package
       # Optional advanced and add-on configurations
-      # - advanced/esphome/nspanel_esphome_advanced.yaml
+      # - esphome/nspanel_esphome_advanced.yaml
       # - nspanel_esphome_addon_climate_cool.yaml
       - nspanel_esphome_addon_climate_heat.yaml
       # - nspanel_esphome_addon_climate_dual.yaml
     refresh: 300s
-
-esp32:
-  framework:
-    type: esp-idf
 ```
 
 ## Memory Management
@@ -537,15 +533,15 @@ time:
 
 ### Frameworks
 > [!IMPORTANT]
-> When switching from `arduino` to `esp-idf`, make sure to update the device with a serial cable as the partition table is different between the two frameworks
+> When switching between frameworks, make sure to update the device with a serial cable as the partition table is different between the two frameworks
 as [OTA Update Component](https://esphome.io/components/ota) updates will not change the partition table.
 
 The `arduino` protocol still more popular and therefore more components are available, but as `esp-idf` is maintained by EspressIF and is kept updated,
 more boards are supported and the memory management is better, making it ideal if you wanna customize your panel to support memory consumption functionalities,
 like `bluetooth_proxy` or [Improv](https://www.improv-wifi.com/).
 
-This project currently uses `arduino` as default framework, but we are planning to set `esp-idf` as default from March 2024.
-In any case, you can overlap the settings with this customization.
+This project currently uses `esp-idf` as default framework.
+You can overlap the settings with this customization.
 
 > [!NOTE]
 > For more info about frameworks, please visit [ESPHome docs](https://esphome.io/components/esp32).

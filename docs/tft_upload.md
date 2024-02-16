@@ -67,33 +67,6 @@ If you haven't installed any TFT yet, look for Nextion related messages on ESPHo
 - **Additional Guidance**: Knowing when the device is fully booted and ready to accept the TFT upload can prevent many issues.
 Observe any changes in the display or logs indicators to ensure the device is ready.
 
-### Consider changing the framework
-
-- **Issue**: You might be facing some situation where the transfer engine used by your framework cannot handle it properly.
-- **Solution**: Temporarily switch between the frameworks.
-- **Additional Guidance**: This project supports both `arduino` (ESPHome default) or `esp-idf` frameworks.
-Those have totally independently upload TFT engines, so changing the framework may cause a significant change.
-In our experience, `esp-idf` have a better memory management and therefore is more efficient with uploading TFT.
-In addition to that, `esp-idf` supports HTTPS and even the download directly from GitHub, which is not indicated with `arduino`.
-
-You can set the framework you want by adding this to your ESPHome yaml:
-
-#### ESP-IDF
-
-```yaml
-esp32:
-  framework:
-    type: esp-idf
-```
-
-#### Arduino
-
-```yaml
-esp32:
-  framework:
-    type: arduino
-```
-
 ### Using a Local Source (Home Assistant)
 
 - **Issue**: Problems with downloading the TFT from GitHub.
@@ -143,6 +116,31 @@ This duration helps ensure that the system resets to a clean state.
 > use a pin to press the hardware restart button, located in a small hole behind the device.
 > Although this action does not replicate a full power cycle, it might resolve the issue in some cases.
 > ![Hardware Reset Button](pics/eu_reset_button.png)
+
+### Consider changing the framework
+
+- **Issue**: You might be facing some situation where the transfer engine used by your framework cannot handle it properly.
+- **Solution**: Temporarily switch between the frameworks.
+- **Additional Guidance**: This project supports both `arduino` (ESPHome default) or `esp-idf` (this project default) frameworks.
+The upload TFT engines have some differences, so changing the framework may solve some issue.
+
+You can set the framework you want by adding this to your ESPHome yaml:
+
+#### ESP-IDF
+
+```yaml
+esp32:
+  framework:
+    type: esp-idf
+```
+
+#### Arduino
+
+```yaml
+esp32:
+  framework:
+    type: arduino
+```
 
 ### Flash your panel again
 

@@ -36,23 +36,19 @@ substitutions:
 ##### My customization - Start #####
 ##### My customization - End #####
 
-# Core and optional configurations
+# Basic and optional configurations
 packages:
   remote_package:
     url: https://github.com/Blackymas/NSPanel_HA_Blueprint
     ref: main
     files:
-      - nspanel_esphome.yaml # Core package
+      - nspanel_esphome.yaml # Basic package
       # Optional advanced and add-on configurations
-      # - advanced/esphome/nspanel_esphome_advanced.yaml
+      # - esphome/nspanel_esphome_advanced.yaml
       # - nspanel_esphome_addon_climate_cool.yaml
       - nspanel_esphome_addon_climate_heat.yaml
       # - nspanel_esphome_addon_climate_dual.yaml
     refresh: 300s
-
-esp32:
-  framework:
-    type: esp-idf
 ```
 
 ## Configuration
@@ -110,23 +106,19 @@ substitutions:
 ##### My customization - Start #####
 ##### My customization - End #####
 
-# Core and optional configurations
+# Basic and optional configurations
 packages:
   remote_package:
     url: https://github.com/Blackymas/NSPanel_HA_Blueprint
     ref: main
     files:
-      - nspanel_esphome.yaml # Core package
+      - nspanel_esphome.yaml # Basic package
       # Optional advanced and add-on configurations
-      # - advanced/esphome/nspanel_esphome_advanced.yaml
+      # - esphome/nspanel_esphome_advanced.yaml
       - nspanel_esphome_addon_climate_cool.yaml
       # - nspanel_esphome_addon_climate_heat.yaml
       # - nspanel_esphome_addon_climate_dual.yaml
     refresh: 300s
-
-esp32:
-  framework:
-    type: esp-idf
 ```
 
 #### Heater
@@ -153,23 +145,19 @@ substitutions:
 ##### My customization - Start #####
 ##### My customization - End #####
 
-# Core and optional configurations
+# Basic and optional configurations
 packages:
   remote_package:
     url: https://github.com/Blackymas/NSPanel_HA_Blueprint
     ref: main
     files:
-      - nspanel_esphome.yaml # Core package
+      - nspanel_esphome.yaml # Basic package
       # Optional advanced and add-on configurations
-      # - advanced/esphome/nspanel_esphome_advanced.yaml
+      # - esphome/nspanel_esphome_advanced.yaml
       # - nspanel_esphome_addon_climate_cool.yaml
       - nspanel_esphome_addon_climate_heat.yaml
       # - nspanel_esphome_addon_climate_dual.yaml
     refresh: 300s
-
-esp32:
-  framework:
-    type: esp-idf
 ```
 
 #### Dual
@@ -199,21 +187,17 @@ substitutions:
 ##### My customization - Start #####
 ##### My customization - End #####
 
-# Core and optional configurations
+# Basic and optional configurations
 packages:
   remote_package:
     url: https://github.com/Blackymas/NSPanel_HA_Blueprint
     ref: main
     files:
-      - nspanel_esphome.yaml # Core package
+      - nspanel_esphome.yaml # Basic package
       # Optional advanced and add-on configurations
-      # - advanced/esphome/nspanel_esphome_advanced.yaml
+      # - esphome/nspanel_esphome_advanced.yaml
       # - nspanel_esphome_addon_climate_cool.yaml
       # - nspanel_esphome_addon_climate_heat.yaml
       - nspanel_esphome_addon_climate_dual.yaml
     refresh: 300s
-
-esp32:
-  framework:
-    type: esp-idf
 ```

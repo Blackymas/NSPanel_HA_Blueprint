@@ -63,11 +63,12 @@ You can use this button to force a reboot of your panel. This button is availabl
 
 **Symptoms:** The ESPHome version (and other info) won't be shown in the boot page.
 
+<!-- markdownlint-disable MD013 MD033 -->
 | Possible causes | Suggestions |
 | :-- | :-- |
 | You may have an older version of ESPHome installed or ESPHome is not installed. | Make sure you have the latest version of ESPHome and flash your device again. |
-| You may have an older version of ESPHome installed or ESPHome is not installed. | Make sure you have the latest version of ESPHome and flash your device again. |
-| Baud rate mismatch. | Make sure your yaml settings don't have any specific baud rate set or, if a custom baud rate is set, make sure it is one of the supported rates (115200 bps or 921600 bps). |
+| Baud rate mismatch. | The default baud rate for this project is 115200 bps, however your device might be set with a different baud rate. Use the baud rate selector under your device's page to adjust to the same baud rate as the display, then change it back to 115200 bps, which will instruct the display to start using that. |
+<!-- markdownlint-enable MD013 MD033 -->
 
 ### Blueprint is not detected
 
