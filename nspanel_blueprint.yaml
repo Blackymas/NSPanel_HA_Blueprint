@@ -6820,36 +6820,43 @@ action:
             name: '{{ None }}'
       - &variable_entity
         variables:
-          entity_state: '{{ states(entity_id) | default("unknown") }}'
-          entity_has_value: '{{ has_value(entity_id) }}'
-          entity_domain: '{{ entity_id.split(".")[0] }}'
-          entity_icon: '{{ state_attr(entity_id, "icon") | default("") }}'
+          entity_id_valid: '{{ entity_id is defined and entity_id is string and entity_id.split(".") | count == 2 }}'
+          entity_state: '{{ states(entity_id) | default("unknown") if entity_id_valid }}'
+          entity_has_value: '{{ has_value(entity_id) if entity_id_valid }}'
+          entity_domain: '{{ entity_id.split(".")[0] if entity_id_valid }}'
+          entity_icon: '{{ state_attr(entity_id, "icon") | default("") if entity_id_valid }}'
           entity_state_is_on: >
             {{
-              entity_state in enum.states.on or
-              (entity_domain == "sensor" and entity_has_value) or
-              (entity_domain in enum.states and entity_state in enum.states[entity_domain].on)
+              (
+                entity_state in enum.states.on or
+                (entity_domain == "sensor" and entity_has_value) or
+                (entity_domain in enum.states and entity_state in enum.states[entity_domain].on)
+              ) if entity_id_valid
             }}
-          entity_state_is_off: '{{ entity_state in enum.states.off or (entity_domain in enum.states and entity_state in enum.states[entity_domain].off) }}'
-          entity_state_is_unknown: '{{ (not entity_state_is_on) and (not entity_state_is_off) }}'
+          entity_state_is_off: '{{ entity_state in enum.states.off or (entity_domain in enum.states and entity_state in enum.states[entity_domain].off) if entity_id_valid }}'
+          entity_state_is_unknown: '{{ (not entity_state_is_on) and (not entity_state_is_off) if entity_id_valid }}'
           entity_icon_color: >
             {{
               (
-                overlap.icon_color
-                if overlap is defined and overlap.icon_color is defined and overlap.icon_color is sequence and overlap.icon_color | count == 3
-                else nextion.color.on
-              )
-              if ((not entity_state_is_off) and (not entity_state_is_unknown))
-              else nextion.color.off
+                (
+                  overlap.icon_color
+                  if overlap is defined and overlap.icon_color is defined and overlap.icon_color is sequence and overlap.icon_color | count == 3
+                  else nextion.color.on
+                )
+                if ((not entity_state_is_off) and (not entity_state_is_unknown))
+                else nextion.color.off
+              ) if entity_id_valid
             }}
-          entity_friendly_name: '{{ state_attr(entity_id, "friendly_name") | default("") }}'
-          entity_device_class: '{{ state_attr(entity_id, "device_class") | default("") }}'
+          entity_friendly_name: '{{ state_attr(entity_id, "friendly_name") | default("") if entity_id_valid }}'
+          entity_device_class: '{{ state_attr(entity_id, "device_class") | default("") if entity_id_valid }}'
           entity:
             state_mui: >
               {{
-                entity_state
-                if entity_domain != "alarm_control_panel"
-                else ( mui[language].alarm[entity_state | replace("armed_", "") | replace("disarmed", "disarm")] | default(entity_state) if entity_state else "unknown" )
+                (
+                  entity_state
+                  if entity_domain != "alarm_control_panel"
+                  else ( mui[language].alarm[entity_state | replace("armed_", "") | replace("disarmed", "disarm")] | default(entity_state) if entity_state else "unknown" )
+                ) if entity_id_valid
               }}
             name: >
               {{
@@ -6857,83 +6864,87 @@ action:
                   overlap.name
                   if overlap is defined and overlap.name is defined and overlap.name is string and overlap.name | length > 0
                   else (entity_friendly_name if entity_friendly_name is string and entity_friendly_name | length > 0 else entity_id)
-                )
+                ) if entity_id_valid
               }}
             icon: >
-              {% set icon_domain = nextion.icon.domain[entity_domain] | default(all_icons.unknown) if entity_domain else all_icons.unknown %}
-              {% if overlap is defined and overlap.icon is defined and overlap.icon is string and overlap.icon | length > 0 %}
-                {{ all_icons[overlap.icon.split(":")[1]] | default(icon_domain) if overlap.icon.split(":") | count == 2 else overlap.icon }}
-              {% elif entity_domain == "climate" %}
-                {% set entity_hvac_action = state_attr(entity_id, "hvac_action") | default("") %}
-                {% set entity_climate_action = (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state) %}
-                {% if "off" in entity_climate_action %}{{ all_icons.thermostat }}
-                {% elif "heat_cool" in entity_climate_action %}{{ all_icons.autorenew }}
-                {% elif "heating" in entity_climate_action or "heat" in entity_climate_action %}{{ all_icons["thermometer-lines"] }}
-                {% elif "cooling" in entity_climate_action or "cool" in entity_climate_action %}{{ all_icons.snowflake }}
-                {% elif "drying" in entity_climate_action or "dry" in entity_climate_action %}{{ all_icons["water-percent"] }}
-                {% elif "fan" in entity_climate_action or "fan_only" in entity_climate_action %}{{ all_icons.fan }}
-                {% elif "auto" in entity_climate_action %}{{ all_icons["calendar-sync"] }}
-                {% elif "idle" in entity_climate_action %}{{ all_icons.thermometer }}
-                {% else %}{{ icon_domain }}
+              {% if entity_id_valid %}
+                {% set icon_domain = nextion.icon.domain[entity_domain] | default(all_icons.unknown) if entity_domain else all_icons.unknown %}
+                {% if overlap is defined and overlap.icon is defined and overlap.icon is string and overlap.icon | length > 0 %}
+                  {{ all_icons[overlap.icon.split(":")[1]] | default(icon_domain) if overlap.icon.split(":") | count == 2 else overlap.icon }}
+                {% elif entity_domain == "climate" %}
+                  {% set entity_hvac_action = state_attr(entity_id, "hvac_action") | default("") %}
+                  {% set entity_climate_action = (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state) %}
+                  {% if "off" in entity_climate_action %}{{ all_icons.thermostat }}
+                  {% elif "heat_cool" in entity_climate_action %}{{ all_icons.autorenew }}
+                  {% elif "heating" in entity_climate_action or "heat" in entity_climate_action %}{{ all_icons["thermometer-lines"] }}
+                  {% elif "cooling" in entity_climate_action or "cool" in entity_climate_action %}{{ all_icons.snowflake }}
+                  {% elif "drying" in entity_climate_action or "dry" in entity_climate_action %}{{ all_icons["water-percent"] }}
+                  {% elif "fan" in entity_climate_action or "fan_only" in entity_climate_action %}{{ all_icons.fan }}
+                  {% elif "auto" in entity_climate_action %}{{ all_icons["calendar-sync"] }}
+                  {% elif "idle" in entity_climate_action %}{{ all_icons.thermometer }}
+                  {% else %}{{ icon_domain }}
+                  {% endif %}
+                {% elif entity_domain == "alarm_control_panel" %}
+                  {% if entity_state in ["disarmed", "disarming"] %}{{ all_icons["shield-off-outline"] }}
+                  {% elif entity_state == "armed_home" %}{{ all_icons["shield-home-outline"] }}
+                  {% elif entity_state == "armed_away" %}{{ all_icons["shield-lock-outline"] }}
+                  {% elif entity_state == "armed_night" %}{{ all_icons["shield-moon-outline"] }}
+                  {% elif entity_state == "armed_vacation" %}{{ all_icons["shield-airplane-outline"] }}
+                  {% elif entity_state == "armed_bypass" %}{{ all_icons["shield-half-full"] }}
+                  {% elif entity_state in ["pending", "arming"] %}{{ all_icons["shield-outline"] }}
+                  {% else %}{{ all_icons["shield-alert-outline"] }}
+                  {% endif %}
+                {% elif entity_icon is defined and entity_icon is string and entity_icon.split(":") | count == 2 and entity_icon.split(":")[1] in all_icons %}
+                  {{ all_icons[entity_icon.split(":")[1]] }}
+                {% elif
+                    entity_domain in ["binary_sensor", "cover", "sensor", "switch"] and
+                    entity_device_class is defined and entity_device_class is string and entity_device_class | length > 0 %}
+                  {% set entity_device_class_icon = entity_device_class + (("-" + entity_state) if entity_domain not in ["sensor"] else "") %}
+                  {% set entity_device_class_icon = device_class_icons[entity_domain][entity_device_class_icon] if entity_device_class_icon in device_class_icons[entity_domain] else icon_domain %}
+                  {{ all_icons[entity_device_class_icon] if entity_device_class_icon in all_icons else icon_domain }}
+                {% else %}
+                  {{ icon_domain }}
                 {% endif %}
-              {% elif entity_domain == "alarm_control_panel" %}
-                {% if entity_state in ["disarmed", "disarming"] %}{{ all_icons["shield-off-outline"] }}
-                {% elif entity_state == "armed_home" %}{{ all_icons["shield-home-outline"] }}
-                {% elif entity_state == "armed_away" %}{{ all_icons["shield-lock-outline"] }}
-                {% elif entity_state == "armed_night" %}{{ all_icons["shield-moon-outline"] }}
-                {% elif entity_state == "armed_vacation" %}{{ all_icons["shield-airplane-outline"] }}
-                {% elif entity_state == "armed_bypass" %}{{ all_icons["shield-half-full"] }}
-                {% elif entity_state in ["pending", "arming"] %}{{ all_icons["shield-outline"] }}
-                {% else %}{{ all_icons["shield-alert-outline"] }}
-                {% endif %}
-              {% elif entity_icon is defined and entity_icon is string and entity_icon.split(":") | count == 2 and entity_icon.split(":")[1] in all_icons %}
-                {{ all_icons[entity_icon.split(":")[1]] }}
-              {% elif
-                  entity_domain in ["binary_sensor", "cover", "sensor", "switch"] and
-                  entity_device_class is defined and entity_device_class is string and entity_device_class | length > 0 %}
-                {% set entity_device_class_icon = entity_device_class + (("-" + entity_state) if entity_domain not in ["sensor"] else "") %}
-                {% set entity_device_class_icon = device_class_icons[entity_domain][entity_device_class_icon] if entity_device_class_icon in device_class_icons[entity_domain] else icon_domain %}
-                {{ all_icons[entity_device_class_icon] if entity_device_class_icon in all_icons else icon_domain }}
-              {% else %}
-                {{ icon_domain }}
               {% endif %}
             icon_color: >
-              {% if entity_domain == "alarm_control_panel" %}
-                {% if entity_state == "disarmed" %}{{ nextion.color.off }}
-                {% elif entity_state in ["armed_home", "armed_away", "armed_night", "armed_vacation", "armed_bypass"] %}{{ nextion.color.green }}
-                {% elif entity_state in ["pending", "arming", "disarming"] %}{{ nextion.color.amber }}
-                {% elif entity_state == "triggered" %}{{ nextion.color.red }}
+              {% if entity_id_valid %}
+                {% if entity_domain == "alarm_control_panel" %}
+                  {% if entity_state == "disarmed" %}{{ nextion.color.off }}
+                  {% elif entity_state in ["armed_home", "armed_away", "armed_night", "armed_vacation", "armed_bypass"] %}{{ nextion.color.green }}
+                  {% elif entity_state in ["pending", "arming", "disarming"] %}{{ nextion.color.amber }}
+                  {% elif entity_state == "triggered" %}{{ nextion.color.red }}
+                  {% else %}{{ entity_icon_color }}
+                  {% endif %}
+                {% elif entity_domain == "climate" %}
+                  {% set entity_hvac_action = state_attr(entity_id, "hvac_action") | default("") %}
+                  {% set entity_climate_action = (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state) %}
+                  {% if "off" in entity_climate_action %}{{ nextion.color.off }}
+                  {% elif "heat_cool" in entity_climate_action %}{{ nextion.color.amber }}
+                  {% elif "heating" in entity_climate_action or "heat" in entity_climate_action %}{{ nextion.color.deep_orange}}
+                  {% elif "cooling" in entity_climate_action or "cool" in entity_climate_action %}{{ nextion.color.blue }}
+                  {% elif "drying" in entity_climate_action or "dry" in entity_climate_action %}{{ nextion.color.orange }}
+                  {% elif "fan" in entity_climate_action or "fan_only" in entity_climate_action %}{{ nextion.color.cyan }}
+                  {% elif "auto" in entity_climate_action %}{{ nextion.color.green }}
+                  {% elif "idle" in entity_climate_action %}{{ nextion.color.off }}
+                  {% else %}{{ entity_icon_color }}
+                  {% endif %}
+                {% elif entity_domain == "light" %}
+                  {% if entity_state != "on" %}{{ nextion.color.off }}
+                  {% else %}
+                    {% set entity_rgb_color_attr = state_attr(entity_id, "rgb_color") | default("") %}
+                    {% set entity_rgb_color = entity_rgb_color_attr if entity_rgb_color_attr is sequence and entity_rgb_color_attr | count == 3 else entity_icon_color %}
+                    {% set entity_brightness = state_attr(entity_id, "brightness") | default("") %}
+                    {% set entity_brightness_index = (entity_brightness | int(255))/255 if is_number(entity_brightness) else 1 %}
+                    {{
+                      [
+                        min(255,entity_rgb_color[0] * entity_brightness_index) | round(0),
+                        min(255,entity_rgb_color[1] * entity_brightness_index) | round(0),
+                        min(255,entity_rgb_color[2] * entity_brightness_index) | round(0)
+                      ]
+                    }}
+                  {% endif %}
                 {% else %}{{ entity_icon_color }}
                 {% endif %}
-              {% elif entity_domain == "climate" %}
-                {% set entity_hvac_action = state_attr(entity_id, "hvac_action") | default("") %}
-                {% set entity_climate_action = (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state) %}
-                {% if "off" in entity_climate_action %}{{ nextion.color.off }}
-                {% elif "heat_cool" in entity_climate_action %}{{ nextion.color.amber }}
-                {% elif "heating" in entity_climate_action or "heat" in entity_climate_action %}{{ nextion.color.deep_orange}}
-                {% elif "cooling" in entity_climate_action or "cool" in entity_climate_action %}{{ nextion.color.blue }}
-                {% elif "drying" in entity_climate_action or "dry" in entity_climate_action %}{{ nextion.color.orange }}
-                {% elif "fan" in entity_climate_action or "fan_only" in entity_climate_action %}{{ nextion.color.cyan }}
-                {% elif "auto" in entity_climate_action %}{{ nextion.color.green }}
-                {% elif "idle" in entity_climate_action %}{{ nextion.color.off }}
-                {% else %}{{ entity_icon_color }}
-                {% endif %}
-              {% elif entity_domain == "light" %}
-                {% if entity_state != "on" %}{{ nextion.color.off }}
-                {% else %}
-                  {% set entity_rgb_color_attr = state_attr(entity_id, "rgb_color") | default("") %}
-                  {% set entity_rgb_color = entity_rgb_color_attr if entity_rgb_color_attr is sequence and entity_rgb_color_attr | count == 3 else entity_icon_color %}
-                  {% set entity_brightness = state_attr(entity_id, "brightness") | default("") %}
-                  {% set entity_brightness_index = (entity_brightness | int(255))/255 if is_number(entity_brightness) else 1 %}
-                  {{
-                    [
-                      min(255,entity_rgb_color[0] * entity_brightness_index) | round(0),
-                      min(255,entity_rgb_color[1] * entity_brightness_index) | round(0),
-                      min(255,entity_rgb_color[2] * entity_brightness_index) | round(0)
-                    ]
-                  }}
-                {% endif %}
-              {% else %}{{ entity_icon_color }}
               {% endif %}
 
   - alias: Main choices
