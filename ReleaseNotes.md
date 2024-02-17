@@ -522,7 +522,7 @@ For support, feedback, or detailed information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
 or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
 
-## Patch v4.2.6: Bug fixes
+## Patch v4.2.6: Enhancing Stability and User Experience
 Patch v4.2.6 addresses a mix of medium and minor bugs alongside UI enhancements, focusing on streamlining user experiences with the NSPanel Firmware.
 Key fixes include improving responsiveness in button pages for automation and scenes entities, correcting sensor display issues, and smoothing out TFT uploads.
 Notable improvements also include syncing with HA core 2024.2 and refining documentation for memory usage during customizations,
