@@ -1,14 +1,40 @@
 # API
 This document provides details on custom services designed for integration with Home Assistant, including their usage, parameters, and examples.
 
-**In this document:**
+## Summary
 - [Service Documentation](#service-documentation)
+  - [Button Service (`button`)](#button-service-button): Configures properties and state of buttons on a specified button page.
+  - [Command Service (`command`)](#command-service-command): Sends a custom command directly to the display.
+  - [Component Color Service (`component_color`)](#component-color-service-component_color): Changes the foreground color of a specified component on the display.
+  - [Component Hide Service (`component_hide`)](#component-hide-service-component_hide): Hides a specified component on the display.
+  - [Component Show Service (`component_show`)](#component-show-service-component_show): Shows a previously hidden component on the display.
+  - [Component Text Service (`component_text`)](#component-text-service-component_text): Updates the text of a specified component on the display.
+  - [Component Value Service (`component_val`)](#component-value-service-component_val): Updates the value of a specified component on the display.
+  - [Entity Details Show Service (`entity_details_show`)](#entity-details-show-service-entity_details_show): Displays detailed information for a specific entity.
+  - [Icon Service (`icon`)](#icon-service-icon): Updates a chip or custom button's icon, color, and visibility.
+  - [Initialization Service: Global (`init_global`)](#initialization-service-global-init_global): Transfers global settings on initialization.
+  - [Initialization Service: Home Page (`init_page_home`)](#initialization-service-home-page-init_page_home): Transfers settings for the "Home" page on initialization.
+  - [Initialization Service: Settings Page (`init_page_settings`)](#initialization-service-settings-page-init_page_settings): Transfers settings for the "Settings" page on initialization.
+  - [Initialization Service: Relays (`init_relays`)](#initialization-service-relays-init_relays): Transfers relay's settings during initialization.
+  - [Notification Clear Service (`notification_clear`)](#notification-clear-service-notification_clear): Clears the current notification from the screen.
+  - [Notification Show Service (`notification_show`)](#notification-show-service-notification_show): Displays a notification-message on the screen.
+  - [QR Code Service (`qrcode`)](#qr-code-service-qrcode): Displays a QR code on the panel or updates the QR code information for local control.
+  - [RTTTL Play Service (`rtttl_play`)](#rtttl-play-service-rtttl_play): Plays melodies encoded in the RTTTL format.
+  - [Value Service (`value`)](#value-service-value): Updates an entity to display specific values.
+  - [Wake Up Service (`wake_up`)](#wake-up-service-wake_up): Activates the display from a screensaver or low-brightness state.
+  - [Alarm Settings Page Service (`page_alarm`)](#alarm-settings-page-service-page_alarm): Updates the Alarm page with current state information.
+  - [Climate Page Service (`page_climate`)](#climate-page-service-page_climate): Updates the Climate page with current state information.
+  - [Media Player Page Service (`page_media_player`)](#media-player-page-service-page_media_player): Updates the Media Player page with current state information.
 - [Screen Components](#screen-components)
+  - [Home page - Chips](#home-page---chips)
+    - User-defined Chips
+    - Relays Chips
+    - Climate Chip
+  - [Home page - Custom Buttons](#home-page---custom-buttons)
 
 ## Service Documentation
 
-**Table of contents:**
-
+### Table of contents
 | Service ID | Service Name | Description |
 |------------|--------------|-------------|
 | [`button`](#button-service-button) | [Button Service](#button-service-button) | Configures properties and state of buttons on a specified button page. |
@@ -695,7 +721,7 @@ automation:
 
 ## Screen components
 
-### Page Home - Chips
+### Home Page - Chips
 ![Image](pics/Nextion_Components_Home_Chips_EU.png)
 ![Image](pics/Nextion_Components_Home_Chips_US.png)
 
@@ -717,6 +743,6 @@ automation:
 - **Availability**: Global (available even when page is not visible).
 - **Ids**: `home.chip_relay1` and `home.chip_relay2`.
 
-### Page Home - Custom buttons
+### Home Page - Custom buttons
 ![Image](pics/Nextion_Components_Home_Custom_Buttons_EU.png)
 ![Image](pics/Nextion_Components_Home_Custom_Buttons_US.png)
