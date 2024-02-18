@@ -35,6 +35,7 @@ This document provides details on custom services designed for integration with 
 ## Service Documentation
 
 ### Table of contents
+<!-- markdownlint-disable MD013 -->
 | Service ID | Service Name | Description |
 |------------|--------------|-------------|
 | [`button`](#button-service-button) | [Button Service](#button-service-button) | Configures properties and state of buttons on a specified button page. |
@@ -59,6 +60,7 @@ This document provides details on custom services designed for integration with 
 | [`rtttl_play`](#rtttl-play-service-rtttl_play) | [RTTTL Play Service](#rtttl-play-service-rtttl_play) | Plays melodies encoded in the RTTTL format. |
 | [`value`](#value-service-value) | [Value Service](#value-service-value) | Updates an entity to display specific values. |
 | [`wake_up`](#wake-up-service-wake_up) | [Wake Up Service](#wake-up-service-wake_up) | Activates the display from a screensaver or low-brightness state. |
+<!-- markdownlint-enable MD013 -->
 
 ### Button Service: `button`
 Configures the properties and state of buttons on a specified button page, allowing for dynamic updates to button appearance and behavior based on specified parameters.
