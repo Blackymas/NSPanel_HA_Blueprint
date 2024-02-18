@@ -14,8 +14,8 @@ This document provides details on custom services designed for integration with 
   - [Icon Service (`icon`)](#icon-service-icon): Updates a chip or custom button's icon, color, and visibility.
   - [Initialization Service: Global (`init_global`)](#initialization-service-global-init_global): Transfers global settings on initialization.
   - [Initialization Service: Home Page (`init_page_home`)](#initialization-service-home-page-init_page_home): Transfers settings for the "Home" page on initialization.
-  - [Initialization Service: Settings Page (`init_page_settings`)](#initialization-service-settings-page-init_page_settings): Transfers settings for the "Settings" page on initialization.
-  - [Initialization Service: Relays (`init_relays`)](#initialization-service-relays-init_relays): Transfers relay's settings during initialization.
+  - [Initialization Service: Settings Page (`init_page_settings`)](#initialization-service-init_page_settings): Transfers settings for the "Settings" page on initialization.
+  - [Initialization Service: Relays (`init_relays`)](#initialization-service-init_relays): Transfers relay's settings during initialization.
   - [Notification Clear Service (`notification_clear`)](#notification-clear-service-notification_clear): Clears the current notification from the screen.
   - [Notification Show Service (`notification_show`)](#notification-show-service-notification_show): Displays a notification-message on the screen.
   - [QR Code Service (`qrcode`)](#qr-code-service-qrcode): Displays a QR code on the panel or updates the QR code information for local control.
