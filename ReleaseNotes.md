@@ -7,7 +7,9 @@ So if you haven't made a donation yet, now would be a good time ;)**
 [![Paypal](https://user-images.githubusercontent.com/41958506/212499642-b2fd097a-0938-4bfc-b37b-74df64592c58.png)](https://www.paypal.com/donate/?hosted_button_id=S974SWQMB8PB2)
 
 ## General
-<Update>Hello everyone! Our latest update introduces a range of enhancements designed to elevate your experience with the firmware.
+MUST BE UPDATED.
+
+Hello everyone! Our latest update introduces a range of enhancements designed to elevate your experience with the firmware.
 This update is focused on improving user interaction, featuring a more intuitive TFT upload process and expanded customization options.
 Key enhancements include upgraded functionality for Alarm Control Panels & Thermostats and new personalization features on the Home page.
 
