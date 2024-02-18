@@ -71,7 +71,8 @@ It's particularly useful for reflecting changes in device states or user interac
 - `page` (string): The page identifier where the button is located.
 - `id` (string): The button's unique identifier.
 - `state` (bool): The state of the button, which can affect its background picture and other visual elements.
-- `icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html). Example: "\uE6E8" for `mdi:lightbulb-on-outline`.
+- `icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html).
+Example: "\uE6E8" for `mdi:lightbulb-on-outline`.
 - `icon_color` (int[]): The RGB color array for the icon.
 - `icon_font` (int): The Nextion font identifier for the icon (default is 8).
 - `bri` (string): Brightness level or other dynamic information to display on the button close to the icon.
@@ -119,7 +120,8 @@ data:
 Changes the foreground color of a specified component on the display, enabling dynamic color updates for user interface customization.
 
 **Usage:**
-This service is ideal for creating visually dynamic interfaces, allowing elements to change color based on conditions, events, or user actions, such as indicating status changes or highlighting specific UI components.
+This service is ideal for creating visually dynamic interfaces, allowing elements to change color based on conditions,
+events, or user actions, such as indicating status changes or highlighting specific UI components.
 
 **Parameters:**
 - `id` (string): Identifier of the component whose color will be updated. It is essential that this matches the component's ID in your display layout to ensure the correct element is targeted.
@@ -263,7 +265,8 @@ This service is ideal for dynamically updating icons on your Panel, allowing for
 
 **Parameters:**
 - `id` (string): Identifier of the chip or button component. Refer to "[Screen components](#screen-components)" for more details.
-- `icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html). Example: "\uE6E8" for `mdi:lightbulb-on-outline`.
+- `icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html).
+Example: "\uE6E8" for `mdi:lightbulb-on-outline`.
 - `icon_color` (int[]): RGB color array for the icon. Example: `[0, 255, 0]` for green.
 - `visible` (bool): Flag indicating whether the icon should be visible (`true`) or hidden (`false`).
 
@@ -331,14 +334,16 @@ It accommodates extensive customizations, impacting both visual appeal and funct
 - `meridiem` (string[]): Array of strings for AM/PM labels, applicable if the time format includes meridiem.
 - `chip_font` (int): Font Id for icons or chips displayed on the "Home" page.
 - `custom_buttons_font` (int): Font Id for custom button icons on the "Home" page.
-- `notification_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) for the notification button.
+- `notification_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
+for the notification button.
 - `notification_icon_color_normal` (int[]): RGB color array for the notification icon under normal conditions.
 - `notification_icon_color_unread` (int[]): RGB color array for the notification icon when there are unread notifications.
 - `qrcode` (bool): Flag indicating whether the QR code button is enabled.
 - `qrcode_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) for the QR code button.
 - `qrcode_icon_color` (int[]): RGB color array for the QR code button icon.
 - `entities_pages` (bool): Flag indicating whether the entities page button is enabled.
-- `entities_pages_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) for the entities page button.
+- `entities_pages_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
+for the entities page button.
 - `entities_pages_icon_color` (int[]): RGB color array for the entities page button icon.
 
 **Home Assistant Example:**
