@@ -37,9 +37,11 @@ This document provides details on custom services designed for integration with 
 ## Service Documentation
 
 ### General Guidance
-In general, there's no validation on the content of the parameters in a service call. Please make sure to fulfill the validation from the service caller side, otherwise it can drive to a crash in the ESPHome side, it will most likely restart the panel.
+In general, there's no validation on the content of the parameters in a service call.
+Please make sure to fulfill the validation from the service caller side, otherwise it can drive to a crash in the ESPHome side, it will most likely restart the panel.
 
-One example is with colors. In almost all cases, it is expected an array with 3 unsigned integers between 0 to 255. If you send anything different, the conversion to the RGB565 used by Nextion will crash.
+One example is with colors. In almost all cases, it is expected an array with 3 unsigned integers between 0 to 255.
+If you send anything different, the conversion to the RGB565 used by Nextion will crash.
 
 ### Table of Contents
 <!-- markdownlint-disable MD013 -->

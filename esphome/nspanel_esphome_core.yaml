@@ -491,6 +491,7 @@ api:
           embedded_climate: bool
           embedded_climate_friendly_name: string
           embedded_indoor_temperature: bool
+          ent_value_xcen: int
           mui_please_confirm: string
           mui_unavailable: string
           screensaver_time: bool
@@ -502,6 +503,7 @@ api:
               embedded_climate: !lambda "return embedded_climate;"
               embedded_climate_friendly_name: !lambda "return embedded_climate_friendly_name;"
               embedded_indoor_temperature: !lambda "return embedded_indoor_temperature;"
+              ent_value_xcen: !lambda "return ent_value_xcen;"
               mui_please_confirm: !lambda "return mui_please_confirm;"
               mui_unavailable: !lambda "return mui_unavailable;"
               screensaver_time: !lambda "return screensaver_time;"
@@ -1223,13 +1225,16 @@ api:
           value_color: int[]
         then:
           - lambda: |-
-              if (!id(is_uploading_tft)) {
-                std::string enticon = id.c_str() + std::string("_pic");
-                std::string entlabel = id.c_str() + std::string("_label");
-                disp1->set_component_text_printf(enticon.c_str(), "%s", icon.c_str());
-                if (strcmp(icon.c_str(), "0") != 0) disp1->set_component_text_printf(enticon.c_str(), "%s", icon.c_str());
-                disp1->set_component_text_printf(entlabel.c_str(), "%s", name.c_str());
-                disp1->set_component_text_printf(id.c_str(), "%s", value.c_str());
+              if (!id(is_uploading_tft) and !(id.empty())) {
+                if (!(icon.empty())) {
+                  disp1->set_component_text_printf("%s_icon", id.c_str(), icon.c_str());
+                  if (icon_color.size() == 3) set_component_color->execute((id + "_icon").c_str(), icon_color);
+                }
+                if (!(name.empty())) disp1->set_component_text_printf("%s_label", id.c_str(), name.c_str());
+                if (!(value.empty())) {
+                  disp1->set_component_text_printf("%s", id.c_str(), value.c_str());
+                  if (value_color.size() == 3) set_component_color->execute(id.c_str(), value_color);
+                }
               }
 
     # Wake Up Service
@@ -1505,6 +1510,11 @@ globals:
     type: uint8_t
     restore_value: false
     initial_value: '0'  # 0 = unknown, 1 = Arduino, 2 = ESP-IDF
+
+  - id: page_entity_value_horizontal_alignment
+    type: uint8_t
+    restore_value: false
+    initial_value: '1'  # Horizontal alignment:0-Left;1-Center;2-Right
 
 ##### START - BINARY SENSOR CONFIGURATION #####
 binary_sensor:
@@ -2475,6 +2485,7 @@ script:
       embedded_climate: bool
       embedded_climate_friendly_name: string
       embedded_indoor_temperature: bool
+      ent_value_xcen: int
       mui_please_confirm: string
       mui_unavailable: string
       screensaver_time: bool
@@ -2506,6 +2517,9 @@ script:
           id(screensaver_display_time) = screensaver_time;
           id(screensaver_display_time_color) = screensaver_time_color;
           page_screensaver->execute();
+
+          // Entities pages alignment
+          id(page_entity_value_horizontal_alignment) = ent_value_xcen;
 
           if (current_page->state != "boot") {
             // Update current page
@@ -2809,7 +2823,17 @@ script:
     mode: restart
     parameters:
       page_number: uint
-    then:  # There's nothing here so far
+    then:
+      - lambda: |-
+          if (current_page->state.find("entitypage") == 0) {
+            // Set value alignment
+            if (id(page_entity_value_horizontal_alignment) != 1) {
+              for (int i = 1; i <= 8; ++i) {
+                disp1->send_command_printf("value%02d.xcen=%" PRIu8, i, id(page_entity_value_horizontal_alignment));
+              }
+            }
+          }
+
   - id: page_entitypage01
     mode: restart
     then:
