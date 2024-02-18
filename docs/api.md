@@ -12,8 +12,8 @@ This document provides details on custom services designed for integration with 
   - [Component Value Service (`component_val`)](#component-value-service-component_val): Updates the value of a specified component on the display.
   - [Entity Details Show Service (`entity_details_show`)](#entity-details-show-service-entity_details_show): Displays detailed information for a specific entity.
   - [Icon Service (`icon`)](#icon-service-icon): Updates a chip or custom button's icon, color, and visibility.
-  - [Initialization Service: Global (`init_global`)](#initialization-service-global-init_global): Transfers global settings on initialization.
-  - [Initialization Service: Home Page (`init_page_home`)](#initialization-service-home-page-init_page_home): Transfers settings for the "Home" page on initialization.
+  - [Initialization Service: Global (`init_global`)](#initialization-service-init_global): Transfers global settings on initialization.
+  - [Initialization Service: Home Page (`init_page_home`)](#initialization-service-init_page_home): Transfers settings for the "Home" page on initialization.
   - [Initialization Service: Settings Page (`init_page_settings`)](#initialization-service-init_page_settings): Transfers settings for the "Settings" page on initialization.
   - [Initialization Service: Relays (`init_relays`)](#initialization-service-init_relays): Transfers relay's settings during initialization.
   - [Notification Clear Service (`notification_clear`)](#notification-clear-service-notification_clear): Clears the current notification from the screen.
