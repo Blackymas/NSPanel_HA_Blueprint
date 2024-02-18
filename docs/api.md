@@ -152,6 +152,7 @@ service: esphome.<your_panel_name>_component_hide
 data:
   id: "date"  # Hides the date display on Home page
 ```
+<!-- markdownlint-disable MD028 -->
 > [!NOTE]
 > Replace <your_panel_name> with your specific panel name as configured in Home Assistant to ensure correct service execution.
 >
@@ -161,6 +162,7 @@ data:
 > This command only works when the page is visible and cannot contain the page id in the component id.
 > 
 > If the component being hidden is not part of the current page, the command will fail and an error message will be logged.
+<!-- markdownlint-enable MD028 -->
 
 ### Component Show Service: `component_show`
 Makes a specified component visible on the display again, allowing for dynamic interface reversals.
@@ -422,12 +424,14 @@ data:
   relay2_icon_color: 2016   # Green in 16-bit color (0x07E0)
   relay2_fallback: true
 ```
+<!-- markdownlint-disable MD028 -->
 > [!NOTE]
 > Replace `<your_panel_name>` with the specific name of your panel configured in Home Assistant.
 > This service initializes relay settings based on the provided parameters, customizing relay functionality and presentation as defined in the blueprint.
 
 > [!IMPORTANT]
 > Colors here are in RGB565 numeric (decimal) format. You can use a [RGB565 color picker](https://rgbcolorpicker.com/565) to convert from RGB.
+<!-- markdownlint-enable MD028 -->
 
 ### Notification Clear Service: `notification_clear`
 Removes any displayed notification from the screen, allowing the display to return to its normal state or view.
@@ -612,6 +616,7 @@ data:
   qrcode: "WIFI:T:WPA;S:mynetwork;P:mypass;;"
   show: true
 ```
+<!-- markdownlint-disable MD028 -->
 > [!NOTE]
 > Replace `<your_panel_name>` with the specific name of your panel configured in Home Assistant.
 > This service will generate and display the QR code based on the provided data, navigating to the QR code page if `show` is set to `true`.
@@ -621,6 +626,7 @@ data:
 > ensuring the data is accessible on the panel even without Wi-Fi connectivity.
 > To update the QR Code information without immediately displaying it, call this service with `show: false`.
 > This allows for seamless updates to the QR Code content without disrupting the current user interface.
+<!-- markdownlint-enable MD028 -->
 
 ### RTTTL Play Service: `rtttl_play`
 Plays melodies encoded in the RTTTL format, enabling the integration of audio feedback or alerts with simple text-based melody strings.
