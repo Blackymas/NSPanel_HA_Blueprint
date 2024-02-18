@@ -197,14 +197,14 @@ Ideal for user interfaces that require real-time text updates, such as status me
 
 **Parameters:**
 - `id` (string): Identifier of the component whose text will be updated. Ensure this matches the component's ID in your display layout.
-- `text` (string): The new text content to display. This can include static text or dynamic information passed at runtime.
+- `txt` (string): The new text content to display. This can include static text or dynamic information passed at runtime.
 
 **Home Assistant Example:**
 ```yaml
 service: esphome.<your_panel_name>_component_text
 data:
   id: "home.time"
-  text: "12:34"
+  txt: "12:34"
 ```
 > [!NOTE]
 > Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant to ensure correct service execution.
