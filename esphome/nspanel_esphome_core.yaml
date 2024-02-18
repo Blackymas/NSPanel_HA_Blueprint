@@ -170,6 +170,80 @@ api:
     - script.execute: watchdog
 
   services:
+    # Button Service
+      # Dynamically configures button properties on a specified page, enhancing UI interactivity
+      # by allowing updates to button appearance and behavior based on given parameters.
+
+      # Usage: Ideal for user interface customization, reflecting device state changes or user interactions.
+      # Supports dynamic updates to button states, icons, colors, and labels.
+
+      # Parameters:
+      # - page (string): Identifier of the page where the button is located.
+      # - id (string): Unique identifier for the button.
+      # - state (bool): Determines the button's state, influencing background and other visual aspects.
+      # - icon (string): Icon codepoint from HASwitchPlate Material Design Icons. Example: "\uE6E8" for mdi:lightbulb-on-outline.
+      # - icon_color (int[]): RGB color array for the icon.
+      # - icon_font (int): Nextion font identifier for the icon, default is 8.
+      # - bri (string): Brightness level or other dynamic info to be displayed close to the icon.
+      # - label (string): Main text label for the button.
+
+      # Example service call:
+      # service: esphome.<your_panel_name>_button
+      # data:
+      #   page: "buttonpage01"
+      #   id: "button08"
+      #   state: true
+      #   icon: "\uE6E8"           # mdi:lightbulb-on-outline
+      #   icon_color: [255, 0, 0]  # Red
+      #   icon_font: 2
+      #   bri: "75%"
+      #   label: "Living Room"
+      #
+      # NOTE: Replace <your_panel_name> with your panel's name configured in Home Assistant.
+      # Customize the button's properties as needed to align with your UI design and functionality requirements.
+      # Utilize the HASwitchPlate Material Design Icons for a wide range of icon options.
+      - service: button
+        variables:
+          page: string
+          id: string
+          state: bool
+          icon: string
+          icon_color: int[]
+          icon_font: int
+          bri: string
+          label: string
+        then:
+          - lambda: |-
+              if (page == current_page->state and not id(is_uploading_tft)) {
+                std::string btnicon = id.c_str() + std::string("icon");
+                std::string btntext = id.c_str() + std::string("text");
+                std::string btnbri = id.c_str() + std::string("bri");
+                std::string btnpic = id.c_str() + std::string("pic");
+                uint8_t bg_pic = state ? 47 : 46;
+                uint16_t txt_color = state ? 10597 : 65535;
+                disp1->send_command_printf("%spic.picc=%u", id.c_str(), bg_pic);
+                disp1->send_command_printf("%sbri.picc=%u", id.c_str(), bg_pic);
+                disp1->send_command_printf("%stext.picc=%u", id.c_str(), bg_pic);
+                disp1->send_command_printf("%sicon.picc=%u", id.c_str(), bg_pic);
+                disp1->send_command_printf("%sicon.font=%" PRIu32, id.c_str(), icon_font);
+                disp1->set_component_foreground_color(btnbri.c_str(), txt_color);
+                disp1->set_component_foreground_color(btntext.c_str(), txt_color);
+                set_component_color->execute(btnicon.c_str(), icon_color);
+                disp1->set_component_text_printf(btnicon.c_str(), "%s", icon.c_str());
+                display_wrapped_text->execute(btntext.c_str(), label.c_str(), 10);
+                if (strcmp(bri.c_str(), "0") != 0)
+                  disp1->set_component_text_printf(btnbri.c_str(), "%s", bri.c_str());
+                else
+                  disp1->set_component_text_printf(btnbri.c_str(), " ");
+                disp1->show_component(btnpic.c_str());
+                disp1->show_component(btnicon.c_str());
+                disp1->show_component(btntext.c_str());
+                disp1->show_component(btnbri.c_str());
+                disp1->show_component(id.c_str());
+              } else {
+                ESP_LOGW("service.set_button", "Skipping button `%s.%s` update.", page.c_str(), id.c_str());
+              }
+
     # Command Service
       # Sends custom commands directly to the display for dynamic interactions and updates.
       #
@@ -324,6 +398,32 @@ api:
               if (!id(is_uploading_tft))
                 disp1->set_component_value(id.c_str(), val);
 
+    # entity_details_show Service - PENDING FULL IMPLEMENTATION
+      # Enables navigation to a page displaying detailed information about a specific entity and defines a clear path for returning to a previous page, enhancing user interaction within the interface.
+      #
+      # Usage: Simplifies access to detailed information for entities, providing users with a detailed view and a straightforward method to navigate back to a main or context-specific page.
+      #
+      # Parameters:
+      # - entity_id (string): Identifier for the entity whose detailed information is to be displayed.
+      # - back_page (string): Specifies the page to return to after viewing details. Options are limited to `home`, `buttonpage01`, `buttonpage02`, `buttonpage03`, and `buttonpage04` to ensure consistent and predictable navigation.
+      #
+      # Example service call:
+      # service: esphome.<your_panel_name>_entity_details_show
+      # data:
+      #   entity_id: "light.living_room"
+      #   back_page: "home"  # Or "buttonpage01" to "buttonpage04" as appropriate.
+      #
+      # NOTE: Tailor <your_panel_name>, entity_id, and back_page to match your specific setup. This approach ensures a seamless and intuitive navigation experience, facilitating easy access to and from detailed entity information.
+      - service: open_entity_settings_page
+        variables:
+          entity: string
+          back_page: string
+        then:
+          - script.execute:
+              id: open_entity_settings_page
+              entity: !lambda "return entity;"
+              back_page: !lambda "return back_page;"
+
     # Icon Service
       # This service updates a chip or custom button's icon, color, and visibility within Home Assistant.
       #
@@ -356,7 +456,7 @@ api:
                 // Do something
               }
 
-    # Init Global Service Configuration
+    # Init Global Service
       # Transfers global settings from the blueprint to ESPHome, configuring the necessary parameters for optimal operation.
       #
       # Usage: Essential during initialization or when updating global settings to reflect changes in the blueprint. Affects overall functionality and UI aspects.
@@ -372,16 +472,16 @@ api:
       # - screensaver_time_color (int[]): RGB color for the screensaver time display, e.g., [165, 42, 42] for reddish-brown.
       #
       # Example service call:
-      service: esphome.<your_panel_name>_init_global
-      data:
-        blueprint_version: "4.2.5"
-        embedded_climate: true
-        embedded_climate_friendly_name: "Home Climate"
-        embedded_indoor_temperature: true
-        mui_please_confirm: "Confirme, por favor."
-        mui_unavailable: "Indisponível"
-        screensaver_time: true
-        screensaver_time_color: [165, 42, 42]  # Reddish-brown
+      # service: esphome.<your_panel_name>_init_global
+      # data:
+      #   blueprint_version: "4.2.5"
+      #   embedded_climate: true
+      #   embedded_climate_friendly_name: "Termostato da Sala"
+      #   embedded_indoor_temperature: true
+      #   mui_please_confirm: "Confirme, por favor."
+      #   mui_unavailable: "Indisponível"
+      #   screensaver_time: true
+      #   screensaver_time_color: [165, 42, 42]  # Reddish-brown
       #
       # NOTE: Replace <your_panel_name> with your panel's specific name as configured in Home Assistant.
       # This initialization should occur to align ESPHome with the current global settings outlined in your blueprint.
@@ -410,7 +510,211 @@ api:
           - lambda: |-
               blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 5));
 
-    ##### Service for transferring relay's settings from the blueprint to ESPHome #####
+    # Init Page Home Service
+      # Sets up the "Home" page in ESPHome with customized settings and UI elements as defined in the project blueprint,
+      # ensuring a tailored and functional interface for the home screen.
+      #
+      # Usage: Key for initial setup and updates to the "Home" page, allowing for dynamic customizations of layout,
+      # appearance, and interactive components. Facilitates a broad spectrum of personalization options.
+      #
+      # Parameters:
+      # - date_color (int[]): RGB color array for the date display (RGB565 format).
+      # - time_format (string): Time display format string, utilizing standard formatting symbols.
+      # - time_color (int[]): RGB color array for the time display (RGB565 format).
+      # - meridiem (string[]): Optional array for AM/PM labels if included in time format.
+      # - chip_font (int): Font Id for chip icons displayed on the "Home" page.
+      # - custom_buttons_font (int): Font Id for icons on custom buttons.
+      # - notification_icon (string): Icon codepoint for the notification button, sourced from HASwitchPlate Material Design Icons.
+      # - notification_icon_color_normal (int[]): RGB color array for normal notification icon state.
+      # - notification_icon_color_unread (int[]): RGB color array for unread notifications state.
+      # - qrcode (bool): Enable/disable flag for QR code button display.
+      # - qrcode_icon (string): Icon codepoint for QR code button, sourced from HASwitchPlate Material Design Icons.
+      # - qrcode_icon_color (int[]): RGB color array for QR code button icon.
+      # - entities_pages (bool): Enable/disable flag for entities page button display.
+      # - entities_pages_icon (string): Icon codepoint for entities page button, sourced from HASwitchPlate Material Design Icons.
+      # - entities_pages_icon_color (int[]): RGB color array for entities page button icon.
+      #
+      # Example service call for Home Assistant:
+      # service: esphome.<your_panel_name>_init_page_home
+      # data:
+      #   date_color: [255, 255, 255]  # White
+      #   time_format: "HH:mm"
+      #   time_color: [255, 255, 255]  # White
+      #   meridiem: ["AM", "PM"]
+      #   chip_font: 8
+      #   custom_buttons_font: 9
+      #   notification_icon: "\uE1ED"  # mdi:email
+      #   notification_icon_color_normal: [255, 255, 255]  # White
+      #   notification_icon_color_unread: [255, 0, 0]  # Red
+      #   qrcode: true
+      #   qrcode_icon: "\uE432"  # mdi:qrcode-scan
+      #   qrcode_icon_color: [0, 255, 0]  # Green
+      #   entities_pages: true
+      #   entities_pages_icon: "\uEDCF"  # mdi:format-list-bulleted-square
+      #   entities_pages_icon_color: [0, 0, 255]  # Blue
+      #
+      # NOTE: Replace <your_panel_name> with the specific name of your panel configured in Home Assistant.
+      # This inline documentation guides through customizing the "Home" page settings to align with your blueprint, enhancing UI functionality and aesthetics.
+      - service: init_page_home
+        variables:
+          date_color: int[]
+          time_format: string
+          time_color: int[]
+          meridiem: string[]
+          chip_font: int
+          custom_buttons_font: int
+          notification_icon: string
+          notification_icon_color_normal: int[]
+          notification_icon_color_unread: int[]
+          qrcode: bool
+          qrcode_icon: string
+          qrcode_icon_color: int[]
+          entities_pages: bool
+          entities_pages_icon: string
+          entities_pages_icon_color: int[]
+        then:
+          - lambda: |-
+              if (not id(is_uploading_tft)) {
+                static const char *const TAG = "service.page_home";
+                ESP_LOGV(TAG, "date_color:                      %" PRIi32, date_color);
+                ESP_LOGV(TAG, "time_format:                     %s", time_format.c_str());
+                ESP_LOGV(TAG, "time_color:                      %" PRIi32, time_color);
+                ESP_LOGV(TAG, "meridiem:                        %i", meridiem.size());
+                ESP_LOGV(TAG, "chip_font_size:                  %" PRIi32, chip_font_size);
+                ESP_LOGV(TAG, "custom_buttons_font_size:        %" PRIi32, custom_buttons_font_size);
+                ESP_LOGV(TAG, "notification_icon:               %s", notification_icon.c_str());
+                ESP_LOGV(TAG, "notification_icon_color_normal:  %i", notification_icon_color_normal.size());
+                ESP_LOGV(TAG, "notification_icon_color_unread:  %i", notification_icon_color_unread.size());
+                ESP_LOGV(TAG, "qrcode:                          %s", YESNO(qrcode));
+                ESP_LOGV(TAG, "qrcode_icon:                     %s", qrcode_icon.c_str());
+                ESP_LOGV(TAG, "qrcode_icon_color:               %i", qrcode_icon_color.size());
+                ESP_LOGV(TAG, "entities_pages:                  %s", YESNO(entities_pages));
+                ESP_LOGV(TAG, "entities_pages_icon:             %s", entities_pages_icon.c_str());
+                ESP_LOGV(TAG, "entities_pages_icon_color:       %i", entities_pages_icon_color.size());
+
+                // Localization
+                ESP_LOGV(TAG, "Load localization");
+                id(mui_time_format) = time_format;
+                id(mui_meridiem) = meridiem;
+
+                // Date/Time colors
+                ESP_LOGV(TAG, "Load date/time colors");
+                disp1->set_component_font_color("home.date", date_color);
+                disp1->set_component_font_color("home.time", time_color);
+                id(home_date_color) = date_color;
+                id(home_time_color) = time_color;
+
+                // Chips icon size
+                ESP_LOGV(TAG, "Chips size");
+                for (int i = 1; i <= 10; ++i) {
+                  disp1->send_command_printf("home.icon_top_%02d.font=%" PRIu32, i, chip_font_size);
+                }
+                disp1->send_command_printf("home.wifi_icon.font=%" PRIu32, chip_font_size);
+                id(home_chip_font_size) = chip_font_size;
+
+                // Custom buttons icon size
+                ESP_LOGV(TAG, "Custom buttons sizes");
+                id(home_custom_buttons_font_size) = custom_buttons_font_size;
+                for (int i = 1; i <= 7; ++i) {
+                  disp1->send_command_printf("home.button%02d.font=%i", i, id(home_custom_buttons_font_size));
+                }
+                disp1->send_command_printf("home.bt_notific.font=%i", id(home_custom_buttons_font_size));
+                disp1->send_command_printf("home.bt_qrcode.font=%i", id(home_custom_buttons_font_size));
+                disp1->send_command_printf("home.bt_entities.font=%i", id(home_custom_buttons_font_size));
+
+                // Notification button
+                ESP_LOGV(TAG, "Set Notification button");
+                disp1->send_command_printf("is_notification=%i", (notification_text->state.empty() and notification_label->state.empty()) ? 0 : 1);
+                disp1->set_component_text_printf("home.bt_notific", "%s", notification_icon.c_str());
+                set_component_color->execute("home.bt_notific", notification_unread->state ? notification_icon_color_unread : notification_icon_color_normal);
+                id(home_notify_icon_color_normal) = notification_icon_color_normal;
+                id(home_notify_icon_color_unread) = notification_icon_color_unread;
+
+                // QRCode button
+                ESP_LOGV(TAG, "Set QRCode button");
+                disp1->send_command_printf("is_qrcode=%i", qrcode ? 1 : 0);
+                disp1->set_component_text_printf("home.bt_qrcode", "%s", qrcode_icon.c_str());
+                set_component_color->execute("home.bt_qrcode", qrcode_icon_color);
+
+                // Entities pages button
+                ESP_LOGV(TAG, "Set Entities button");
+                disp1->send_command_printf("is_entities=%i", entities_pages ? 1 : 0);
+                disp1->set_component_text_printf("home.bt_entities", "%s", entities_pages_icon.c_str());
+                //set_component_color->execute("home.bt_entities", entities_pages_icon_color);
+                set_component_color->execute("home.bt_entities", entities_pages_icon_color);
+
+                blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 1));
+              }
+
+    # Init Page Settings Service
+      # Populates the "Settings" page with user-configurable options, aligning with the project's blueprint for a cohesive and intuitive settings interface.
+      #
+      # Usage: Integral to the initial setup and ongoing refinement of the "Settings" page, allowing for label customization and functional adjustments like reboot options and brightness control from the panel interface.
+      #
+      # Parameters:
+      # - reboot (string): Label for the reboot button, directing users on restarting the device.
+      # - brightness (string): Caption for brightness adjustment controls.
+      # - bright (string): Text label for the high brightness level slider, signaling a brighter screen option.
+      # - dim (string): Text label for the dim brightness level slider, signaling a lower light option for energy saving.
+      #
+      # Example service call for Home Assistant:
+      # service: esphome.<your_panel_name>_init_page_settings
+      # data:
+      #   reboot: "Restart Device"
+      #   brightness: "Screen Brightness"
+      #   bright: "Bright Mode:"  # Suggest adding specific instructions or placeholder values in actual use
+      #   dim: "Dim Mode:"        # Suggest adding specific instructions or placeholder values in actual use
+      #
+      # NOTE: Ensure to substitute <your_panel_name> with your panel's actual name as configured in Home Assistant.
+      # This configuration enriches the "Settings" page with user-friendly labels and settings, based on your specific project requirements.
+      - service: init_page_settings
+        variables:
+          reboot: string
+          brightness: string
+          bright: string
+          dim: string
+        then:
+          - lambda: |-
+              if (not id(is_uploading_tft)) {
+                if (not reboot.empty()) disp1->set_component_text_printf("settings.lbl_reboot", " %s", reboot.c_str());
+                disp1->set_component_text_printf("settings.lbl_brightness", " %s", brightness.c_str());
+                display_wrapped_text->execute("settings.lbl_bright", bright.c_str(), display_mode->state == 2 ? 25 : 10);
+                display_wrapped_text->execute("settings.lbl_dim", dim.c_str(), display_mode->state == 2 ? 25 : 10);
+                blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 3));
+              }
+
+    # Init Relays Service
+      # Configures relay settings in ESPHome according to blueprint specifications,
+      # ensuring optimal control, appearance, and fallback behavior for each relay.
+
+      # Usage: Essential for initializing or updating relay configurations to align with the blueprint.
+      # Tailors relay operations for specific functionalities, including local control, iconography, and fallback states.
+
+      # Parameters:
+      # - relay1_local_control (bool): Enable/disable local control for Relay 1.
+      # - relay1_icon (string): Icon for Relay 1 (e.g., "lightbulb").
+      # - relay1_icon_color (int): 16-bit RGB color for Relay 1's icon. Use 63488 for red (0xF800 in hex).
+      # - relay1_fallback (bool): Fallback state for Relay 1 in case of communication loss.
+      # - relay2_local_control (bool): Enable/disable local control for Relay 2.
+      # - relay2_icon (string): Icon for Relay 2 (e.g., "power").
+      # - relay2_icon_color (int): 16-bit RGB color for Relay 2's icon. Example green color: 2016 (0x07E0 in hex).
+      # - relay2_fallback (bool): Fallback state for Relay 2 in case of communication loss.
+
+      # Example service call:
+      # service: esphome.<your_panel_name>_init_relays
+      # data:
+      #   relay1_local_control: true
+      #   relay1_icon: "lightbulb"
+      #   relay1_icon_color: 63488  # Red in 16-bit color
+      #   relay1_fallback: false
+      #   relay2_local_control: true
+      #   relay2_icon: "power"
+      #   relay2_icon_color: 2016  # Green in 16-bit color
+      #   relay2_fallback: true
+      #
+      # NOTE: Replace <your_panel_name> with your panel's name as configured in Home Assistant.
+      # This configuration sets up the relay features according to the specified parameters,
+      # customizing functionality and presentation as outlined in the project blueprint.
       - service: init_relays
         variables:
           relay1_local_control: bool
@@ -488,108 +792,45 @@ api:
                 if (notification_sound->state) buzzer->play("two short:d=4,o=5,b=100:16e6,16e6");
               }
 
-    # RTTTL Play Service
-      # Plays melodies encoded in RTTTL format, suitable for audio feedback, notifications, or simple tunes.
+    # page_alarm Service
+      # Updates the alarm settings page with current state and configuration, integrating with the panel's interface
+      # to accurately display the latest alarm system settings and status.
       #
-      # Usage: Ideal for projects that require audio signals like notifications, alerts, or melodies.
-      # RTTTL (Ring Tone Text Transfer Language) is a compact, text-based format for storing melodies,
-      # making it perfect for use with simple audio devices such as buzzers.
-      #
-      # Parameters:
-      # - tone (string): The RTTTL string for the melody to be played. It should follow the RTTTL format,
-      #   including the melody's name, default settings, and a sequence of notes.
-      #
-      # Example tones and inspiration can be found here: https://codebender.cc/sketch:109888#RTTTL%20Songs.ino
-      #
-      # Home Assistant Example:
-      # service: esphome.<your_panel_name>_rtttl_play
-      # data:
-      #   tone: "d=4,o=5,b=140:c,e,g,8p,c6,e6,g6,8p,c7,p"  # Example RTTTL melody string
-      #
-      # NOTE: Replace <your_panel_name> with the specific panel name in your Home Assistant setup
-      # to ensure correct execution. Ensure the 'tone' parameter contains a valid RTTTL string
-      # for successful melody playback.
-      - service: rtttl_play
-        variables:
-          tone: string
-        then:
-          - rtttl.play:
-              rtttl: !lambda 'return tone;'
-
-    # Value Service
-      # Updates an entity to display specific values with dynamic icons, names, and color codes.
-      #
-      # Usage: Perfect for entities requiring dynamic information display like sensor readings or state values.
-      # Customize with icons, names, and colors for a personalized UI experience.
+      # Usage: Vital for ensuring the alarm settings page is responsive and user-friendly, allowing for real-time
+      # interaction with the alarm system's controls and information. It dynamically updates based on the system's current state.
       #
       # Parameters:
-      # - id (string): Identifier of the entity. See "Screen components" for entity IDs.
-      # - icon (string): Icon codepoint (e.g., "/uE6E8" for mdi:thermometer) from HASwitchPlate Material Design Icons.
-      # - icon_color (int[]): RGB color array for the icon (e.g., [255, 0, 0] for red).
-      # - name (string): Display name for the entity (e.g., "Temperature").
-      # - value (string): Actual value to display (e.g., "75°F").
-      # - value_color (int[]): RGB color array for the value text (e.g., [255, 255, 0] for yellow).
+      # - page_title (string): Title for the alarm settings page, displayed prominently at the top.
+      # - state (string): Current state of the alarm system (e.g., "armed_home", "disarmed").
+      # - supported_features (int): Bitmask representing the alarm system's supported features,
+      #   determining available controls on the page. Refer to Home Assistant Alarm Control Panel Supported Features
+      #   for specific bitmask values: https://github.com/home-assistant/core/blob/33ff6b5b6ee3d92f4bb8deb9594d67748ea23d7c/homeassistant/components/alarm_control_panel/const.py#L32
+      # - code_format (string): Format required for the alarm code (numeric, alphanumeric).
+      # - code_arm_required (bool): Indicates if a code is needed to arm the system.
+      # - entity (string): Entity ID for the alarm system, enabling state updates and control.
+      # - mui_alarm (string[]): Localized text for alarm control buttons (e.g., Arm, Disarm), allowing for a multilingual interface.
       #
       # Example service call:
-      # service: esphome.<your_panel_name>_value
+      # service: esphome.<your_panel_name>_page_alarm
       # data:
-      #   id: "sensor.temperature"
-      #   icon: "/uE6E8"  # mdi:thermometer
-      #   icon_color: [255, 0, 0]  # Red
-      #   name: "Temperature"
-      #   value: "75°F"
-      #   value_color: [255, 255, 0]  # Yellow
+      #   page_title: "Home Security System"
+      #   state: "disarmed"
+      #   supported_features: 31  # Supports arm/disarm, home/away modes, etc.
+      #   code_format: "number"
+      #   code_arm_required: true
+      #   entity: "alarm_control_panel.home_alarm"
+      #   mui_alarm:
+      #     - "Zuhause"
+      #     - "Abwesend"
+      #     - "Nacht"
+      #     - "Urlaub"
+      #     - "Umgehen"
+      #     - "Entwaffnen"
       #
-      # NOTE: Ensure to replace <your_panel_name> with the specific panel name configured in your Home Assistant.
-      - service: value
-        variables:
-          id: string
-          icon: string
-          icon_color: int[]
-          name: string
-          value: string
-          value_color: int[]
-        then:
-          - lambda: |-
-              if (!id(is_uploading_tft)) {
-                // Do something
-              }
-
-    # Wake Up Service
-      # Activates the display from a screensaver or low-power state, ideal for scenarios where the display
-      # needs to become active upon user interaction or automated triggers, such as motion detection.
-      #
-      # Usage: Ensures energy conservation by keeping the display off when not in use, and available when needed.
-      #
-      # Parameters:
-      # - reset_timer (bool): Determines whether to reset the sleep and dimming timers upon waking the display.
-      #   Setting this to true keeps the display active during user presence, while false retains the current timer settings.
-      #
-      # Example service call:
-      # service: esphome.<your_panel_name>_wake_up
-      # data:
-      #   reset_timer: true  # Ensures the display remains active during user presence, resets timers.
-      #
-      # NOTE: Replace <your_panel_name> with the actual name of your panel configured in Home Assistant to ensure
-      # the service executes correctly. This configuration wakes the display and optionally resets timers based
-      # on the 'reset_timer' parameter.
-      - service: wake_up
-        variables:
-          reset_timer: bool
-        then:
-          - lambda: |-
-              if (not id(is_uploading_tft)) {
-                if (current_page->state == "screensaver") disp1->goto_page(wakeup_page_name->state.c_str());
-                if (reset_timer)
-                  timer_reset_all->execute(wakeup_page_name->state.c_str());
-                else {
-                  timer_sleep->execute(wakeup_page_name->state.c_str(), int(timeout_sleep->state));
-                  timer_dim->execute(wakeup_page_name->state.c_str(), int(timeout_dim->state));
-                }
-              }
-
-    #### Service to populate the alarm settings page #####
-      - service: alarm_settings
+      # NOTE: Substitute <your_panel_name> with your specific panel name as configured in Home Assistant.
+      # Customize the service call to align with your alarm system's capabilities and the desired user interface presentation.
+      # This configuration ensures the alarm settings page remains updated, reflecting the system's current features and state for optimal user interaction.
+      - service: page_alarm
         variables:
           page_title: string
           state: string
@@ -680,42 +921,47 @@ api:
                       }
                 }
 
-    ##### Service to open information for settings-page(s)
-      - service: open_entity_settings_page
-        variables:
-          page: string
-          page_label: string
-          page_icon: string
-          page_icon_color: int[]
-          entity: string
-          back_page: string
-        then:
-          - script.execute:
-              id: open_entity_settings_page
-              page: !lambda "return page;"
-              page_label: !lambda "return page_label;"
-              page_icon: !lambda "return page_icon;"
-              page_icon_color: !lambda "return page_icon_color;"
-              entity: !lambda "return entity;"
-              back_page: !lambda "return back_page;"
-
-    # Service to show a QR code on the display (ex. for WiFi password)
-      - service: qrcode
-        variables:
-          title: string
-          qrcode: string
-          show: bool
-        then:
-          - lambda: |-
-              if (!id(is_uploading_tft)) {
-                disp1->set_component_text_printf("qrcode.qrcode_label", "%s", title.c_str());
-                disp1->set_component_text_printf("qrcode.qrcode_value", "%s", qrcode.c_str());
-                if (show) disp1->goto_page("qrcode");
-                blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 2));
-              }
-
-    #### Service to set climate state ####
-      - service: set_climate
+    # page_climate Service
+      # Dynamically updates the climate page with the latest climate control settings and status,
+      # ensuring a seamless and informative user interface for climate management.
+      #
+      # Usage: Key for providing real-time climate control information on the climate page,
+      # facilitating an interactive and responsive interface for managing climate settings.
+      #
+      # Parameters:
+      # - current_temp (float): Current temperature reading in degrees Celsius.
+      # - supported_features (int): Bitmask indicating the supported features of the climate device,
+      #   such as temperature control (1) and fan mode (4). Combine bitmask values for multiple features.
+      #   See Home Assistant Climate Component Constants for details: 
+      #   https://github.com/home-assistant/core/blob/33ff6b5b6ee3d92f4bb8deb9594d67748ea23d7c/homeassistant/components/climate/const.py#L156C7-L156C27
+      # - target_temp (float): Desired target temperature setting.
+      # - target_temp_high (float): Upper limit of the target temperature range for devices supporting ranges.
+      # - target_temp_low (float): Lower limit of the target temperature range.
+      # - temp_step (int): Temperature adjustment step size, indicating the granularity of changes (typically multiplied by 10 for precision).
+      # - total_steps (int): Total adjustment steps available, derived from the device's temperature range and step size.
+      # - temp_offset (int): Calibration offset applied to the temperature reading (often multiplied by 10 for precision).
+      # - climate_icon (string): Icon codepoint representing the current climate status, chosen from HASwitchPlate Material Design Icons.
+      # - embedded_climate (bool): Indicates if climate control is integrated into the interface.
+      # - entity (string): Entity ID of the climate device, allowing for direct control and status updates.
+      #
+      # Example service call:
+      # service: esphome.<your_panel_name>_page_climate
+      # data:
+      #   current_temp: 22.5
+      #   supported_features: 5  # Example: '1' for temperature control + '4' for fan mode.
+      #   target_temp: 24.0
+      #   target_temp_high: 25.0
+      #   target_temp_low: 19.0
+      #   temp_step: 0.5         # Represented as '5' if multiplied by 10.
+      #   total_steps: 56
+      #   temp_offset: 0.7       # Represented as '70' if multiplied by 10.
+      #   climate_icon: "\uE392" # mdi:thermostat
+      #   embedded_climate: true
+      #   entity: "climate.living_room"
+      #
+      # NOTE: Adjust <your_panel_name> and parameter values to suit your specific climate device and desired interface configuration.
+      # This setup ensures the climate page accurately represents the current settings, enhancing usability and user experience.
+      - service: page_climate
         variables:
           current_temp: float
           supported_features: int
@@ -748,181 +994,44 @@ api:
                     climate_icon: !lambda "return climate_icon;"
                     embedded_climate: !lambda "return embedded_climate;"
 
-    #### Service to set the buttons ####
-      - service: set_button
-        variables:
-          page: string
-          id: string
-          state: bool
-          icon: string
-          icon_color: int[]
-          icon_font: int
-          bri: string
-          label: string
-        then:
-          - lambda: |-
-              if (page == current_page->state and not id(is_uploading_tft)) {
-                std::string btnicon = id.c_str() + std::string("icon");
-                std::string btntext = id.c_str() + std::string("text");
-                std::string btnbri = id.c_str() + std::string("bri");
-                std::string btnpic = id.c_str() + std::string("pic");
-                uint8_t bg_pic = state ? 47 : 46;
-                uint16_t txt_color = state ? 10597 : 65535;
-                disp1->send_command_printf("%spic.picc=%u", id.c_str(), bg_pic);
-                disp1->send_command_printf("%sbri.picc=%u", id.c_str(), bg_pic);
-                disp1->send_command_printf("%stext.picc=%u", id.c_str(), bg_pic);
-                disp1->send_command_printf("%sicon.picc=%u", id.c_str(), bg_pic);
-                disp1->send_command_printf("%sicon.font=%" PRIu32, id.c_str(), icon_font);
-                disp1->set_component_foreground_color(btnbri.c_str(), txt_color);
-                disp1->set_component_foreground_color(btntext.c_str(), txt_color);
-                set_component_color->execute(btnicon.c_str(), icon_color);
-                disp1->set_component_text_printf(btnicon.c_str(), "%s", icon.c_str());
-                display_wrapped_text->execute(btntext.c_str(), label.c_str(), 10);
-                if (strcmp(bri.c_str(), "0") != 0)
-                  disp1->set_component_text_printf(btnbri.c_str(), "%s", bri.c_str());
-                else
-                  disp1->set_component_text_printf(btnbri.c_str(), " ");
-                disp1->show_component(btnpic.c_str());
-                disp1->show_component(btnicon.c_str());
-                disp1->show_component(btntext.c_str());
-                disp1->show_component(btnbri.c_str());
-                disp1->show_component(id.c_str());
-              } else {
-                ESP_LOGW("service.set_button", "Skipping button `%s.%s` update.", page.c_str(), id.c_str());
-              }
-
-    #### Service to set the entities ####
-      - service: set_entity
-        variables:
-          ent_id: string
-          ent_icon: string
-          ent_label: string
-          ent_value: string
-          ent_value_xcen: string
-        then:
-          - lambda: |-
-              if (not id(is_uploading_tft)) {
-                std::string enticon = ent_id.c_str() + std::string("_pic");
-                std::string entlabel = ent_id.c_str() + std::string("_label");
-                std::string entxcen = ent_id.c_str() + std::string(".xcen=") + ent_value_xcen.c_str();
-                disp1->set_component_text_printf(enticon.c_str(), "%s", ent_icon.c_str());
-                if (strcmp(ent_icon.c_str(), "0") != 0) disp1->set_component_text_printf(enticon.c_str(), "%s", ent_icon.c_str());
-                disp1->set_component_text_printf(entlabel.c_str(), "%s", ent_label.c_str());
-                disp1->set_component_text_printf(ent_id.c_str(), "%s", ent_value.c_str());
-                if (strcmp(ent_value_xcen.c_str(), "0") != 0) disp1->send_command_printf("%s", entxcen.c_str());
-              }
-
-    #### Service to populate the page Home #####
-      - service: page_home
-        variables:
-          date_color: int
-          time_format: string
-          time_color: int
-          meridiem: string[]
-          chip_font_size: int
-          custom_buttons_font_size: int
-          notification_icon: string
-          notification_icon_color_normal: int[]
-          notification_icon_color_unread: int[]
-          qrcode: bool
-          qrcode_icon: string
-          qrcode_icon_color: int[]
-          entities_pages: bool
-          entities_pages_icon: string
-          entities_pages_icon_color: int[]
-        then:
-          - lambda: |-
-              if (not id(is_uploading_tft)) {
-                static const char *const TAG = "service.page_home";
-                ESP_LOGV(TAG, "date_color:                      %" PRIi32, date_color);
-                ESP_LOGV(TAG, "time_format:                     %s", time_format.c_str());
-                ESP_LOGV(TAG, "time_color:                      %" PRIi32, time_color);
-                ESP_LOGV(TAG, "meridiem:                        %i", meridiem.size());
-                ESP_LOGV(TAG, "chip_font_size:                  %" PRIi32, chip_font_size);
-                ESP_LOGV(TAG, "custom_buttons_font_size:        %" PRIi32, custom_buttons_font_size);
-                ESP_LOGV(TAG, "notification_icon:               %s", notification_icon.c_str());
-                ESP_LOGV(TAG, "notification_icon_color_normal:  %i", notification_icon_color_normal.size());
-                ESP_LOGV(TAG, "notification_icon_color_unread:  %i", notification_icon_color_unread.size());
-                ESP_LOGV(TAG, "qrcode:                          %s", YESNO(qrcode));
-                ESP_LOGV(TAG, "qrcode_icon:                     %s", qrcode_icon.c_str());
-                ESP_LOGV(TAG, "qrcode_icon_color:               %i", qrcode_icon_color.size());
-                ESP_LOGV(TAG, "entities_pages:                  %s", YESNO(entities_pages));
-                ESP_LOGV(TAG, "entities_pages_icon:             %s", entities_pages_icon.c_str());
-                ESP_LOGV(TAG, "entities_pages_icon_color:       %i", entities_pages_icon_color.size());
-
-                // Localization
-                ESP_LOGV(TAG, "Load localization");
-                id(mui_time_format) = time_format;
-                id(mui_meridiem) = meridiem;
-
-                // Date/Time colors
-                ESP_LOGV(TAG, "Load date/time colors");
-                disp1->set_component_font_color("home.date", date_color);
-                disp1->set_component_font_color("home.time", time_color);
-                id(home_date_color) = date_color;
-                id(home_time_color) = time_color;
-
-                // Chips icon size
-                ESP_LOGV(TAG, "Chips size");
-                for (int i = 1; i <= 10; ++i) {
-                  disp1->send_command_printf("home.icon_top_%02d.font=%" PRIu32, i, chip_font_size);
-                }
-                disp1->send_command_printf("home.wifi_icon.font=%" PRIu32, chip_font_size);
-                id(home_chip_font_size) = chip_font_size;
-
-                // Custom buttons icon size
-                ESP_LOGV(TAG, "Custom buttons sizes");
-                id(home_custom_buttons_font_size) = custom_buttons_font_size;
-                for (int i = 1; i <= 7; ++i) {
-                  disp1->send_command_printf("home.button%02d.font=%i", i, id(home_custom_buttons_font_size));
-                }
-                disp1->send_command_printf("home.bt_notific.font=%i", id(home_custom_buttons_font_size));
-                disp1->send_command_printf("home.bt_qrcode.font=%i", id(home_custom_buttons_font_size));
-                disp1->send_command_printf("home.bt_entities.font=%i", id(home_custom_buttons_font_size));
-
-                // Notification button
-                ESP_LOGV(TAG, "Set Notification button");
-                disp1->send_command_printf("is_notification=%i", (notification_text->state.empty() and notification_label->state.empty()) ? 0 : 1);
-                disp1->set_component_text_printf("home.bt_notific", "%s", notification_icon.c_str());
-                set_component_color->execute("home.bt_notific", notification_unread->state ? notification_icon_color_unread : notification_icon_color_normal);
-                id(home_notify_icon_color_normal) = notification_icon_color_normal;
-                id(home_notify_icon_color_unread) = notification_icon_color_unread;
-
-                // QRCode button
-                ESP_LOGV(TAG, "Set QRCode button");
-                disp1->send_command_printf("is_qrcode=%i", qrcode ? 1 : 0);
-                disp1->set_component_text_printf("home.bt_qrcode", "%s", qrcode_icon.c_str());
-                set_component_color->execute("home.bt_qrcode", qrcode_icon_color);
-
-                // Entities pages button
-                ESP_LOGV(TAG, "Set Entities button");
-                disp1->send_command_printf("is_entities=%i", entities_pages ? 1 : 0);
-                disp1->set_component_text_printf("home.bt_entities", "%s", entities_pages_icon.c_str());
-                //set_component_color->execute("home.bt_entities", entities_pages_icon_color);
-                set_component_color->execute("home.bt_entities", entities_pages_icon_color);
-
-                blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 1));
-              }
-
-    #### Service to populate the page Settings #####
-      - service: page_settings
-        variables:
-          reboot: string
-          brightness: string
-          bright: string
-          dim: string
-        then:
-          - lambda: |-
-              if (not id(is_uploading_tft)) {
-                if (not reboot.empty()) disp1->set_component_text_printf("settings.lbl_reboot", " %s", reboot.c_str());
-                disp1->set_component_text_printf("settings.lbl_brightness", " %s", brightness.c_str());
-                display_wrapped_text->execute("settings.lbl_bright", bright.c_str(), display_mode->state == 2 ? 25 : 10);
-                display_wrapped_text->execute("settings.lbl_dim", dim.c_str(), display_mode->state == 2 ? 25 : 10);
-                blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 3));
-              }
-
-    #### Service to populate the media player page #####
-      - service: media_player
+    # page_media_player Service
+      # Dynamically updates the media player page with current state and media information,
+      # creating a responsive and interactive interface for media playback control.
+      #
+      # Usage: Essential for providing real-time access to media playback controls and information,
+      # this service enhances the user interface by reflecting the latest media player status directly on the panel.
+      #
+      # Parameters:
+      # - entity (string): Entity ID of the media player, used for state updates and control.
+      # - state (string): Current playback state of the media player (e.g., "playing", "paused", "stopped").
+      # - is_volume_muted (bool): Indicates if the media volume is currently muted.
+      # - friendly_name (string): Display name of the media player, shown as the page title.
+      # - volume_level (int): Current volume level, typically expressed as a percentage.
+      # - media_title (string): Title of the currently playing media.
+      # - media_artist (string): Artist of the currently playing media.
+      # - media_duration (float): Total duration of the current media in seconds.
+      # - media_position (float): Current playback position in the media in seconds.
+      # - media_position_delta (float): Time elapsed since the last media position update in seconds.
+      # - supported_features (int): Bitmask indicating the media player's supported features (e.g., play, pause, volume control). Refer to Home Assistant Media Player Supported Features for detailed bitmask values: https://github.com/home-assistant/core/blob/33ff6b5b6ee3d92f4bb8deb9594d67748ea23d7c/homeassistant/components/media_player/const.py#L23
+      #
+      # Example service call:
+      # service: esphome.<your_panel_name>_page_media_player
+      # data:
+      #   entity: "media_player.living_room"
+      #   state: "playing"
+      #   is_volume_muted: false
+      #   friendly_name: "Living Room Player"
+      #   volume_level: 40  # Volume as a percentage
+      #   media_title: "Favorite Song"
+      #   media_artist: "Famous Artist"
+      #   media_duration: 180  # Media length in seconds
+      #   media_position: 30  # Current position in seconds
+      #   media_position_delta: 0.5  # Time since last position update
+      #   supported_features: 84  # Example features: Play, Pause, Next, Previous
+      #
+      # NOTE: Adjust <your_panel_name> and parameter values to match your specific media player and desired interface presentation.
+      # This configuration ensures the media player page is up-to-date, providing a seamless experience for controlling media playback.
+      - service: page_media_player
         variables:
           entity: string
           state: string
@@ -1014,6 +1123,167 @@ api:
                   disp1->hide_component("time_total");
                   disp1->hide_component("time_progress");
                 }
+              }
+
+    # QR Code Service
+      # Dynamically displays QR codes on the ESPHome UI for sharing information such as WiFi passwords or website links.
+      #
+      # Usage: Ideal for user interfaces requiring quick, scannable access to data. Enables convenient information sharing through QR codes.
+      #
+      # Parameters:
+      # - title (string): Heading or title for the QR code, offering context or instructions.
+      # - qrcode (string): Data or URL to be encoded into the QR code.
+      # - show (bool): Flag to immediately display the QR code page upon service invocation.
+      #
+      # Example service call:
+      # service: esphome.<your_panel_name>_qrcode
+      # data:
+      #   title: "WiFi Access"
+      #   qrcode: "WIFI:T:WPA;S:mynetwork;P:mypass;;"
+      #   show: true
+      #
+      # NOTE: Adjust <your_panel_name> to match your setup. This action generates and displays the QR code with the provided data, showing the QR code page if 'show' is true.
+      #
+      # NOTE: Typically invoked during initialization to preload QR Code information as per blueprint settings, making the data available on the panel, even offline.
+      # Update QR Code info without displaying it by setting 'show' to false, allowing seamless content updates without UI interruption.
+      - service: qrcode
+        variables:
+          title: string
+          qrcode: string
+          show: bool
+        then:
+          - lambda: |-
+              if (!id(is_uploading_tft)) {
+                disp1->set_component_text_printf("qrcode.qrcode_label", "%s", title.c_str());
+                disp1->set_component_text_printf("qrcode.qrcode_value", "%s", qrcode.c_str());
+                if (show) disp1->goto_page("qrcode");
+                blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 2));
+              }
+
+    # RTTTL Play Service
+      # Plays melodies encoded in RTTTL format, suitable for audio feedback, notifications, or simple tunes.
+      #
+      # Usage: Ideal for projects that require audio signals like notifications, alerts, or melodies.
+      # RTTTL (Ring Tone Text Transfer Language) is a compact, text-based format for storing melodies,
+      # making it perfect for use with simple audio devices such as buzzers.
+      #
+      # Parameters:
+      # - tone (string): The RTTTL string for the melody to be played. It should follow the RTTTL format,
+      #   including the melody's name, default settings, and a sequence of notes.
+      #
+      # Example tones and inspiration can be found here: https://codebender.cc/sketch:109888#RTTTL%20Songs.ino
+      #
+      # Home Assistant Example:
+      # service: esphome.<your_panel_name>_rtttl_play
+      # data:
+      #   tone: "d=4,o=5,b=140:c,e,g,8p,c6,e6,g6,8p,c7,p"  # Example RTTTL melody string
+      #
+      # NOTE: Replace <your_panel_name> with the specific panel name in your Home Assistant setup
+      # to ensure correct execution. Ensure the 'tone' parameter contains a valid RTTTL string
+      # for successful melody playback.
+      - service: rtttl_play
+        variables:
+          tone: string
+        then:
+          - rtttl.play:
+              rtttl: !lambda 'return tone;'
+
+    # Value Service  ## PENDING FULL IMPLEMENTATION
+      # Updates an entity to display specific values with dynamic icons, names, and color codes.
+      #
+      # Usage: Perfect for entities requiring dynamic information display like sensor readings or state values.
+      # Customize with icons, names, and colors for a personalized UI experience.
+      #
+      # Parameters:
+      # - id (string): Identifier of the entity. See "Screen components" for entity IDs.
+      # - icon (string): Icon codepoint (e.g., "/uE6E8" for mdi:thermometer) from HASwitchPlate Material Design Icons.
+      # - icon_color (int[]): RGB color array for the icon (e.g., [255, 0, 0] for red).
+      # - name (string): Display name for the entity (e.g., "Temperature").
+      # - value (string): Actual value to display (e.g., "75°F").
+      # - value_color (int[]): RGB color array for the value text (e.g., [255, 255, 0] for yellow).
+      #
+      # Example service call:
+      # service: esphome.<your_panel_name>_value
+      # data:
+      #   id: "sensor.temperature"
+      #   icon: "/uE6E8"  # mdi:thermometer
+      #   icon_color: [255, 0, 0]  # Red
+      #   name: "Temperature"
+      #   value: "75°F"
+      #   value_color: [255, 255, 0]  # Yellow
+      #
+      # NOTE: Ensure to replace <your_panel_name> with the specific panel name configured in your Home Assistant.
+      - service: value
+        variables:
+          id: string
+          icon: string
+          icon_color: int[]
+          name: string
+          value: string
+          value_color: int[]
+        then:
+          - lambda: |-
+              if (!id(is_uploading_tft)) {
+                std::string enticon = id.c_str() + std::string("_pic");
+                std::string entlabel = id.c_str() + std::string("_label");
+                disp1->set_component_text_printf(enticon.c_str(), "%s", icon.c_str());
+                if (strcmp(icon.c_str(), "0") != 0) disp1->set_component_text_printf(enticon.c_str(), "%s", icon.c_str());
+                disp1->set_component_text_printf(entlabel.c_str(), "%s", name.c_str());
+                disp1->set_component_text_printf(id.c_str(), "%s", value.c_str());
+              }
+
+    # Wake Up Service
+      # Activates the display from a screensaver or low-power state, ideal for scenarios where the display
+      # needs to become active upon user interaction or automated triggers, such as motion detection.
+      #
+      # Usage: Ensures energy conservation by keeping the display off when not in use, and available when needed.
+      #
+      # Parameters:
+      # - reset_timer (bool): Determines whether to reset the sleep and dimming timers upon waking the display.
+      #   Setting this to true keeps the display active during user presence, while false retains the current timer settings.
+      #
+      # Example service call:
+      # service: esphome.<your_panel_name>_wake_up
+      # data:
+      #   reset_timer: true  # Ensures the display remains active during user presence, resets timers.
+      #
+      # NOTE: Replace <your_panel_name> with the actual name of your panel configured in Home Assistant to ensure
+      # the service executes correctly. This configuration wakes the display and optionally resets timers based
+      # on the 'reset_timer' parameter.
+      - service: wake_up
+        variables:
+          reset_timer: bool
+        then:
+          - lambda: |-
+              if (not id(is_uploading_tft)) {
+                if (current_page->state == "screensaver") disp1->goto_page(wakeup_page_name->state.c_str());
+                if (reset_timer)
+                  timer_reset_all->execute(wakeup_page_name->state.c_str());
+                else {
+                  timer_sleep->execute(wakeup_page_name->state.c_str(), int(timeout_sleep->state));
+                  timer_dim->execute(wakeup_page_name->state.c_str(), int(timeout_dim->state));
+                }
+              }
+
+    #### DEPRECATED Service to set the entities ####  USE SERVICE VALUE INSTEAD - MUST FIND A WAY TO HANDLE ALIGNMENT ON INIT
+      - service: set_entity
+        variables:
+          ent_id: string
+          ent_icon: string
+          ent_label: string
+          ent_value: string
+          ent_value_xcen: string
+        then:
+          - lambda: |-
+              if (not id(is_uploading_tft)) {
+                std::string enticon = ent_id.c_str() + std::string("_pic");
+                std::string entlabel = ent_id.c_str() + std::string("_label");
+                std::string entxcen = ent_id.c_str() + std::string(".xcen=") + ent_value_xcen.c_str();
+                disp1->set_component_text_printf(enticon.c_str(), "%s", ent_icon.c_str());
+                if (strcmp(ent_icon.c_str(), "0") != 0) disp1->set_component_text_printf(enticon.c_str(), "%s", ent_icon.c_str());
+                disp1->set_component_text_printf(entlabel.c_str(), "%s", ent_label.c_str());
+                disp1->set_component_text_printf(ent_id.c_str(), "%s", ent_value.c_str());
+                if (strcmp(ent_value_xcen.c_str(), "0") != 0) disp1->send_command_printf("%s", entxcen.c_str());
               }
 
 ##### START - DISPLAY START CONFIGURATION #####
