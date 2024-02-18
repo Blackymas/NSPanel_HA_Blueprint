@@ -172,7 +172,8 @@ data:
 Makes a specified component visible on the display again, allowing for dynamic interface reversals.
 
 **Usage:**
-This service is essential for creating interactive user interfaces that can show elements previously hidden, based on user actions, conditions, or events, thereby restoring elements to the user interface as needed.
+This service is essential for creating interactive user interfaces that can show elements previously hidden,
+based on user actions, conditions, or events, thereby restoring elements to the user interface as needed.
 
 **Parameters:**
 - `id` (string): Identifier of the component to be shown. It's crucial that this matches the component's ID in your display layout to ensure the correct element is made visible.
@@ -341,7 +342,8 @@ for the notification button.
 - `notification_icon_color_normal` (int[]): RGB color array for the notification icon under normal conditions.
 - `notification_icon_color_unread` (int[]): RGB color array for the notification icon when there are unread notifications.
 - `qrcode` (bool): Flag indicating whether the QR code button is enabled.
-- `qrcode_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) for the QR code button.
+- `qrcode_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
+for the QR code button.
 - `qrcode_icon_color` (int[]): RGB color array for the QR code button icon.
 - `entities_pages` (bool): Flag indicating whether the entities page button is enabled.
 - `entities_pages_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
@@ -465,7 +467,8 @@ this service is suitable for showing alerts, informational messages, or updates 
 **Parameters:**
 - `label` (string): A brief title or label for the notification, typically displayed in a prominent, bold format.
 - `message` (string): The detailed message or content of the notification, providing the main information or alert to the user.
-The system will automatically wrap text to fit the display unless `\r` is used to insert manual line breaks. When `\r` is present, the system respects only the line breaks provided by the user, enhancing message formatting control.
+The system will automatically wrap text to fit the display unless `\r` is used to insert manual line breaks. When `\r` is present,
+the system respects only the line breaks provided by the user, enhancing message formatting control.
 
 **Home Assistant Example:**
 ```yaml
@@ -491,7 +494,10 @@ It plays a crucial role in ensuring a responsive and user-friendly interface for
 **Parameters:**
 - `page_title` (string): The title displayed at the top of the alarm settings page.
 - `state` (string): The current state of the alarm system, such as "armed_home" or "disarmed".
-- `supported_features` (int): A bitmask indicating the features supported by the alarm system. This determines the controls and options available on the alarm settings page. The bitmask values are aligned with the [Home Assistant Alarm Control Panel Supported Features](https://github.com/home-assistant/core/blob/33ff6b5b6ee3d92f4bb8deb9594d67748ea23d7c/homeassistant/components/alarm_control_panel/const.py#L32).
+- `supported_features` (int): A bitmask indicating the features supported by the alarm system.
+This determines the controls and options available on the alarm settings page.
+The bitmask values are aligned with the
+[Home Assistant Alarm Control Panel Supported Features](https://github.com/home-assistant/core/blob/33ff6b5b6ee3d92f4bb8deb9594d67748ea23d7c/homeassistant/components/alarm_control_panel/const.py#L32).
 - `code_format` (string): Specifies the code format required for arming/disarming the alarm system, such as numeric or alphanumeric.
 - `code_arm_required` (bool): Indicates whether a code is required to arm the system.
 - `entity` (string): The entity ID of the alarm system, used for state updates and control actions.
@@ -530,14 +536,17 @@ It's crucial for maintaining a responsive and informative interface for efficien
 - `current_temp` (float): The current temperature.
 - `supported_features` (int): Bitmask indicating the climate device's supported features.
 These features determine the available climate controls and settings on the device.
-The bitmask values correspond to features such as temperature control, mode setting, fan speed adjustment, etc., as defined in Home Assistant's climate component constants. For detailed descriptions of each feature and its corresponding bitmask value, refer to the [Home Assistant Climate Component Constants](https://github.com/home-assistant/core/blob/33ff6b5b6ee3d92f4bb8deb9594d67748ea23d7c/homeassistant/components/climate/const.py#L156C7-L156C27).
+The bitmask values correspond to features such as temperature control, mode setting, fan speed adjustment, etc., as defined in Home Assistant's climate component constants.
+For detailed descriptions of each feature and its corresponding bitmask value, refer to the
+[Home Assistant Climate Component Constants](https://github.com/home-assistant/core/blob/33ff6b5b6ee3d92f4bb8deb9594d67748ea23d7c/homeassistant/components/climate/const.py#L156C7-L156C27).
 - `target_temp` (float): The set target temperature.
 - `target_temp_high` (float): The high end of the target temperature range, for devices that support temperature ranges.
 - `target_temp_low` (float): The low end of the target temperature range.
 - `temp_step` (int): Increment step for temperature adjustment, effectively the granularity of temperature change allowed.
 - `total_steps` (int): Total number of steps for temperature adjustment, calculated as ((temp_max - temp_min) / temp_step).
 - `temp_offset` (int): Offset applied to the temperature reading for calibration.
-- `climate_icon` (string): Icon representing the current climate status, selected from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html).
+- `climate_icon` (string): Icon representing the current climate status,
+selected from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html).
 - `embedded_climate` (bool): Flag indicating if climate controls are embedded within the interface.
 - `entity` (string): Entity ID for the climate device.
 
@@ -581,7 +590,8 @@ This service is essential for providing a responsive and user-friendly interface
 - `media_position` (float): The current playback position within the media in seconds.
 - `media_position_delta` (float): The amount of time in seconds since the last update of the media position.
 - `supported_features` (int): A bitmask indicating the features supported by the media player, such as play/pause, next/previous track, volume control, etc.
-The bitmask values correspond to the [Home Assistant Media Player Supported Features](https://github.com/home-assistant/core/blob/33ff6b5b6ee3d92f4bb8deb9594d67748ea23d7c/homeassistant/components/media_player/const.py#L177).
+The bitmask values correspond to the
+[Home Assistant Media Player Supported Features](https://github.com/home-assistant/core/blob/33ff6b5b6ee3d92f4bb8deb9594d67748ea23d7c/homeassistant/components/media_player/const.py#L177).
 
 **Home Assistant Example:**
 ```yaml
@@ -668,7 +678,8 @@ This service is intended for entities that need to display information dynamical
 
 **Parameters:**
 - `id` (string): Identifier of the entity being updated. For details on entity identifiers, refer to "[Screen components](#screen-components)".
-- `icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html). Indicates the icon displayed next to the value.
+- `icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html).
+Indicates the icon displayed next to the value.
 - `icon_color` (int[]): RGB color array for the icon, allowing for custom icon colors.
 - `name` (string): The display name for the entity, useful for labeling the value displayed.
 - `value` (string): The actual value to be displayed next to the icon and name.
