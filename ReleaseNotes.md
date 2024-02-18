@@ -52,7 +52,7 @@ We did our best to support your legacy settings and avoid breaking your system, 
 
 ## Breaking changes
 1. **Default framework changed to `esp-idf`**. Please follow instructions bellow for more details on how to proceed.
-2. **All services have changed**. If you are using the services directly in your automations, please look at our [API documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/api.md).
+2. **All services have changed**. If you are using the services directly in your automations, please look at our [API documentation](docs/api.md).
 
     We understand this change can require substantial work on the exisiting automations with direct calls to the panel's services,
     however this will significantly improve the future customizations by providing compreensive documentation, standardizing and optimizing services calls.
