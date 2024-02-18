@@ -27,14 +27,21 @@ This document provides details on custom services designed for integration with 
   - [Media Player Page Service (`page_media_player`)](#media-player-page-service-page_media_player): Updates the Media Player page with current state information.
 - [Screen Components](#screen-components)
   - [Home page - Chips](#home-page---chips)
-    - User-defined Chips
-    - Relays Chips
-    - Climate Chip
+    - [User-defined Chips](#user-defined-chips)
+    - [Relays Chips](#relays-chips)
+    - [Climate Chip](#climate-chip)
   - [Home page - Custom Buttons](#home-page---custom-buttons)
+  - [Home page - Values](#home-page---values)
+  - [Entities Pages - Values](#entities-pages---values)
 
 ## Service Documentation
 
-### Table of contents
+### General Guidance
+In general, there's no validation on the content of the parameters in a service call. Please make sure to fulfill the validation from the service caller side, otherwise it can drive to a crash in the ESPHome side, it will most likely restart the panel.
+
+One example is with colors. In almost all cases, it is expected an array with 3 unsigned integers between 0 to 255. If you send anything different, the conversion to the RGB565 used by Nextion will crash.
+
+### Table of Contents
 <!-- markdownlint-disable MD013 -->
 | Service ID | Service Name | Description |
 |------------|--------------|-------------|
@@ -770,3 +777,16 @@ automation:
 ### Home Page - Custom buttons
 ![Image](pics/Nextion_Components_Home_Custom_Buttons_EU.png)
 ![Image](pics/Nextion_Components_Home_Custom_Buttons_US.png)
+
+### Home Page - Values
+![Image](pics/Nextion_Components_Home_Values_EU.png)
+![Image](pics/Nextion_Components_Home_Values_US.png)
+This is a multi-component system, with names `value01` to `value03` containing the state of the entity,
+where `value01_icon` to `value03_icon` supports the icons.
+
+### Entities Pages - Values
+Just like in "[Home Page - Values](#home-page---values)", this is a multi-component system, with names `value01` to `value08` containing the state of the entity,
+where `value01_icon` to `value08_icon` supports the icons and, exclusivelly in the Entities pages, `value01_label` to `value08_label`,
+which will contain the friendly name or some alternative label for the entities.
+
+Each to these sets are sent using the [Value Service (`value`)](#value-service-value), with up to 8 individual calls to this service for each page construction.

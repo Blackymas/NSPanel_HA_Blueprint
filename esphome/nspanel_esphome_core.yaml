@@ -414,13 +414,13 @@ api:
       #   back_page: "home"  # Or "buttonpage01" to "buttonpage04" as appropriate.
       #
       # NOTE: Tailor <your_panel_name>, entity_id, and back_page to match your specific setup. This approach ensures a seamless and intuitive navigation experience, facilitating easy access to and from detailed entity information.
-      - service: open_entity_settings_page
+      - service: entity_details_show
         variables:
           entity: string
           back_page: string
         then:
           - script.execute:
-              id: open_entity_settings_page
+              id: entity_details_show
               entity: !lambda "return entity;"
               back_page: !lambda "return back_page;"
 
@@ -576,12 +576,12 @@ api:
           - lambda: |-
               if (not id(is_uploading_tft)) {
                 static const char *const TAG = "service.page_home";
-                ESP_LOGV(TAG, "date_color:                      %" PRIi32, date_color);
+                ESP_LOGV(TAG, "date_color:                      %i", date_color.size());
                 ESP_LOGV(TAG, "time_format:                     %s", time_format.c_str());
-                ESP_LOGV(TAG, "time_color:                      %" PRIi32, time_color);
+                ESP_LOGV(TAG, "time_color:                      %i", time_color.size());
                 ESP_LOGV(TAG, "meridiem:                        %i", meridiem.size());
-                ESP_LOGV(TAG, "chip_font_size:                  %" PRIi32, chip_font_size);
-                ESP_LOGV(TAG, "custom_buttons_font_size:        %" PRIi32, custom_buttons_font_size);
+                ESP_LOGV(TAG, "chip_font:                       %" PRIi32, chip_font);
+                ESP_LOGV(TAG, "custom_buttons_font:             %" PRIi32, custom_buttons_font);
                 ESP_LOGV(TAG, "notification_icon:               %s", notification_icon.c_str());
                 ESP_LOGV(TAG, "notification_icon_color_normal:  %i", notification_icon_color_normal.size());
                 ESP_LOGV(TAG, "notification_icon_color_unread:  %i", notification_icon_color_unread.size());
@@ -599,28 +599,28 @@ api:
 
                 // Date/Time colors
                 ESP_LOGV(TAG, "Load date/time colors");
-                disp1->set_component_font_color("home.date", date_color);
-                disp1->set_component_font_color("home.time", time_color);
-                id(home_date_color) = date_color;
-                id(home_time_color) = time_color;
+                set_component_color->execute("home.date", date_color);
+                set_component_color->execute("home.time", time_color);
+                id(home_date_color) = esphome::display::ColorUtil::color_to_565(esphome::Color(date_color[0], date_color[1], date_color[2]));
+                id(home_time_color) = esphome::display::ColorUtil::color_to_565(esphome::Color(time_color[0], time_color[1], time_color[2]));
 
                 // Chips icon size
                 ESP_LOGV(TAG, "Chips size");
                 for (int i = 1; i <= 10; ++i) {
-                  disp1->send_command_printf("home.icon_top_%02d.font=%" PRIu32, i, chip_font_size);
+                  disp1->send_command_printf("home.icon_top_%02d.font=%" PRIu32, i, chip_font);
                 }
-                disp1->send_command_printf("home.wifi_icon.font=%" PRIu32, chip_font_size);
-                id(home_chip_font_size) = chip_font_size;
+                disp1->send_command_printf("home.wifi_icon.font=%" PRIu32, chip_font);
+                id(home_chip_font_id) = chip_font;
 
                 // Custom buttons icon size
                 ESP_LOGV(TAG, "Custom buttons sizes");
-                id(home_custom_buttons_font_size) = custom_buttons_font_size;
+                id(home_custom_buttons_font_id) = custom_buttons_font;
                 for (int i = 1; i <= 7; ++i) {
-                  disp1->send_command_printf("home.button%02d.font=%i", i, id(home_custom_buttons_font_size));
+                  disp1->send_command_printf("home.button%02d.font=%i", i, id(home_custom_buttons_font_id));
                 }
-                disp1->send_command_printf("home.bt_notific.font=%i", id(home_custom_buttons_font_size));
-                disp1->send_command_printf("home.bt_qrcode.font=%i", id(home_custom_buttons_font_size));
-                disp1->send_command_printf("home.bt_entities.font=%i", id(home_custom_buttons_font_size));
+                disp1->send_command_printf("home.bt_notific.font=%i", id(home_custom_buttons_font_id));
+                disp1->send_command_printf("home.bt_qrcode.font=%i", id(home_custom_buttons_font_id));
+                disp1->send_command_printf("home.bt_entities.font=%i", id(home_custom_buttons_font_id));
 
                 // Notification button
                 ESP_LOGV(TAG, "Set Notification button");
@@ -1420,13 +1420,13 @@ globals:
     initial_value: '"Unavailable"'
 
   ##### Chips #####
-  - id: home_chip_font_size
+  - id: home_chip_font_id
     type: uint
     restore_value: true
     initial_value: '7'
 
   #### Custom buttons ####
-  - id: home_custom_buttons_font_size
+  - id: home_custom_buttons_font_id
     type: uint
     restore_value: true
     initial_value: '8'
@@ -2624,34 +2624,37 @@ script:
             if (current_page->state == "notification") disp1->goto_page("home");
           }
 
-  - id: open_entity_settings_page
+  - id: entity_details_show
     mode: restart
     parameters:
-      page: string
-      page_label: string
-      page_icon: string
-      page_icon_color: int32_t[]
+      #page: string
+      #page_label: string
+      #page_icon: string
+      #page_icon_color: int32_t[]
       entity: string
       back_page: string
     then:
       - lambda: |-
-          if (not id(is_uploading_tft)) {
+          size_t pos = entity.find(".");
+          if ((not id(is_uploading_tft)) and (pos != std::string::npos or entity == "embedded_climate")) {
+            std::string page = entity.substr(0, pos);
+            if (page == "alarm_control_panel") page = "alarm";
             detailed_entity->publish_state(entity);
             if (page == "alarm_control_panel") page = "alarm";
             std::string cmd_page = std::string("page ") + page.c_str();
             disp1->send_command_printf(cmd_page.c_str());
-            if (page_label.find("\\r") != std::string::npos)
-              page_label = page_label.replace(page_label.find("\\r"), 2, " ");
-            disp1->set_component_text_printf("page_label", "%s", page_label.c_str());
+            //if (page_label.find("\\r") != std::string::npos)
+            //  page_label = page_label.replace(page_label.find("\\r"), 2, " ");
+            //disp1->set_component_text_printf("page_label", "%s", page_label.c_str());
             set_page_id->execute("back_page_id", back_page.c_str());
             if (page == "climate")
-                disp1->set_component_value("embedded", (entity == "embedded_climate") ? 1 : 0);
-            else
-              {
-                if ((page_icon != std::string()) and (page_icon != ""))
-                  disp1->set_component_text_printf("icon_state", "%s", page_icon.c_str());
-                set_component_color->execute("icon_state", page_icon_color);
-              }
+              disp1->set_component_value("embedded", (entity == "embedded_climate") ? 1 : 0);
+            //else
+            //  {
+            //    if ((page_icon != std::string()) and (page_icon != ""))
+            //      disp1->set_component_text_printf("icon_state", "%s", page_icon.c_str());
+            //    set_component_color->execute("icon_state", page_icon_color);
+            //  }
           }
 
   - id: page_alarm
@@ -3424,17 +3427,17 @@ script:
                 // Chips icon size
                 ESP_LOGV(TAG, "Adjusting icon's sizes");
                 for (int i = 1; i <= 10; ++i) {
-                  disp1->send_command_printf("home.icon_top_%02d.font=%i", i, id(home_chip_font_size));
+                  disp1->send_command_printf("home.icon_top_%02d.font=%i", i, id(home_chip_font_id));
                 }
                 // Custom buttons icon size
                 ESP_LOGV(TAG, "Adjusting custom buttons sizes");
                 for (int i = 1; i <= 7; ++i) {
-                  disp1->send_command_printf("home.button%02d.font=%i", i, id(home_custom_buttons_font_size));
+                  disp1->send_command_printf("home.button%02d.font=%i", i, id(home_custom_buttons_font_id));
                 }
-                disp1->send_command_printf("home.bt_notific.font=%i", id(home_custom_buttons_font_size));
-                disp1->send_command_printf("home.bt_qrcode.font=%i", id(home_custom_buttons_font_size));
-                disp1->send_command_printf("home.bt_entities.font=%i", id(home_custom_buttons_font_size));
-                disp1->send_command_printf("home.wifi_icon.font=%i", id(home_chip_font_size));
+                disp1->send_command_printf("home.bt_notific.font=%i", id(home_custom_buttons_font_id));
+                disp1->send_command_printf("home.bt_qrcode.font=%i", id(home_custom_buttons_font_id));
+                disp1->send_command_printf("home.bt_entities.font=%i", id(home_custom_buttons_font_id));
+                disp1->send_command_printf("home.wifi_icon.font=%i", id(home_chip_font_id));
                 ESP_LOGV(TAG, "Restoring relay's icons");
                 disp1->set_component_text_printf("home.icon_top_01", "%s", id(home_relay1_icon).c_str());
                 disp1->set_component_text_printf("home.icon_top_02", "%s", id(home_relay2_icon).c_str());
@@ -3470,12 +3473,12 @@ script:
           check_versions->stop();
           display_embedded_temp->stop();
           display_wrapped_text->stop();
+          entity_details_show->stop();
           global_settings->stop();
           ha_button->stop();
           ha_call_service->stop();
           nextion_status->stop();
           notification_clear->stop();
-          open_entity_settings_page->stop();
           page_alarm->stop();
           page_blank->stop();
           page_boot->stop();
