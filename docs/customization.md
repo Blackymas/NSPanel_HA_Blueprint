@@ -32,6 +32,7 @@ Table of contents:
   - [Push button / Momentary switch](#push-button--momentary-switch)
   - [Expose relay fallback switch](#expose-relay-fallback-switch)
   - [Relay Interlocking](#relay-interlocking)
+  - [Remove non-essential components](#remove-non-essential-components)
 
 &nbsp;
 &nbsp;
@@ -685,4 +686,15 @@ switch:
   - id: !extend relay_2
     interlock: [relay_1, relay_2]
     interlock_wait_time: 500ms  # Please adjust this accordingly
+```
+
+### Remove non-essential components
+This can be useful to free-up memory, so other custom components could be used instead.
+
+```yaml
+# Removes captive portal
+captive_portal: !remove
+
+# Removes embedded web server
+web_server: !remove
 ```

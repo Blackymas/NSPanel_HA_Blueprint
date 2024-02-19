@@ -58,6 +58,7 @@ We did our best to support your legacy settings and avoid breaking your system, 
 
     We understand this change can require substantial work on the exisiting automations with direct calls to the panel's services,
     however this will significantly improve the future customizations by providing compreensive documentation, standardizing and optimizing services calls.
+3. **`captive_portal` and `web_server` are back to basic package**. If you want to remove those to free-up memory, please use [customizations](docs/customization.md#remove-non-essential-components).
 
 ## Overview of noteworthy changes
 1. New default framework
