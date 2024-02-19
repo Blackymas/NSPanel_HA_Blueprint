@@ -17,30 +17,41 @@ substitutions:
 api:
   on_client_connected:
     - script.execute: report_settings
-
   services:
-    ##### SERVICE TO UPDATE THE TFT FILE from URL #####
-    ##### It will use the default url if url is empty or "default"
-    - service: upload_tft_url
-      variables:
-        url: string
-      then:
-        - lambda: |-
-            static const char *const TAG = "addon_upload_tft.service.upload_tft_url";
-            ESP_LOGVV(TAG, "Starting...");
-
-            std::string clean_url = url;
-            // Convert to lowercase
-            std::transform(clean_url.begin(), clean_url.end(), clean_url.begin(),
-                          [](unsigned char c){ return std::tolower(c); });
-            // Trim trailing spaces
-            auto endPos = clean_url.find_last_not_of(" \t");
-            if (std::string::npos != endPos) {
-              clean_url = clean_url.substr(0, endPos + 1);
-            }
-
-            if (clean_url.empty() or clean_url == "default") url = id(tft_url);
-            upload_tft->execute(url.c_str());
+    ##### TFT File Update Service: `upload_tft`
+      # Updates the panel's TFT file remotely from a specified URL or the default location, requiring the "Upload TFT" add-on.
+      # Usage: Essential for applying custom TFT designs or updates, especially when direct repository access is unavailable.
+      #
+      # Parameters:
+      # - `url` (string): URL for the TFT file. If "default" or empty, uses the URL from "Update TFT - Display Model" in Home Assistant settings.
+      #
+      # Example:
+      # service: esphome.<your_panel_name>_upload_tft
+      # data:
+      #   url: "http://homeassistant.local:8123/local/custom_tft_file.tft"  # Custom or default URL to the TFT file
+      #
+      # [!NOTE]
+      # Utilize "default" to automatically use the URL associated with the display model set in Home Assistant.
+      #
+      # [!ATTENTION]
+      # Requires the "Upload TFT" add-on for functionality.
+      - service: upload_tft
+        variables:
+          url: string
+        then:
+          - lambda: |-
+              static const char *const TAG = "addon_upload_tft.api.services.upload_tft";
+              ESP_LOGD(TAG, "Custom TFT file upload requested");
+              ESP_LOGD(TAG, "  URL: %s", url.c_str());
+              std::string clean_url = url;
+              // Convert to lowercase
+              std::transform(clean_url.begin(), clean_url.end(), clean_url.begin(),
+                            [](unsigned char c){ return std::tolower(c); });
+              // Trim trailing spaces
+              auto endPos = clean_url.find_last_not_of(" \t");
+              if (std::string::npos != endPos) clean_url = clean_url.substr(0, endPos + 1);
+              if (clean_url.empty() or clean_url == "default") url = id(tft_url);
+              upload_tft->execute(url.c_str());
 
 button:
   ##### UPDATE TFT DISPLAY #####
@@ -136,9 +147,9 @@ script:
           static const char *const TAG = "addon_upload_tft.script.report_settings";
           ESP_LOGI(TAG, "TFT URL: %s", id(tft_url).c_str());
           ESP_LOGI(TAG, "Substitutions:");
-          ESP_LOGI(TAG, "  nextion_update_url:        ${nextion_update_url}");
-          ESP_LOGI(TAG, "  nextion_update_base_url:   ${nextion_update_base_url}");
-          ESP_LOGI(TAG, "  TFT upload baud rate:      %s bps", tft_upload_baud_rate->state.c_str());
+          ESP_LOGI(TAG, "  nextion_update_url:      ${nextion_update_url}");
+          ESP_LOGI(TAG, "  nextion_update_base_url: ${nextion_update_base_url}");
+          ESP_LOGI(TAG, "  TFT upload baud rate:    %s bps", tft_upload_baud_rate->state.c_str());
 
   - id: report_upload_progress
     mode: restart
@@ -186,7 +197,7 @@ script:
             if (file_name.empty()) url = "${nextion_update_url}";
             else {
               std::string base_url("${nextion_update_base_url}");
-              url = base_url + branch + "/tft/" + file_name;
+              url = base_url + branch + "/hmi/" + file_name;
 
               // Remove trailing slashes or spaces
               auto endPos = url.find_last_not_of(" /");
