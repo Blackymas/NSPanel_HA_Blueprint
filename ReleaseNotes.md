@@ -58,7 +58,8 @@ We did our best to support your legacy settings and avoid breaking your system, 
 
     We understand this change can require substantial work on the exisiting automations with direct calls to the panel's services,
     however this will significantly improve the future customizations by providing compreensive documentation, standardizing and optimizing services calls.
-3. **`captive_portal` and `web_server` are back to basic package**. If you want to remove those to free-up memory, please use [customizations](docs/customization.md#remove-non-essential-components).
+3. **`captive_portal` and `web_server` are back to basic package**. If you want to remove those to free-up memory, please look at "[Customizations - Remove non-essential components](docs/customization.md#remove-non-essential-components)".
+4. **15s hardware button press no longer restarts the device**. The benefits of this were too small compared to leaving the button available for other uses. If you still want the 15s restart behaviour, you can look at "[Customizations - Restart with 15s button press](docs/customization.md#restart-with-15s-button-press) and, in addition to that, the [reset pin in the bottom of your panel](docs/pics/eu_reset_button.png) can be used.
 
 ## Overview of noteworthy changes
 1. New default framework

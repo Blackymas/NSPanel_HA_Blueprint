@@ -698,3 +698,33 @@ captive_portal: !remove
 # Removes embedded web server
 web_server: !remove
 ```
+
+### Restart with 15s button press
+This could be used to have an easy way to restart your panel locally in addition to the [reset pin in the bottom of your panel](pics/eu_reset_button.png).
+
+```yaml
+binary_sensor:
+  # Restarts the Nextion display after pressing and holding the left button for 15s
+  - id: !extend left_button
+    on_multi_click:
+      - timing:
+          - ON for at least 15.0s
+        invalid_cooldown: ${invalid_cooldown}
+        then:  # Restart the display
+          - switch.turn_off: screen_power
+          - delay: 5s
+          - switch.turn_on: screen_power
+          - delay: 2s
+          - lambda: disp1->soft_reset();
+          - delay: 2s
+          - script.execute: setup_sequence
+
+  # Restarts ESPHome after pressing and holding the right button for 15s
+  - id: !extend right_button
+    on_multi_click:
+      - timing:
+          - ON for at least 15.0s
+        invalid_cooldown: ${invalid_cooldown}
+        then:  # Restart the panel
+          - button.press: restart_nspanel
+```
