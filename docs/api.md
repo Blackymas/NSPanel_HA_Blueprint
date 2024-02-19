@@ -20,6 +20,7 @@ This document provides details on custom services designed for integration with 
   - [Notification Show Service (`notification_show`)](#notification-show-service-notification_show): Displays a notification-message on the screen.
   - [QR Code Service (`qrcode`)](#qr-code-service-qrcode): Displays a QR code on the panel or updates the QR code information for local control.
   - [RTTTL Play Service (`rtttl_play`)](#rtttl-play-service-rtttl_play): Plays melodies encoded in the RTTTL format.
+  - [Upload TFT Service (`upload_tft`)](#tft-file-update-service-upload_tft): Enables TFT file updates from a URL, requiring the "Upload TFT" add-on.
   - [Value Service (`value`)](#value-service-value): Updates an entity to display specific values.
   - [Wake Up Service (`wake_up`)](#wake-up-service-wake_up): Activates the display from a screensaver or low-brightness state.
   - [Alarm Settings Page Service (`page_alarm`)](#alarm-settings-page-service-page_alarm): Updates the Alarm page with current state information.
@@ -67,6 +68,7 @@ If you send anything different, the conversion to the RGB565 used by Nextion wil
 | [`page_media_player`](#media-player-page-service-page_media_player) | [Media Player Page Service](#media-player-page-service-page_media_player) | Updates the Media Player page with current state information. |
 | [`qrcode`](#qr-code-service-qrcode) | [QR Code Service](#qr-code-service-qrcode) | Displays a QR code on the panel or update the QR code information for local control. |
 | [`rtttl_play`](#rtttl-play-service-rtttl_play) | [RTTTL Play Service](#rtttl-play-service-rtttl_play) | Plays melodies encoded in the RTTTL format. |
+| [`upload_tft`](#tft-file-update-service-upload_tft) | [Upload TFT Service](#tft-file-update-service-upload_tft) | Enables TFT file updates from a URL, requiring the "Upload TFT" add-on. |
 | [`value`](#value-service-value) | [Value Service](#value-service-value) | Updates an entity to display specific values. |
 | [`wake_up`](#wake-up-service-wake_up) | [Wake Up Service](#wake-up-service-wake_up) | Activates the display from a screensaver or low-brightness state. |
 <!-- markdownlint-enable MD013 -->
@@ -678,6 +680,33 @@ data:
 > Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant to ensure correct service execution.
 >
 > Ensure the `tone` parameter contains a valid RTTTL string to successfully play the melody.
+
+### TFT File Update Service: `upload_tft`
+Enables the remote update of the panel's TFT file from a specified URL or a default location, available exclusively with the "Upload TFT" add-on installed.
+This service is valuable for downloading alternative TFT files for customization or addressing file access issues.
+
+**Usage:**
+This service is crucial for dynamically updating the TFT file, facilitating seamless transitions between different configurations or updates.
+It's particularly useful for applying custom interface designs or updates when direct access to the repository is limited.
+
+**Parameters:**
+- `url` (string): The URL for downloading the TFT file.
+If set to "default", it utilizes the URL from the "**Update TFT - Display Model**" selection in Home Assistant (**Settings** > **Devices & Services** > **ESPHome**).
+
+**Home Assistant Example:**
+```yaml
+service: esphome.<your_panel_name>_upload_tft
+data:
+  url: "http://homeassistant.local:8123/local/custom_tft_file.tft"  # URL to the new TFT file
+```
+<!-- markdownlint-disable MD028 -->
+> [!NOTE]
+> Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant.
+> Using "default" fetches the URL associated with the selected display model in Home Assistant settings, simplifying updates or customizations.
+
+> [!ATTENTION]
+> The "Upload TFT" add-on must be installed for this service to be available, enhancing the panel's flexibility for interface customization or troubleshooting.
+<!-- markdownlint-enable MD028 -->
 
 ### Value Service: `value`
 Updates an entity to display specific values, allowing for dynamic updates of icons, names, and value colors within Home Assistant.
