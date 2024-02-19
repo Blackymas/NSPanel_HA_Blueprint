@@ -3225,6 +3225,16 @@ blueprint:
                 min: 0
                 max: 5000
                 unit_of_measurement: milliseconds
+      ##### Update Home Page in the background #####
+          home_page_background_update:
+            name: Home page - Update in the background
+            description: >
+              When enabled, the Home page will be updated even when not visible or while the panel is sleeping, enhancing the user's experience when navigating between the pages.
+
+              Disabling this may save some network and database consumption, with the cost of some slowness when constructing the Home page.
+            default: true
+            selector:
+              boolean:
       ##### Automation's action #####
           domain_automation_button_action:
             name: Button action for automation entities
@@ -3367,6 +3377,9 @@ trigger_variables:
       if nspanel_entities | selectattr(None, "search", "climate.*_thermostat") | list | count > 0
       else ("climate." ~ device_name ~ "_thermostat")
     }}
+
+  home_page_background_update: !input home_page_background_update
+
 
 variables:
   ##### GENERAL #####
@@ -6705,22 +6718,19 @@ trigger:
       id: tft_upload
 # yamllint enable rule:indentation rule:comments-indentation
 
-#############################################################
-##### CLOSE - Trigger #####
-#############################################################
-
 condition:
   - '{{ device_name_sensor is defined and device_name_sensor is string and has_value(device_name_sensor) and states(device_name_sensor) | default("") is string }}'
-  - condition: or  # Do not update values when page home is not visible
+  - condition: or  # Update page Home only when visible or home_page_background_update is enabled
+    conditions:
+      - '{{ home_page_background_update or page.current == page.home }}'
+      - '{{ trigger.id not in ["home_value01_state", "home_value02_state", "home_value03_state"] }}'
+  - condition: or  # Do not update with indoor temp changes when embedded indoor temp is used
     conditions:
       - condition: not
         conditions:
           - condition: trigger
-            id:
-              - home_value01_state
-              - home_value02_state
-              - home_value03_state
-      - '{{ page.current == page.home }}'
+            id: indoortemp_state
+      - '{{ (home_page_background_update or page.current == page.home ) and not embedded_indoor_temperature }}'
   - condition: or  # Do not update component if state haven't changed (ignore attributes changed) - event based triggers
     conditions:
       - condition: not
@@ -6729,11 +6739,13 @@ condition:
             id: home_custom_buttons
       - condition: and
         conditions:
+          - '{{ home_page_background_update or page.current == page.home }}'
           - '{{ trigger.event is defined and trigger.event.data is defined }}'
           - '{{ trigger.event.data.entity_id is defined }}'
           - '{{ trigger.event.data.entity_id is not match "media_player." }}'
       - condition: and
         conditions:
+          - '{{ home_page_background_update or page.current == page.home }}'
           - '{{ trigger.event is defined and trigger.event.data is defined }}'
           - '{{ trigger.event.data.new_state is defined and trigger.event.data.new_state.state is defined }}'
           - '{{ trigger.event.data.old_state is defined and trigger.event.data.old_state.state is defined }}'
@@ -6762,13 +6774,6 @@ condition:
               - climate_button08_state
               - climate_button09_state
       - '{{ page.current == page.climate }}'
-  - condition: or  # Do not update with indoor temp changes when embedded indoor temp is used
-    conditions:
-      - condition: not
-        conditions:
-          - condition: trigger
-            id: indoortemp_state
-      - '{{ not embedded_indoor_temperature }}'
   - condition: or  # Do not update values when page button is not visible
     conditions:
       - condition: not
