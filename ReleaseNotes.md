@@ -68,6 +68,7 @@ in addition to that, the [reset pin in the bottom of your panel](docs/pics/eu_re
 1. New default framework
 2. Performance improvements
 3. New API documentation
+4. Selectable font size for screensaver time display
 
 ## Details of noteworthy changes
 
