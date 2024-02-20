@@ -64,6 +64,8 @@ We did our best to support your legacy settings and avoid breaking your system, 
 ## Overview of noteworthy changes
 1. New default framework
 2. Performance improvements
+3. New API documentation
+
 
 ## Details of noteworthy changes
 
