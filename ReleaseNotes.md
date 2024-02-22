@@ -76,8 +76,17 @@ or you can use a call to the service `esphome.xxxxx_init_relays` to set it accor
 ## Details of noteworthy changes
 
 ### 1. Transition to ESP-IDF as Default Framework
-As previously announced, we have now transitioned to ESP-IDF as our default framework starting with this release. This change aligns with our commitment to provide a robust and future-ready platform, offering enhanced performance, direct hardware access, and access to the latest developments from Espressif. For those who have prepared for this transition, we look forward to the new possibilities this brings to your projects. For users wishing to continue with the Arduino framework, instructions have been provided on explicitly setting your framework preference. We are here to assist through our community support channels for any questions or assistance needed.
-For the ones previously using the default framework (without any explicity framework especification on your panel's yaml), remember you have to flash your device using a serial cable this time, otherwise you can face some issues.
+As previously announced, we have now transitioned to ESP-IDF as our default framework starting with this release.
+This change aligns with our commitment to provide a robust and future-ready platform, offering enhanced performance, direct hardware access, and access to the latest developments from Espressif.
+
+For those who have prepared for this transition, we look forward to the new possibilities this brings to your projects.
+
+For users wishing to continue with the Arduino framework, instructions have been provided on explicitly setting your framework preference.
+We are here to assist through our community support channels for any questions or assistance needed.
+
+For the ones previously using the default framework (without any explicity framework especification on your panel's yaml), remember you have to flash your device using a serial cable this time,
+otherwise you can face some issues.
+
 More information about this transition can be found in our discussion here: https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions/1756
 
 ### 2. Performance improvements
