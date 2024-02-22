@@ -63,17 +63,22 @@ please look at "[Customizations - Remove non-essential components](docs/customiz
 4. **15s hardware button press no longer restarts the device** as the benefits of this were too small compared to leaving the button available for other uses.
 If you still want the 15s restart behaviour, you can look at "[Customizations - Restart with 15s button press](docs/customization.md#restart-with-15s-button-press) and,
 in addition to that, the [reset pin in the bottom of your panel](docs/pics/eu_reset_button.png) can be used.
+5. **Relay Fallback Switches Removed**: These switches have been deprecated and hidden for some time and are now fully removed from the code.
+If you have used any customizations to expose these switches, please refer to the updated guide in "[Customizations - Expose Relay Fallback Switch](docs/customization.md#expose-relay-fallback-switch)",
+or you can use a call to the service `esphome.xxxxx_init_relays` to set it accordingly without the additional memory consumption related to creating additional switches.
 
 ## Overview of noteworthy changes
-1. New default framework
+1. Transition to ESP-IDF as Default Framework
 2. Performance improvements
 3. New API documentation
 4. Selectable font size for screensaver time display
 
 ## Details of noteworthy changes
 
-### 1. New default framework
-Some text
+### 1. Transition to ESP-IDF as Default Framework
+As previously announced, we have now transitioned to ESP-IDF as our default framework starting with this release. This change aligns with our commitment to provide a robust and future-ready platform, offering enhanced performance, direct hardware access, and access to the latest developments from Espressif. For those who have prepared for this transition, we look forward to the new possibilities this brings to your projects. For users wishing to continue with the Arduino framework, instructions have been provided on explicitly setting your framework preference. We are here to assist through our community support channels for any questions or assistance needed.
+For the ones previously using the default framework (without any explicity framework especification on your panel's yaml), remember you have to flash your device using a serial cable this time, otherwise you can face some issues.
+More information about this transition can be found in our discussion here: https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions/1756
 
 ### 2. Performance improvements
 Some text

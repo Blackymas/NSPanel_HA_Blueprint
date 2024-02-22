@@ -426,11 +426,11 @@ It tailors ESPHome's relay operations for specific use cases, including local co
 **Parameters:**
 - `relay1_local_control` (bool): Enables or disables local control for Relay 1.
 - `relay1_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) for Relay 1.
-- `relay1_icon_color` (int): Sets the [RGB565 color number](https://rgbcolorpicker.com/565) for Relay 1's icon.
+- `relay1_icon_color` (int[]): The RGB color array for Relay 1's icon.
 - `relay1_fallback` (bool): Determines the fallback state for Relay 1 in case of communication loss.
 - `relay2_local_control` (bool): Enables or disables local control for Relay 2.
 - `relay2_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) for Relay 2.
-- `relay2_icon_color` (int): Sets the [RGB565 color number](https://rgbcolorpicker.com/565) for Relay 2's icon.
+- `relay2_icon_color` (int[]): The RGB color array for Relay 2's icon.
 - `relay2_fallback` (bool): Determines the fallback state for Relay 2 in case of communication loss.
 
 **Home Assistant Example:**
@@ -438,22 +438,17 @@ It tailors ESPHome's relay operations for specific use cases, including local co
 service: esphome.<your_panel_name>_init_relays
 data:
   relay1_local_control: true
-  relay1_icon: "\uE3A5"     # Example for mdi:numeric-1-box-outline
-  relay1_icon_color: 63488  # Red in 16-bit color (0xF800)
+  relay1_icon: "\uE3A5"           # Example for mdi:numeric-1-box-outline
+  relay1_icon_color: [248, 0, 0]  # Red
   relay1_fallback: false
   relay2_local_control: true
-  relay2_icon: "\uE3A8"     # Example for mdi:numeric-2-box-outline
-  relay2_icon_color: 2016   # Green in 16-bit color (0x07E0)
+  relay2_icon: "\uE3A8"           # Example for mdi:numeric-2-box-outline
+  relay2_icon_color: [0, 252, 0]  # Green
   relay2_fallback: true
 ```
-<!-- markdownlint-disable MD028 -->
 > [!NOTE]
 > Replace `<your_panel_name>` with the specific name of your panel configured in Home Assistant.
 > This service initializes relay settings based on the provided parameters, customizing relay functionality and presentation as defined in the blueprint.
-
-> [!IMPORTANT]
-> Colors here are in RGB565 numeric (decimal) format. You can use a [RGB565 color picker](https://rgbcolorpicker.com/565) to convert from RGB.
-<!-- markdownlint-enable MD028 -->
 
 ### Notification Clear Service: `notification_clear`
 Removes any displayed notification from the screen, allowing the display to return to its normal state or view.

@@ -663,10 +663,35 @@ Subsequent activations will trigger `light.toggle` from the blueprint, as this f
 ```yaml
 # Expose relay local control switch to Home Assistant
 switch:
-  - id: !extend relay1_local
+  - name: Relay 1 Local
+    platform: template
+    id: relay1_local
+    entity_category: config
     internal: false
-  - id: !extend relay2_local
+    lambda: |-
+      return (id(relay_settings) & nspanel_ha_blueprint::RelaySettings::Relay1_Local);
+    turn_on_action:
+      - lambda: nspanel_ha_blueprint::update_relay_setting(id(relay_settings), true, RelaySettings::Relay1_Local);
+    on_turn_on:
+      - logger.log: "Relay 1 Local turned On!"
+    turn_off_action:
+      - lambda: nspanel_ha_blueprint::update_relay_setting(id(relay_settings), false, RelaySettings::Relay1_Local);
+    on_turn_off:
+      - logger.log: "Relay 1 Local turned Off!"
+  - name: Relay 2 Local
+    platform: template
+    id: relay2_local
+    entity_category: config
     internal: false
+    lambda: return (id(relay_settings) & nspanel_ha_blueprint::RelaySettings::Relay2_Local);
+    turn_on_action:
+      - lambda: nspanel_ha_blueprint::update_relay_setting(id(relay_settings), true, RelaySettings::Relay2_Local);
+    on_turn_on:
+      - logger.log: "Relay 2 Local turned On!"
+    turn_off_action:
+      - lambda: nspanel_ha_blueprint::update_relay_setting(id(relay_settings), false, RelaySettings::Relay2_Local);
+    on_turn_off:
+      - logger.log: "Relay 2 Local turned Off!"
 ```
 
 ### Relay Interlocking
