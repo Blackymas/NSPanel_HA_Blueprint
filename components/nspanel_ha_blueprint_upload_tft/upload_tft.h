@@ -3,7 +3,7 @@
 
 #include <string>
 
-namespace nspanel_ha_blueprint {
+namespace nspanel_ha_blueprint_upload_tft {
 
     /**
     * Constructs the TFT file URL based on branch, model, default URL, and base URL.
@@ -42,4 +42,4 @@ namespace nspanel_ha_blueprint {
         return url; // Return the constructed URL
     }
 
-}  // namespace nspanel_ha_blueprint
+}  // namespace nspanel_ha_blueprint_upload_tft
