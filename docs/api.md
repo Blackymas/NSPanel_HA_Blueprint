@@ -6,10 +6,9 @@ This document provides details on custom services designed for integration with 
   - [Button Service (`button`)](#button-service-button): Configures properties and state of buttons on a specified button page.
   - [Command Service (`command`)](#command-service-command): Sends a custom command directly to the display.
   - [Component Color Service (`component_color`)](#component-color-service-component_color): Changes the foreground color of a specified component on the display.
-  - [Component Hide Service (`component_hide`)](#component-hide-service-component_hide): Hides a specified component on the display.
-  - [Component Show Service (`component_show`)](#component-show-service-component_show): Shows a previously hidden component on the display.
   - [Component Text Service (`component_text`)](#component-text-service-component_text): Updates the text of a specified component on the display.
   - [Component Value Service (`component_val`)](#component-value-service-component_val): Updates the value of a specified component on the display.
+  - [Component Visibility Service (`component_visibility`)](#component-hide-service-component_visibility): Hides or shows a specified component on the display.
   - [Entity Details Show Service (`entity_details_show`)](#entity-details-show-service-entity_details_show): Displays detailed information for a specific entity.
   - [Icon Service (`icon`)](#icon-service-icon): Updates a chip or custom button's icon, color, and visibility.
   - [Initialization Service: Global (`init_global`)](#initialization-service-init_global): Transfers global settings on initialization.
@@ -51,10 +50,10 @@ If you send anything different, the conversion to the RGB565 used by Nextion wil
 | [`button`](#button-service-button) | [Button Service](#button-service-button) | Configures properties and state of buttons on a specified button page. |
 | [`command`](#command-service-command) | [Command Service](#command-service-command) | Sends a custom command directly to the display. |
 | [`component_color`](#component-color-service-component_color) | [Component Color Service](#component-color-service-component_color) | Changes the foreground color of a specified component on the display. |
-| [`component_hide`](#component-hide-service-component_hide) | [Component Hide Service](#component-hide-service-component_hide) | Hides a specified component on the display. |
 | [`component_show`](#component-show-service-component_show) | [Component Show Service](#component-show-service-component_show) | Shows a previously hidden component on the display. |
 | [`component_text`](#component-text-service-component_text) | [Component Text Service](#component-text-service-component_text) | Updates the text of a specified component on the display. |
 | [`component_val`](#component-value-service-component_val) | [Component Value Service](#component-value-service-component_val) | Updates the value of a specified component on the display. |
+| [`component_visibility`](#component-hide-service-component_visibility) | [Component Visibility Service](#component-hide-service-component_isibility) | Hides or shows a specified component on the display. |
 | [`entity_details_show`](#entity-details-show-service-entity_details_show) | [Entity Details Show Service](#entity-details-show-service-entity_details_show) | Displays detailed information for a specific entity. |
 | [`icon`](#icon-service-icon) | [Icon Service](#icon-service-icon) | Updates a chip or custom button's icon, color, and visibility. |
 | [`init_global`](#initialization-service-init_global) | [Initialization Service](#initialization-service-init_global) | Transfers global settings on initialization. |
@@ -152,54 +151,6 @@ data:
 >
 > Ensure the `id` and color parameters accurately target and define the new color for the component.
 
-### Component Hide Service: `component_hide`
-Hides a specified component on the display, allowing for dynamic interface changes.
-
-**Usage:**
-This service is ideal for creating interactive user interfaces that adapt by hiding certain elements based on user actions, conditions, or events.
-
-**Parameters:**
-- `id` (string): Identifier of the component to be hidden. It is crucial that this matches the component's ID in your display layout to ensure the correct element is hidden.
-
-**Home Assistant Example:**
-```yaml
-service: esphome.<your_panel_name>_component_hide
-data:
-  id: "date"  # Hides the date display on Home page
-```
-<!-- markdownlint-disable MD028 -->
-> [!NOTE]
-> Replace <your_panel_name> with your specific panel name as configured in Home Assistant to ensure correct service execution.
->
-> Ensure the id matches the component on your display you wish to hide.
-
-> [!IMPORTANT]
-> This command only works when the page is visible and cannot contain the page id in the component id.
-> 
-> If the component being hidden is not part of the current page, the command will fail and an error message will be logged.
-<!-- markdownlint-enable MD028 -->
-
-### Component Show Service: `component_show`
-Makes a specified component visible on the display again, allowing for dynamic interface reversals.
-
-**Usage:**
-This service is essential for creating interactive user interfaces that can show elements previously hidden,
-based on user actions, conditions, or events, thereby restoring elements to the user interface as needed.
-
-**Parameters:**
-- `id` (string): Identifier of the component to be shown. It's crucial that this matches the component's ID in your display layout to ensure the correct element is made visible.
-
-**Home Assistant Example:**
-```yaml
-service: esphome.<your_panel_name>_component_show
-data:
-  id: "date"  # Shows the date display on the Home page if it was previously hidden
-```
-> [!NOTE]
-> Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant to ensure correct service execution.
->
-> Ensure the `id` precisely matches the component on your display you wish to make visible again.
-
 ### Component Text Service: `component_text`
 Updates the text of a specified component on the display, enabling dynamic text content updates.
 
@@ -243,6 +194,35 @@ data:
 > Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant to ensure correct service execution.
 >
 > Ensure the `id` accurately matches the component on your display to successfully update its value.
+
+### Component Visibility Service: `component_visibility`
+Hides or shows a specified component on the display, allowing for dynamic interface changes.
+
+**Usage:**
+This service is ideal for creating interactive user interfaces that adapt by hiding or showing certain elements based on user actions, conditions, or events.
+
+**Parameters:**
+- `id` (string): Identifier of the component to be hidden/shown. It is crucial that this matches the component's ID in your display layout to ensure the correct element is hidden/shown.
+- `visible` (bool): Set to true to show the component, or false to hide it.
+
+**Home Assistant Example:**
+```yaml
+service: esphome.<your_panel_name>_component_hide
+data:
+  id: "date"  # Hides the date display on Home page
+  visible: false
+```
+<!-- markdownlint-disable MD028 -->
+> [!NOTE]
+> Replace <your_panel_name> with your specific panel name as configured in Home Assistant to ensure correct service execution.
+>
+> Ensure the id matches the component on your display you wish to hide or show.
+
+> [!IMPORTANT]
+> This command only works when the page is visible.
+> 
+> If the component being hidden/shown is not part of the current page, the command will fail and an error message will be logged.
+<!-- markdownlint-enable MD028 -->
 
 ### Entity Details Show Service: `entity_details_show`
 This service is designed to display detailed information about a specific entity within the panel's interface.
