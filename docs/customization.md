@@ -445,7 +445,7 @@ script:
   - id: !extend set_brightness
     then:
       - lambda: |-
-          ESP_LOGD("script.set_brightness(custom)", "brightness: %i%%", brightness);
+          ESP_LOGD("script.set_brightness(custom)", "brightness: %.0f%%", brightness);
           uint8_t current_light_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
           ESP_LOGV("script.set_brightness(custom)", "current_light_brightness: %i%%", current_light_brightness);
           if (brightness != current_light_brightness) {
