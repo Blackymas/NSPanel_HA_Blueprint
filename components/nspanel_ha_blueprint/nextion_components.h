@@ -17,11 +17,11 @@ namespace nspanel_ha_blueprint {
      *
      * @param input The input string containing either the combined page and component ID or just the component ID.
      * @param defaultPage The default page name to use if the input string does not specify a page.
-     * @return A PageComponent struct containing the extracted or default page name, the component ID, and a flag indicating if it's the current page.
+     * @return A NextionComponent struct containing the extracted or default page name, the component ID, and a flag indicating if it's the current page.
      */
     NextionComponent extractPageAndComponent(const std::string& input, const std::string& defaultPage) {
         size_t dotPos = input.find(".");
-        PageComponent result;
+        NextionComponent result;
         
         if (dotPos != std::string::npos) {
             // Extract page and component_id from the input string
