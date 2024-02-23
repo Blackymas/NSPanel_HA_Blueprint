@@ -8,7 +8,7 @@ This document provides details on custom services designed for integration with 
   - [Component Color Service (`component_color`)](#component-color-service-component_color): Changes the foreground color of a specified component on the display.
   - [Component Text Service (`component_text`)](#component-text-service-component_text): Updates the text of a specified component on the display.
   - [Component Value Service (`component_val`)](#component-value-service-component_val): Updates the value of a specified component on the display.
-  - [Component Visibility Service (`component_visibility`)](#component-hide-service-component_visibility): Hides or shows a specified component on the display.
+  - [Component Visibility Service (`component_visibility`)](#component-visibility-service-component_visibility): Hides or shows a specified component on the display.
   - [Entity Details Show Service (`entity_details_show`)](#entity-details-show-service-entity_details_show): Displays detailed information for a specific entity.
   - [Icon Service (`icon`)](#icon-service-icon): Updates a chip or custom button's icon, color, and visibility.
   - [Initialization Service: Global (`init_global`)](#initialization-service-init_global): Transfers global settings on initialization.
@@ -50,10 +50,9 @@ If you send anything different, the conversion to the RGB565 used by Nextion wil
 | [`button`](#button-service-button) | [Button Service](#button-service-button) | Configures properties and state of buttons on a specified button page. |
 | [`command`](#command-service-command) | [Command Service](#command-service-command) | Sends a custom command directly to the display. |
 | [`component_color`](#component-color-service-component_color) | [Component Color Service](#component-color-service-component_color) | Changes the foreground color of a specified component on the display. |
-| [`component_show`](#component-show-service-component_show) | [Component Show Service](#component-show-service-component_show) | Shows a previously hidden component on the display. |
 | [`component_text`](#component-text-service-component_text) | [Component Text Service](#component-text-service-component_text) | Updates the text of a specified component on the display. |
 | [`component_val`](#component-value-service-component_val) | [Component Value Service](#component-value-service-component_val) | Updates the value of a specified component on the display. |
-| [`component_visibility`](#component-hide-service-component_visibility) | [Component Visibility Service](#component-hide-service-component_isibility) | Hides or shows a specified component on the display. |
+| [`component_visibility`](#component-visibility-service-component_visibility) | [Component Visibility Service](#component-visibility-service-component_visibility) | Hides or shows a specified component on the display. |
 | [`entity_details_show`](#entity-details-show-service-entity_details_show) | [Entity Details Show Service](#entity-details-show-service-entity_details_show) | Displays detailed information for a specific entity. |
 | [`icon`](#icon-service-icon) | [Icon Service](#icon-service-icon) | Updates a chip or custom button's icon, color, and visibility. |
 | [`init_global`](#initialization-service-init_global) | [Initialization Service](#initialization-service-init_global) | Transfers global settings on initialization. |
