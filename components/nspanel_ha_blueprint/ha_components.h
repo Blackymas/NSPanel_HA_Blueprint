@@ -18,17 +18,17 @@ namespace nspanel_ha_blueprint {
      * @return A HomeAssistantEntity struct containing the extracted domain and the unique ID.
      */
     HomeAssistantEntity extractHomeAssistantEntity(const std::string& entity_id) {
-        size_t dotPos = input.find(".");
+        size_t dotPos = entity_id.find(".");
         HomeAssistantEntity result;
         
         if (dotPos != std::string::npos) {
-            // Extract domain and id from the input string
-            result.domain = input.substr(0, dotPos);
-            result.id = input.substr(dotPos + 1);
+            // Extract domain and id from the entity_id string
+            result.domain = entity_id.substr(0, dotPos);
+            result.id = entity_id.substr(dotPos + 1);
         } else {
-            // No dot found, the entire input is considered as id.
+            // No dot found, the entire entity_id is considered as id.
             result.domain = "invalid";
-            result.id = input;
+            result.id = entity_id;
         }
         return result;
     }

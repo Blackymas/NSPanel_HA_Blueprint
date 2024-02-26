@@ -61,7 +61,8 @@ namespace nspanel_ha_blueprint {
         // Bits 6 and 7 are reserved for future expansion.
     };
 
-    void update_bitwise_setting(uint8_t& settings, bool condition, RelaySettings flag) {
+    template<typename SettingsEnum>
+    void update_bitwise_setting(uint8_t& settings, bool condition, SettingsEnum flag) {
         if (condition) {
             settings |= flag; // Set bit
         } else {

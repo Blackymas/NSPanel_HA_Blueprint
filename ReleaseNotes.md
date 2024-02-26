@@ -1,106 +1,92 @@
 # v4.3 - TItle to be defined
 
-## Support this project
-**As always, we would like to thank everyone who donated to this project and remind you that every donation helps to support this project
-So if you haven't made a donation yet, now would be a good time ;)**
-
-[![Paypal](https://user-images.githubusercontent.com/41958506/212499642-b2fd097a-0938-4bfc-b37b-74df64592c58.png)](https://www.paypal.com/donate/?hosted_button_id=S974SWQMB8PB2)
-
 ## General
-MUST BE UPDATED.
+*To be updated.*
 
-Hello everyone! Our latest update introduces a range of enhancements designed to elevate your experience with the firmware.
-This update is focused on improving user interaction, featuring a more intuitive TFT upload process and expanded customization options.
-Key enhancements include upgraded functionality for Alarm Control Panels & Thermostats and new personalization features on the Home page.
+Hello everyone! We're excited to introduce enhancements in this update, focusing on improving user interaction and expanding customization options. This release features an intuitive TFT upload process, enhanced Alarm Control Panels & Thermostats functionality, and new personalization options.
 
-We're enthusiastic about our ongoing work to [make the NSPanel firmware more user-friendly and accessible](https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions/1602).
-This release marks significant progress in this direction, with improvements such as the
-streamlined TFT upload process and initial steps towards adopting `esp-idf` as the default framework.
-Additionally, our documentation has been revamped for greater clarity and user-friendliness.
-Expect more user-centric updates coming your way soon!
+We're committed to making NSPanel firmware more user-friendly. This release marks significant progress, including a streamlined TFT upload process and steps towards adopting `esp-idf` as the default framework. Our documentation has been revamped for clarity and ease of use. Stay tuned for more updates!
 
-Dive into the details below to see how these changes can enhance your daily use of NSPanel.
-We value your feedback and are eager to hear your thoughts!
+[Learn more about our efforts](https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions/1602).
 
-### Upcoming Change: Switching to ESP-IDF Framework by March 2024
-We have some important updates for our community – by March 2024, we're moving to the **ESP-IDF** as our standard framework.
-This shift aims to significantly boost the memory capacity on the ESP, allowing for the addition of new features and broader customizations.
+## ESP-IDF Framework Transition
+With this release, we've officially transitioned to the **ESP-IDF** framework. This move is part of our ongoing efforts to enhance the memory capacity and expand the features available on the ESP, facilitating broader customization and new functionalities.
 
-There's ample time before this transition takes place, so no need to hurry.
-When it's time to switch, flashing your device using a serial cable will be necessary, similar to the initial custom firmware setup.
+For users updating to this version:
+- **Flashing Required**: To adopt the ESP-IDF framework, flashing your device using a serial cable is necessary. This step mirrors the initial custom firmware setup process.
+- **Arduino Framework Still Available**: For those who prefer the `arduino` framework or require Over-The-Air (OTA) updates, it remains an option. Detailed guidance on how to choose your framework is provided in our [customization documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md).
 
-For those who might need a serial firmware installation before March,
-trying out `esp-idf` earlier could be a beneficial move towards adapting to future developments.
-
-If you're unable to switch by March or if serial flashing isn't an option for you,
-the `arduino` framework will still be available for Over-The-Air (OTA) updates.
-
-For detailed guidance on framework customization, check out our [customization documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md).
-We're dedicated to facilitating a smooth transition and are here to assist with any queries or concerns.
+This transition is a significant milestone for us, promising a robust platform for our community. We're here to help with any questions or assistance needed during this change. For more details and support, visit our [community discussion](https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions/1756).
 
 ## Updating
-Updates may come with changes on the blueprint inputs and we highly recommend you review your settings and make sure all fields have the correct selection.
-We did our best to support your legacy settings and avoid breaking your system, but please double check your settings if you see something not working as expected.
+Please review your settings post-update to ensure compatibility. Refer to the update procedures [here](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/howto.md#update-blueprint).
 
-### Files that need to be reloaded
-1. nspanel_eu.tft,  nspanel_us.tft or nspanel_us_land.tft - v4.3
-2. nspanel_esphome.yaml - v4.3
-3. nspanel_blueprint.yaml - v4.3
+## Breaking Changes and Guidance
+With this release, we're implementing several important changes. While we strive to improve the panel, we understand that changes can affect your setups.
+Here's a detailed overview and guidance for a smooth transition:
 
-### Instructions
- *You can find the update procedures following here:*
+1. **Transition to ESP-IDF Framework**: This release marks the official switch to the ESP-IDF framework, enhancing performance and allowing for more complex features. 
+   - **What to Do**: You'll need to flash your device with the new firmware using a serial connection.
+   Detailed instructions are available in our [flashing guide](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/flashing.md).
+   - **Support for Arduino Framework**: If you're not ready to make the switch or prefer the Arduino framework, it's still supported for OTA updates.
+   See our [framework customization documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md#framework) for details on how to select your preferred framework.
 
-- [How To - All important thing you should know - Update](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/howto.md#update-blueprint)
+2. **Several Services Changed**: In our pursuit to enhance integration capabilities and future-proof our services, we've undertaken a comprehensive restructuring of our API.
+This change is aimed at improving functionality and compatibility but may require adjustments to your current automations.
+   - **What to Do**: We strongly encourage you to review our updated [API documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/api.md).
+   This resource has been meticulously updated to assist you in updating your automation scripts accordingly.
+   Pay special attention to the examples section, which offers valuable insights and practical guidance for adapting your existing setups seamlessly.
 
-## Breaking changes
-1. **Default framework changed to `esp-idf`**. Please follow instructions bellow for more details on how to proceed.
-2. **All services have changed**. If you are using the services directly in your automations, please look at our [API documentation](docs/api.md).
+3. **15s Hardware Button Press No Longer Restarts the Device**: This feature was removed to repurpose the hardware button for more versatile uses.
+   - **What to Do**: If you relied on this feature, see our [customization guide](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md#restart-with-15s-button-press) for alternatives.
+   Additionally, the reset pin remains an option for manual resets.
 
-    We understand this change can require substantial work on the exisiting automations with direct calls to the panel's services,
-    however this will significantly improve the future customizations by providing compreensive documentation, standardizing and optimizing services calls.
-3. **`captive_portal` and `web_server` are back to basic package**. If you want to remove those to free-up memory,
-please look at "[Customizations - Remove non-essential components](docs/customization.md#remove-non-essential-components)".
-4. **15s hardware button press no longer restarts the device** as the benefits of this were too small compared to leaving the button available for other uses.
-If you still want the 15s restart behaviour, you can look at "[Customizations - Restart with 15s button press](docs/customization.md#restart-with-15s-button-press) and,
-in addition to that, the [reset pin in the bottom of your panel](docs/pics/eu_reset_button.png) can be used.
-5. **Relay Fallback Switches Removed**: These switches have been deprecated and hidden for some time and are now fully removed from the code.
-If you have used any customizations to expose these switches, please refer to the updated guide in "[Customizations - Expose Relay Fallback Switch](docs/customization.md#expose-relay-fallback-switch)",
-or you can use a call to the service `esphome.xxxxx_init_relays` to set it accordingly without the additional memory consumption related to creating additional switches.
+4. **Relay Fallback Switches Removed**: These switches were deprecated and have now been removed to streamline the firmware and reduce memory usage.
+   - **What to Do**: For users who utilized customizations to expose these switches, refer to our updated customization guide.
+   Alternatively, use the `esphome.xxxxx_init_hardware` service for a similar functionality without the memory overhead.
+
+We appreciate your understanding and patience during this transition.
+Our goal is to ensure NSPanel continues to evolve in a way that enhances your experience and meets future needs.
+Our community and support channels are open for any questions or assistance you may require.
 
 ## Overview of noteworthy changes
 1. Transition to ESP-IDF as Default Framework
 2. Performance improvements
 3. New API documentation
 4. Selectable font size for screensaver time display
+5. Hardware buttons bars visible on all pages
 
 ## Details of noteworthy changes
-
 ### 1. Transition to ESP-IDF as Default Framework
-As previously announced, we have now transitioned to ESP-IDF as our default framework starting with this release.
-This change aligns with our commitment to provide a robust and future-ready platform, offering enhanced performance, direct hardware access, and access to the latest developments from Espressif.
+We've transitioned to ESP-IDF, enhancing our platform's performance and capabilities.
+This change promises new possibilities for your projects.
+Those continuing with the Arduino framework can find instructions for setting framework preferences.
 
-For those who have prepared for this transition, we look forward to the new possibilities this brings to your projects.
-
-For users wishing to continue with the Arduino framework, instructions have been provided on explicitly setting your framework preference.
-We are here to assist through our community support channels for any questions or assistance needed.
-
-For the ones previously using the default framework (without any explicity framework especification on your panel's yaml), remember you have to flash your device using a serial cable this time,
-otherwise you can face some issues.
-
-More information about this transition can be found in our discussion here: https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions/1756
+For more information, visit our [discussion](https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions/1756).
 
 ### 2. Performance improvements
-Some text
+*Details to be added.*
+
+### 3. New API documentation
+*Details to be added.*
+
+### 4. Selectable font size for screensaver time display
+*Details to be added.*
+
+### 5. The hardware buttons bars visible in all pages
+Bars indicating statuses of entities controlled by hardware buttons are now visible on all pages, including screensaver.
+Color customization for these bars is also available.
 
 ## Support
-For support, feedback, or detailed information about this update,
+For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
 or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
 
 ## What's Next?
-Discover what's next and what we are working on right now in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open).
+Discover our upcoming projects in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open).
 
-## Special thanks to
+## Special Thanks
+*Details to be added.*
 
 ## Previous releases
 - [v4.2.4 - Critical bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.4)
