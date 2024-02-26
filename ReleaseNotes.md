@@ -79,7 +79,8 @@ Those continuing with the Arduino framework can find instructions for setting fr
 For more information, visit our [discussion](https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions/1756).
 
 ### New API documentation
-Now all the services available are listed in a comprehensive documentation, making easier for people who want to customize their systems, integrate to other automations and to encourage new collaborators to our repository.
+Now all the services available are listed in a comprehensive documentation, making easier for people who want to customize their systems,
+integrate to other automations and to encourage new collaborators to our repository.
 
 For more details, please visit our [API documentation](docs/api.md).
 
@@ -89,10 +90,13 @@ Now you can chose the font size for your clock display in the screen saver. Ther
 ![Image](docs/pics/ha_blueprint_sreensaver.png)
 
 #### 72px
-![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/030ba092-69d4-467d-b5ab-52979c94e742) ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/ae56276f-10be-420c-a156-87f33d1fc322) ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/0aecb76b-c7b1-4257-b2eb-caed513a1f06)
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/030ba092-69d4-467d-b5ab-52979c94e742)
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/ae56276f-10be-420c-a156-87f33d1fc322)
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/0aecb76b-c7b1-4257-b2eb-caed513a1f06)
 
 ### 112px
-![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/689f7fa3-afe5-43e0-839c-a16ca32d0657) ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/5093d1e7-be6b-4042-8e2d-84bf10d0bd2f)
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/689f7fa3-afe5-43e0-839c-a16ca32d0657)
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/5093d1e7-be6b-4042-8e2d-84bf10d0bd2f)
 
 
 ### 192px
