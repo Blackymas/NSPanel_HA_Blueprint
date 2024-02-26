@@ -21,7 +21,7 @@ This move is part of our ongoing efforts to enhance the memory capacity and expa
 For users updating to this version:
 - **Flashing Required**: To adopt the ESP-IDF framework, flashing your device using a serial cable is necessary. This step mirrors the initial custom firmware setup process.
 - **Arduino Framework Still Available**: For those who prefer the `arduino` framework or require Over-The-Air (OTA) updates, it remains an option.
-Detailed guidance on how to choose your framework is provided in our [customization documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md).
+Detailed guidance on how to choose your framework is provided in our [customization documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md#frameworks).
 
 This transition is a significant milestone for us, promising a robust platform for our community.
 We're here to help with any questions or assistance needed during this change.
@@ -38,13 +38,13 @@ Here's a detailed overview and guidance for a smooth transition:
 
 1. **Transition to ESP-IDF Framework**: This release marks the official switch to the ESP-IDF framework, enhancing performance and allowing for more complex features. 
    - **What to Do**: You'll need to flash your device with the new firmware using a serial connection.
-   Detailed instructions are available in our [flashing guide](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/flashing.md).
+   Detailed instructions are available in our [installation guide](docs/install.md#flashing-the-device-for-the-first-time).
    - **Support for Arduino Framework**: If you're not ready to make the switch or prefer the Arduino framework, it's still supported for OTA updates.
-   See our [framework customization documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md#framework) for details on how to select your preferred framework.
+   See our [framework customization documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md#frameworks) for details on how to select your preferred framework.
 
 2. **Several Services Changed**: In our pursuit to enhance integration capabilities and future-proof our services, we've undertaken a comprehensive restructuring of our API.
 This change is aimed at improving functionality and compatibility but may require adjustments to your current automations.
-   - **What to Do**: We strongly encourage you to review our updated [API documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/api.md).
+   - **What to Do**: We strongly encourage you to review our updated [API documentation](docs/api.md).
    This resource has been meticulously updated to assist you in updating your automation scripts accordingly.
    Pay special attention to the examples section, which offers valuable insights and practical guidance for adapting your existing setups seamlessly.
 
