@@ -257,7 +257,8 @@ data:
 Updates the on-screen indication bars for the hardware buttons, reflecting the current state of the entities they control.
 
 **Usage:**
-This service updates the visual state (on/off) of the left and right hardware button indicators on the panel. It's used to provide visual feedback corresponding to the state of the entities controlled by these hardware buttons.
+This service updates the visual state (on/off) of the left and right hardware button indicators on the panel.
+It's used to provide visual feedback corresponding to the state of the entities controlled by these hardware buttons.
 
 **Parameters:**
 - `left` (bool): The state to set for the left button's indication bar.
@@ -343,11 +344,13 @@ It tailors ESPHome's hardware operations for specific use cases, including local
 
 **Parameters:**
 - `relay1_local_control` (bool): Enables or disables local control for Relay 1.
-- `relay1_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) for Relay 1.
+- `relay1_icon` (string):
+Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) for Relay 1.
 - `relay1_icon_color` (int[]): The RGB color array for Relay 1's icon.
 - `relay1_fallback` (bool): Determines the fallback state for Relay 1 in case of communication loss.
 - `relay2_local_control` (bool): Enables or disables local control for Relay 2.
-- `relay2_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) for Relay 2.
+- `relay2_icon` (string):
+Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) for Relay 2.
 - `relay2_icon_color` (int[]): The RGB color array for Relay 2's icon.
 - `relay2_fallback` (bool): Determines the fallback state for Relay 2 in case of communication loss.
 - `button_left` (bool): Enable/disable left button status visualization.
@@ -398,16 +401,19 @@ It accommodates extensive customizations, impacting both visual appeal and funct
 - `meridiem` (string[]): Array of strings for AM/PM labels, applicable if the time format includes meridiem.
 - `chip_font` (int): Font Id for icons or chips displayed on the "Home" page.
 - `custom_buttons_font` (int): Font Id for custom button icons on the "Home" page.
-- `notification_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
+- `notification_icon` (string):
+Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) 
 for the notification button.
 - `notification_icon_color_normal` (int[]): RGB color array for the notification icon under normal conditions.
 - `notification_icon_color_unread` (int[]): RGB color array for the notification icon when there are unread notifications.
 - `qrcode` (bool): Flag indicating whether the QR code button is enabled.
-- `qrcode_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
+- `qrcode_icon` (string):
+Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
 for the QR code button.
 - `qrcode_icon_color` (int[]): RGB color array for the QR code button icon.
 - `entities_pages` (bool): Flag indicating whether the entities page button is enabled.
-- `entities_pages_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
+- `entities_pages_icon` (string):
+Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
 for the entities page button.
 - `entities_pages_icon_color` (int[]): RGB color array for the entities page button icon.
 - `outdoor_temp_font` (int): Font Id for outdoor temperature indication on the "Home" page.

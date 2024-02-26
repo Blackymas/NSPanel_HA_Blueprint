@@ -3,26 +3,37 @@
 ## General
 *To be updated.*
 
-Hello everyone! We're excited to introduce enhancements in this update, focusing on improving user interaction and expanding customization options. This release features an intuitive TFT upload process, enhanced Alarm Control Panels & Thermostats functionality, and new personalization options.
+Hello everyone!
+We're excited to introduce enhancements in this update, focusing on improving user interaction and expanding customization options.
+This release features an intuitive TFT upload process, enhanced Alarm Control Panels & Thermostats functionality, and new personalization options.
 
-We're committed to making NSPanel firmware more user-friendly. This release marks significant progress, including a streamlined TFT upload process and steps towards adopting `esp-idf` as the default framework. Our documentation has been revamped for clarity and ease of use. Stay tuned for more updates!
+We're committed to making NSPanel firmware more user-friendly.
+This release marks significant progress, including a streamlined TFT upload process and steps towards adopting `esp-idf` as the default framework.
+Our documentation has been revamped for clarity and ease of use.
+Stay tuned for more updates!
 
 [Learn more about our efforts](https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions/1602).
 
 ## ESP-IDF Framework Transition
-With this release, we've officially transitioned to the **ESP-IDF** framework. This move is part of our ongoing efforts to enhance the memory capacity and expand the features available on the ESP, facilitating broader customization and new functionalities.
+With this release, we've officially transitioned to the **ESP-IDF** framework.
+This move is part of our ongoing efforts to enhance the memory capacity and expand the features available on the ESP, facilitating broader customization and new functionalities.
 
 For users updating to this version:
 - **Flashing Required**: To adopt the ESP-IDF framework, flashing your device using a serial cable is necessary. This step mirrors the initial custom firmware setup process.
-- **Arduino Framework Still Available**: For those who prefer the `arduino` framework or require Over-The-Air (OTA) updates, it remains an option. Detailed guidance on how to choose your framework is provided in our [customization documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md).
+- **Arduino Framework Still Available**: For those who prefer the `arduino` framework or require Over-The-Air (OTA) updates, it remains an option.
+Detailed guidance on how to choose your framework is provided in our [customization documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md).
 
-This transition is a significant milestone for us, promising a robust platform for our community. We're here to help with any questions or assistance needed during this change. For more details and support, visit our [community discussion](https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions/1756).
+This transition is a significant milestone for us, promising a robust platform for our community.
+We're here to help with any questions or assistance needed during this change.
+For more details and support, visit our [community discussion](https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions/1756).
 
 ## Updating
-Please review your settings post-update to ensure compatibility. Refer to the update procedures [here](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/howto.md#update-blueprint).
+Please review your settings post-update to ensure compatibility.
+Refer to the update procedures [here](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/howto.md#update-blueprint).
 
 ## Breaking Changes and Guidance
-With this release, we're implementing several important changes. While we strive to improve the panel, we understand that changes can affect your setups.
+With this release, we're implementing several important changes.
+While we strive to improve the panel, we understand that changes can affect your setups.
 Here's a detailed overview and guidance for a smooth transition:
 
 1. **Transition to ESP-IDF Framework**: This release marks the official switch to the ESP-IDF framework, enhancing performance and allowing for more complex features. 
@@ -89,6 +100,8 @@ Discover our upcoming projects in our [Milestones](https://github.com/Blackymas/
 *Details to be added.*
 
 ## Previous releases
+- [v4.2.6 - Enhancing Stability and User Experience](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.6)
+- [v4.2.5 - Celebrating 1000 Stars with Enhanced Functionality and UI Improvements](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.5)
 - [v4.2.4 - Critical bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.4)
 - [v4.2.3 - Bug fixes and minor enhancements](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.3)
 - [v4.2.2 - Bug fixes and minor enhancements](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.2)
