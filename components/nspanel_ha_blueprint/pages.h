@@ -4,7 +4,9 @@
 #include <array>
 #include <cstring>
 #include <cstdint>
-#include <utility> // For std::pair
+#include <utility>
+#include <string>
+#include <initializer_list>
 
 namespace nspanel_ha_blueprint {
 
@@ -63,6 +65,44 @@ namespace nspanel_ha_blueprint {
             }
         }
         return UINT8_MAX;  // Return UINT8_MAX if not found
+    }
+
+    /**
+    * Checks if a given string is present within a list of strings.
+    * 
+    * This function provides a convenient way to search for the presence of a specific string
+    * within a variably sized list of strings. It iterates through each string in the provided
+    * list, comparing it against the target string for an exact match. This utility is particularly
+    * useful for validating if a certain value matches any item from a predefined set of allowed
+    * values.
+    *
+    * @param strToSearch The string to search for within the list. This is the target string
+    *                    that the function will attempt to find an exact match for within the
+    *                    provided list of strings.
+    * @param list An initializer list of strings to search within. This list contains the strings
+    *             against which the target string will be compared. The list is flexible in size,
+    *             allowing for a variable number of strings to be specified.
+    *
+    * @return Returns `true` if the target string is found within the list, indicating an exact
+    *         match was encountered. Returns `false` if the target string is not present in the
+    *         list, indicating no matches were found.
+    *
+    * Usage Example:
+    * ```cpp
+    * std::string page = "alarm";
+    * bool isPresent = isStringInList(page, {"alarm", "climate", "cover", "fan", "light", "media_player", "confirm", "keyb_num"});
+    * if (!isPresent) {
+    *     // The string 'page' was not found in the list
+    * }
+    * ```
+    */
+    bool isStringInList(const std::string& strToSearch, std::initializer_list<std::string> list) {
+        for (const auto& str : list) {
+            if (strToSearch == str) {
+                return true;
+            }
+        }
+        return false;
     }
 
 }  // namespace nspanel_ha_blueprint

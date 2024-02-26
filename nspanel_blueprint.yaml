@@ -1091,11 +1091,27 @@ blueprint:
             default: ' '
             selector: *placeholder-selector
         ##### PLACEHOLDER ######################################################################
+          hw_buttons_bar_color_on:
+            name: Hardware buttons - Bar Color when `On` (Optional)
+            description: >
+              *SYSTEM settings*
+
+              *Choose a color for the button's bars when the controlled entity is `On`.*
+            default: [31, 169, 255]
+            selector: *color_selector
+          hw_buttons_bar_color_off:
+            name: Hardware buttons - Bar Color when `Off` (Optional)
+            description: >
+              *HOME page*
+
+              *Choose a color for the button's bars when the controlled entity is `Off`.*
+            default: [44, 44, 44]
+            selector: *color_selector
           relay_1_local_fallback:
             name: Activate relay 1 local fallback - TRUE/FALSE (Optional)
             default: false
             description: >
-              *SYSTEM settings*
+              *HOME page*
 
               *activate this to use left button to toggle relay 1 if the panel is offline*
 
@@ -3431,13 +3447,14 @@ variables:
         value: 'esphome.{{ nspanel_name }}_component_val'
         visibility: 'esphome.{{ nspanel_name }}_component_visibility'
       detailed_entity: 'esphome.{{ nspanel_name }}_entity_details_show'
+      hw_button_state: 'esphome.{{ nspanel_name }}_hw_button_state'
       icon: 'esphome.{{ nspanel_name }}_icon'
       init:
         global: 'esphome.{{ nspanel_name }}_init_global'
+        hardware: 'esphome.{{ nspanel_name }}_init_hardware'
         page:
           home: 'esphome.{{ nspanel_name }}_init_page_home'
           settings: 'esphome.{{ nspanel_name }}_init_page_settings'
-        relays: 'esphome.{{ nspanel_name }}_init_relays'
       notification:
         clear: 'esphome.{{ nspanel_name }}_notification_clear'
       page:
@@ -6679,20 +6696,14 @@ trigger:
 
   ##### Trigger - Hardware buttons #################################################################################################################
 
-    ##### Left Button - State 'left_button_state' #####
+    ##### Left Button - State #####
     - platform: state
-      entity_id: !input 'left_button_entity'
-      not_to:
-        - unavailable
-        - unknown
+      entity_id: !input left_button_entity
       id: left_button_state
 
-    ##### Right Button - State 'right_button_state' #####
+    ##### Right Button - State #####
     - platform: state
-      entity_id: !input 'right_button_entity'
-      not_to:
-        - unavailable
-        - unknown
+      entity_id: !input right_button_entity
       id: right_button_state
 
   ##### Trigger - Time #################################################################################################################
@@ -7014,15 +7025,19 @@ action:
             then:
               - &variables_hardware
                 variables:
+                  hw_button_left_entity: !input left_button_entity
+                  hw_button_right_entity: !input right_button_entity
                   hardware:
                     buttons:
                       left:
-                        entity: !input 'left_button_entity'
+                        entity: '{{ hw_button_left_entity }}'
+                        entity_is_valid: '{{ hw_button_left_entity is defined and hw_button_left_entity is string and hw_button_left_entity.split(".") | count == 2 }}'
                         name: !input 'left_button_name'
                         color_rgb: !input 'left_button_color'
                         hold_select: !input 'left_button_hold_select'
                       right:
-                        entity: !input 'right_button_entity'
+                        entity: '{{ hw_button_right_entity }}'
+                        entity_is_valid: '{{ hw_button_right_entity is defined and hw_button_right_entity is string and hw_button_right_entity.split(".") | count == 2 }}'
                         name: !input 'right_button_name'
                         color_rgb: !input 'right_button_color'
                         hold_select: !input 'right_button_hold_select'
@@ -7036,8 +7051,7 @@ action:
                         icon_color_rgb: !input 'relay02_icon_color'
                         fallback: !input 'relay_2_local_fallback'
 
-              - &variables-home_buttons
-                variables:
+              - variables:
                   chip_font_size: !input chip_font_size
                   custom_buttons_font_size: !input custom_buttons_font_size
                   bt_notific:
@@ -7055,8 +7069,7 @@ action:
                     title: !input 'qrcode_label'
                     qrcode: !input 'qrcode_value'
 
-              - &variables-date_time
-                variables:
+              - variables:
                   display:
                     date:
                       format:
@@ -7065,8 +7078,7 @@ action:
                       format: !input 'time_format'
                       color_rgb: !input 'time_label_color'
 
-              - &variables-screensaver
-                variables:
+              - variables:
                   screensaver_display_time: !input screensaver_display_time
                   screensaver_display_time_font_size: !input screensaver_display_time_font_size
                   screensaver_display_time_font_color: !input screensaver_display_time_font_color
@@ -7157,7 +7169,9 @@ action:
                   dim: '{{ mui[language].settings.dim }}'
                 continue_on_error: true
 
-              - service: '{{ nspanel.service.init.relays }}'
+              - variables:
+                  climate_friendly_name: '{{ state_attr(climate, "friendly_name") if climate is string and climate is match "climate." else "" }}'
+              - service: '{{ nspanel.service.init.hardware }}'
                 data:
                   relay1_local_control: '{{ hardware.buttons.left.entity == relay01_entity }}'
                   relay1_icon: >
@@ -7180,7 +7194,7 @@ action:
                         hardware.relays.relay1.icon_color_rgb | count == 3
                       else nextion.color.on
                     }}
-                  relay1_fallback: '{{ hardware.relays.relay1.fallback }}'
+                  relay1_fallback: !input relay_1_local_fallback
                   relay2_local_control: '{{ hardware.buttons.right.entity == relay02_entity }}'
                   relay2_icon: >
                     {{
@@ -7202,28 +7216,29 @@ action:
                         hardware.relays.relay2.icon_color_rgb | count == 3
                       else nextion.color.on
                     }}
-                  relay2_fallback: '{{ hardware.relays.relay2.fallback }}'
-                continue_on_error: true
-
-              - variables:
-                  climate_friendly_name: '{{ state_attr(climate, "friendly_name") if climate is string and climate is match "climate." else "" }}'
-                  entitypages_value_alignment_temp: !input 'entitypages_value_alignment'
-                  entitypages_value_alignment: >
-                    {{
-                      entitypages_value_alignment_temp | int
-                      if
-                        is_number(entitypages_value_alignment_temp) and
-                        entitypages_value_alignment_temp | int >= 0 and
-                        entitypages_value_alignment_temp | int <= 2
-                      else 0
-                    }}
-              - service: '{{ nspanel.service.init.global }}'
-                data:
-                  blueprint_version: '{{ blueprint_version }}'
+                  relay2_fallback: !input relay_2_local_fallback
+                  button_left: '{{ hardware.buttons.left.entity is defined and hardware.buttons.left.entity is string and hardware.buttons.left.entity.split(".") | count == 2 }}'
+                  button_right: '{{ hardware.buttons.right.entity is defined and hardware.buttons.right.entity is string and hardware.buttons.right.entity.split(".") | count == 2 }}'
+                  button_bar_color_on: !input hw_buttons_bar_color_on
+                  button_bar_color_off: !input hw_buttons_bar_color_off
                   embedded_climate: '{{ climate == thermostat_embedded }}'
                   embedded_climate_friendly_name: '{{ climate_friendly_name if climate_friendly_name else "" }}'
                   embedded_indoor_temperature: '{{ embedded_indoor_temperature }}'
-                  ent_value_xcen: '{{ int(entitypages_value_alignment) if is_number(entitypages_value_alignment) else 1 }}'
+                continue_on_error: true
+
+              - &update_hw_button_state
+                service: '{{ nspanel.service.hw_button_state }}'
+                data:
+                  left: '{{ hardware.buttons.left.entity_is_valid and states(hardware.buttons.left.entity) | default("unavailable") in enum.states.on }}'
+                  right: '{{ hardware.buttons.right.entity_is_valid and states(hardware.buttons.right.entity) | default("unavailable") in enum.states.on }}'
+                continue_on_error: true
+
+              - variables:
+                  entitypages_value_alignment: !input entitypages_value_alignment
+              - service: '{{ nspanel.service.init.global }}'
+                data:
+                  blueprint_version: '{{ blueprint_version }}'
+                  ent_value_xcen: '{{ int(entitypages_value_alignment) if is_number(entitypages_value_alignment) else 0 }}'
                   mui_please_confirm: '{{ mui[language].please_confirm }}'
                   mui_unavailable: '{{ mui[language].unavailable }}'
                   screensaver_time: '{{ screensaver_display_time if screensaver_display_time is boolean else false }}'
@@ -7431,27 +7446,6 @@ action:
                                   value: '{{ indoor_temp.state | round(1) ~ indoor_temp.units if not embedded_indoor_temperature else "" }}'
                                   value_color: !input home_indoor_temp_label_color
                                 continue_on_error: true
-
-                          ##### SET Hardware Buttons PIC on Home Page ####
-                          - &update_home_page_hw_buttons_pics
-                            if: '{{ true }}'
-                            then:
-                              - *variables_hardware
-                              - variables:
-                                  left_button_state: '{{ states(hardware.buttons.left.entity) | default("unavailable") if hardware.buttons.left.entity is string else "unavailable" }}'
-                                  right_button_state: '{{ states(hardware.buttons.right.entity) | default("unavailable") if hardware.buttons.right.entity is string else "unavailable" }}'
-                              - if: '{{ left_button_state and left_button_state not in enum.states.unknown }}'
-                                then:
-                                  - service: '{{ nspanel.service.command }}'
-                                    data:
-                                      cmd: home.left_bt_pic.val={{ 1 if left_button_state in enum.states.on else 0 }}
-                                    continue_on_error: true
-                              - if: '{{ right_button_state and right_button_state not in enum.states.unknown }}'
-                                then:
-                                  - service: '{{ nspanel.service.command }}'
-                                    data:
-                                      cmd: home.right_bt_pic.val={{ 1 if right_button_state in enum.states.on else 0 }}
-                                    continue_on_error: true
 
                           ###### Custom buttons ######
                           - &update_home_page_custom_buttons
@@ -10003,13 +9997,10 @@ action:
             id:
               - left_button_state
               - right_button_state
-          - '{{ trigger.to_state.state not in enum.states.unknown }}'
         sequence:
-          ##### SET hardware Button PIC on Home Page ####
-          - service: '{{ nspanel.service.command }}'
-            data:
-              cmd: 'home.{{ "left" if trigger.id == "left_button_state" else "right"}}_bt_pic.val={{ 1 if trigger.to_state.state in enum.states.on else 0 }}'
-            continue_on_error: true
+          ##### SET Hardware Buttons PIC on Home Page ####
+          - *variables_hardware
+          - *update_hw_button_state
 
       ##### OUTDOOR TEMP - entity #####
       - alias: Outdoor temp - Entity

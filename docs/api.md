@@ -10,11 +10,13 @@ This document provides details on custom services designed for integration with 
   - [Component Value Service (`component_val`)](#component-value-service-component_val): Updates the value of a specified component on the display.
   - [Component Visibility Service (`component_visibility`)](#component-visibility-service-component_visibility): Hides or shows a specified component on the display.
   - [Entity Details Show Service (`entity_details_show`)](#entity-details-show-service-entity_details_show): Displays detailed information for a specific entity.
+  - [Hardware Button State Indication Service (`hw_button_state`)](#hardware-button-state-indication-service-hw_button_state):
+Updates the visual state (on/off) of the left and right hardware button indicators on the panel.
   - [Icon Service (`icon`)](#icon-service-icon): Updates a chip or custom button's icon, color, and visibility.
   - [Initialization Service: Global (`init_global`)](#initialization-service-init_global): Transfers global settings on initialization.
+  - [Initialization Service: Hardware (`init_hardware`)](#initialization-service-init_hardware): Transfers NSPanel hardware settings during initialization.
   - [Initialization Service: Home Page (`init_page_home`)](#initialization-service-init_page_home): Transfers settings for the "Home" page on initialization.
   - [Initialization Service: Settings Page (`init_page_settings`)](#initialization-service-init_page_settings): Transfers settings for the "Settings" page on initialization.
-  - [Initialization Service: Relays (`init_relays`)](#initialization-service-init_relays): Transfers relay's settings during initialization.
   - [Notification Clear Service (`notification_clear`)](#notification-clear-service-notification_clear): Clears the current notification from the screen.
   - [Notification Show Service (`notification_show`)](#notification-show-service-notification_show): Displays a notification-message on the screen.
   - [QR Code Service (`qrcode`)](#qr-code-service-qrcode): Displays a QR code on the panel or updates the QR code information for local control.
@@ -54,11 +56,12 @@ If you send anything different, the conversion to the RGB565 used by Nextion wil
 | [`component_val`](#component-value-service-component_val) | [Component Value Service](#component-value-service-component_val) | Updates the value of a specified component on the display. |
 | [`component_visibility`](#component-visibility-service-component_visibility) | [Component Visibility Service](#component-visibility-service-component_visibility) | Hides or shows a specified component on the display. |
 | [`entity_details_show`](#entity-details-show-service-entity_details_show) | [Entity Details Show Service](#entity-details-show-service-entity_details_show) | Displays detailed information for a specific entity. |
+| [`hw_button_state`](#hardware-button-state-indication-service-hw_button_state) | [Hardware Button State Indication Service](#hardware-button-state-indication-service-hw_button_state) | Updates the visual state (on/off) of the left and right hardware button indicators on the panel. |
 | [`icon`](#icon-service-icon) | [Icon Service](#icon-service-icon) | Updates a chip or custom button's icon, color, and visibility. |
 | [`init_global`](#initialization-service-init_global) | [Initialization Service](#initialization-service-init_global) | Transfers global settings on initialization. |
+| [`init_hardware`](#initialization-service-init_hardware) | [Initialization Service](#initialization-service-init_hardware) | Transfers NSPanel hardware settings during initialization. |
 | [`init_page_home`](#initialization-service-init_page_home) | [Initialization Service](#initialization-service-init_page_home) | Transfers settings for the "Home" page on initialization. |
 | [`init_page_settings`](#initialization-service-init_page_settings) | [Initialization Service](#initialization-service-init_page_settings) | Transfers settings for the "Settings" page on initialization. |
-| [`init_relays`](#initialization-service-init_relays) | [Initialization Service](#initialization-service-init_relays) | Transfers relay's settings during initialization. |
 | [`notification_clear`](#notification-clear-service-notification_clear) | [Notification Clear Service](#notification-clear-service-notification_clear) | Clears the current notification from the screen. |
 | [`notification_show`](#notification-show-service-notification_show) | [Notification Show Service](#notification-show-service-notification_show) | Displays a notification-message on the screen. |
 | [`page_alarm`](#alarm-settings-page-service-page_alarm) | [Alarm Settings Page Service](#alarm-settings-page-service-page_alarm) | Updates the Alarm page with current state information. |
@@ -250,6 +253,27 @@ data:
 > Ensure to replace <your_panel_name> with the specific name of your panel configured in Home Assistant.
 > This setup provides a direct and user-friendly way to access and return from detailed entity information, enhancing the interface's usability.
 
+### Hardware Button State Indication Service: `hw_button_state`
+Updates the on-screen indication bars for the hardware buttons, reflecting the current state of the entities they control.
+
+**Usage:**
+This service updates the visual state (on/off) of the left and right hardware button indicators on the panel. It's used to provide visual feedback corresponding to the state of the entities controlled by these hardware buttons.
+
+**Parameters:**
+- `left` (bool): The state to set for the left button's indication bar.
+- `right` (bool): The state to set for the right button's indication bar.
+
+**Home Assistant Example:**
+```yaml
+service: esphome.<your_panel_name>_hw_button_state
+data:
+  left: true   # Turns the left button's indication bar on
+  right: false # Turns the right button's indication bar off
+```
+> [!NOTE]
+> Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant.
+> This service dynamically updates the hardware button state indications, enhancing the user interface by providing immediate visual feedback.
+
 ### Icon Service: `icon`
 Updates a chip or custom button's icon, color, and visibility within Home Assistant.
 
@@ -285,9 +309,7 @@ It configures ESPHome with settings that affect overall functionality and user i
 
 **Parameters:**
 - `blueprint_version` (string): Specifies the version of the blueprint being used.
-- `embedded_climate` (bool): Indicates whether climate control is embedded in the panel.
-- `embedded_climate_friendly_name` (string): Provides a friendly name for the embedded climate control.
-- `embedded_indoor_temperature` (bool): Determines if indoor temperature display is enabled.
+- `ent_value_xcen` (int): Alignment of values on entities pages (0 for right (default), 1 for center or 2 for left).
 - `mui_please_confirm` (string): Localized (language based) message used for asking for confirmation in the UI.
 - `mui_unavailable` (string): Localized (language based) message used for  indicating unavailability in the UI.
 - `screensaver_time` (bool): Enables or disables the screensaver time display.
@@ -299,9 +321,7 @@ It configures ESPHome with settings that affect overall functionality and user i
 service: esphome.<your_panel_name>_init_global
 data:
   blueprint_version: "4.2.5"
-  embedded_climate: true
-  embedded_climate_friendly_name: "Termostato da Sala"
-  embedded_indoor_temperature: true
+  ent_value_xcen: 0
   mui_please_confirm: "Confirme, por favor."
   mui_unavailable: "Indisponível"
   screensaver_time: true
@@ -312,6 +332,55 @@ data:
 > Replace `<your_panel_name>` with the specific name of your panel configured in Home Assistant.
 >
 > This service should be called to update ESPHome with the latest global settings as specified in your blueprint.
+
+### Initialization Service: `init_hardware`
+Configures NSPanel hardware settings in ESPHome according to the specifications provided in the blueprint,
+ensuring each component operates with the correct parameters for control, appearance, and fallback behavior.
+
+**Usage:**
+This service is essential for initializing or updating button and relay configurations to reflect changes in the blueprint.
+It tailors ESPHome's hardware operations for specific use cases, including local control capabilities, iconography, color indications, and fallback states.
+
+**Parameters:**
+- `relay1_local_control` (bool): Enables or disables local control for Relay 1.
+- `relay1_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) for Relay 1.
+- `relay1_icon_color` (int[]): The RGB color array for Relay 1's icon.
+- `relay1_fallback` (bool): Determines the fallback state for Relay 1 in case of communication loss.
+- `relay2_local_control` (bool): Enables or disables local control for Relay 2.
+- `relay2_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) for Relay 2.
+- `relay2_icon_color` (int[]): The RGB color array for Relay 2's icon.
+- `relay2_fallback` (bool): Determines the fallback state for Relay 2 in case of communication loss.
+- `button_left` (bool): Enable/disable left button status visualization.
+- `button_right` (bool): Enable/disable right button status visualization.
+- `button_bar_color_on` (int[]): RGB color array for the hardware button bar when the status is `On`.
+- `button_bar_color_off` (int[]): RGB color array for the hardware button bar when the status is `Off`.
+- `embedded_climate` (bool): Indicates whether climate control is embedded in the panel.
+- `embedded_climate_friendly_name` (string): Provides a friendly name for the embedded climate control.
+- `embedded_indoor_temperature` (bool): Determines if indoor temperature display is enabled.
+
+**Home Assistant Example:**
+```yaml
+service: esphome.<your_panel_name>_init_hardware
+data:
+  relay1_local_control: true
+  relay1_icon: "\uE3A5"           # Example for mdi:numeric-1-box-outline
+  relay1_icon_color: [248, 0, 0]  # Red
+  relay1_fallback: false
+  relay2_local_control: true
+  relay2_icon: "\uE3A8"           # Example for mdi:numeric-2-box-outline
+  relay2_icon_color: [0, 252, 0]  # Green
+  relay2_fallback: true
+  button_left: true
+  button_right: true
+  button_bar_color_on: [31, 169, 255]  # Blueish
+  button_bar_color_off: [44, 44, 44]   # Dark gray
+  embedded_climate: true
+  embedded_climate_friendly_name: "Termostato da Sala"
+  embedded_indoor_temperature: true
+```
+> [!NOTE]
+> Replace `<your_panel_name>` with the specific name of your panel configured in Home Assistant.
+> This service initializes buttons and relay settings based on the provided parameters, customizing relay functionality and presentation as defined in the blueprint.
 
 ### Initialization Service: `init_page_home`
 Configures the "Home" page settings and user interface elements in ESPHome,
@@ -341,6 +410,7 @@ for the QR code button.
 - `entities_pages_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
 for the entities page button.
 - `entities_pages_icon_color` (int[]): RGB color array for the entities page button icon.
+- `outdoor_temp_font` (int): Font Id for outdoor temperature indication on the "Home" page.
 
 **Home Assistant Example:**
 ```yaml
@@ -361,6 +431,7 @@ data:
   entities_pages: true
   entities_pages_icon: "\uEDCF"                    # Example for mdi:format-list-bulleted-square
   entities_pages_icon_color: [0, 0, 255]           # Blue
+  outdoor_temp_font: 5
 ```
 > [!NOTE]
 > Ensure to replace `<your_panel_name>` with the actual name of your panel configured in Home Assistant.
@@ -393,41 +464,6 @@ data:
 > [!NOTE]
 > Replace `<your_panel_name>` with the specific name of your panel configured in Home Assistant.
 > This service customizes the "Settings" page according to specified labels, enhancing user interaction with device settings.
-
-### Initialization Service: `init_relays`
-Configures relay settings in ESPHome according to the specifications provided in the blueprint,
-ensuring each relay operates with the correct parameters for control, appearance, and fallback behavior.
-
-**Usage:**
-This service is essential for initializing or updating relay configurations to reflect changes in the blueprint.
-It tailors ESPHome's relay operations for specific use cases, including local control capabilities, iconography, color indications, and fallback states.
-
-**Parameters:**
-- `relay1_local_control` (bool): Enables or disables local control for Relay 1.
-- `relay1_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) for Relay 1.
-- `relay1_icon_color` (int[]): The RGB color array for Relay 1's icon.
-- `relay1_fallback` (bool): Determines the fallback state for Relay 1 in case of communication loss.
-- `relay2_local_control` (bool): Enables or disables local control for Relay 2.
-- `relay2_icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) for Relay 2.
-- `relay2_icon_color` (int[]): The RGB color array for Relay 2's icon.
-- `relay2_fallback` (bool): Determines the fallback state for Relay 2 in case of communication loss.
-
-**Home Assistant Example:**
-```yaml
-service: esphome.<your_panel_name>_init_relays
-data:
-  relay1_local_control: true
-  relay1_icon: "\uE3A5"           # Example for mdi:numeric-1-box-outline
-  relay1_icon_color: [248, 0, 0]  # Red
-  relay1_fallback: false
-  relay2_local_control: true
-  relay2_icon: "\uE3A8"           # Example for mdi:numeric-2-box-outline
-  relay2_icon_color: [0, 252, 0]  # Green
-  relay2_fallback: true
-```
-> [!NOTE]
-> Replace `<your_panel_name>` with the specific name of your panel configured in Home Assistant.
-> This service initializes relay settings based on the provided parameters, customizing relay functionality and presentation as defined in the blueprint.
 
 ### Notification Clear Service: `notification_clear`
 Removes any displayed notification from the screen, allowing the display to return to its normal state or view.
