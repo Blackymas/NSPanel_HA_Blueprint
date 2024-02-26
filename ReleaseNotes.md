@@ -1,18 +1,22 @@
-# v4.3 - TItle to be defined
+# v4.3 - Embracing the Future with ESP-IDF Framework
 
 ## General
-*To be updated.*
+This milestone release is not just about adopting a new technical foundation;
+it's about enhancing the capabilities and experiences of our users through significant performance improvements, more comprehensive API documentation, and customizable user interfaces.
+As we move forward with the ESP-IDF framework, we're excited to offer a platform that's not only more robust but also more adaptable to the needs of our diverse user base.
 
-Hello everyone!
-We're excited to introduce enhancements in this update, focusing on improving user interaction and expanding customization options.
-This release features an intuitive TFT upload process, enhanced Alarm Control Panels & Thermostats functionality, and new personalization options.
+Our dedication to refining the user experience and expanding customization options continues, with this release featuring:
 
-We're committed to making NSPanel firmware more user-friendly.
-This release marks significant progress, including a streamlined TFT upload process and steps towards adopting `esp-idf` as the default framework.
-Our documentation has been revamped for clarity and ease of use.
-Stay tuned for more updates!
+- **Comprehensive API Documentation**: Facilitating easier customization and integration, we introduce detailed documentation of our services.
+This enhancement aims to empower developers and users alike to tailor their NSPanel experience to their unique needs.
 
-[Learn more about our efforts](https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions/1602).
+- **Enhanced Personalization Features**: With customizable font sizes for the screensaver time display and the visibility of hardware button bars on all pages,
+personalizing your NSPanel is now more intuitive than ever. These features not only improve accessibility but also allow for a deeper level of interaction with your device.
+
+- **Performance Improvements and New Functionalities**: At the core of this release is our commitment to performance and functionality.
+The transition to ESP-IDF opens up new possibilities for future enhancements, ensuring that NSPanel remains at the cutting edge of smart control solutions.
+
+As we embrace the ESP-IDF framework, we're excited to explore the new horizons it brings to the NSPanel firmware. Dive into v4.3 and discover the advancements that await.
 
 ## ESP-IDF Framework Transition
 With this release, we've officially transitioned to the **ESP-IDF** framework.
@@ -61,32 +65,55 @@ Our goal is to ensure NSPanel continues to evolve in a way that enhances your ex
 Our community and support channels are open for any questions or assistance you may require.
 
 ## Overview of noteworthy changes
-1. Transition to ESP-IDF as Default Framework
-2. Performance improvements
-3. New API documentation
-4. Selectable font size for screensaver time display
-5. Hardware buttons bars visible on all pages
+- [Transition to ESP-IDF as Default Framework](#transition-to-esp-idf-as-default-framework)
+- [New API documentation](#new-api-documentation)
+- [Selectable font size for screensaver time display](#selectable-font-size-for-screensaver-time-display)
+- [Hardware buttons bars visible on all pages](#hardware-buttons-bars-visible-on-all-pages)
 
 ## Details of noteworthy changes
-### 1. Transition to ESP-IDF as Default Framework
+### Transition to ESP-IDF as Default Framework
 We've transitioned to ESP-IDF, enhancing our platform's performance and capabilities.
 This change promises new possibilities for your projects.
 Those continuing with the Arduino framework can find instructions for setting framework preferences.
 
 For more information, visit our [discussion](https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions/1756).
 
-### 2. Performance improvements
-*Details to be added.*
+### New API documentation
+Now all the services available are listed in a comprehensive documentation, making easier for people who want to customize their systems, integrate to other automations and to encourage new collaborators to our repository.
 
-### 3. New API documentation
-*Details to be added.*
+For more details, please visit our [API documentation](docs/api.md).
 
-### 4. Selectable font size for screensaver time display
-*Details to be added.*
+### Selectable font size for screensaver time display
+Now you can chose the font size for your clock display in the screen saver. There are 3 sizes available:
 
-### 5. The hardware buttons bars visible in all pages
+![Image](docs/pics/ha_blueprint_sreensaver.png)
+
+#### 72px
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/030ba092-69d4-467d-b5ab-52979c94e742) ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/ae56276f-10be-420c-a156-87f33d1fc322) ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/0aecb76b-c7b1-4257-b2eb-caed513a1f06)
+
+### 112px
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/689f7fa3-afe5-43e0-839c-a16ca32d0657) ![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/5093d1e7-be6b-4042-8e2d-84bf10d0bd2f)
+
+
+### 192px
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/3060bea9-4804-45d3-940e-64767e1f3577)
+
+<!-- markdownlint-disable MD028 -->
+> [!IMPORTANT]
+> For this time to be displayed you must select a brightness higher than 0 on the device's page (under **Settings** > **Devices & Services** > **ESPHome**).
+
+> [!ATTENTION]
+> Some fonts may not support all the languages.
+
+> [!ATTENTION]
+> Bigger fonts may not fit well on your display and the selected time format.
+> Please select a differnt font in that case.
+<!-- markdownlint-enable MD028 -->
+
+### Hardware buttons bars visible on all pages
 Bars indicating statuses of entities controlled by hardware buttons are now visible on all pages, including screensaver.
 Color customization for these bars is also available.
+![Image](docs/pics/ha_blueprint_hw_buttons_colors.png)
 
 ## Support
 For support or more information about this update,
@@ -128,4 +155,3 @@ Discover our upcoming projects in our [Milestones](https://github.com/Blackymas/
 - [v2.0.2](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v2.0.2)
 - [v2.0.1 - Bug Fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v2.0.1)
 - [v2.0.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v2.0.0)
-- [v1.0.1 Blueprint](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/latest)
