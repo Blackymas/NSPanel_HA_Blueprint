@@ -71,6 +71,7 @@ Our community and support channels are open for any questions or assistance you 
 - [Hardware buttons bars visible on all pages](#hardware-buttons-bars-visible-on-all-pages)
 - [User-Defined Decimal Separator](#user-defined-decimal-separator)
 - [Page Light with Power Button](#page-light-with-power-button)
+- [Page Fan with Oscillate Button](#page-fan-with-oscillate-button)
 
 ## Details of noteworthy changes
 ### Transition to ESP-IDF as Default Framework
@@ -137,6 +138,15 @@ This intuitive addition allows for quick adjustments directly from the page Ligh
 ![Page Light Power Button](docs/pics/eu_light.png)
 
 This enhancement streamlines light management, making it more accessible and convenient for everyday use.
+
+### Page Fan with Oscillate Button
+The Fan page now features an oscillate button, making it easier to control your fan's oscillation settings.
+This convenient update enables users to activate or deactivate the oscillation function with a single tap, directly from the Fan page itself.
+It's designed to improve the user experience by offering a simple and effective control option.
+
+![Page Fan Oscillate Button](docs/pics/us_fan.png)
+
+This update simplifies fan operation, enhancing accessibility and usability for all users.
 
 ## Support
 For support or more information about this update,
