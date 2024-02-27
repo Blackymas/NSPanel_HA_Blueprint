@@ -69,6 +69,7 @@ Our community and support channels are open for any questions or assistance you 
 - [New API documentation](#new-api-documentation)
 - [Selectable font size for screensaver time display](#selectable-font-size-for-screensaver-time-display)
 - [Hardware buttons bars visible on all pages](#hardware-buttons-bars-visible-on-all-pages)
+- [User-Defined Decimal Separator](#user-defined-decimal-separator)
 
 ## Details of noteworthy changes
 ### Transition to ESP-IDF as Default Framework
@@ -118,6 +119,15 @@ Now you can chose the font size for your clock display in the screen saver. Ther
 Bars indicating statuses of entities controlled by hardware buttons are now visible on all pages, including screensaver.
 Color customization for these bars is also available.
 ![Image](docs/pics/ha_blueprint_hw_buttons_colors.png)
+
+### User-Defined Decimal Separator
+You can now select the decimal separator for displaying numbers on your NSPanel.
+This feature allows for consistency with your regional number format preferences, improving the clarity of numerical information.
+Simply go to the settings to choose between the dot (.) and comma (,) as your decimal separator for a display that matches your preference.
+
+![User-Defined Decimal Separator Setting](docs/pics/ha_blueprint_decimal_separator.png)
+
+This update aims to enhance the flexibility and usability of the NSPanel interface for users worldwide.
 
 ## Support
 For support or more information about this update,
