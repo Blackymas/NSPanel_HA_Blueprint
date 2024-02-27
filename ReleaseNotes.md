@@ -72,6 +72,7 @@ Our community and support channels are open for any questions or assistance you 
 - [User-Defined Decimal Separator](#user-defined-decimal-separator)
 - [Page Light with Power Button](#page-light-with-power-button)
 - [Page Fan with Oscillate Button](#page-fan-with-oscillate-button)
+- [Streamlined Interface: No More Empty Pages](#streamlined-interface-no-more-empty-pages)
 
 ## Details of noteworthy changes
 ### Transition to ESP-IDF as Default Framework
@@ -147,6 +148,11 @@ It's designed to improve the user experience by offering a simple and effective 
 ![Page Fan Oscillate Button](docs/pics/us_fan.png)
 
 This update simplifies fan operation, enhancing accessibility and usability for all users.
+
+### Streamlined Interface: No More Empty Pages
+We've improved the NSPanel interface by ensuring that only populated pages are displayed, both for button and entities pages.
+This update creates a more intuitive and clutter-free experience, automatically hiding any pages without assigned entities.
+There's no need for additional setup; if a page has no entities linked to it, it simply won't appear on your panel, making navigation smoother and more efficient.
 
 ## Support
 For support or more information about this update,
