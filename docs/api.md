@@ -316,6 +316,7 @@ It configures ESPHome with settings that affect overall functionality and user i
 - `screensaver_time` (bool): Enables or disables the screensaver time display.
 - `screensaver_time_font` (int): Specifies the font id for the screensaver time display.
 - `screensaver_time_color` (int[]): Specifies the RGB color array for the screensaver time display.
+- `decimal_separator` (string): The char to be used as decimal separator.
 
 **Home Assistant Example:**
 ```yaml
@@ -328,6 +329,7 @@ data:
   screensaver_time: true
   screensaver_time_font: 11
   screensaver_time_color: [165, 42, 42]  # Reddish-brown
+  decimal_separator: ","
 ```
 > [!NOTE]
 > Replace `<your_panel_name>` with the specific name of your panel configured in Home Assistant.

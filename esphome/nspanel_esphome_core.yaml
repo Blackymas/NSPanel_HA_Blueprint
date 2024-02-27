@@ -307,19 +307,20 @@ api:
         screensaver_time: bool         # Toggles the screensaver time display.
         screensaver_time_font: int     # Specifies the font id for the screensaver time display.
         screensaver_time_color: int[]  # RGB color for the screensaver time display, e.g., [165, 42, 42] for reddish-brown.
+        decimal_separator: string      # The char to be used as decimal separator.
       then:
         - script.execute:
             id: global_settings
-            blueprint_version: !lambda "return blueprint_version;"
-            ent_value_xcen: !lambda "return ent_value_xcen;"
-            mui_please_confirm: !lambda "return mui_please_confirm;"
-            mui_unavailable: !lambda "return mui_unavailable;"
-            screensaver_time: !lambda "return screensaver_time;"
-            screensaver_time_font: !lambda "return screensaver_time_font;"
-            screensaver_time_color: !lambda "return screensaver_time_color;"
+            blueprint_version: !lambda return blueprint_version;
+            ent_value_xcen: !lambda return ent_value_xcen;
+            mui_please_confirm: !lambda return mui_please_confirm;
+            mui_unavailable: !lambda return mui_unavailable;
+            screensaver_time: !lambda return screensaver_time;
+            screensaver_time_font: !lambda return screensaver_time_font;
+            screensaver_time_color: !lambda return screensaver_time_color;
+            decimal_separator: !lambda return decimal_separator;
         - script.wait: global_settings
-        - lambda: |-
-            blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 5));
+        - lambda: blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 5));
 
     # Configures NSPanel hardware (buttons, relays, etc.) settings
     - service: init_hardware
@@ -795,7 +796,7 @@ api:
                                                                                                                                 icon_color[2])));
 
               if (!(name.empty())) disp1->set_component_text_printf((id + "_label").c_str(), "%s", name.c_str());
-              if (!(value.empty())) disp1->set_component_text_printf(id.c_str(), "%s", value.c_str());
+              if (!(value.empty())) disp1->set_component_text_printf(id.c_str(), "%s", adjustDecimalSeparator(value, id(mui_decimal_separator)).c_str());
               if (value_color.size() == 3)
                 disp1->set_component_font_color(id.c_str(), esphome::display::ColorUtil::color_to_565(esphome::Color(value_color[0],
                                                                                                                     value_color[1],
@@ -843,6 +844,11 @@ display:
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
+
+  - id: mui_decimal_separator
+    type: char
+    restore_value: true
+    initial_value: '.'
 
   ###### Buttons settings ######
   # Bit # Settings             #
@@ -1164,8 +1170,8 @@ button:
 ##### START - NUMBER CONFIGURATION #####
 number:
   ##### SCREEN BRIGHTNESS #####
-  - name: Display Brightness
-    id: display_brightness
+  - id: display_brightness
+    name: Display Brightness
     platform: template
     entity_category: config
     unit_of_measurement: '%'
@@ -1180,18 +1186,17 @@ number:
         - lambda: |-
             disp1->send_command_printf("brightness=%i", int(x));
             disp1->send_command_printf("settings.brightslider.val=%i", int(x));
-            if (current_page->state != "screensaver")
-              {
-                disp1->set_backlight_brightness(x/100);
-                current_brightness->update();
-                timer_dim->execute(current_page->state.c_str(), int(timeout_dim->state));
-                timer_sleep->execute(current_page->state.c_str(), int(timeout_sleep->state));
-                if (current_page->state == "settings") disp1->set_component_text_printf("bright_text", "%i%%", int(x));
-              }
+            if (current_page->state != "screensaver") {
+              disp1->set_backlight_brightness(x/100);
+              current_brightness->update();
+              timer_dim->execute(current_page->state.c_str(), int(timeout_dim->state));
+              timer_sleep->execute(current_page->state.c_str(), int(timeout_sleep->state));
+              if (current_page->state == "settings") disp1->set_component_text_printf("bright_text", "%i%%", int(x));
+            }
 
   ##### SCREEN BRIGHTNESS DIMMED DOWN #####
-  - name: Display Brightness Dimdown
-    id: display_dim_brightness
+  - id: display_dim_brightness
+    name: Display Brightness Dimdown
     platform: template
     entity_category: config
     unit_of_measurement: '%'
@@ -1206,16 +1211,15 @@ number:
         - lambda: |-
             disp1->send_command_printf("brightness_dim=%i", int(x));
             disp1->send_command_printf("settings.dimslider.val=%i", int(x));
-            if (current_page->state != "screensaver" and (current_brightness->state <= display_dim_brightness->state))
-              {
-                set_brightness->execute(x);
-                timer_sleep->execute(current_page->state.c_str(), int(timeout_sleep->state));
-                if (current_page->state == "settings") disp1->set_component_text_printf("dim_text", "%i%%", int(x));
-              }
+            if (current_page->state != "screensaver" and current_brightness->state <= x) {
+              set_brightness->execute(x);
+              timer_sleep->execute(current_page->state.c_str(), int(timeout_sleep->state));
+              if (current_page->state == "settings") disp1->set_component_text_printf("dim_text", "%i%%", int(x));
+            }
 
   ##### SCREEN BRIGHTNESS SLEEP #####
-  - name: Display Brightness Sleep
-    id: display_sleep_brightness
+  - id: display_sleep_brightness
+    name: Display Brightness Sleep
     platform: template
     entity_category: config
     unit_of_measurement: '%'
@@ -1232,9 +1236,9 @@ number:
             page_screensaver->execute();
 
   ##### Temperature Correction #####
-  - name: Temperature Correction
+  - id: temperature_correction
+    name: Temperature Correction
     platform: template
-    id: temperature_correction
     entity_category: config
     unit_of_measurement: °C
     min_value: -10
@@ -1860,6 +1864,7 @@ script:
       screensaver_time: bool
       screensaver_time_font: int
       screensaver_time_color: int32_t[]
+      decimal_separator: string
     then:
       - lambda: |-
           if (id(is_uploading_tft)) global_settings->stop();
@@ -1881,6 +1886,9 @@ script:
 
           // Entities pages alignment
           id(page_entity_value_horizontal_alignment) = ent_value_xcen;
+
+          // Decimal separator
+          if (not decimal_separator.empty()) id(mui_decimal_separator) = decimal_separator[0];
 
           if (current_page->state != "boot") {
             // Update current page
