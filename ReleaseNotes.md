@@ -70,6 +70,7 @@ Our community and support channels are open for any questions or assistance you 
 - [Selectable font size for screensaver time display](#selectable-font-size-for-screensaver-time-display)
 - [Hardware buttons bars visible on all pages](#hardware-buttons-bars-visible-on-all-pages)
 - [User-Defined Decimal Separator](#user-defined-decimal-separator)
+- [Page Light with Power Button](#page-light-with-power-button)
 
 ## Details of noteworthy changes
 ### Transition to ESP-IDF as Default Framework
@@ -128,6 +129,14 @@ Simply go to the settings to choose between the dot (.) and comma (,) as your de
 ![User-Defined Decimal Separator Setting](docs/pics/ha_blueprint_decimal_separator.png)
 
 This update aims to enhance the flexibility and usability of the NSPanel interface for users worldwide.
+
+### Page Light with Power Button
+The page Light has been updated to include a power button, simplifying the process of toggling your light on or off.
+This intuitive addition allows for quick adjustments directly from the page Light, enhancing the user experience by providing a straightforward control mechanism.
+
+![Page Light Power Button](docs/pics/eu_light.png)
+
+This enhancement streamlines light management, making it more accessible and convenient for everyday use.
 
 ## Support
 For support or more information about this update,
