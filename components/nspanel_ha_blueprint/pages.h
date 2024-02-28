@@ -21,7 +21,7 @@ namespace nspanel_ha_blueprint {
     * These names correspond to various pages of the Nextion TFT file in use,
     * such as settings, home, weather information, and more.
     */
-    constexpr std::array<const char*, 27> page_names = {
+    constexpr std::array<const char*, 28> page_names = {
         "home",
         "weather01",
         "weather02",
@@ -48,7 +48,8 @@ namespace nspanel_ha_blueprint {
         "alarm",
         "keyb_num",
         "media_player",
-        "confirm"
+        "confirm",
+        "utilities"
     };
 
     /**
