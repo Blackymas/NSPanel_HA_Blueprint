@@ -417,6 +417,11 @@ for the QR code button.
 Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
 for the entities page button.
 - `entities_pages_icon_color` (int[]): RGB color array for the entities page button icon.
+- `utilities` (bool): Flag indicating whether the utilities page button is enabled.
+- `utilities_icon` (string):
+Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
+for the utilities page button.
+- `utilities_icon_color` (int[]): RGB color array for utilities page button icon.
 - `outdoor_temp_font` (int): Font Id for outdoor temperature indication on the "Home" page.
 
 **Home Assistant Example:**
@@ -437,6 +442,10 @@ data:
   qrcode_icon_color: [0, 255, 0]                   # Green
   entities_pages_icon: "\uEDCF"                    # Example for mdi:format-list-bulleted-square
   entities_pages_icon_color: [0, 0, 255]           # Blue
+  utilities: true
+  utilities_icon: "\uE299"                         # Example for mdi:gauge
+  utilities_icon_color: [255, 255, 255]            # White
+
   outdoor_temp_font: 5
 ```
 > [!NOTE]
