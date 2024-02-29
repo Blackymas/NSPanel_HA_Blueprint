@@ -8,13 +8,16 @@ And with a nice Utilities Dashboard as a bonus!!
 
 Our dedication to refining the user experience and expanding customization options continues, with this release featuring:
 
-- **Utilities Dashboard**: A new addition, offering a customizable overview for essential utility metrics such as solar production, wind energy, EV charging status, battery levels, and water or gas consumption.
+- **Utilities Dashboard**: A new addition, offering a customizable overview for essential utility metrics such as solar production,
+wind energy, EV charging status, battery levels, and water or gas consumption.
 
 - **Comprehensive API Documentation**: Simplifying customization and integration for developers and users, enabling tailored experiences with detailed service documentation.
 
-- **Localization and Personalization**: Advances in user-defined settings, like decimal separators and value translations, contribute to a more intuitive interface. We’ve also streamlined the display to exclude empty pages, making navigation more efficient.
+- **Localization and Personalization**: Advances in user-defined settings, like decimal separators and value translations, contribute to a more intuitive interface.
+We’ve also streamlined the display to exclude empty pages, making navigation more efficient.
 
-- **Performance and Functionality**: The shift to the ESP-IDF framework not only boosts performance but also paves the way for future enhancements, keeping NSPanel at the forefront of smart control technology.
+- **Performance and Functionality**: The shift to the ESP-IDF framework not only boosts performance but also paves the way for future enhancements,
+keeping NSPanel at the forefront of smart control technology.
 
 As we embrace the ESP-IDF framework, we're excited to explore the new horizons it brings to the NSPanel firmware. Dive into v4.3 and discover the advancements that await.
 
@@ -164,10 +167,14 @@ This means that not only are the project's strings translated, but also values p
 This enhancement simplifies readability and usability for users interacting with the panel in different languages.
 
 > [!NOTE]
-> The translations are managed by Home Assistant and will correspond to the language settings specified under [**Settings** > **System** > **General**](https://my.home-assistant.io/redirect/general/).
+> The translations are managed by Home Assistant and will correspond to the language settings
+> specified under [**Settings** > **System** > **General**](https://my.home-assistant.io/redirect/general/).
 
 ### Introducing the Utilities Dashboard
-The "Utilities Dashboard" is a versatile feature tailored to offer a straightforward overview of your chosen utility metrics. It's designed for flexibility, allowing you to customize up to six data points, such as solar production, wind energy, EV charging status, battery levels, water, and gas consumption, according to what's relevant to your home. This customization ensures that the dashboard only displays the utilities you're monitoring, maintaining a clean and uncluttered interface.
+The "Utilities Dashboard" is a versatile feature tailored to offer a straightforward overview of your chosen utility metrics.
+It's designed for flexibility, allowing you to customize up to six data points, such as solar production, wind energy, EV charging status,
+battery levels, water, and gas consumption, according to what's relevant to your home.
+This customization ensures that the dashboard only displays the utilities you're monitoring, maintaining a clean and uncluttered interface.
 
 << ADD A PICTURE OF THE PAGE ON NSPANEL >>
 << ADD A SCREENSHOT OF THE BLUEPRINT >>
