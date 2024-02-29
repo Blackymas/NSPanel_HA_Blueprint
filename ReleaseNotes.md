@@ -1,22 +1,20 @@
-# v4.3 - Welcome to Framework ESP-IDF and Enhanced Localization
+# v4.3 - Welcome to Framework ESP-IDF, an Utilities Dashboard and Enhanced Localization
 ## General
 This milestone release is not just about adopting a new technical foundation;
 it's about enhancing the capabilities and experiences of our users through significant performance improvements,
 more comprehensive API documentation, customizable user interfaces and improved localization.
-As we move forward with the ESP-IDF framework, we're excited to offer a platform that's not only more robust but also more adaptable to the needs of our diverse user base.
+
+And with a nice Utilities Dashboard as a bonus!!
 
 Our dedication to refining the user experience and expanding customization options continues, with this release featuring:
 
-- **Comprehensive API Documentation**: Facilitating easier customization and integration, we introduce detailed documentation of our services.
-This enhancement aims to empower developers and users alike to tailor their NSPanel experience to their unique needs.
-At the same time, we keep it easy for the ones who want to use it as it is.
+- **Utilities Dashboard**: A new addition, offering a customizable overview for essential utility metrics such as solar production, wind energy, EV charging status, battery levels, and water or gas consumption.
 
-- **Localization and Personalization Advances**: We're removing empty pages, introducing adjustable font sizes for the screensaver time display
-and ensuring hardware button bars are visible on all pages.
-The new features, such as user-defined decimal separators and translations of values, are designed to make the NSPanel interface as intuitive and familiar as possible for users worldwide.
+- **Comprehensive API Documentation**: Simplifying customization and integration for developers and users, enabling tailored experiences with detailed service documentation.
 
-- **Performance Improvements and New Functionalities**: At the core of this release is our commitment to performance and functionality.
-The transition to ESP-IDF opens up new possibilities for future enhancements, ensuring that NSPanel remains at the cutting edge of smart control solutions.
+- **Localization and Personalization**: Advances in user-defined settings, like decimal separators and value translations, contribute to a more intuitive interface. We’ve also streamlined the display to exclude empty pages, making navigation more efficient.
+
+- **Performance and Functionality**: The shift to the ESP-IDF framework not only boosts performance but also paves the way for future enhancements, keeping NSPanel at the forefront of smart control technology.
 
 As we embrace the ESP-IDF framework, we're excited to explore the new horizons it brings to the NSPanel firmware. Dive into v4.3 and discover the advancements that await.
 
@@ -78,6 +76,7 @@ Our community and support channels are open for any questions or assistance you 
 - [Page Fan with Oscillate Button](#page-fan-with-oscillate-button)
 - [Streamlined Interface: No More Empty Pages](#streamlined-interface-no-more-empty-pages)
 - [Enhanced Localization: Translated Values](#enhanced-localization-translated-values)
+- [Introducing the Utilities Dashboard](#introducing-the-utilities-dashboard)
 
 ## Details of noteworthy changes
 ### Transition to ESP-IDF as Default Framework
@@ -166,6 +165,12 @@ This enhancement simplifies readability and usability for users interacting with
 
 > [!NOTE]
 > The translations are managed by Home Assistant and will correspond to the language settings specified under [**Settings** > **System** > **General**](https://my.home-assistant.io/redirect/general/).
+
+### Introducing the Utilities Dashboard
+The "Utilities Dashboard" is a versatile feature tailored to offer a straightforward overview of your chosen utility metrics. It's designed for flexibility, allowing you to customize up to six data points, such as solar production, wind energy, EV charging status, battery levels, water, and gas consumption, according to what's relevant to your home. This customization ensures that the dashboard only displays the utilities you're monitoring, maintaining a clean and uncluttered interface.
+
+<< ADD A PICTURE OF THE PAGE ON NSPANEL >>
+<< ADD A SCREENSHOT OF THE BLUEPRINT >>
 
 ## Support
 For support or more information about this update,
