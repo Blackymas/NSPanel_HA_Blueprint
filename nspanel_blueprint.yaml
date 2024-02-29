@@ -9805,13 +9805,6 @@ action:
                             else: *forecast_unavailable
 
                       ## PAGE UTILITIES ##
-                      #    groups:
-                      #      - name: home
-                      #        label: !input utilities_page01_home_label
-                      #        icon: !input utilities_page01_home_icon
-                      #        value1: !input utilities_page01_home_value1
-                      #        value2: !input utilities_page01_home_value2
-                      #        color: !input utilities_page01_home_color
                       - alias: Utilities page
                         conditions: '{{ nspanel_event.page in pages.utilities }}'
                         sequence: &refresh_page_utilities
@@ -9833,7 +9826,51 @@ action:
                               sequence: &refresh_page_utilities_group
                                 - if: '{{ repeat.item.icon is defined and repeat.item.icon is string and repeat.item.icon.split("mdi:") | count == 2 }}'
                                   then:
-                                    - service: '{{ nspanel.service.component.text }}'
+                                    - variables:
+                                        icon_code: '{{ repeat.item.icon.split("mdi:")[1] if repeat.item.icon is string and repeat.item.icon.split("mdi:") | count == 2 }}'
+                                        entity_id: '{{ repeat.item.value1 }}'
+                                        unit_of_measurement: '{{ state_attr(entity_id, "unit_of_measurement") | default("") }}'
+                                    - *variable_entity
+                                    - service: '{{ nspanel.service.value }}'
+                                      data:
+                                        id: 'utilities.{{ repeat.item.name }}'
+                                        icon: '{{ all_icons[icon_code] if icon_code in all_icons else "" }}'
+                                        icon_color: '{{ repeat.item.color }}'
+                                        name: '{{ repeat.item.label }}'
+                                        value: >
+                                          {{
+                                            (
+                                              (states(entity_id, rounded=true) ~ unit_of_measurement)
+                                              if is_number(entity_state)
+                                              else state_translated(entity_id)
+                                            )
+                                            if entity_has_value
+                                            else mui[language].unavailable
+                                          }}
+                                        value_color: '{{ repeat.item.color }}'
+                                      continue_on_error: true
+                                    - variables:
+                                        entity_id: '{{ repeat.item.value2 }}'
+                                        unit_of_measurement: '{{ state_attr(entity_id, "unit_of_measurement") | default("") }}'
+                                    - *variable_entity
+                                    - service: '{{ nspanel.service.value }}'
+                                      data:
+                                        id: 'utilities.{{ repeat.item.name }}b'
+                                        icon: ''
+                                        icon_color: ''
+                                        name: ''
+                                        value: >
+                                          {{
+                                            (
+                                              (states(entity_id, rounded=true) ~ unit_of_measurement)
+                                              if is_number(entity_state)
+                                              else state_translated(entity_id)
+                                            )
+                                            if entity_has_value
+                                            else mui[language].unavailable
+                                          }}
+                                        value_color: '{{ repeat.item.color }}'
+                                      continue_on_error: true
                                   else:
                                     - service: '{{ nspanel.service.component.visibility }}'
                                       data:
@@ -10383,6 +10420,23 @@ action:
                   hvac_modes: '{{ state_attr(climate_entity, "hvac_modes") }}'
               - *climate-update_slider
               - *climate-update_buttons
+
+      ##### UPDATE UTILITIES PAGES #####
+      - alias: 'Update utilities pages'
+        conditions:
+          - condition: trigger
+            id: utilities_page
+          - '{{ pages.current in pages.utilities }}'
+        sequence:
+          - repeat:
+              for_each: >
+                {{
+                  (
+                    [ pages_utilities.groups | selectattr("value1", "defined") | selectattr("value1", "eq", trigger.entity_id) | list ] +
+                    [ pages_utilities.groups | selectattr("value2", "defined") | selectattr("value2", "eq", trigger.entity_id) | list ]
+                  ) | list | unique | list
+                 }}
+              sequence: *refresh_page_utilities_group
 
       ########## TRIGGER - HOME PAGE ###########
 
