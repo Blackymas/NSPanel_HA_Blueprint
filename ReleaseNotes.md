@@ -1,17 +1,19 @@
-# v4.3 - Embracing the Future with ESP-IDF Framework
-
+# v4.3 - Welcome to Framework ESP-IDF and Enhanced Localization
 ## General
 This milestone release is not just about adopting a new technical foundation;
-it's about enhancing the capabilities and experiences of our users through significant performance improvements, more comprehensive API documentation, and customizable user interfaces.
+it's about enhancing the capabilities and experiences of our users through significant performance improvements,
+more comprehensive API documentation, customizable user interfaces and improved localization.
 As we move forward with the ESP-IDF framework, we're excited to offer a platform that's not only more robust but also more adaptable to the needs of our diverse user base.
 
 Our dedication to refining the user experience and expanding customization options continues, with this release featuring:
 
 - **Comprehensive API Documentation**: Facilitating easier customization and integration, we introduce detailed documentation of our services.
 This enhancement aims to empower developers and users alike to tailor their NSPanel experience to their unique needs.
+At the same time, we keep it easy for the ones who want to use it as it is.
 
-- **Enhanced Personalization Features**: With customizable font sizes for the screensaver time display and the visibility of hardware button bars on all pages,
-personalizing your NSPanel is now more intuitive than ever. These features not only improve accessibility but also allow for a deeper level of interaction with your device.
+- **Localization and Personalization Advances**: We're removing empty pages, introducing adjustable font sizes for the screensaver time display
+and ensuring hardware button bars are visible on all pages.
+The new features, such as user-defined decimal separators and translations of values, are designed to make the NSPanel interface as intuitive and familiar as possible for users worldwide.
 
 - **Performance Improvements and New Functionalities**: At the core of this release is our commitment to performance and functionality.
 The transition to ESP-IDF opens up new possibilities for future enhancements, ensuring that NSPanel remains at the cutting edge of smart control solutions.
@@ -40,23 +42,25 @@ With this release, we're implementing several important changes.
 While we strive to improve the panel, we understand that changes can affect your setups.
 Here's a detailed overview and guidance for a smooth transition:
 
-1. **Transition to ESP-IDF Framework**: This release marks the official switch to the ESP-IDF framework, enhancing performance and allowing for more complex features. 
+1. **Home Assistant v2024.3.0 is required**. You can see the full version compatibility list [here](docs/version_compatibility.md).
+
+2. **Transition to ESP-IDF Framework**: This release marks the official switch to the ESP-IDF framework, enhancing performance and allowing for more complex features. 
    - **What to Do**: You'll need to flash your device with the new firmware using a serial connection.
    Detailed instructions are available in our [installation guide](docs/install.md#flashing-the-device-for-the-first-time).
    - **Support for Arduino Framework**: If you're not ready to make the switch or prefer the Arduino framework, it's still supported for OTA updates.
    See our [framework customization documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md#frameworks) for details on how to select your preferred framework.
 
-2. **Several Services Changed**: In our pursuit to enhance integration capabilities and future-proof our services, we've undertaken a comprehensive restructuring of our API.
+3. **Several Services Changed**: In our pursuit to enhance integration capabilities and future-proof our services, we've undertaken a comprehensive restructuring of our API.
 This change is aimed at improving functionality and compatibility but may require adjustments to your current automations.
    - **What to Do**: We strongly encourage you to review our updated [API documentation](docs/api.md).
    This resource has been meticulously updated to assist you in updating your automation scripts accordingly.
    Pay special attention to the examples section, which offers valuable insights and practical guidance for adapting your existing setups seamlessly.
 
-3. **15s Hardware Button Press No Longer Restarts the Device**: This feature was removed to repurpose the hardware button for more versatile uses.
+4. **15s Hardware Button Press No Longer Restarts the Device**: This feature was removed to repurpose the hardware button for more versatile uses.
    - **What to Do**: If you relied on this feature, see our [customization guide](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md#restart-with-15s-button-press) for alternatives.
    Additionally, the reset pin remains an option for manual resets.
 
-4. **Relay Fallback Switches Removed**: These switches were deprecated and have now been removed to streamline the firmware and reduce memory usage.
+5. **Relay Fallback Switches Removed**: These switches were deprecated and have now been removed to streamline the firmware and reduce memory usage.
    - **What to Do**: For users who utilized customizations to expose these switches, refer to our updated customization guide.
    Alternatively, use the `esphome.xxxxx_init_hardware` service for a similar functionality without the memory overhead.
 
@@ -73,6 +77,7 @@ Our community and support channels are open for any questions or assistance you 
 - [Page Light with Power Button](#page-light-with-power-button)
 - [Page Fan with Oscillate Button](#page-fan-with-oscillate-button)
 - [Streamlined Interface: No More Empty Pages](#streamlined-interface-no-more-empty-pages)
+- [Enhanced Localization: Translated Values](#enhanced-localization-translated-values)
 
 ## Details of noteworthy changes
 ### Transition to ESP-IDF as Default Framework
@@ -153,6 +158,14 @@ This update simplifies fan operation, enhancing accessibility and usability for 
 We've improved the NSPanel interface by ensuring that only populated pages are displayed, both for button and entities pages.
 This update creates a more intuitive and clutter-free experience, automatically hiding any pages without assigned entities.
 There's no need for additional setup; if a page has no entities linked to it, it simply won't appear on your panel, making navigation smoother and more efficient.
+
+### Enhanced Localization: Translated Values
+In a significant step towards a more localized user experience, the values displayed on the NSPanel are now translated using Home Assistant's `state_translated` function, introduced in HA v2024.3.0.
+This means that not only are the project's strings translated, but also values provided by Home Assistant, such as those from text sensors or binary sensors.
+This enhancement simplifies readability and usability for users interacting with the panel in different languages.
+
+> [!NOTE]
+> The translations are managed by Home Assistant and will correspond to the language settings specified under [**Settings** > **System** > **General**](https://my.home-assistant.io/redirect/general/).
 
 ## Support
 For support or more information about this update,
