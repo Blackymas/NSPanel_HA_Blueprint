@@ -413,7 +413,6 @@ for the notification button.
 Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
 for the QR code button.
 - `qrcode_icon_color` (int[]): RGB color array for the QR code button icon.
-- `entities_pages` (bool): Flag indicating whether the entities page button is enabled.
 - `entities_pages_icon` (string):
 Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
 for the entities page button.
@@ -436,7 +435,6 @@ data:
   qrcode: true
   qrcode_icon: "\uE432"                            # Example for mdi:qrcode-scan
   qrcode_icon_color: [0, 255, 0]                   # Green
-  entities_pages: true
   entities_pages_icon: "\uEDCF"                    # Example for mdi:format-list-bulleted-square
   entities_pages_icon_color: [0, 0, 255]           # Blue
   outdoor_temp_font: 5
