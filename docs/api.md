@@ -8,7 +8,7 @@ This document provides details on custom services designed for integration with 
   - [Component Color Service (`component_color`)](#component-color-service-component_color): Changes the foreground color of a specified component on the display.
   - [Component Text Service (`component_text`)](#component-text-service-component_text): Updates the text of a specified component on the display.
   - [Component Value Service (`component_val`)](#component-value-service-component_val): Updates the value of a specified component on the display.
-  - [Components Visibility Service (`components_visibility`)](#component-visibility-service-components_visibility): Hides or shows a specified component on the display.
+  - [Components Visibility Service (`components_visibility`)](#components-visibility-service-components_visibility): Hides or shows a specified component on the display.
   - [Entity Details Show Service (`entity_details_show`)](#entity-details-show-service-entity_details_show): Displays detailed information for a specific entity.
   - [Hardware Button State Indication Service (`hw_button_state`)](#hardware-button-state-indication-service-hw_button_state):
 Updates the visual state (on/off) of the left and right hardware button indicators on the panel.
@@ -54,7 +54,7 @@ If you send anything different, the conversion to the RGB565 used by Nextion wil
 | [`component_color`](#component-color-service-component_color) | [Component Color Service](#component-color-service-component_color) | Changes the foreground color of a specified component on the display. |
 | [`component_text`](#component-text-service-component_text) | [Component Text Service](#component-text-service-component_text) | Updates the text of a specified component on the display. |
 | [`component_val`](#component-value-service-component_val) | [Component Value Service](#component-value-service-component_val) | Updates the value of a specified component on the display. |
-| [`components_visibility`](#component-visibility-service-components_visibility) | [Components Visibility Service](#component-visibility-service-components_visibility) | Hides or shows a specified component on the display. |
+| [`components_visibility`](#components-visibility-service-components_visibility) | [Components Visibility Service](#components-visibility-service-components_visibility) | Hides or shows a specified component on the display. |
 | [`entity_details_show`](#entity-details-show-service-entity_details_show) | [Entity Details Show Service](#entity-details-show-service-entity_details_show) | Displays detailed information for a specific entity. |
 | [`hw_button_state`](#hardware-button-state-indication-service-hw_button_state) | [Hardware Button State Indication Service](#hardware-button-state-indication-service-hw_button_state) | Updates the visual state (on/off) of the left and right hardware button indicators on the panel. |
 | [`icon`](#icon-service-icon) | [Icon Service](#icon-service-icon) | Updates a chip or custom button's icon, color, and visibility. |
