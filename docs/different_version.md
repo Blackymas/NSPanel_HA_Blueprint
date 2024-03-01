@@ -67,11 +67,7 @@ The instructions to upload TFT will vary depending on the version you are instal
 
 #### v4.2 or later (ESP-IDF) or v4.2.5 or later (Arduino)
 1. Go to your device's page under **Settings** > **Devices & Services** > **ESPHome**.
-2. On the **Configuration** group, select your option for **Update TFT display - Branch** (either the version you want or `dev`/`beta`).
-If that option is not visible, please expand the **+n entities not shown** and enable it.
-
-    ![Image](pics/ha_device_configuration_tft_update_branch_selector.png)
-3. Press **Update TFT display** and wait for the upload to complete.
+2. On the **Configuration** group, press **Update TFT display** and wait for the upload to complete. The system will automatically find the right TFT file for the ESPHome version you are running.
 
 #### v4.1 or earlier, or v4.2.4 or earlier for Arduino framework
 1. On the GitHub repository, click on your chosen version name on the [NSPanel_HA_Blueprint Tags](https://github.com/Blackymas/NSPanel_HA_Blueprint/tags) list, then select the tab **Code**.
