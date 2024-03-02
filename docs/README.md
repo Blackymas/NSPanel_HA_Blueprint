@@ -14,6 +14,7 @@
 - [Customization](customization.md)
 - [Add-on climate](addon_climate.md)
 - [Alarm Control Panel](alarm.md)
+- [API](api.md)
 - [Using Different Versions of This Project](different_version.md)
 
 ## Setup and overview videos:
