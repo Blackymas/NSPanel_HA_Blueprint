@@ -79,6 +79,7 @@ Our community and support channels are open for any questions or assistance you 
 - [Page Fan with Oscillate Button](#page-fan-with-oscillate-button)
 - [Streamlined Interface: No More Empty Pages](#streamlined-interface-no-more-empty-pages)
 - [Enhanced Localization: Translated Values](#enhanced-localization-translated-values)
+- [Expanded Entity Selection for Home and Climate Pages](#expanded-entity-selection-for-home-and-climate-pages)
 - [Introducing the Utilities Dashboard](#introducing-the-utilities-dashboard)
 
 ## Details of noteworthy changes
@@ -169,6 +170,17 @@ This enhancement simplifies readability and usability for users interacting with
 > [!NOTE]
 > The translations are managed by Home Assistant and will correspond to the language settings
 > specified under [**Settings** > **System** > **General**](https://my.home-assistant.io/redirect/general/).
+
+### Expanded Entity Selection for Home and Climate Pages
+With the latest update, we've significantly broadened the range of entities that can be incorporated into the Home and Climate pages,
+aligning these sections with the extensive capabilities of the Entities pages.
+This enhancement enables a more versatile and detailed representation of your smart home's metrics directly on your NSPanel,
+from environmental sensors to energy monitors, offering a tailored view of your home's status at a glance.
+
+When combined with the [Translated Values](#enhanced-localization-translated-values),
+this expanded entity selection not only allows for a more personalized dashboard but also ensures that the information displayed is accessible and understandable,
+regardless of your preferred language.
+Together, these features elevate the NSPanel's functionality, providing you with a richer, more contextually relevant interface that adapts to your specific monitoring needs and preferences.
 
 ### Introducing the Utilities Dashboard
 The "Utilities Dashboard" is a versatile feature tailored to offer a straightforward overview of your chosen utility metrics.
