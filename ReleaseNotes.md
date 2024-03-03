@@ -73,7 +73,7 @@ Our community and support channels are open for any questions or assistance you 
 - [Transition to ESP-IDF as Default Framework](#transition-to-esp-idf-as-default-framework)
 - [New API documentation](#new-api-documentation)
 - [Selectable font size for screensaver time display](#selectable-font-size-for-screensaver-time-display)
-- [Hardware buttons bars visible on all pages](#hardware-buttons-bars-visible-on-all-pages)
+- [Enhanced Visibility of Hardware Button Bars Across Pages](#enhanced-visibility-of-hardware-button-bars-across-pages)
 - [User-Defined Decimal Separator](#user-defined-decimal-separator)
 - [Page Light with Power Button](#page-light-with-power-button)
 - [Page Fan with Oscillate Button](#page-fan-with-oscillate-button)
@@ -126,10 +126,17 @@ Now you can chose the font size for your clock display in the screen saver. Ther
 > Please select a differnt font in that case.
 <!-- markdownlint-enable MD028 -->
 
-### Hardware buttons bars visible on all pages
-Bars indicating statuses of entities controlled by hardware buttons are now visible on all pages, including screensaver.
-Color customization for these bars is also available.
-![Image](docs/pics/ha_blueprint_hw_buttons_colors.png)
+### Enhanced Visibility of Hardware Button Bars Across Pages
+The hardware button bars, which display the status of entities linked to physical buttons, are now configurable to appear across all pages,
+including the screensaver, providing a constant visual reference to your system's status.
+This update introduces a new setting within the blueprint, allowing you to customize the visibility of these bars according to your preferences.
+Whether you need continuous monitoring on certain pages or want to maintain a cleaner look on others, this flexibility enhances your control.
+
+Additionally, we've introduced the option to personalize the color of these bars, offering further customization to match your panel's aesthetic or to signify different statuses at a glance.
+
+![Hardware Button Bars Color Customization](docs/pics/ha_blueprint_hw_buttons_colors.png)
+
+This feature enhances the NSPanel's functionality by ensuring important status indicators are always within view, tailored precisely to how you use your smart home.
 
 ### User-Defined Decimal Separator
 You can now select the decimal separator for displaying numbers on your NSPanel.
