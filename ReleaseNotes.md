@@ -81,6 +81,7 @@ Our community and support channels are open for any questions or assistance you 
 - [Enhanced Localization: Translated Values](#enhanced-localization-translated-values)
 - [Expanded Entity Selection for Home and Climate Pages](#expanded-entity-selection-for-home-and-climate-pages)
 - [Introducing the Utilities Dashboard](#introducing-the-utilities-dashboard)
+- [Expanded Support for "Lock" Entities on Buttons and Chips](#expanded-support-for-lock-entities-on-buttons-and-chips)
 
 ## Details of noteworthy changes
 ### Transition to ESP-IDF as Default Framework
@@ -197,6 +198,11 @@ This customization ensures that the dashboard only displays the utilities you're
 
 << ADD A PICTURE OF THE PAGE ON NSPANEL >>
 << ADD A SCREENSHOT OF THE BLUEPRINT >>
+
+### Expanded Support for "Lock" Entities on Buttons and Chips
+We're enhancing the NSPanel's integration capabilities by extending support for "lock" entities to both buttons and chips.
+This development significantly broadens your ability to interact with and control lock mechanisms directly from the NSPanel.
+Whether securing your home or managing access to different areas, these updates streamline the control process, integrating seamlessly with your smart home's security setup.
 
 ## Support
 For support or more information about this update,
