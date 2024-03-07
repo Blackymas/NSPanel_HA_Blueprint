@@ -12,7 +12,10 @@ Go to your ESPHome Dashboard, click the 3-dot menu related to your device and th
 ## Limited resources on ESPHome compiler host
 ### Free Up Server Resources
 
-1. First, please check the available memory of the ESPHome compiler host. 4GB of memory are recommended if you are installing ESPHome as a Home Assistant add-on. Therefore, a RasPi 4 with 4GB RAM is the minimum if you are using a Raspberry Pi. A manual installation requires at least 2GB of memory and 500MB of swap space or 3GB of memory. With less memory the compiler will crash!
+1. First, please check the available memory of the ESPHome compiler host. 4GB of memory are recommended if you are installing ESPHome as a Home Assistant add-on. 
+Therefore, a RasPi 4 with 4GB RAM is the minimum if you are using a Raspberry Pi. 
+A manual installation requires at least 2GB of memory and 500MB of swap space or 3GB of memory. 
+With less memory the compiler will crash!
 
 2. Add the following to your device's YAML to reduce resource usage (this may slow down the compilation process):
 

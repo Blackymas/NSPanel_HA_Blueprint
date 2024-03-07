@@ -22,7 +22,8 @@ You will need to add the reference to `addon_climate_heat`, `addon_climate_cool`
 and after the `remote_package` (base code), as shown bellow (for `heat` in this example):
 
 > [!NOTE]
-> From time to time, there are changes in ESPHome that lead to an added `_2` for the embedded thermostats. If you encounter this issue, please have a look at this [entry](https://community.home-assistant.io/t/esphome-devices-all-renamed-with-2-added/388146) in the Home Assistent Forum. 
+> From time to time, there are changes in ESPHome that lead to an added `_2` for the embedded thermostats. 
+> If you encounter this issue, please have a look at this [entry](https://community.home-assistant.io/t/esphome-devices-all-renamed-with-2-added/388146) in the Home Assistent Forum. 
 
 ```yaml
 substitutions:
@@ -208,7 +209,15 @@ packages:
 
 ### Concrete example: (Water) underfloor heating
 
-The NSPanel is particularly nice as a replacement for existing water underfloor heating controllers. They are installed at approximately eye level and (often) supplied by 230V. In my case, the valve is type 'normally closed,' i.e. an open relay corresponds to 'no heating.' I am using relay #1. Please note that this is _not_ a PID controller, but simply on-off. At a certain value, the heating starts and at another value it switches off again. These value were set to `0.3°C` below and `0.1°C` above the setpoint, respectively. It turned out that `0.3`and `0.1` worked well for all off our 4 rooms. The minimum settable value is `15°C`, the maximum `22°C` and the granularity (step size) is `0.1°C`. In addition, I chose to set the default temperature to `21.2°C`. 
+The NSPanel is particularly nice as a replacement for existing water underfloor heating controllers. 
+They are installed at approximately eye level and (often) supplied by 230V. 
+In my case, the valve is type 'normally closed,' i.e. an open relay corresponds to 'no heating.' 
+I am using relay #1. Please note that this is _not_ a PID controller, but simply on-off. 
+At a certain value, the heating starts and at another value it switches off again. 
+These value were set to `0.3°C` below and `0.1°C` above the setpoint, respectively. 
+It turned out that `0.3`and `0.1` worked well for all off our 4 rooms. 
+The minimum settable value is `15°C`, the maximum `22°C` and the granularity (step size) is `0.1°C`. 
+In addition, I chose to set the default temperature to `21.2°C`. 
 
 ```yaml
  ##### addon-configuration #####
@@ -229,7 +238,8 @@ climate:
         mode: "heat"
 ```
 
-Please note, that any filter that smoothes the temperature readings (e.g. averaging) is discouraged since it slows the response times of the already slow underwater floor heater. The temperature stability is quite nice which can be seen in the following viewgraph. 
+Please note, that any filter that smoothes the temperature readings (e.g. averaging) is discouraged since it slows the response times of the already slow underwater floor heater. 
+The temperature stability is quite nice which can be seen in the following viewgraph. 
 
 ![temperature vs time](pics/addon_underfloor.png)
 
