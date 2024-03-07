@@ -1,4 +1,4 @@
-# Panel stuck on Boot page
+# Panel startup issues
 
 When your panel starts, a number of different things needs to be set and the ESPHome must establish connection to the Nextion display used by your panel
 and also to your Home Assistant, which will provide the propper settings required by your panel.
@@ -80,7 +80,7 @@ You can use this button to force a reboot of your panel. This button is availabl
 | You may have an older version of the blueprint installed or the blueprint isn't installed into your Home Assistant. | [Install the blueprint](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBlackymas%2FNSPanel_HA_Blueprint%2Fblob%2Fmain%2Fnspanel_blueprint.yaml).<br>[Update the blueprint](howto.md#update-blueprint).|
 | You don't have an automation created using the blueprint. | On Home Assistant, go to **Settings** --> **Automations & Scenes** --> **Blueprints** --> **NSPanel Configuration** --> **CREATE AUTOMATION** and follow the [instructions to setup your automation](blueprint.md).<br>**Attention!!** You need one automation per panel, if you have more than one panel set. |
 | Your panel is not selected in the automation. | Open the automation related to your panel and make sure the right device is set on the **NSPanel device** field. |
-| Reconnect the Panel's device to Home Assistant. | 1. Go to **Settings** --> **Devices & Services** --> **ESPHome**<br>2. Delete the device<br>3. Restart Home Assistant host<br>4. Go back to **Settings** --> **Devices & Services**<br>5. Click **Add integration**<br>6. Select **ESPHome**<br>7. Enter your panel's hostname or IP address.|
+| Your panel's connection to Home Assistant may have issues.<br>This could be from an invalid entity Id, or some service missing registration. | Reconnect the Panel's device to Home Assistant.:<br>1. Go to **Settings** --> **Devices & Services** --> **ESPHome**<br>2. Delete the device<br>3. Restart Home Assistant host<br>4. Go back to **Settings** --> **Devices & Services**<br>5. Click **Add integration**<br>6. Select **ESPHome**<br>7. Enter your panel's hostname or IP address.|
 <!-- markdownlint-enable MD013 MD033 -->
 
 ## Additional Tips and Resources
