@@ -21,6 +21,9 @@ Don't use it for directly power your cooler/heater if exceeding the panel specif
 You will need to add the reference to `addon_climate_heat`, `addon_climate_cool` or `addon_climate_dual` files on your ESPHome settings in the `package` section
 and after the `remote_package` (base code), as shown bellow (for `heat` in this example):
 
+> [!NOTE]
+> From time to time, there are changes in ESPHome that lead to an added `_2` for the embedded thermostats. If you encounter this issue, please have a look at this [entry](https://community.home-assistant.io/t/esphome-devices-all-renamed-with-2-added/388146) in the Home Assistent Forum. 
+
 ```yaml
 substitutions:
   # Settings - Editable values
@@ -81,9 +84,9 @@ heat_overrun|Optional|Number representing a temperature hysteresis in the select
 - For more details on the keys, please take a look at [ESPHome Base Climate Configurations](https://esphome.io/components/climate/index.html#base-climate-configuration)
 and [ESPHome Climate Thermostat - Additional actions behavior](https://esphome.io/components/climate/thermostat.html#additional-actions-behavior).
 
-### Examples
+## Examples
 
-#### Cooler
+### Cooler
 
 ```yaml
 substitutions:
@@ -122,7 +125,7 @@ packages:
     refresh: 300s
 ```
 
-#### Heater
+### Heater
 
 ```yaml
 substitutions:
@@ -161,7 +164,7 @@ packages:
     refresh: 300s
 ```
 
-#### Dual
+### Dual
 
 ```yaml
 substitutions:
@@ -202,3 +205,32 @@ packages:
       - nspanel_esphome_addon_climate_dual.yaml
     refresh: 300s
 ```
+
+### Concrete example: (Water) underfloor heating
+
+The NSPanel is particularly nice as a replacement for existing water underfloor heating controllers. They are installed at approximately eye level and (often) supplied by 230V. In my case, the valve is type 'normally closed,' i.e. an open relay corresponds to 'no heating.' I am using relay #1. Please note that this is _not_ a PID controller, but simply on-off. At a certain value, the heating starts and at another value it switches off again. These value were set to `0.3°C` below and `0.1°C` above the setpoint, respectively. It turned out that `0.3`and `0.1` worked well for all off our 4 rooms. The minimum settable value is `15°C`, the maximum `22°C` and the granularity (step size) is `0.1°C`. In addition, I chose to set the default temperature to `21.2°C`. 
+
+```yaml
+ ##### addon-configuration #####
+  ## addon_climate ##
+  heater_relay: "1" #Use relay 1
+  temp_min: "15" 
+  temp_max: "22" 
+  temp_step: "0.1"
+  cold_tolerance: "0.3"
+  hot_tolerance: "0.1"
+    
+  ##### CHANGE ME END #####
+climate:
+  - id: !extend thermostat_embedded
+    preset:
+      - name: Home
+        default_target_temperature_low: 21.2
+        mode: "heat"
+```
+
+Please note, that any filter that smoothes the temperature readings (e.g. averaging) is discouraged since it slows the response times of the already slow underwater floor heater. The temperature stability is quite nice which can be seen in the following viewgraph. 
+
+![temperature vs time](pics/addon_underfloor.png)
+
+Mar 5 at approx. 9.30am, the window was opened and all heaters were set to 'off.'  
