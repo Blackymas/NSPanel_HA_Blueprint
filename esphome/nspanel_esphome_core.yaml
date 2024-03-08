@@ -18,7 +18,7 @@ substitutions:
   temp_units: "°C"
   invalid_cooldown: "100ms"
   ##### DON'T CHANGE THIS ######
-  version: "4.3dev3"
+  version: "4.3dev4"
   ##############################
 
 ##### External components #####
@@ -66,6 +66,9 @@ esphome:
               }
             }
             device_name->publish_state(result.c_str());
+            notification_label->publish_state("");
+            notification_text->publish_state("");
+            notification_unread->turn_off();
         - script.execute: restore_settings
         - wait_until:
             condition:
@@ -411,9 +414,6 @@ api:
         meridiem: string[]                     # Optional array for AM/PM labels if included in time format.
         chip_font: int                         # Font Id for chip icons displayed on the "Home" page.
         custom_buttons_font: int               # Font Id for icons on custom buttons.
-        notification_icon: string              # Icon codepoint for the notification button, sourced from HASwitchPlate Material Design Icons.
-        notification_icon_color_normal: int[]  # RGB color array for normal notification icon state.
-        notification_icon_color_unread: int[]  # RGB color array for unread notifications state.
         qrcode: bool                           # Enable/disable flag for QR code button display.
         qrcode_icon: string                    # Icon codepoint for QR code button, sourced from HASwitchPlate Material Design Icons.
         qrcode_icon_color: int[]               # RGB color array for QR code button icon.
@@ -461,19 +461,8 @@ api:
               // Outdoor temperature font size
               disp1->send_command_printf("home.outdoor_temp.font==%" PRIi32, outdoor_temp_font);
 
-              // Notification button
-              disp1->send_command_printf("is_notification=%i", (notification_text->state.empty() and notification_label->state.empty()) ? 0 : 1);
-              disp1->set_component_text_printf("home.bt_notific", "%s", notification_icon.c_str());
-              id(home_notify_icon_color_normal) = esphome::display::ColorUtil::color_to_565(esphome::Color(notification_icon_color_normal[0],
-                                                                                                          notification_icon_color_normal[1],
-                                                                                                          notification_icon_color_normal[2]));
-              id(home_notify_icon_color_unread) = esphome::display::ColorUtil::color_to_565(esphome::Color(notification_icon_color_unread[0],
-                                                                                                          notification_icon_color_unread[1],
-                                                                                                          notification_icon_color_unread[2]));
-              disp1->set_component_font_color("home.bt_notific", notification_unread->state ? id(home_notify_icon_color_unread) : id(home_notify_icon_color_normal));
-
               // QRCode button
-              disp1->send_command_printf("is_qrcode=%i", qrcode ? 1 : 0);
+              set_component_visibility->execute("home.bt_qrcode", qrcode);
               disp1->set_component_text_printf("home.bt_qrcode", "%s", qrcode_icon.c_str());
               disp1->set_component_font_color("home.bt_qrcode", esphome::display::ColorUtil::color_to_565(esphome::Color(qrcode_icon_color[0], qrcode_icon_color[1], qrcode_icon_color[2])));
 
@@ -513,7 +502,10 @@ api:
     # This service removes any displayed notifications from the screen, helping to keep the user interface clean and focused on its primary functions.
     - service: notification_clear
       then:
-        - script.execute: notification_clear
+        - lambda: |-
+            notification_label->publish_state("");
+            notification_text->publish_state("");
+            notification_unread->turn_off();
 
     # Displays a notification message on the screen, useful for alerts or informational updates.
     - service: notification_show
@@ -533,7 +525,6 @@ api:
               notification_label->publish_state(label.c_str());
               notification_text->publish_state(message.c_str());
               timer_reset_all->execute(current_page->state.c_str());
-              refresh_notification->execute();
               notification_unread->turn_on();
               if (notification_sound->state) buzzer->play("two short:d=4,o=5,b=100:16e6,16e6");
             }
@@ -881,11 +872,6 @@ display:
 ##### START - GLOBALS CONFIGURATION #####
 globals:
 
-  - id: mui_decimal_separator
-    type: char
-    restore_value: true
-    initial_value: "'.'"
-
   ###### Buttons settings ######
   # Bit # Settings             #
   #  0  # Left Bt - Enabled    #
@@ -932,6 +918,23 @@ globals:
     type: uint8_t
     restore_value: true
     initial_value: '0'
+  ##### Relay icons #####
+  - id: home_relay1_icon
+    type: char[4]
+    restore_value: true
+    initial_value: ''
+  - id: home_relay1_icon_color
+    type: uint16_t
+    restore_value: true
+    initial_value: '65535'
+  - id: home_relay2_icon
+    type: char[4]
+    restore_value: true
+    initial_value: ''
+  - id: home_relay2_icon_color
+    type: uint16_t
+    restore_value: true
+    initial_value: '65535'
 
   ##### Versioning #####
   - id: version_blueprint
@@ -951,24 +954,24 @@ globals:
     restore_value: false
     initial_value: 'false'
 
+  ##### Media Player #####
   ###### Last volume level from Home Assistant ######
   - id: last_volume_level
     type: uint8_t
     restore_value: false
     initial_value: '0'
-
   ###### Last duration from Home Assistant ######
   - id: last_media_duration
     type: uint
     restore_value: false
     initial_value: '0'
-
   ###### Last duration from Home Assistant ######
   - id: last_media_position
     type: uint
     restore_value: false
     initial_value: '0'
 
+  ##### Add-on Climate #####
   ##### Is embedded thermostat set as main climate entity? #####
   - id: is_embedded_thermostat
     type: bool
@@ -1000,7 +1003,7 @@ globals:
     restore_value: false
     initial_value: '{"AM", "PM"}'
 
-  #### MUI strings ####
+  #### Localization (MUI) ####
   - id: mui_please_confirm_global
     type: std::string
     restore_value: true
@@ -1009,6 +1012,10 @@ globals:
     type: std::string
     restore_value: true
     initial_value: '"Unavailable"'
+  - id: mui_decimal_separator
+    type: char
+    restore_value: true
+    initial_value: "'.'"
 
   ##### Chips #####
   - id: home_chip_font_id
@@ -1021,32 +1028,6 @@ globals:
     type: uint8_t
     restore_value: true
     initial_value: '8'
-
-  ##### Relay icons #####
-  - id: home_relay1_icon
-    type: char[4]
-    restore_value: true
-    initial_value: ''
-  - id: home_relay1_icon_color
-    type: uint16_t
-    restore_value: true
-    initial_value: '65535'
-
-  - id: home_relay2_icon
-    type: char[4]
-    restore_value: true
-    initial_value: ''
-  - id: home_relay2_icon_color
-    type: uint16_t
-    restore_value: true
-    initial_value: '65535'
-
-  - id: home_notify_icon_color_normal
-    type: uint16_t
-    restore_value: false
-  - id: home_notify_icon_color_unread
-    type: uint16_t
-    restore_value: false
 
   ##### Screensaver #####
   - id: screensaver_display_time
@@ -1560,16 +1541,6 @@ switch:
     entity_category: config
     optimistic: true
     restore_mode: ALWAYS_OFF
-    on_turn_on:
-      - wait_until:
-          condition:
-            - lambda: !lambda return (blueprint_status->state > 99);
-      - lambda: disp1->set_component_font_color("home.bt_notific", id(home_notify_icon_color_unread));
-    on_turn_off:
-      - wait_until:
-          condition:
-            - lambda: !lambda return (blueprint_status->state > 99);
-      - lambda: disp1->set_component_font_color("home.bt_notific", id(home_notify_icon_color_normal));
 
   ##### Notification sound #####
   - name: Notification sound
@@ -1632,8 +1603,8 @@ switch:
 ##### START - TEXT SENSOR CONFIGURATION #####
 text_sensor:
   ##### Device name - Used by bluepring to find service's names #####
-  - name: Device Name
-    id: device_name
+  - id: device_name
+    name: Device Name
     platform: template
     icon: mdi:identifier
     entity_category: diagnostic
@@ -1641,34 +1612,34 @@ text_sensor:
     disabled_by_default: false
 
   ##### Entity Id of the entity displayed on the detailed pages
-  - name: Detailed Entity
-    id: detailed_entity
+  - id: detailed_entity
+    name: Detailed Entity
     platform: template
     icon: mdi:tablet-dashboard
     internal: false
     disabled_by_default: false
 
   ##### Current page name #####
-  - name: Current Page
-    id: current_page
+  - id: current_page
+    name: Current Page
     platform: template
     icon: mdi:tablet-dashboard
     internal: false
     disabled_by_default: false
 
-  - name: Notification Label
+  - id: notification_label
+    name: Notification Label
     platform: template
-    id: notification_label
-
-  - name: Notification Text
+    
+  - id: notification_text
+    name: Notification Text
     platform: template
-    id: notification_text
-
+    
   ##### NSPanel event sensor, the main action sensor - push to HA #####
-  - name: NSPanel event
+  - id: disp1_nspanel_event
+    name: NSPanel event
     platform: nextion
     nextion_id: disp1
-    id: disp1_nspanel_event
     component_name: nspanelevent
     internal: true
     filters:
@@ -1702,10 +1673,10 @@ text_sensor:
             ESP_LOGE("text_sensor.nspanelevent", "  Entity:    %s", entity.c_str());
 
   ##### NSPanel event - Execute actions from ESPHome - NO push to HA #####
-  - name: NSPanel local event
+  - id: disp1_local_event
+    name: NSPanel local event
     platform: nextion
     nextion_id: disp1
-    id: disp1_local_event
     component_name: localevent
     internal: true
     filters:
@@ -2051,18 +2022,6 @@ script:
           id(embedded_indoor_temp) = embedded_indoor_temperature;
           display_embedded_temp->execute();
 
-  - id: notification_clear
-    mode: restart
-    then:
-      - lambda: |-
-          if (!id(is_uploading_tft)) {
-            notification_label->publish_state("");
-            notification_text->publish_state("");
-            notification_unread->turn_off();
-            refresh_notification->execute();
-            if (current_page->state == "notification") goto_page->execute("home");
-          }
-
   - id: page_alarm
     mode: restart
     then:  # There's nothing here so far
@@ -2265,7 +2224,6 @@ script:
     then:
       - script.execute: refresh_relays
       - script.execute: refresh_wifi_icon
-      - script.execute: refresh_notification
 
   - id: page_keyb_num
     mode: restart
@@ -2424,22 +2382,6 @@ script:
                 break;
             }
           }
-
-  - id: refresh_notification
-    mode: restart
-    then:
-      - wait_until:
-          condition:
-            - lambda: !lambda return id(setup_sequence_completed);
-      - lambda: |-
-          bool is_notification = ((not notification_text->state.empty()) or (not notification_label->state.empty()));
-          disp1->send_command_printf("is_notification=%i", is_notification ? 1 : 0);
-          set_component_visibility->execute("home.bt_notific", is_notification);
-      - wait_until:
-          condition:
-            - lambda: return (blueprint_status->state > 99);
-      - lambda: |-
-          disp1->set_component_font_color("home.bt_notific", notification_unread->state ? id(home_notify_icon_color_unread) : id(home_notify_icon_color_normal));
 
   - id: refresh_relays
     mode: restart
@@ -2742,7 +2684,6 @@ script:
                 disp1->set_component_font_color("home.chip_relay1", id(home_relay1_icon_color));
                 disp1->set_component_font_color("home.chip_relay2", id(home_relay2_icon_color));
                 timer_reset_all->execute("boot");
-                notification_clear->execute();
                 id(setup_sequence_completed) = true;
             - wait_until:
                 condition:
@@ -2767,7 +2708,6 @@ script:
           ha_button->stop();
           ha_call_service->stop();
           init_hardware_climate->stop();
-          notification_clear->stop();
           page_alarm->stop();
           page_blank->stop();
           page_boot->stop();

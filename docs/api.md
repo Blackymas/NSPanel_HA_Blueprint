@@ -403,11 +403,6 @@ It accommodates extensive customizations, impacting both visual appeal and funct
 - `meridiem` (string[]): Array of strings for AM/PM labels, applicable if the time format includes meridiem.
 - `chip_font` (int): Font Id for icons or chips displayed on the "Home" page.
 - `custom_buttons_font` (int): Font Id for custom button icons on the "Home" page.
-- `notification_icon` (string):
-Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) 
-for the notification button.
-- `notification_icon_color_normal` (int[]): RGB color array for the notification icon under normal conditions.
-- `notification_icon_color_unread` (int[]): RGB color array for the notification icon when there are unread notifications.
 - `qrcode` (bool): Flag indicating whether the QR code button is enabled.
 - `qrcode_icon` (string):
 Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
@@ -434,9 +429,6 @@ data:
   meridiem: ["AM", "PM"]
   chip_font: 8
   custom_buttons_font: 9
-  notification_icon: "\uE1ED"                      # Example for mdi:email
-  notification_icon_color_normal: [255, 255, 255]  # White
-  notification_icon_color_unread: [255, 0, 0]      # Red
   qrcode: true
   qrcode_icon: "\uE432"                            # Example for mdi:qrcode-scan
   qrcode_icon_color: [0, 255, 0]                   # Green

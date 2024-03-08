@@ -10,7 +10,7 @@ blueprint:
   description: >
     # NSPanel Configuration via Blueprint: Complete UI-Based Setup
 
-    **Version**: v4.3dev3
+    **Version**: v4.3dev4
 
 
     This project enables comprehensive configuration of your NSPanel through a Blueprint featuring a user interface.
@@ -3205,6 +3205,14 @@ trigger_variables:
       if nspanel_entities | selectattr(None, "search", "sensor.*_temperature") | list | count > 0
       else ("sensor." ~ device_name ~ "_temperature")
     }}
+
+  notification_text: >
+    {{
+      nspanel_entities | selectattr(None, "search", "sensor.*_notification_text") | list | last
+      if nspanel_entities | selectattr(None, "search", "sensor.*_notification_text") | list | count > 0
+      else ("sensor." ~ device_name ~ "_notification_text")
+    }}
+
   notification_unread: >
     {{
       nspanel_entities | selectattr(None, "search", "switch.*_notification_unread") | list | last
@@ -3223,7 +3231,7 @@ trigger_variables:
 
 variables:
   ##### GENERAL #####
-  blueprint_version: '4.3dev3'
+  blueprint_version: '4.3dev4'
   date_format_temp: !input 'date_format'
   # Avoid breaking change for existing users with legacy type format
   date_format: '{{ date_format_temp if date_format_temp not in ["%d.%m", "%d/%m", "%-d/%-m", "%-m/%-d"] else "%A, " ~ date_format_temp }}'
@@ -6857,6 +6865,14 @@ trigger:
         entity_id: !input 'home_value03'
       id: home_value03_state
 
+  ##### Trigger - Home - Notification #######################################################################################################################
+    - platform: template
+      value_template: '{{ states(notification_text) }}'
+      id: notification_changed
+    - platform: template
+      value_template: '{{ states(notification_unread) }}'
+      id: notification_changed
+
   ##### Trigger - Home - Custom buttons - State change #################################################################################################################
     ##### Custom button 01 - Trigger 'home_custom_buttons' #####
     - platform: event
@@ -7409,7 +7425,6 @@ action:
 
               - variables:
                   bt_utilities_icon: !input home_button08_icon
-                  bt_notific_icon: !input home_button04_icon
                   bt_entities_icon: !input home_button06_icon
                   bt_qrcode_icon: !input home_button05_icon
                   qrcode:
@@ -7424,14 +7439,6 @@ action:
                   meridiem: '{{ dict.values(mui[language].meridiem) | list }}'
                   chip_font: !input chip_font_size
                   custom_buttons_font: !input custom_buttons_font_size
-                  notification_icon: >
-                    {{
-                      all_icons[bt_notific_icon.split(":")[1]]
-                      if bt_notific_icon is string and bt_notific_icon.split(":")[1] in all_icons
-                      else all_icons.email
-                    }}
-                  notification_icon_color_normal: !input home_button04_icon_color01
-                  notification_icon_color_unread: !input home_button04_icon_color02
                   qrcode: !input qrcode_enabled
                   qrcode_icon: >
                     {{
@@ -7710,7 +7717,6 @@ action:
                       - alias: Home page
                         conditions: '{{ nspanel_event.page == pages.home }}'
                         sequence: &refresh_page_home
-
                           ##### Weather Icon Home Page #####
                           - &refresh-page_home-weather_pic
                             service: '{{ nspanel.service.command }}'
@@ -7799,6 +7805,34 @@ action:
                                   name: ""
                                   value: '{{ indoor_temp.state | round(1) ~ indoor_temp.units if not embedded_indoor_temperature else "" }}'
                                   value_color: !input home_indoor_temp_label_color
+                                continue_on_error: true
+
+                          ###### Notification button ######
+                          - &refresh_page_home_notification_button
+                            if: '{{ true }}'
+                            then:
+                              - &variables_home_page_notify_button
+                                variables:
+                                  notification_icon_color_normal: !input home_button04_icon_color01
+                                  notification_icon_color_unread: !input home_button04_icon_color02
+                                  bt_notific_icon: !input home_button04_icon
+                                  notification_text_state: '{{ states(notification_text) if has_value(notification_text) else "" }}'
+                                  notification_unread_state: '{{ states(notification_unread) | default(true) }}'
+                                  notification_visible: '{{ notification_text_state is string and notification_text_state | length > 0 }}'
+                                  notification_icon: >
+                                    {{
+                                      (
+                                        all_icons[bt_notific_icon.split(":")[1]]
+                                        if bt_notific_icon is string and bt_notific_icon.split(":")[1] in all_icons
+                                        else all_icons.email
+                                      ) if notification_visible else ""
+                                    }}
+                              - service: '{{ nspanel.service.icon }}'
+                                data:
+                                  id: home.bt_notific
+                                  icon: '{{ notification_icon }}'
+                                  icon_color: '{{ notification_icon_color_unread if notification_unread_state else notification_icon_color_normal }}'
+                                  visible: '{{ notification_visible }}'
                                 continue_on_error: true
 
                           ###### Custom buttons ######
@@ -10130,6 +10164,14 @@ action:
                 }}
               sequence:
                 - *display_home_page_status_bar
+
+      ##### Home page - Notification changed ######
+      - alias: Home page - Notification changed
+        conditions:
+          - condition: trigger
+            id: notification_changed
+        sequence:
+          - *variables_home_page_notify_button
 
       ##### HW BUTTON - state #####
       - alias: Hardware button - State
