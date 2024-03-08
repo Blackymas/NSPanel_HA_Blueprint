@@ -87,6 +87,7 @@ Our community and support channels are open for any questions or assistance you 
 - [Introducing the Utilities Dashboard](#introducing-the-utilities-dashboard)
 - [Expanded Support for "Lock" Entities on Buttons and Chips](#expanded-support-for-lock-entities-on-buttons-and-chips)
 - [Additional Value on Home Page](#additional-value-on-home-page)
+- [Automatic Font Size Adjustment for Entity Page Values](#automatic-font-size-adjustment-for-entity-page-values)
 
 ## Details of noteworthy changes
 ### Transition to ESP-IDF as Default Framework
@@ -212,6 +213,11 @@ Whether securing your home or managing access to different areas, these updates 
 ### Additional Value on Home Page
 In our continuous effort to enhance the NSPanel's utility and efficiency, we're pleased to announce that the Home page now accommodates a fourth value, complete with its icon.
 This addition allows for a more comprehensive at-a-glance view of your essential metrics directly from the home screen, ensuring that crucial information is always just a glance away.
+
+### Automatic Font Size Adjustment for Entity Page Values
+We've enhanced the entities pages with an automatic font size adjustment feature to improve the display of values, especially for longer strings or values with lengthy units.
+This smart adjustment reduces the occurrence of truncated values by dynamically resizing the font based on the string length.
+While the selection of fonts for the panel remains limited, this automatic resizing significantly enhances readability, ensuring that all displayed information is clear and fully visible at a glance.
 
 ## Support
 For support or more information about this update,
