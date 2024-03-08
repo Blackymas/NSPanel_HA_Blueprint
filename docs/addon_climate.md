@@ -22,8 +22,8 @@ You will need to add the reference to `addon_climate_heat`, `addon_climate_cool`
 and after the `remote_package` (base code), as shown bellow (for `heat` in this example):
 
 > [!NOTE]
-> From time to time, there are changes in ESPHome that lead to an added `_2` for the embedded thermostats. 
-> If you encounter this issue, please have a look at this [entry](https://community.home-assistant.io/t/esphome-devices-all-renamed-with-2-added/388146) in the Home Assistent Forum. 
+> Occasionally, ESPHome updates may result in the `entity_id` of embedded thermostats being appended with `_2`. 
+> If you experience this change, refer to this [forum post](https://community.home-assistant.io/t/esphome-devices-all-renamed-with-2-added/388146) on the Home Assistant Forum for guidance.
 
 ```yaml
 substitutions:
@@ -207,17 +207,15 @@ packages:
     refresh: 300s
 ```
 
-### Concrete example: (Water) underfloor heating
-
-The NSPanel is particularly nice as a replacement for existing water underfloor heating controllers. 
-They are installed at approximately eye level and (often) supplied by 230V. 
-In my case, the valve is type 'normally closed,' i.e. an open relay corresponds to 'no heating.' 
-I am using relay #1. Please note that this is _not_ a PID controller, but simply on-off. 
-At a certain value, the heating starts and at another value it switches off again. 
-These value were set to `0.3°C` below and `0.1°C` above the setpoint, respectively. 
-It turned out that `0.3`and `0.1` worked well for all off our 4 rooms. 
-The minimum settable value is `15°C`, the maximum `22°C` and the granularity (step size) is `0.1°C`. 
-In addition, I chose to set the default temperature to `21.2°C`. 
+### Real Use Case Example: Water Underfloor Heating with NSPanel
+The NSPanel works nicely as a replacement for existing water underfloor heating controllers, installed at eye level and often powered by 100-240VAC.
+In my specific use case, the control valve is of the 'normally closed' type, meaning that an open relay indicates 'no heating.'
+I have utilized relay #1 for this purpose. It's important to note that this setup does not act as a PID controller but operates on a simple on-off mechanism.
+The system initiates heating at a preset value below and turns it off at a value above the set point.
+I have set these values to `0.3°C` below and `0.1°C` above the target temperature, respectively.
+These adjustments, `0.3` and `0.1`, have been effectively maintaining the desired temperature in all of our four rooms.
+The thermostat's settings range from a minimum of `15°C` to a maximum of `22°C`, with a granularity of `0.1°C` for adjustments.
+Furthermore, I have selected `21.2°C` as the default target temperature.
 
 ```yaml
  ##### addon-configuration #####
@@ -238,9 +236,9 @@ climate:
         mode: "heat"
 ```
 
-Please note, that any filter that smoothes the temperature readings (e.g. averaging) is discouraged since it slows the response times of the already slow underwater floor heater. 
-The temperature stability is quite nice which can be seen in the following viewgraph. 
+Please note that employing any filter to smooth the temperature readings, such as averaging, is discouraged.
+Such filtering methods can delay the response times of an already slow underfloor heating system.
+Despite this, the temperature stability achieved is quite satisfactory, as illustrated in the graph below.
 
-![temperature vs time](pics/addon_underfloor.png)
-
-Mar 5 at approx. 9.30am, the window was opened and all heaters were set to 'off.'  
+![Temperature vs Time](pics/addon_underfloor.png)
+*On March 5th, around 9:30 PM, a window was opened, and all heaters were set to 'off.'*
