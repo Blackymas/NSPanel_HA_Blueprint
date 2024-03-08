@@ -65,6 +65,10 @@ This change is aimed at improving functionality and compatibility but may requir
    - **What to Do**: For users who utilized customizations to expose these switches, refer to our updated customization guide.
    Alternatively, use the `esphome.xxxxx_init_hardware` service for a similar functionality without the memory overhead.
 
+6. **Home Page Redesign**: We've redesigned the Home page layout to incorporate an additional value (sensor) and a utilities button, resulting in a minor repositioning of some components.
+This change enhances the page's functionality, offering you a broader overview of your smart home at a glance.
+While adjusting to the new layout, you might find some of your usual indicators or controls have shifted places, but they're all still readily accessible, designed with intuitive interaction in mind.
+
 We appreciate your understanding and patience during this transition.
 Our goal is to ensure NSPanel continues to evolve in a way that enhances your experience and meets future needs.
 Our community and support channels are open for any questions or assistance you may require.
@@ -82,6 +86,7 @@ Our community and support channels are open for any questions or assistance you 
 - [Expanded Entity Selection for Home and Climate Pages](#expanded-entity-selection-for-home-and-climate-pages)
 - [Introducing the Utilities Dashboard](#introducing-the-utilities-dashboard)
 - [Expanded Support for "Lock" Entities on Buttons and Chips](#expanded-support-for-lock-entities-on-buttons-and-chips)
+- [Additional Value on Home Page](#additional-value-on-home-page)
 
 ## Details of noteworthy changes
 ### Transition to ESP-IDF as Default Framework
@@ -203,6 +208,10 @@ This customization ensures that the dashboard only displays the utilities you're
 We're enhancing the NSPanel's integration capabilities by extending support for "lock" entities to both buttons and chips.
 This development significantly broadens your ability to interact with and control lock mechanisms directly from the NSPanel.
 Whether securing your home or managing access to different areas, these updates streamline the control process, integrating seamlessly with your smart home's security setup.
+
+### Additional Value on Home Page
+In our continuous effort to enhance the NSPanel's utility and efficiency, we're pleased to announce that the Home page now accommodates a fourth value, complete with its icon.
+This addition allows for a more comprehensive at-a-glance view of your essential metrics directly from the home screen, ensuring that crucial information is always just a glance away.
 
 ## Support
 For support or more information about this update,
