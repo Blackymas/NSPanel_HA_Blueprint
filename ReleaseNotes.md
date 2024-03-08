@@ -213,7 +213,11 @@ or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/
 Discover our upcoming projects in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open).
 
 ## Special Thanks
-*Details to be added.*
+We extend our heartfelt thanks to the contributors who have played a pivotal role in enhancing the NSPanel's capabilities and documentation in this release:
+- **@shing6326**: For diligently addressing and fixing issues related to the new Fan oscillating feature.
+Your efforts have significantly improved its functionality and reliability (#1839).
+- **@andythomas**: For the comprehensive enhancements made to our documentation.
+Your contributions have made our guides more informative and accessible, enriching the user experience for everyone (#1865).
 
 ## Previous releases
 - [v4.2.6 - Enhancing Stability and User Experience](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.6)
