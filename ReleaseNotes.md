@@ -1,4 +1,4 @@
-# v4.3.0 - Welcome to Framework ESP-IDF, an Utilities Dashboard and Enhanced Localization
+# v4.3 - Welcome to Framework ESP-IDF, an Utilities Dashboard and Enhanced Localization
 ## General
 This milestone release is not just about adopting a new technical foundation;
 it's about enhancing the capabilities and experiences of our users through significant performance improvements,
@@ -202,8 +202,9 @@ It's designed for flexibility, allowing you to customize up to six data points, 
 battery levels, water, and gas consumption, according to what's relevant to your home.
 This customization ensures that the dashboard only displays the utilities you're monitoring, maintaining a clean and uncluttered interface.
 
-<< ADD A PICTURE OF THE PAGE ON NSPANEL >>
-<< ADD A SCREENSHOT OF THE BLUEPRINT >>
+![US model - Utilities Dashboard](docs/pics/us_page_utilities.png) ![EU model - Utilities Dashboard](docs/pics/eu_page_utilities.png)
+
+![Blueprint - Utilities](docs/pics/ha_blueprint_utilities.png)
 
 ### Expanded Support for "Lock" Entities on Buttons and Chips
 We're enhancing the NSPanel's integration capabilities by extending support for "lock" entities to both buttons and chips.
