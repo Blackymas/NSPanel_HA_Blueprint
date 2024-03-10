@@ -10,7 +10,7 @@ blueprint:
   description: >
     # NSPanel Configuration via Blueprint: Complete UI-Based Setup
 
-    **Version**: v4.3.0b1
+    **Version**: v4.3.0b2
 
 
     This project enables comprehensive configuration of your NSPanel through a Blueprint featuring a user interface.
@@ -3263,7 +3263,7 @@ trigger_variables:
 
 variables:
   ##### GENERAL #####
-  blueprint_version: '4.3.0b1'
+  blueprint_version: '4.3.0b2'
   date_format_temp: !input 'date_format'
   # Avoid breaking change for existing users with legacy type format
   date_format: '{{ date_format_temp if date_format_temp not in ["%d.%m", "%d/%m", "%-d/%-m", "%-m/%-d"] else "%A, " ~ date_format_temp }}'
@@ -7467,6 +7467,7 @@ action:
                   bt_entities_icon: !input home_button06_icon
                   bt_qrcode_icon: !input home_button05_icon
                   qrcode:
+                    enabled: !input qrcode_enabled
                     title: !input qrcode_label
                     qrcode: !input qrcode_value
 
@@ -7538,8 +7539,8 @@ action:
 
               - service: '{{ nspanel.service.qrcode }}'
                 data:
-                  title: '{{ qrcode.title }}'
-                  qrcode: '{{ qrcode.qrcode }}'
+                  title: '{{ qrcode.title if qrcode.enabled else "" }}'
+                  qrcode: '{{ qrcode.qrcode if qrcode.enabled else "" }}'
                   show: false
                 continue_on_error: true
 
@@ -9449,6 +9450,7 @@ action:
                         sequence: &refresh_page_utilities
                           ## Page title
                           - variables:
+                              utilities_constructor_init: true
                               page_icon: '{{ pages_utilities.title.icon.split("mdi:")[1] if pages_utilities.title.icon is string and pages_utilities.title.icon.split("mdi:") | count == 2 }}'
                           - service: '{{ nspanel.service.value }}'
                             data:
@@ -9478,8 +9480,14 @@ action:
                           - repeat:
                               for_each: '{{ pages_utilities.groups | list }}'
                               sequence: &refresh_page_utilities_group
+                                - variables:
+                                    utilities_constructor: '{{ utilities_constructor_init is defined and utilities_constructor_init }}'
+                                    icon_enabled: '{{ utilities_constructor and repeat.item.icon is defined and repeat.item.icon is string and repeat.item.icon.split("mdi:") | count == 2 }}'
+                                    value1_enabled: '{{ repeat.item.value1 is defined and repeat.item.value1 is string and repeat.item.value1.split(".") | count == 2 }}'
+                                    value2_enabled: '{{ repeat.item.value2 is defined and repeat.item.value2 is string and repeat.item.value2.split(".") | count == 2 }}'
+                                    label_enabled: '{{ utilities_constructor and repeat.item.label is defined and repeat.item.label is string and repeat.item.label.split(".") | count == 2 }}'
                                 - alias: Utilities - Display icon
-                                  if: '{{ repeat.item.icon is defined and repeat.item.icon is string and repeat.item.icon.split("mdi:") | count == 2 }}'
+                                  if: '{{ icon_enabled }}'
                                   then:
                                     - variables:
                                         icon_code: '{{ repeat.item.icon.split("mdi:")[1] }}'
@@ -9491,41 +9499,75 @@ action:
                                         visible: '{{ icon_code in all_icons }}'
                                       continue_on_error: true
                                 - alias: Utilities - Display value 1
-                                  if: '{{ repeat.item.value1 is defined and repeat.item.value1 is string and repeat.item.value1.split(".") | count == 2 }}'
+                                  if: '{{ value1_enabled }}'
                                   then:
                                     - variables:
                                         entity_id: '{{ repeat.item.value1 }}'
                                         unit_of_measurement: '{{ state_attr(entity_id, "unit_of_measurement") | default("") }}'
                                     - *variable_entity
-                                    - alias: Service value 1
-                                      service: '{{ nspanel.service.value }}'
+                                    - service: '{{ nspanel.service.component.text }}'
                                       data:
                                         id: 'utilities.{{ repeat.item.name }}'
-                                        icon: ''
-                                        icon_color: []
-                                        name: '{{ repeat.item.label }}'
-                                        value: *value_with_unit_and_translations
-                                        value_color: '{{ repeat.item.color }}'
+                                        txt: *value_with_unit_and_translations
                                       continue_on_error: true
+                                    - if: '{{ utilities_constructor }}'
+                                      then:
+                                        - service: '{{ nspanel.service.component.color }}'
+                                          data:
+                                            id: 'utilities.{{ repeat.item.name }}'
+                                            color: '{{ repeat.item.color }}'
+                                          continue_on_error: true
+                                        - service: '{{ nspanel.service.component.visibility }}'
+                                          data:
+                                            ids: '{{ ["utilities." ~ repeat.item.name] }}'
+                                            visible: true
+                                          continue_on_error: true
                                 - alias: Utilities - Display value 2
-                                  if: '{{ repeat.item.value2 is defined and repeat.item.value2 is string and repeat.item.value2.split(".") | count == 2 }}'
+                                  if: '{{ value2_enabled }}'
                                   then:
                                     - variables:
                                         entity_id: '{{ repeat.item.value2 }}'
                                         unit_of_measurement: '{{ state_attr(entity_id, "unit_of_measurement") | default("") }}'
                                     - *variable_entity
-                                    - alias: Service value 2
-                                      service: '{{ nspanel.service.value }}'
+                                    - service: '{{ nspanel.service.component.text }}'
                                       data:
                                         id: 'utilities.{{ repeat.item.name }}b'
-                                        icon: ''
-                                        icon_color: []
-                                        name: ''
-                                        value: *value_with_unit_and_translations
-                                        value_color: '{{ repeat.item.color }}'
+                                        txt: *value_with_unit_and_translations
                                       continue_on_error: true
-                                - alias: Utilities - Line dir of movement
-                                  if: '{{ repeat.item.name not in ["home", "grid"] }}'
+                                    - if: '{{ utilities_constructor }}'
+                                      then:
+                                        - service: '{{ nspanel.service.component.color }}'
+                                          data:
+                                            id: 'utilities.{{ repeat.item.name }}b'
+                                            color: '{{ repeat.item.color }}'
+                                          continue_on_error: true
+                                        - service: '{{ nspanel.service.component.visibility }}'
+                                          data:
+                                            ids: '{{ ["utilities." ~ repeat.item.name ~ "b"] }}'
+                                            visible: true
+                                          continue_on_error: true
+                                - alias: Utilities - Label
+                                  if: '{{ label_enabled }}'
+                                  then:
+                                    - service: '{{ nspanel.service.component.text }}'
+                                      data:
+                                        id: 'utilities.{{ repeat.item.name }}_label'
+                                        txt: '{{ repeat.item.label }}'
+                                      continue_on_error: true
+                                    - service: '{{ nspanel.service.component.color }}'
+                                      data:
+                                        id: 'utilities.{{ repeat.item.name }}_label'
+                                        color: '{{ repeat.item.color }}'
+                                      continue_on_error: true
+                                    - service: '{{ nspanel.service.component.visibility }}'
+                                      data:
+                                        ids: '{{ ["utilities." ~ repeat.item.name ~ "_label"] }}'
+                                        visible: true
+                                      continue_on_error: true
+                                - alias: Utilities - Line
+                                  if:
+                                    - '{{ icon_enabled or value1_enabled or value2_enabled or label_enabled }}'
+                                    - '{{ repeat.item.name not in ["home", "grid"] }}'
                                   then:
                                     - variables:
                                         line_ref_state: >
@@ -9539,25 +9581,23 @@ action:
                                         id: 'utilities.{{ repeat.item.name }}_line_d'
                                         val: '{{ (((line_ref_state > 0) - (line_ref_state < 0)) * (-1 if repeat.item.line_inverted else 1)) | int(0) }}'
                                       continue_on_error: true
-                                # Make components visible
-                                - variables:
-                                    group_components: >
-                                      {% set base_items = [
-                                        repeat.item.name,
-                                        repeat.item.name ~ "b",
-                                        repeat.item.name ~ "_label"
-                                      ] %}
-                                      {% if repeat.item.name not in ["home", "grid"] %}
-                                        {% set extra_items = [repeat.item.name ~ "_line"] %}
-                                      {% else %}
-                                        {% set extra_items = [] %}
-                                      {% endif %}
-                                      {{ base_items + extra_items }}
-                                - service: '{{ nspanel.service.component.visibility }}'
-                                  data:
-                                    ids: '{{ group_components }}'
-                                    visible: true
-                                  continue_on_error: true
+                                    - if: '{{ utilities_constructor }}'
+                                      then:
+                                        - variables:
+                                            rgb565: '{{ int(((repeat.item.color[0] //(2**3)) *(2**11))+((repeat.item.color[1] //(2**2)) *(2**5))+(repeat.item.color[2] //(2**3))) }}'
+                                        - service: '{{ nspanel.service.command }}'
+                                          data:
+                                            cmd: 'utilities.{{ repeat.item.name }}_line.bco={{ rgb565 }}'
+                                          continue_on_error: true
+                                        - service: '{{ nspanel.service.command }}'
+                                          data:
+                                            cmd: 'utilities.{{ repeat.item.name }}_line.bco1={{ rgb565 }}'
+                                          continue_on_error: true
+                                        - service: '{{ nspanel.service.component.visibility }}'
+                                          data:
+                                            ids: '{{ ["utilities." ~ repeat.item.name ~ "_line"] }}'
+                                            visible: true
+                                          continue_on_error: true
 
               ##### Button click #####
               - alias: Button click

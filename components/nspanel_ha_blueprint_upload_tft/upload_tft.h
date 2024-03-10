@@ -18,8 +18,8 @@ namespace nspanel_ha_blueprint_upload_tft {
                                 const std::string& defaultUrl, const std::string& baseUrl) {
         // Determine the branch based on the input
         std::string relative_branch = branch;
-        if (branch.find("beta") != std::string::npos) relative_branch = "beta";
-        else if (branch.find("dev") != std::string::npos) relative_branch = "dev";
+        if (branch.find("b") != std::string::npos) relative_branch = "beta";
+        else if (branch.find("d") != std::string::npos) relative_branch = "dev";
 
         // Mapping model to the corresponding TFT file name
         std::string file_name;
