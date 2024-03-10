@@ -83,7 +83,8 @@ The instructions to upload TFT will vary depending on the version you are instal
 
 ### For Blueprint Component
 1. Use your preferred code editor to edit the blueprint file under `/homeassistant/blueprints/automation/Blackymas/nspanel_blueprint.yaml`.
-2. Go to the GitHub repository and select the [branch (`main`, `beta` or `dev`)](https://github.com/Blackymas/NSPanel_HA_Blueprint/branches) or the [tag](https://github.com/Blackymas/NSPanel_HA_Blueprint/tags) (for previous versions) you want to use.
+2. Go to the GitHub repository and select the [branch (`main`, `beta` or `dev`)](https://github.com/Blackymas/NSPanel_HA_Blueprint/branches)
+or the [tag](https://github.com/Blackymas/NSPanel_HA_Blueprint/tags) (for previous versions) you want to use.
 3. Find the file `nspanel_blueprint.yaml` in the root of the branch/tag, then click on it to open the file content visualization.
 4. Click the button "**Copy raw file**" in the top right area of the code box. This will copy the entire code to the clipboard.
 5. Go back to your code editor in Home Assistant and replace the entire old code by the one in your clipboard (typically CTRL+A & CTRL+V).
