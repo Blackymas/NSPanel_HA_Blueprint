@@ -1,4 +1,4 @@
-# v4.3 - Welcome to Framework ESP-IDF, an Utilities Dashboard and Enhanced Localization
+# v4.3.0 - Welcome to Framework ESP-IDF, an Utilities Dashboard and Enhanced Localization
 ## General
 This milestone release is not just about adopting a new technical foundation;
 it's about enhancing the capabilities and experiences of our users through significant performance improvements,

@@ -72,7 +72,9 @@ You can use this button to force a reboot of your panel. This button is availabl
 
 ### Blueprint is not detected
 
-**Symptoms:** The ESPHome version is shown, but not the blueprint version.
+**Symptoms:** The ESPHome version is shown, but not the blueprint version or, the Home page is shown, but the Home Assistant icon is shown in red and typically the functionality is very limited:
+
+![Blueprint icon on red](pics/us_home_blueprint_icon_red.png)
 
 <!-- markdownlint-disable MD013 MD033 -->
 | Possible causes | Suggestions |
