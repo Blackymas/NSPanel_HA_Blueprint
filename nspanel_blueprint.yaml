@@ -10,7 +10,7 @@ blueprint:
   description: >
     # NSPanel Configuration via Blueprint: Complete UI-Based Setup
 
-    **Version**: v4.3.0b2
+    **Version**: v4.3.0b3
 
 
     This project enables comprehensive configuration of your NSPanel through a Blueprint featuring a user interface.
@@ -3263,7 +3263,7 @@ trigger_variables:
 
 variables:
   ##### GENERAL #####
-  blueprint_version: '4.3.0b2'
+  blueprint_version: '4.3.0b3'
   date_format_temp: !input 'date_format'
   # Avoid breaking change for existing users with legacy type format
   date_format: '{{ date_format_temp if date_format_temp not in ["%d.%m", "%d/%m", "%-d/%-m", "%-m/%-d"] else "%A, " ~ date_format_temp }}'
@@ -3299,8 +3299,6 @@ variables:
         page:
           home: 'esphome.{{ nspanel_name }}_init_page_home'
           settings: 'esphome.{{ nspanel_name }}_init_page_settings'
-      notification:
-        clear: 'esphome.{{ nspanel_name }}_notification_clear'
       page:
         alarm: 'esphome.{{ nspanel_name }}_page_alarm'
         media_player: 'esphome.{{ nspanel_name }}_page_media_player'
@@ -7722,12 +7720,13 @@ action:
                           - alias: "fan.oscillate"
                             conditions:
                               - '{{ nspanel_event.service == "fan.oscillate" }}'
+                              - '{{ nspanel_event.key == "oscillating" }}'
                             sequence:
                               - variables:
                                   oscillating: '{{ state_attr(nspanel_event.entity, "oscillating") | default(true) }}'
                               - service: fan.oscillate
                                 data:
-                                  oscillating: '{{ not (oscillating if oscillating is boolean else true) }}'
+                                  oscillating: '{{ true if oscillating is boolean and not oscillating else false }}'
                                 target:
                                   entity_id: '{{ nspanel_event.entity }}'
                                 continue_on_error: true
@@ -8151,7 +8150,7 @@ action:
                                             value: &value_with_unit_and_translations >
                                               {{
                                                 (
-                                                  (states(entity_id, rounded=true) ~ unit_of_measurement)
+                                                  (states(entity_id, rounded=true) ~ (unit_of_measurement if unit_of_measurement is string and unit_of_measurement | length > 0 else ""))
                                                   if is_number(entity_state)
                                                   else state_translated(entity_id)
                                                 )
@@ -8526,6 +8525,11 @@ action:
                                 data:
                                   id: bt_oscillate
                                   txt: '{{ all_icons["autorenew"] if state_attr(fan_entity, "oscillating") | default(false) else all_icons["autorenew-off"] }}'
+                                continue_on_error: true
+                              - service: '{{ nspanel.service.component.color }}'
+                                data:
+                                  id: fan.bt_oscillate
+                                  color: '{{ nextion.color.grey_white }}'
                                 continue_on_error: true
                               - service: '{{ nspanel.service.component.visibility }}'
                                 data:
@@ -9485,7 +9489,7 @@ action:
                                     icon_enabled: '{{ utilities_constructor and repeat.item.icon is defined and repeat.item.icon is string and repeat.item.icon.split("mdi:") | count == 2 }}'
                                     value1_enabled: '{{ repeat.item.value1 is defined and repeat.item.value1 is string and repeat.item.value1.split(".") | count == 2 }}'
                                     value2_enabled: '{{ repeat.item.value2 is defined and repeat.item.value2 is string and repeat.item.value2.split(".") | count == 2 }}'
-                                    label_enabled: '{{ utilities_constructor and repeat.item.label is defined and repeat.item.label is string and repeat.item.label.split(".") | count == 2 }}'
+                                    label_enabled: '{{ utilities_constructor and repeat.item.label is defined and repeat.item.label is string and repeat.item.label | length > 0 }}'
                                 - alias: Utilities - Display icon
                                   if: '{{ icon_enabled }}'
                                   then:
@@ -9881,37 +9885,6 @@ action:
                               back_page: '{{ pages.home }}'
                           - *variable_entity
                           - *entity_details_show
-
-                      - alias: Show button - Notification clear
-                        conditions:
-                          - '{{ nspanel_event.page == pages.notification }}'
-                          - '{{ nspanel_event.component == "clear" }}'
-                        sequence:
-                          - service: switch.turn_off
-                            data:
-                              entity_id: '{{ notification_unread }}'
-                            continue_on_error: true
-                          - service: '{{ nspanel.service.command }}'
-                            data:
-                              cmd: 'page {{ pages.home }}'
-                            continue_on_error: true
-
-                      - alias: Show button - Notification accept
-                        conditions:
-                          - '{{ nspanel_event.page == pages.notification }}'
-                          - '{{ nspanel_event.component == "accept" }}'
-                        sequence:
-                          - service: switch.turn_off
-                            data:
-                              entity_id: '{{ notification_unread }}'
-                            continue_on_error: true
-                          - service: '{{ nspanel.service.notification.clear }}'
-                            data: {}
-                            continue_on_error: true
-                          - service: '{{ nspanel.service.command }}'
-                            data:
-                              cmd: 'page {{ pages.home }}'
-                            continue_on_error: true
 
       ##### BOOT NSPANEL - automation reload #####
       - alias: Automation reloaded
