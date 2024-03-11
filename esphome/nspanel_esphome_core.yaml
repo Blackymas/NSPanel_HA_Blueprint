@@ -18,7 +18,7 @@ substitutions:
   temp_units: "°C"
   invalid_cooldown: "100ms"
   ##### DON'T CHANGE THIS ######
-  version: "4.3.0b2"
+  version: "4.3.0b3"
   ##############################
 
 ##### External components #####
@@ -508,6 +508,7 @@ api:
             notification_label->publish_state("");
             notification_text->publish_state("");
             notification_unread->turn_off();
+            set_component_visibility->execute("home.bt_notific", false);
 
     # Displays a notification message on the screen, useful for alerts or informational updates.
     - service: notification_show
@@ -517,8 +518,7 @@ api:
       then:
         - lambda: |-
             if (!id(is_uploading_tft)) {
-              ESP_LOGV("service.notification_show", "Starting");
-
+              set_component_visibility->execute("home.bt_notific", true);
               goto_page->execute("notification");
               disp1->set_component_text_printf("notification.notifi_label", "%s", label.c_str());
 
@@ -874,6 +874,25 @@ display:
                   break;
               }
               break;
+            case 16:  // notification
+              switch (component_id) {
+                case 7:  // bt_accept
+                  if (!touch_event) {  // Release
+                    notification_label->publish_state("");
+                    notification_text->publish_state("");
+                    notification_unread->turn_off();
+                    goto_page->execute("home");
+                    set_component_visibility->execute("home.bt_notific", false);
+                  }
+                break;
+                case 8:  // bt_clear
+                  if (!touch_event) {  // Release
+                    notification_unread->turn_off();
+                    goto_page->execute("home");
+                  }
+                break;
+              }
+              break;
             case 22:  // fan
               switch (component_id) {
                 case 17:  // bt_oscillate
@@ -882,6 +901,7 @@ display:
                   }
                   break;
               }
+              break;
           }
         }
 
@@ -1721,9 +1741,9 @@ text_sensor:
               detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
               disp1->set_component_value("climate.embedded", id(is_embedded_thermostat) ? 1 : 0);
               goto_page->execute("climate");
-            } else if (page == "light" or page == "climate" or page == "notification") {  // Generic event
-                auto ha_event = new esphome::api::CustomAPIDevice();
-                ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
+            } else if (page == "light" or page == "climate") {  // Generic event
+                esphome::api::CustomAPIDevice ha_event;
+                ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
                   {"type", "generic"},
                   {"page", page},
                   {"event", event},
