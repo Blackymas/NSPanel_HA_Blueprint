@@ -12,7 +12,6 @@ CONFIG_SCHEMA = cv.All(
 )
 
 @coroutine_with_priority(1.0)
-
 async def to_code(config):
     cg.add_define("USE_NSPANEL_HA_BLUEPRINT")
     cg.add_global(nspanel_ha_blueprint_ns.using)
