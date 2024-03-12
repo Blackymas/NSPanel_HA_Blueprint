@@ -27,11 +27,13 @@ Table of contents:
     - [Framework `arduino`](#framework-arduino)
     - [Framework `esp-idf`](#framework-esp-idf)
   - [Bluetooth proxy](#bluetooth-proxy)
+  - [BLE tracker](#ble-tracker)
   - [Logger via UART](#logger-via-uart)
   - [Climate custom presets](#climate-custom-presets)
   - [Push button / Momentary switch](#push-button--momentary-switch)
   - [Expose relay fallback switch](#expose-relay-fallback-switch)
   - [Relay Interlocking](#relay-interlocking)
+  - [Remove non-essential components](#remove-non-essential-components)
 
 &nbsp;
 &nbsp;
@@ -83,23 +85,19 @@ logger:
 
 ##### My customization - End #####
 
-# Core and optional configurations
+# Basic and optional configurations
 packages:
   remote_package:
     url: https://github.com/Blackymas/NSPanel_HA_Blueprint
     ref: main
     files:
-      - nspanel_esphome.yaml # Core package
+      - nspanel_esphome.yaml # Basic package
       # Optional advanced and add-on configurations
-      # - advanced/esphome/nspanel_esphome_advanced.yaml
+      # - esphome/nspanel_esphome_advanced.yaml
       # - nspanel_esphome_addon_climate_cool.yaml
       - nspanel_esphome_addon_climate_heat.yaml
       # - nspanel_esphome_addon_climate_dual.yaml
     refresh: 300s
-
-esp32:
-  framework:
-    type: esp-idf
 ```
 
 ## Memory Management
@@ -448,7 +446,7 @@ script:
   - id: !extend set_brightness
     then:
       - lambda: |-
-          ESP_LOGD("script.set_brightness(custom)", "brightness: %i%%", brightness);
+          ESP_LOGD("script.set_brightness(custom)", "brightness: %.0f%%", brightness);
           uint8_t current_light_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
           ESP_LOGV("script.set_brightness(custom)", "current_light_brightness: %i%%", current_light_brightness);
           if (brightness != current_light_brightness) {
@@ -537,15 +535,15 @@ time:
 
 ### Frameworks
 > [!IMPORTANT]
-> When switching from `arduino` to `esp-idf`, make sure to update the device with a serial cable as the partition table is different between the two frameworks
+> When switching between frameworks, make sure to update the device with a serial cable as the partition table is different between the two frameworks
 as [OTA Update Component](https://esphome.io/components/ota) updates will not change the partition table.
 
 The `arduino` protocol still more popular and therefore more components are available, but as `esp-idf` is maintained by EspressIF and is kept updated,
 more boards are supported and the memory management is better, making it ideal if you wanna customize your panel to support memory consumption functionalities,
 like `bluetooth_proxy` or [Improv](https://www.improv-wifi.com/).
 
-This project currently uses `arduino` as default framework, but we are planning to set `esp-idf` as default from March 2024.
-In any case, you can overlap the settings with this customization.
+This project currently uses `esp-idf` as default framework.
+You can overlap the settings with this customization.
 
 > [!NOTE]
 > For more info about frameworks, please visit [ESPHome docs](https://esphome.io/components/esp32).
@@ -569,20 +567,85 @@ esp32:
 <!-- markdownlint-disable MD028 -->
 > [!IMPORTANT]
 > The [ESP32 Platform](#framework-esp-idf) component should be configured to use the `esp-idf` framework,
-> as the `arduino` framework uses significantly more memory and performs poorly with the Bluetooth proxy enabled.
+> as the `arduino` framework uses significantly more memory and performs poorly with the Bluetooth stack enabled.
 
-> [!NOTE]
-> The Bluetooth proxy component significantly reduces device RAM, leaving less than 10k RAM free.
+> [!IMPORTANT]
+> The Bluetooth stack significantly reduces device RAM.
 > Enabling this with additional customizations/components may lead to crashes due to low memory.
 > HTTPS connections might be erratic, and local TFT flashing could fail due to insufficient RAM.
 >
 > Solutions include:
-> 1. Flash the device (remove Bluetooth proxy) while updating TFT.
-> 2. Flash from a local (HTTP) source at a low baud rate (9600 or lower) to avoid memory crashes. This method is slower, taking over 10 minutes.
+> 1. Flash the device (remove Bluetooth components) while updating TFT.
+> 2. Flash from a local (HTTP) source at a low baud rate (9600 or lower) to avoid memory crashes. This method is slower.
 <!-- markdownlint-enable MD028 -->
 ```yaml
 # Enable Bluetooth proxy
 bluetooth_proxy:
+  id: ble_proxy
+
+# Give an id for the BLE Tracker (which is part of BT proxy)
+esp32_ble_tracker:
+  id: ble_tracker
+
+# Modify upload tft engine to stop BLE scan while uploading
+script:
+  - id: !extend upload_tft
+    then:
+      - lambda: |-
+          static const char *const TAG = "CUSTOM.script.upload_tft";
+          ble_tracker->dump_config();
+          ESP_LOGD(TAG, "Stopping BLE Tracker scan...");
+          ble_tracker->stop_scan();
+          ESP_LOGD(TAG, "Disabling BLE Tracker scan...");
+          ble_tracker->set_scan_active(false);
+          ESP_LOGD(TAG, "State: %s", id(ble_proxy)->has_active() ? "Active" : "Passive");
+          while (ble_proxy->get_bluetooth_connections_limit() != ble_proxy->get_bluetooth_connections_free()) {
+            ESP_LOGD(TAG, "Connections: %i of %i", int(ble_proxy->get_bluetooth_connections_limit() - ble_proxy->get_bluetooth_connections_free()), int(ble_proxy->get_bluetooth_connections_limit()));
+            if (id(ble_proxy)->has_active()) {
+              ESP_LOGD(TAG, "Setting passive mode...");
+              ble_proxy->set_active(false);
+            }
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            App.feed_wdt();
+          }
+
+# Set Wi-Fi power save mode to "LIGHT" as required for Bluetooth on ESP32
+wifi:
+  power_save_mode: LIGHT
+```
+
+### BLE Tracker
+<!-- markdownlint-disable MD028 -->
+> [!IMPORTANT]
+> The [ESP32 Platform](#framework-esp-idf) component should be configured to use the `esp-idf` framework,
+> as the `arduino` framework uses significantly more memory and performs poorly with the Bluetooth stack enabled.
+
+> [!IMPORTANT]
+> The Bluetooth stack significantly reduces device RAM.
+> Enabling this with additional customizations/components may lead to crashes due to low memory.
+> HTTPS connections might be erratic, and local TFT flashing could fail due to insufficient RAM.
+>
+> Solutions include:
+> 1. Flash the device (remove Bluetooth components) while updating TFT.
+> 2. Flash from a local (HTTP) source at a low baud rate (9600 or lower) to avoid memory crashes. This method is slower.
+<!-- markdownlint-enable MD028 -->
+```yaml
+# Enable Bluetooth tracker
+esp32_ble_tracker:
+  id: ble_tracker
+
+# Modify upload tft engine to stop BLE tracker while uploading
+script:
+  - id: !extend upload_tft
+    then:
+      - lambda: |-
+          static const char *const TAG = "CUSTOM.script.upload_tft";
+          ble_tracker->dump_config();
+          ESP_LOGI(TAG, "Stopping BLE Tracker scan...");
+          ble_tracker->stop_scan();
+          ESP_LOGI(TAG, "Disabling BLE Tracker scan...");
+          ble_tracker->set_scan_active(false);
+
 # Set Wi-Fi power save mode to "LIGHT" as required for Bluetooth on ESP32
 wifi:
   power_save_mode: LIGHT
@@ -666,10 +729,35 @@ Subsequent activations will trigger `light.toggle` from the blueprint, as this f
 ```yaml
 # Expose relay local control switch to Home Assistant
 switch:
-  - id: !extend relay1_local
+  - name: Relay 1 Local
+    platform: template
+    id: relay1_local
+    entity_category: config
     internal: false
-  - id: !extend relay2_local
+    lambda: |-
+      return (id(relay_settings) & nspanel_ha_blueprint::RelaySettings::Relay1_Local);
+    turn_on_action:
+      - lambda: nspanel_ha_blueprint::update_relay_setting(id(relay_settings), true, RelaySettings::Relay1_Local);
+    on_turn_on:
+      - logger.log: "Relay 1 Local turned On!"
+    turn_off_action:
+      - lambda: nspanel_ha_blueprint::update_relay_setting(id(relay_settings), false, RelaySettings::Relay1_Local);
+    on_turn_off:
+      - logger.log: "Relay 1 Local turned Off!"
+  - name: Relay 2 Local
+    platform: template
+    id: relay2_local
+    entity_category: config
     internal: false
+    lambda: return (id(relay_settings) & nspanel_ha_blueprint::RelaySettings::Relay2_Local);
+    turn_on_action:
+      - lambda: nspanel_ha_blueprint::update_relay_setting(id(relay_settings), true, RelaySettings::Relay2_Local);
+    on_turn_on:
+      - logger.log: "Relay 2 Local turned On!"
+    turn_off_action:
+      - lambda: nspanel_ha_blueprint::update_relay_setting(id(relay_settings), false, RelaySettings::Relay2_Local);
+    on_turn_off:
+      - logger.log: "Relay 2 Local turned Off!"
 ```
 
 ### Relay Interlocking
@@ -689,4 +777,45 @@ switch:
   - id: !extend relay_2
     interlock: [relay_1, relay_2]
     interlock_wait_time: 500ms  # Please adjust this accordingly
+```
+
+### Remove non-essential components
+This can be useful to free-up memory, so other custom components could be used instead.
+
+```yaml
+# Removes captive portal
+captive_portal: !remove
+
+# Removes embedded web server
+web_server: !remove
+```
+
+### Restart with 15s button press
+This could be used to have an easy way to restart your panel locally in addition to the [reset pin in the bottom of your panel](pics/eu_reset_button.png).
+
+```yaml
+binary_sensor:
+  # Restarts the Nextion display after pressing and holding the left button for 15s
+  - id: !extend left_button
+    on_multi_click:
+      - timing:
+          - ON for at least 15.0s
+        invalid_cooldown: ${invalid_cooldown}
+        then:  # Restart the display
+          - switch.turn_off: screen_power
+          - delay: 5s
+          - switch.turn_on: screen_power
+          - delay: 2s
+          - lambda: disp1->soft_reset();
+          - delay: 2s
+          - script.execute: setup_sequence
+
+  # Restarts ESPHome after pressing and holding the right button for 15s
+  - id: !extend right_button
+    on_multi_click:
+      - timing:
+          - ON for at least 15.0s
+        invalid_cooldown: ${invalid_cooldown}
+        then:  # Restart the panel
+          - button.press: restart_nspanel
 ```

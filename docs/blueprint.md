@@ -19,7 +19,7 @@ For an easier overview, the menu items "Icon Color" and "Label Color" will not b
 
 You will be presented with a list of all of your ESPHome ESP32 devices and you must select your panel from the list.
 
-This is technically the only required field, as basic functionality will be available when the Blueprint knows to which panel it have to send the settings.
+This is technically the only required field, as basic functionality will be available when the Blueprint knows to which panel it has to send the settings.
 
 > [!NOTE]
 > You cannot have more than one blueprint based automation per each panel
@@ -90,22 +90,22 @@ The behavior of these buttons will depend on the entity's domain (light, media p
 ## Alarm Control Panel
 
 An alarm control panel entity can be controlled by your panel.
-When you assign the entity here, it's icon will be shown as a button on the Home page.
+When you assign the entity here, its icon will be shown as a button on the Home page.
 
 ## Climate
 
 ### Climate to Control (Optional)
 
 Here you select the main climate entity controlled by your panel.
-It's temperature will be used on the Home page and by clicking on that value you will be able to control the climate settings.
+Its temperature will be used on the Home page and by clicking on that value you will be able to control the climate settings.
 
-You can optionally use your panel to control a climate system locally, using it's temperature sensor and relays.
-You will find more details about this on the Add-on Climate docummentation.
+You can optionally use your panel to control a climate system locally, using its temperature sensor and relays.
+You will find more details about this on the Add-on Climate documentation.
 
-If you are using the Add-on Climate, it will create a climate entity in your panel's device page.
+If you are using the climate add-on, it will create a climate entity in your panel's device page.
 You still have to select that entity on this field in the blueprint settings to have it used as your main climate.
 
-Additional climate entities can be assigned to buttons and will be explained later in this documment.
+Additional climate entities can be assigned to buttons and will be explained later in this document.
 
 On the blueprint settings, you will also find settings for sensors and custom buttons to be shown on all the climate pages.
 
@@ -118,7 +118,7 @@ Activates the QR Code page and shows the QR Code button on the Home page.
 ### QR Code content (Optional)
 
 String, which is shown as a QR Code on the NSPanel.
-This can be a simple text, a URL or could also be used for a simplified login to the Wi-Fi.
+This can be a simple text, an URL or could also be used for a simplified login to the Wi-Fi.
 Here is an example (simply change SSID and password to your credentials and either use "WPA" or "WEP"):
 
 `WIFI:S:SSID;T:WPA/WEP;P:PASSWORD;;`

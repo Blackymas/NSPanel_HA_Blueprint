@@ -67,11 +67,7 @@ The instructions to upload TFT will vary depending on the version you are instal
 
 #### v4.2 or later (ESP-IDF) or v4.2.5 or later (Arduino)
 1. Go to your device's page under **Settings** > **Devices & Services** > **ESPHome**.
-2. On the **Configuration** group, select your option for **Update TFT display - Branch** (either the version you want or `dev`/`beta`).
-If that option is not visible, please expand the **+n entities not shown** and enable it.
-
-    ![Image](pics/ha_device_configuration_tft_update_branch_selector.png)
-3. Press **Update TFT display** and wait for the upload to complete.
+2. On the **Configuration** group, press **Update TFT display** and wait for the upload to complete. The system will automatically find the right TFT file for the ESPHome version you are running.
 
 #### v4.1 or earlier, or v4.2.4 or earlier for Arduino framework
 1. On the GitHub repository, click on your chosen version name on the [NSPanel_HA_Blueprint Tags](https://github.com/Blackymas/NSPanel_HA_Blueprint/tags) list, then select the tab **Code**.
@@ -87,12 +83,12 @@ If that option is not visible, please expand the **+n entities not shown** and e
 
 ### For Blueprint Component
 1. Use your preferred code editor to edit the blueprint file under `/homeassistant/blueprints/automation/Blackymas/nspanel_blueprint.yaml`.
-2. In the `source_url` key, change the URL replacing `main` by the version you want to install.
-3. Go to **Developer Tools**, select the tab **YAML** and click the button to reload **AUTOMATIONS**.
-4. Go to the [Blueprints dashboard](https://my.home-assistant.io/redirect/blueprints/) (under **Settings** > **Automations & Scenes**, then select tab **Blueprints**).
-5. Find the Blueprint named **NSPanel Configuration** and click on the 3-dot menu related to that.
-6. Click **Re-import blueprint**.
-7. Go back to **Developer Tools**, select the tab **YAML** and click the button to reload **AUTOMATIONS**.
+2. Go to the GitHub repository and select the [branch (`main`, `beta` or `dev`)](https://github.com/Blackymas/NSPanel_HA_Blueprint/branches)
+or the [tag](https://github.com/Blackymas/NSPanel_HA_Blueprint/tags) (for previous versions) you want to use.
+3. Find the file `nspanel_blueprint.yaml` in the root of the branch/tag, then click on it to open the file content visualization.
+4. Click the button "**Copy raw file**" in the top right area of the code box. This will copy the entire code to the clipboard.
+5. Go back to your code editor in Home Assistant and replace the entire old code by the one in your clipboard (typically CTRL+A & CTRL+V).
+6. Go to **Developer Tools**, select the tab **YAML** and click the button to reload **AUTOMATIONS**.
 
 ## Additional Notes
 - Please note that the images provided in this guide might become outdated as the project evolves.
