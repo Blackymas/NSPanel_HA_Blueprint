@@ -125,12 +125,12 @@ Now you can chose the font size for your clock display in the screen saver. Ther
 > [!IMPORTANT]
 > For this time to be displayed you must select a brightness higher than 0 on the device's page (under **Settings** > **Devices & Services** > **ESPHome**).
 
-> [!ATTENTION]
+> [!WARNING]
 > Some fonts may not support all the languages.
 
-> [!ATTENTION]
+> [!WARNING]
 > Bigger fonts may not fit well on your display and the selected time format.
-> Please select a differnt font in that case.
+> Please select a different font in that case.
 <!-- markdownlint-enable MD028 -->
 
 ### Enhanced Visibility of Hardware Button Bars Across Pages
