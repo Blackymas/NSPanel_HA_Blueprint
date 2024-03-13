@@ -76,6 +76,9 @@ You can use this button to force a reboot of your panel. This button is availabl
 
 ![Blueprint icon on red](pics/us_home_blueprint_icon_red.png)
 
+In some cases you can also see duplicate entities on the device's page in Home Assistant, and some of these entities may have the `entity_id` ending with `_2`, `_3`, etc.
+![image](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/9100568/51a5fce4-89cc-43e8-9d92-1f83d7ea2ee5)
+
 <!-- markdownlint-disable MD013 MD033 -->
 | Possible causes | Suggestions |
 | :-- | :-- |
