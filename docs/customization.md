@@ -737,11 +737,11 @@ switch:
     lambda: |-
       return (id(relay_settings) & nspanel_ha_blueprint::RelaySettings::Relay1_Local);
     turn_on_action:
-      - lambda: nspanel_ha_blueprint::update_relay_setting(id(relay_settings), true, RelaySettings::Relay1_Local);
+      - lambda: nspanel_ha_blueprint::update_bitwise_setting(id(relay_settings), true, RelaySettings::Relay1_Local);
     on_turn_on:
       - logger.log: "Relay 1 Local turned On!"
     turn_off_action:
-      - lambda: nspanel_ha_blueprint::update_relay_setting(id(relay_settings), false, RelaySettings::Relay1_Local);
+      - lambda: nspanel_ha_blueprint::update_bitwise_setting(id(relay_settings), false, RelaySettings::Relay1_Local);
     on_turn_off:
       - logger.log: "Relay 1 Local turned Off!"
   - name: Relay 2 Local
@@ -751,11 +751,11 @@ switch:
     internal: false
     lambda: return (id(relay_settings) & nspanel_ha_blueprint::RelaySettings::Relay2_Local);
     turn_on_action:
-      - lambda: nspanel_ha_blueprint::update_relay_setting(id(relay_settings), true, RelaySettings::Relay2_Local);
+      - lambda: nspanel_ha_blueprint::update_bitwise_setting(id(relay_settings), true, RelaySettings::Relay2_Local);
     on_turn_on:
       - logger.log: "Relay 2 Local turned On!"
     turn_off_action:
-      - lambda: nspanel_ha_blueprint::update_relay_setting(id(relay_settings), false, RelaySettings::Relay2_Local);
+      - lambda: nspanel_ha_blueprint::update_bitwise_setting(id(relay_settings), false, RelaySettings::Relay2_Local);
     on_turn_off:
       - logger.log: "Relay 2 Local turned Off!"
 ```
