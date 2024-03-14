@@ -6403,8 +6403,14 @@ variables:
   ##### GENERAL ENTITYS #####
   climate: !input 'climate'
   embedded_climate: '{{ climate == thermostat_embedded }}'
-  indoor_temperature_sensor: !input 'indoortemp'
-  embedded_indoor_temperature: '{{ indoor_temperature_sensor == nspaneltemp or not (indoor_temperature_sensor is string and indoor_temperature_sensor is match "sensor.")}}'
+  indoor_temperature_sensor_input: !input indoortemp
+  indoor_temperature_sensor: >
+    {{
+      indoor_temperature_sensor_input
+      if indoor_temperature_sensor_input is string and indoor_temperature_sensor_input.split(".") | count == 2
+      else nspaneltemp
+    }}
+  embedded_indoor_temperature: '{{ indoor_temperature_sensor == nspaneltemp }}'
   domain_automation_button_action: !input domain_automation_button_action
 
   # yamllint disable rule:truthy rule:line-length rule:comments-indentation
@@ -7144,7 +7150,7 @@ trigger:
     - platform: event
       event_type: state_changed
       event_data:
-        entity_id: !input 'indoortemp'
+        entity_id: !input indoortemp
       id: indoortemp_state
 
   ##### Trigger - Weather #################################################################################################################
@@ -7174,10 +7180,7 @@ condition:
       - '{{ trigger.id != "home_values_state" }}'
   - condition: or  # Do not update with indoor temp changes when embedded indoor temp is used
     conditions:
-      - condition: not
-        conditions:
-          - condition: trigger
-            id: indoortemp_state
+      - '{{ trigger.id != "indoortemp_state" }}'
       - '{{ (home_page_background_update or pages.current == pages.home ) and not embedded_indoor_temperature }}'
   - condition: or  # Do not update component if state haven't changed (ignore attributes changed) - event based triggers
     conditions:
@@ -7591,7 +7594,6 @@ action:
                   embedded_climate_friendly_name: '{{ climate_friendly_name if climate_friendly_name else "" }}'
                   embedded_indoor_temperature: '{{ embedded_indoor_temperature }}'
                 continue_on_error: true
-
               - &update_hw_button_state
                 service: '{{ nspanel.service.hw_button_state }}'
                 data:
@@ -7828,16 +7830,7 @@ action:
                                 continue_on_error: true
                               - condition: '{{ home_indoor_temp_visible }}'
                               - variables:
-                                  temperature_sensor: >
-                                    {{
-                                      indoor_temperature_sensor
-                                      if
-                                        (not embedded_indoor_temperature) and
-                                        indoor_temperature_sensor is string and
-                                        indoor_temperature_sensor is match "sensor."
-                                      else
-                                      nspaneltemp
-                                    }}
+                                  temperature_sensor: '{{ indoor_temperature_sensor }}'
                                   indoor_temp:
                                     state: '{{ states(temperature_sensor, rounded=true) | default("unavailable") }}'
                                     sensor_uom: '{{ state_attr(temperature_sensor, "unit_of_measurement") }}'
@@ -10284,7 +10277,6 @@ action:
           - condition: trigger
             id:
               - indoortemp_state
-              - nspaneltemp_state
           - '{{ is_number(trigger.event.data.new_state.state) }}'
         sequence:
           - *refresh-page_home-indoor_temp
