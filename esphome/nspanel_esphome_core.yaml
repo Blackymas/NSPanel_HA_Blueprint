@@ -1240,9 +1240,8 @@ number:
         - lambda: |-
             disp1->send_command_printf("brightness=%i", int(x));
             disp1->send_command_printf("settings.brightslider.val=%i", int(x));
-            if (current_page->state != "screensaver" or current_brightness->state != 0) {
-              disp1->set_backlight_brightness(x/100);
-              current_brightness->update();
+            if (current_page->state != "screensaver") {
+              set_brightness->execute(x);
               timer_dim->execute(current_page->state.c_str(), int(timeout_dim->state));
               timer_sleep->execute(current_page->state.c_str(), int(timeout_sleep->state));
               if (current_page->state == "settings") disp1->set_component_text_printf("bright_text", "%i%%", int(x));
@@ -1265,7 +1264,7 @@ number:
         - lambda: |-
             disp1->send_command_printf("brightness_dim=%i", int(x));
             disp1->send_command_printf("settings.dimslider.val=%i", int(x));
-            if (current_page->state != "screensaver" or current_brightness->state != 0) {
+            if (current_page->state != "screensaver" and current_brightness->state <= x) {
               set_brightness->execute(x);
               timer_sleep->execute(current_page->state.c_str(), int(timeout_sleep->state));
               if (current_page->state == "settings") disp1->set_component_text_printf("dim_text", "%i%%", int(x));
@@ -2290,8 +2289,7 @@ script:
               set_component_visibility->execute("screensaver.text", true);
               refresh_datetime->execute();
             }
-            disp1->set_backlight_brightness(display_sleep_brightness->state / 100.0f);
-            current_brightness->update();
+            set_brightness->execute(display_sleep_brightness->state);
           }
 
   - id: page_settings
@@ -2376,42 +2374,59 @@ script:
     then:
       - lambda: |-
           if (!id(is_uploading_tft) and ((id(buttons_bars_pages) & (1 << get_page_id(current_page->state.c_str()))) != 0)) {
-            // Hardware buttons bars - Fallback mode
-            bool bt_left_enabled = id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonLeft_Enabled;
-            bool bt_left_local = ((id(relay_settings) & nspanel_ha_blueprint::RelaySettings::Relay1_Local) and relay_1->state);
-            bool bt_left_from_api = id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonLeft_State;
-            bool bt_right_enabled = id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonRight_Enabled;
-            bool bt_right_local = ((id(relay_settings) & nspanel_ha_blueprint::RelaySettings::Relay2_Local) and relay_2->state);
-            bool bt_right_from_api = id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonRight_State;
             switch (int(display_mode->state)) {
               case 1:  // EU model
-                if (bt_left_enabled) {  // Left button
-                  disp1->fill_area(48, 307, 118, 3, (bt_left_local or bt_left_from_api) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(47, 308, 120, 1, (bt_left_local or bt_left_from_api) ? id(buttons_color_on) : id(buttons_color_off));
+                if (id(buttons_settings) & ButtonSettings::ButtonLeft_Enabled) {  // Left button
+                  disp1->fill_area(48, 307, 118, 3,
+                                    (((id(relay_settings) & RelaySettings::Relay1_Local) and relay_1->state) or (id(buttons_settings) & ButtonSettings::ButtonLeft_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
+                  disp1->fill_area(47, 308, 120, 1,
+                                    (((id(relay_settings) & RelaySettings::Relay1_Local) and relay_1->state) or (id(buttons_settings) & ButtonSettings::ButtonLeft_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
                 }
-                if (bt_right_enabled) {  // Right button
-                  disp1->fill_area(289, 307, 118, 3, (bt_right_local or bt_right_from_api) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(288, 308, 120, 1, (bt_right_local or bt_right_from_api) ? id(buttons_color_on) : id(buttons_color_off));
+                if (id(buttons_settings) & ButtonSettings::ButtonRight_Enabled) {  // Right button
+                  disp1->fill_area(289, 307, 118, 3,
+                                    (((id(relay_settings) & RelaySettings::Relay2_Local) and relay_2->state) or (id(buttons_settings) & ButtonSettings::ButtonRight_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
+                  disp1->fill_area(288, 308, 120, 1,
+                                    (((id(relay_settings) & RelaySettings::Relay2_Local) and relay_2->state) or (id(buttons_settings) & ButtonSettings::ButtonRight_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
                 }
                 break;
               case 2:  // US Portrait
-                if (bt_left_enabled) {  // Left button
-                  disp1->fill_area(17, 466, 118, 3, (bt_left_local or bt_left_from_api) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(16, 467, 120, 1, (bt_left_local or bt_left_from_api) ? id(buttons_color_on) : id(buttons_color_off));
+                if (id(buttons_settings) & ButtonSettings::ButtonLeft_Enabled) {  // Left button
+                  disp1->fill_area(17, 466, 118, 3,
+                                    (((id(relay_settings) & RelaySettings::Relay1_Local) and relay_1->state) or (id(buttons_settings) & ButtonSettings::ButtonLeft_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
+                  disp1->fill_area(16, 467, 120, 1,
+                                    (((id(relay_settings) & RelaySettings::Relay1_Local) and relay_1->state) or (id(buttons_settings) & ButtonSettings::ButtonLeft_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
                 }
-                if (bt_right_enabled) {  // Right button
-                  disp1->fill_area(184, 466, 118, 3, (bt_right_local or bt_right_from_api) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(183, 467, 120, 1, (bt_right_local or bt_right_from_api) ? id(buttons_color_on) : id(buttons_color_off));
+                if (id(buttons_settings) & ButtonSettings::ButtonRight_Enabled) {  // Right button
+                  disp1->fill_area(184, 466, 118, 3,
+                                    (((id(relay_settings) & RelaySettings::Relay2_Local) and relay_2->state) or (id(buttons_settings) & ButtonSettings::ButtonRight_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
+                  disp1->fill_area(183, 467, 120, 1,
+                                    (((id(relay_settings) & RelaySettings::Relay2_Local) and relay_2->state) or (id(buttons_settings) & ButtonSettings::ButtonRight_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
                 }
                 break;
               case 3:  // US Landscape
-                if (bt_left_enabled) {  // Left button
-                  disp1->fill_area(467, 174, 3, 118, (bt_left_local or bt_left_from_api) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(468, 173, 1, 120, (bt_left_local or bt_left_from_api) ? id(buttons_color_on) : id(buttons_color_off));
+                if (id(buttons_settings) & ButtonSettings::ButtonLeft_Enabled) {  // Left button
+                  disp1->fill_area(467, 174, 3, 118,
+                                    (((id(relay_settings) & RelaySettings::Relay1_Local) and relay_1->state) or (id(buttons_settings) & ButtonSettings::ButtonLeft_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
+                  disp1->fill_area(468, 173, 1, 120,
+                                    (((id(relay_settings) & RelaySettings::Relay1_Local) and relay_1->state) or (id(buttons_settings) & ButtonSettings::ButtonLeft_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
                 }
-                if (bt_right_enabled) {  // Right button
-                  disp1->fill_area(467, 28, 3, 118, (bt_right_local or bt_right_from_api) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(468, 27, 1, 120, (bt_right_local or bt_right_from_api) ? id(buttons_color_on) : id(buttons_color_off));
+                if (id(buttons_settings) & ButtonSettings::ButtonRight_Enabled) {  // Right button
+                  disp1->fill_area(467, 28, 3, 118,
+                                    (((id(relay_settings) & RelaySettings::Relay2_Local) and relay_2->state) or (id(buttons_settings) & ButtonSettings::ButtonRight_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
+                  disp1->fill_area(468, 27, 1, 120,
+                                    (((id(relay_settings) & RelaySettings::Relay2_Local) and relay_2->state) or (id(buttons_settings) & ButtonSettings::ButtonRight_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
                 }
                 break;
             }
@@ -2627,6 +2642,7 @@ script:
   - id: setup_sequence
     mode: restart
     then:
+      - logger.log: Starting Nextion setup sequence
       - lambda: display_charset->update();
       - wait_until:
           condition:
@@ -2723,7 +2739,7 @@ script:
                 timeout: 10s
             - lambda: |-
                 if (current_page->state == "boot") goto_page->execute(wakeup_page_name->state.c_str());
-      - logger.log: "Nextion setup sequence finished!"
+      - logger.log: Nextion setup sequence finished
 
   - id: stop_all
     mode: restart
