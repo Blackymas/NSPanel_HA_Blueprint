@@ -52,19 +52,7 @@ esphome:
       then:
         - lambda: |-
             if (isnan(blueprint_status->raw_state)) blueprint_status->publish_state(0);
-            std::string s = "${device_name}";
-            std::string result;
-            bool last_was_underscore = false;
-            for (char& c : s) {
-              if (isalnum(c)) {
-                result += tolower(c); // Add alphanumeric characters as lowercase
-                last_was_underscore = false;
-              } else if (!last_was_underscore) { // Replace non-alphanumeric with '_' but avoid consecutive '_'
-                result += '_';
-                last_was_underscore = true;
-              }
-            }
-            device_name->publish_state(result.c_str());
+            device_name->publish_state("${name}");
             notification_label->publish_state("");
             notification_text->publish_state("");
             notification_unread->turn_off();
@@ -847,7 +835,7 @@ display:
   - id: disp1
     platform: nextion
     uart_id: tf_uart
-    start_up_page: 8
+    # start_up_page: 8  # Boot page
     on_setup:
       lambda: |-
         nextion_init->publish_state(true);
@@ -1619,6 +1607,21 @@ text_sensor:
     entity_category: diagnostic
     internal: false
     disabled_by_default: false
+    lambda: return {"${name}"};
+    filters:
+      - lambda: |-
+          std::string result;
+          bool last_was_underscore = false;
+          for (char& c : x) {
+            if (isalnum(c)) {
+              result += tolower(c); // Add alphanumeric characters as lowercase
+              last_was_underscore = false;
+            } else if (!last_was_underscore) { // Replace non-alphanumeric with '_' but avoid consecutive '_'
+              result += '_';
+              last_was_underscore = true;
+            }
+          }
+          return result;
 
   ##### Entity Id of the entity displayed on the detailed pages
   - id: detailed_entity
@@ -1945,21 +1948,19 @@ script:
                 id: current_page
                 state: boot
           then:
-            - lambda: ESP_LOGV("script.global_settings", "Boot page is visible");
             - wait_until:
                 condition:
                   - not:
                       - text_sensor.state:  # Is boot page visible?
                           id: current_page
-                          state: 'boot'
+                          state: boot
                 timeout: 2s
             - if:
                 condition:
                   - text_sensor.state:  # Avoid this being called twice by multiple boot triggers
                       id: current_page
-                      state: 'boot'
+                      state: boot
                 then:
-                  - lambda: ESP_LOGV("script.global_settings", "Boot page still visible");
                   - if:
                       condition:
                         switch.is_on: notification_sound
@@ -1970,8 +1971,6 @@ script:
                       ESP_LOGD("script.global_settings", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
                       goto_page->execute(wakeup_page_name->state.c_str());
                       timer_reset_all->execute(wakeup_page_name->state.c_str());
-
-      - lambda: ESP_LOGV("script.global_settings", "Finished");
 
   - id: goto_page
     mode: restart
@@ -2049,7 +2048,7 @@ script:
     mode: restart
     then:
       - lambda: |-
-          ESP_LOGV("script.page_blank", "Construct blank page");
+          ESP_LOGW("script.page_blank", "Construct blank page");
           disp1->set_component_text_printf("esp_version", "ESP: ${version}");  // ESPHome version
           #ifdef ARDUINO
           disp1->set_component_text_printf("framework", "Arduino");
@@ -2066,7 +2065,6 @@ script:
           set_brightness->execute(100);
           disp1->set_component_text_printf("boot.esph_version", "${version}");  // ESPHome version
           if (current_page->state == "boot") {
-            ESP_LOGW("DEBUG", "Page boot is visible");
             #ifdef ARDUINO
             disp1->set_component_text("framework", "Arduino");
             #elif defined(USE_ESP_IDF)
@@ -2148,7 +2146,9 @@ script:
                     state: boot
           timeout: 10s
       - lambda: |-
-          if (current_page->state == "boot") goto_page->execute(wakeup_page_name->state.c_str());
+          if (current_page->state == "boot") {
+            goto_page->execute(wakeup_page_name->state.c_str());
+          }
 
   - id: page_buttonpage
     mode: restart
@@ -2189,7 +2189,9 @@ script:
           // Report new page to logs
           ESP_LOGD("script.page_changed", "New page: %s", page.c_str());
           // Go to boot page if not initiated
-          if (blueprint_status->state <= 99) goto_page->execute("boot");
+          if (not nextion_init->state) {
+            goto_page->execute("boot");
+          }
           // Reset globals
           if (page != "alarm" &&
               page != "climate" &&
@@ -2775,7 +2777,6 @@ script:
       page: string
     then:
       - lambda: |-
-          ESP_LOGV("script.timer_reset_all", "Reset timers");
           timer_page->execute(page.c_str(), int(timeout_page->state));
           timer_dim->execute(page.c_str(), int(timeout_dim->state));
           timer_sleep->execute(page.c_str(), int(timeout_sleep->state));
@@ -2785,8 +2786,6 @@ script:
       page: string
       timeout: uint
     then:
-      - lambda: |-
-          ESP_LOGV("script.timer_page", "Reset timer: %is", timeout);
       - if:
           condition:
             - lambda: |-
@@ -2817,7 +2816,6 @@ script:
       timeout: uint
     then:
       - lambda: |-
-          ESP_LOGV("script.timer_dim", "Reset timer: %is", timeout);
           if (current_brightness->state <= display_dim_brightness->state
               and page != "screensaver"
               and page != "boot"
@@ -2843,8 +2841,6 @@ script:
       page: string
       timeout: uint
     then:
-      - lambda: |-
-          ESP_LOGV("script.timer_sleep", "Reset timer: %is", timeout);
       - if:
           condition:
             - lambda: return (timeout >= 1 and current_page->state != "screensaver" and current_page->state != "boot");
