@@ -34,7 +34,7 @@ external_components:
   - source:
       type: git
       url: https://github.com/edwardtfn/esphome
-      ref: nextion-v425
+      ref: nextion-23  # To do: nextion-v425
     components:
       - nextion  # Change this when that PR#6192 gets released (2024.3?)
     refresh: 300s
@@ -509,7 +509,7 @@ api:
             if (!id(is_uploading_tft)) {
               set_component_visibility->execute("home.bt_notific", true);
               goto_page->execute("notification");
-              timer_reset_all->execute("notification");
+              timer_reset_all->execute();
               disp1->set_component_text("notification.notifi_label", label.c_str());
               display_wrapped_text->execute("notification.notifi_text01", message.c_str(), display_mode->state == 2 ? 23 : 32);
               notification_label->publish_state(label.c_str());
@@ -821,10 +821,10 @@ api:
             if (!id(is_uploading_tft)) {
               if (current_page->state == "screensaver") goto_page->execute(wakeup_page_name->state.c_str());
               if (reset_timer)
-                timer_reset_all->execute(wakeup_page_name->state.c_str());
+                timer_reset_all->execute();
               else {
-                timer_sleep->execute(wakeup_page_name->state.c_str(), int(timeout_sleep->state));
-                timer_dim->execute(wakeup_page_name->state.c_str(), int(timeout_dim->state));
+                timer_sleep->execute();
+                timer_dim->execute();
               }
             }
 
@@ -839,6 +839,7 @@ display:
     on_setup:
       lambda: |-
         nextion_init->publish_state(true);
+        version_tft->update();
         goto_page->execute("boot");
 
     on_page:
@@ -850,7 +851,7 @@ display:
     on_touch:
       lambda: |-
         if (!id(is_uploading_tft)) {
-          timer_reset_all->execute(page_names[page_id]);
+          timer_reset_all->execute();
           switch (page_id) {
             case 10:  // light
               switch (component_id) {
@@ -1227,8 +1228,8 @@ number:
             disp1->set_component_value("settings.brightslider", int(x));
             if (current_page->state != "screensaver") {
               set_brightness->execute(x);
-              timer_dim->execute(current_page->state.c_str(), int(timeout_dim->state));
-              timer_sleep->execute(current_page->state.c_str(), int(timeout_sleep->state));
+              timer_dim->execute();
+              timer_sleep->execute();
               if (current_page->state == "settings") disp1->set_component_text_printf("bright_text", "%i%%", int(x));
             }
 
@@ -1251,7 +1252,7 @@ number:
             disp1->set_component_value("settings.dimslider", int(x));
             if (current_page->state != "screensaver" and current_brightness->state <= x) {
               set_brightness->execute(x);
-              timer_sleep->execute(current_page->state.c_str(), int(timeout_sleep->state));
+              timer_sleep->execute();
               if (current_page->state == "settings") disp1->set_component_text_printf("dim_text", "%i%%", int(x));
             }
 
@@ -1306,7 +1307,7 @@ number:
     icon: mdi:timer
     unit_of_measurement: "s"
     on_value:
-      - lambda: timer_page->execute(current_page->state.c_str(), int(x));
+      - lambda: timer_page->execute();
   - name: Timeout Dimming
     platform: template
     id: timeout_dim
@@ -1320,7 +1321,7 @@ number:
     icon: mdi:timer
     unit_of_measurement: "s"
     on_value:
-      - lambda: timer_dim->execute(current_page->state.c_str(), int(x));
+      - lambda: timer_dim->execute();
   - name: Timeout Sleep
     platform: template
     id: timeout_sleep
@@ -1335,8 +1336,8 @@ number:
     unit_of_measurement: "s"
     on_value:
       - lambda: |-
-          timer_dim->execute(current_page->state.c_str(), int(timeout_dim->state));
-          timer_sleep->execute(current_page->state.c_str(), int(x));
+          timer_dim->execute();
+          timer_sleep->execute();
 
 ##### START - SELECT CONFIGURATION #####
 select:
@@ -1470,7 +1471,7 @@ sensor:
             id: display_brightness
             value: !lambda return int(x);
         - lambda: |-
-            timer_reset_all->execute("settings");
+            timer_reset_all->execute();
 
   ###### Display DIM Brightness GET VALUE FROM NSPanel SLIDER #####
   - id: dimslider
@@ -1484,7 +1485,7 @@ sensor:
             id: display_dim_brightness
             value: !lambda return int(x);
         - lambda: |-
-            timer_reset_all->execute("settings");
+            timer_reset_all->execute();
 
   ###### Display Brightness - Current value (%) #####
   - id: current_brightness
@@ -1639,6 +1640,11 @@ text_sensor:
     icon: mdi:tablet-dashboard
     internal: false
     disabled_by_default: false
+    filters:
+      - lambda: |-
+          x = x.c_str();
+          x.shrink_to_fit();
+          return x;
     on_value:
       lambda: |-
         if (!id(is_uploading_tft)) {
@@ -1673,7 +1679,7 @@ text_sensor:
             deserializeJson(doc, x);
             std::string page = doc["page"];
             std::string component = doc["component"];
-            if (not (component == "currentpage" and (page == "screensaver" or page == "home"))) timer_reset_all->execute(page.c_str());
+            if (not (component == "currentpage" and (page == "screensaver" or page == "home"))) timer_reset_all->execute();
             std::string value = doc["value"];
             std::string entity = detailed_entity->state.c_str();  // doc["entity"];
             esphome::api::CustomAPIDevice ha_event;
@@ -1787,16 +1793,12 @@ text_sensor:
     name: Version TFT
     platform: nextion
     component_name: boot.tft_version
-    # entity_category: diagnostic
-    # icon: mdi:tag-text-outline
-    internal: true
+    entity_category: diagnostic
+    icon: mdi:tag-text-outline
+    internal: false
     update_interval: never
     on_value:
       - lambda: |-
-          if (current_page->state == "boot") {
-            page_boot->execute();
-            timer_reset_all->execute("boot");
-          }
           check_versions->execute();
 
 ### Scripts ######
@@ -1970,7 +1972,7 @@ script:
                   - lambda: |-
                       ESP_LOGD("script.global_settings", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
                       goto_page->execute(wakeup_page_name->state.c_str());
-                      timer_reset_all->execute(wakeup_page_name->state.c_str());
+                      timer_reset_all->execute();
 
   - id: goto_page
     mode: restart
@@ -1990,7 +1992,7 @@ script:
     then:
       - lambda: |-
           if (id(is_uploading_tft)) ha_button->stop();
-          timer_reset_all->execute(page.c_str());
+          timer_reset_all->execute();
           esphome::api::CustomAPIDevice ha_event;
           ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
             {
@@ -2063,6 +2065,7 @@ script:
       - logger.log: Page boot called
       - lambda: |-
           set_brightness->execute(100);
+          update_tft_info->execute();
           disp1->set_component_text_printf("boot.esph_version", "${version}");  // ESPHome version
           if (current_page->state == "boot") {
             #ifdef ARDUINO
@@ -2070,7 +2073,6 @@ script:
             #elif defined(USE_ESP_IDF)
             disp1->set_component_text("framework", "ESP-IDF");
             #endif
-            disp1->send_command_printf("tm_esphome.en=%i", (isnan(display_charset->state) or isnan(display_mode->state) or version_tft->state.empty()) ? 1 : 0);
           }
       - logger.log: Wait for Wi-Fi
       - wait_until:
@@ -2137,7 +2139,7 @@ script:
           disp1->set_component_font("home.wifi_icon", id(home_chip_font_id));
           disp1->set_component_font_color("home.chip_relay1", id(home_relay1_icon_color));
           disp1->set_component_font_color("home.chip_relay2", id(home_relay2_icon_color));
-          timer_reset_all->execute("boot");
+          timer_reset_all->execute();
       - wait_until:
           condition:
             - not:
@@ -2217,7 +2219,7 @@ script:
           refresh_hardware_buttons_bars->execute();
 
           // Reset timers
-          timer_reset_all->execute(page.c_str());
+          timer_reset_all->execute();
 
           // Report new page to Home Assistant
           esphome::api::CustomAPIDevice ha_event;
@@ -2769,37 +2771,33 @@ script:
           timer_sleep->stop();
           update_alarm_icon->stop();
           update_climate_icon->stop();
+          update_tft_info->stop();
 
   ###### Timers ######
   - id: timer_reset_all  # Global timer reset - Triggered with a touch on the screen
     mode: restart
-    parameters:
-      page: string
     then:
       - lambda: |-
-          timer_page->execute(page.c_str(), int(timeout_page->state));
-          timer_dim->execute(page.c_str(), int(timeout_dim->state));
-          timer_sleep->execute(page.c_str(), int(timeout_sleep->state));
+          timer_page->execute();
+          timer_dim->execute();
+          timer_sleep->execute();
   - id: timer_page       # Handles the fallback to home page after a timeout
     mode: restart
-    parameters:
-      page: string
-      timeout: uint
     then:
       - if:
           condition:
             - lambda: |-
-                return (timeout >= 1 and
-                        page != "boot" and
-                        page != "confirm" and
-                        page != "home" and
-                        page != "notification" and
-                        page != "screensaver");
+                return (timeout_page->state >= 1 and
+                        current_page->state != "boot" and
+                        current_page->state != "confirm" and
+                        current_page->state != "home" and
+                        current_page->state != "notification" and
+                        current_page->state != "screensaver");
           then:
-            - delay: !lambda return (timeout *1000);
+            - delay: !lambda return (int(timeout_page->state) *1000);
             - lambda: |-
                 ESP_LOGV("script.timer_page", "Timed out on page: %s", current_page->state.c_str());
-                if (timeout >= 1 and
+                if (timeout_page->state >= 1 and
                     current_page->state != "boot" and
                     current_page->state != "confirm" and
                     current_page->state != "home" and
@@ -2811,45 +2809,38 @@ script:
                   }
   - id: timer_dim        # Handles the brightness dimming after a timeout
     mode: restart
-    parameters:
-      page: string
-      timeout: uint
     then:
       - lambda: |-
           if (current_brightness->state <= display_dim_brightness->state
-              and page != "screensaver"
-              and page != "boot"
-              and page != "blank-screensaver") {
-            ESP_LOGD("script.timer_dim", "Waking up on page: %s", page.c_str());
+              and current_page->state != "screensaver"
+              and current_page->state != "boot") {
+            ESP_LOGD("script.timer_dim", "Waking up on page: %s", current_page->state.c_str());
             set_brightness->execute(display_brightness->state);
           }
       - if:
           condition:
-            - lambda: return (timeout >= 1);
+            - lambda: return (timeout_dim->state >= 1);
           then:
-            - delay: !lambda return (timeout *1000);
+            - delay: !lambda return (int(timeout_dim->state) *1000);
             - lambda: |-
                 if (current_page->state != "screensaver" and
-                    current_page->state != "blank-screensaver" and
                     current_page->state != "boot" and
-                    timeout >= 1) {
+                    timeout_dim->state >= 1) {
                   set_brightness->execute(display_dim_brightness->state);
                 }
   - id: timer_sleep  # Handles the sleep (go to screensaver page) after a timeout
     mode: restart
-    parameters:
-      page: string
-      timeout: uint
     then:
       - if:
           condition:
-            - lambda: return (timeout >= 1 and current_page->state != "screensaver" and current_page->state != "boot");
+            - lambda: |-
+                return (timeout_sleep->state >= 1 and current_page->state != "screensaver" and current_page->state != "boot");
           then:
-            - delay: !lambda return (timeout *1000);
+            - delay: !lambda return (int(timeout_sleep->state) *1000);
             - lambda: |-
                 if (current_page->state != "screensaver" and
                     current_page->state != "boot" and
-                    timeout >= 1) {
+                    timeout_sleep->state >= 1) {
                   ESP_LOGD("script.timer_sleep", "Going to sleep from page %s", current_page->state.c_str());
                   goto_page->execute("screensaver");
                   set_brightness->execute(display_sleep_brightness->state);
@@ -2976,4 +2967,24 @@ script:
                 disp1->set_component_font_color(component.c_str(), 1530); // cyan
                 break;
             }
+
+  - id: update_tft_info
+    mode: restart
+    then:
+      - while:
+          condition:
+            - lambda: return (isnan(display_charset->state) or isnan(display_mode->state) or version_tft->state.empty());
+          then:
+            - lambda: |-
+                ESP_LOGD("script.update_tft_info", "Updating TFT info");
+                if (isnan(display_charset->state)) display_charset->update();
+                if (isnan(display_mode->state)) display_mode->update();
+                if (version_tft->state.empty()) version_tft->update();
+            - wait_until:
+                condition:
+                  - lambda: return (!isnan(display_charset->state) and !isnan(display_mode->state) and !(version_tft->state.empty()));
+                timeout: 10s
+            - lambda: |-
+                if (current_page->state == "boot")
+                  disp1->send_command_printf("tm_esphome.en=%i", (isnan(display_charset->state) or isnan(display_mode->state) or version_tft->state.empty()) ? 1 : 0);
 ...
