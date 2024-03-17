@@ -1804,6 +1804,22 @@ text_sensor:
 
 ### Scripts ######
 script:
+  - id: boot_progress
+    mode: restart
+    parameters:
+      step: uint
+    then:
+      - lambda: |-
+          timer_reset_all->execute();
+          if (step == 10) {
+            ESP_LOGD("script.boot_progress", "Progress: Completed");
+            disp1->set_component_value("boot.progress", 100);
+          } else {
+            step = int(round((blueprint_status->state + (step/10))/2));
+            ESP_LOGD("script.boot_progress", "Progress: %i%%", step);
+            disp1->set_component_value("boot.progress", step);
+          }
+
   - id: change_climate_state
     mode: restart
     parameters:
@@ -2137,22 +2153,6 @@ script:
           ESP_LOGD("script.page_boot", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
           goto_page->execute(wakeup_page_name->state.c_str());
 
-  - id: boot_progress
-    mode: restart
-    parameters:
-      step: uint
-    then:
-      - lambda: |-
-          timer_reset_all->execute();
-          if (step == 10) {
-            ESP_LOGD("script.boot_progress", "Progress: Completed");
-            disp1->set_component_value("boot.progress", 100);
-          } else {
-            step = int(round((blueprint_status->state + (step/10))/2));
-            ESP_LOGD("script.boot_progress", "Progress: %i%%", step);
-            disp1->set_component_value("boot.progress", step);
-          }
-
   - id: page_buttonpage
     mode: restart
     parameters:
@@ -2189,6 +2189,10 @@ script:
       - lambda: |-
           // Report new page to logs
           ESP_LOGD("script.page_changed", "New page: %s", current_page->state.c_str());
+          if (current_page->state.empty()) {
+            goto_page->execute("boot");
+            page_changed->stop();
+          }
 
           // Reset globals
           if (current_page->state != "alarm" &&
@@ -2713,6 +2717,7 @@ script:
     mode: restart
     then:
       - lambda: |-
+          boot_progress->stop();
           change_climate_state->stop();
           check_versions->stop();
           display_embedded_temp->stop();
