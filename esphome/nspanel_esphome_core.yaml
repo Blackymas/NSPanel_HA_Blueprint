@@ -1815,10 +1815,13 @@ script:
             ESP_LOGD("script.boot_progress", "Progress: Completed");
             disp1->set_component_value("boot.progress", 100);
           } else {
-            step = int(round((blueprint_status->state + (step*10))/2));
+            step = std::min(100, int(round((blueprint_status->state + (step*10))/2)));
             ESP_LOGD("script.boot_progress", "Progress: %i%%", step);
             disp1->set_component_value("boot.progress", step);
           }
+          if (current_page->state == "boot" and !isnan(display_charset->state) and !isnan(display_mode->state) and !version_tft->state.empty())
+            disp1->send_command_printf("tm_esphome.en=0");
+
 
   - id: change_climate_state
     mode: restart
@@ -1968,9 +1971,12 @@ script:
       page: string
     then:
       - lambda: |-
-          ESP_LOGW("DEBUG", "goto_page: from %s to %s", current_page->state.c_str(), page.c_str());
-          if (current_page->state != page)
+          ESP_LOGD("DEBUG", "goto_page: from %s to %s", current_page->state.c_str(), page.c_str());
+          if (current_page->state != page) {
             disp1->goto_page(page.c_str());
+          } else {
+            ESP_LOGE("DEBUG", "goto_page: from %s to %s", current_page->state.c_str(), page.c_str());
+          }
 
   - id: ha_button
     mode: parallel
@@ -2049,7 +2055,7 @@ script:
           disp1->send_command_printf("tm_esphome.en=0");
 
   - id: page_boot
-    mode: restart
+    mode: single
     then:
       - logger.log: Page boot called
       - lambda: |-
@@ -2140,15 +2146,15 @@ script:
           disp1->set_component_font_color("home.chip_relay1", id(home_relay1_icon_color));
           disp1->set_component_font_color("home.chip_relay2", id(home_relay2_icon_color));
           boot_progress->execute(8);
+          boot_progress->execute(9);
       - wait_until:
           condition:
             - lambda: return (wifi_component->is_connected() and api_server->is_connected() and blueprint_status->state > 99);
           timeout: 10s
+      - lambda: boot_progress->execute(10);
       - delay: 5s
       - lambda: |-
-          boot_progress->execute(9);
           if (notification_sound->state) buzzer->play("two short:d=4,o=5,b=100:16e6,16e6");
-          boot_progress->execute(10);
           set_brightness->execute(display_brightness->state);
           ESP_LOGD("script.page_boot", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
           goto_page->execute(wakeup_page_name->state.c_str());
@@ -2985,7 +2991,4 @@ script:
                 condition:
                   - lambda: return (!isnan(display_charset->state) and !isnan(display_mode->state) and !(version_tft->state.empty()));
                 timeout: 10s
-            - lambda: |-
-                if (current_page->state == "boot")
-                  disp1->send_command_printf("tm_esphome.en=%i", (isnan(display_charset->state) or isnan(display_mode->state) or version_tft->state.empty()) ? 1 : 0);
 ...
