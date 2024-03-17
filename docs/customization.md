@@ -288,7 +288,7 @@ binary_sensor:
     id: display_state
     platform: template
     lambda: |-
-      return (id(current_page).state != "screensaver");
+      return (current_page->state != "screensaver");
 ```
 
 You can easily invert the meaning to have a sensor for display sleeping:
@@ -300,7 +300,7 @@ binary_sensor:
     id: display_sleeping
     platform: template
     lambda: |-
-      return (id(current_page).state == "screensaver");
+      return (current_page->state == "screensaver");
 ```
 
 ### Deep sleep
@@ -373,7 +373,7 @@ button:
       then:
         - logger.log: Button Sleep pressed
         - lambda: |-
-            if (id(current_page).state != "screensaver") id(disp1).goto_page("screensaver");
+            goto_page->execute("screensaver");
   
   # Adds a button to wake-up the panel (similar to the existing service)
   - name: Wake-up
@@ -384,10 +384,10 @@ button:
       then:
         - logger.log: Button Wake-up pressed
         - lambda: |-
-            if (id(current_page).state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
-            // id(timer_page).execute(id(wakeup_page_name).state.c_str()); // enable this if you want page timeout to be reset
-            id(timer_sleep).execute(id(wakeup_page_name).state.c_str(), int(id(timeout_sleep).state));
-            id(timer_dim).execute(id(wakeup_page_name).state.c_str(), int(id(timeout_dim).state));
+            if (current_page->state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
+            // timer_page->execute(); // enable this if you want page timeout to be reset
+            timer_sleep->execute();
+            timer_dim->execute();
 ```
 
 ### Set display as a light
@@ -408,12 +408,12 @@ light:
         - lambda: |-
             ESP_LOGD("light.display_light", "Turn-on");
             if (current_page->state == "screensaver") disp1->goto_page(wakeup_page_name->state.c_str());
-            timer_reset_all->execute(wakeup_page_name->state.c_str());
+            timer_reset_all->execute();
     on_turn_off:
       then:
         - lambda: |-
             ESP_LOGD("light.display_light", "Turn-off");
-            disp1->goto_page("screensaver");
+            goto_page->execute("screensaver");
 
 output:
   # Output required by `display_light` to send the commands to Nextion
