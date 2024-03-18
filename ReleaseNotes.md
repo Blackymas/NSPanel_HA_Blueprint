@@ -218,7 +218,8 @@ This addition allows for a more comprehensive at-a-glance view of your essential
 ### Automatic Font Size Adjustment for Entity Page Values
 We've enhanced the entities pages with an automatic font size adjustment feature to improve the display of values, especially for longer strings or values with lengthy units.
 This smart adjustment reduces the occurrence of truncated values by dynamically resizing the font based on the string length.
-While the selection of fonts for the panel remains limited, this automatic resizing significantly enhances readability, ensuring that all displayed information is clear and fully visible at a glance.
+While the selection of fonts for the panel remains limited, this automatic resizing significantly enhances readability,
+ensuring that all displayed information is clear and fully visible at a glance.
 
 ## v4.3.1 - Ensuring Compatibility with ESPHome v2024.3.0 and Enhancing Stability
 Patch v4.3.1 focuses primarily on ensuring full compatibility with the latest ESPHome v2024.3.0 IP address format changes, crucial for the smooth compilation and operation of the NSPanel project.
@@ -228,10 +229,19 @@ It underscores our ongoing commitment to enhancing stability and ensuring a reli
 ### Support for ESPHome v2024.3.0 IP Address Format
 - **Criticality:** Critical (required for compiling with ESPHome 2024.3.0)
 - **Affected Components:** ESPHome
-- **Description:** This update introduces necessary adjustments to accommodate the new IP address format introduced by ESPHome v2024.3.0, ensuring uninterrupted project compilation and enhancing compatibility.
+- **Description:** This update introduces necessary adjustments to accommodate the new IP address format introduced by ESPHome v2024.3.0,
+ensuring uninterrupted project compilation and enhancing compatibility.
 This critical update is the cornerstone of patch v4.3.1, deployed simultaneously with ESPHome to ensure NSPanel users experience no disruption in service.
 This adaptation ensures that NSPanel firmware remains fully functional and up-to-date with ESPHome's latest advancements,
 reaffirming our commitment to providing a seamless and stable user experience.
+
+### Button Bars Visibility Enhancement and Configuration Change
+- **Criticality:** Breaking Change (with Enhancement)
+- **Affected Components:** Blueprint
+- **Description:** The visibility of button bars, indicating the status of entities linked to hardware buttons, has been updated to be visible across all pages by default, including the screensaver.
+This enhancement improves the accessibility of crucial status information.
+Users who previously customized the visibility settings for button bars will need to review and adjust their configurations to align with the new default behavior.
+This change enables users to selectively exclude button bars from specific pages if desired, providing greater flexibility and control over the interface's appearance.
 
 ### Celsius Display Issue for Embedded Temperature Sensor Resolved (#1834)
 - **Criticality:** Medium
