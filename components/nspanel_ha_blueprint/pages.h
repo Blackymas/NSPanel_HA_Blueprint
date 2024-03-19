@@ -12,7 +12,7 @@ namespace nspanel_ha_blueprint {
 
     /**
     * @file pages.h
-    * Defines constants and functions related to page names for "NSPanel HA Blueprint" project..
+    * Defines constants and functions related to page names for "NSPanel HA Blueprint" project.
     */
 
     // Constants
@@ -22,6 +22,7 @@ namespace nspanel_ha_blueprint {
     * such as settings, home, weather information, and more.
     */
     constexpr std::array<const char*, 28> page_names = {
+        "boot",
         "home",
         "weather01",
         "weather02",
@@ -30,7 +31,6 @@ namespace nspanel_ha_blueprint {
         "weather05",
         "climate",
         "settings",
-        "boot",
         "screensaver",
         "light",
         "cover",

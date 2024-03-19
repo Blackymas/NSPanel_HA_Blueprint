@@ -218,7 +218,146 @@ This addition allows for a more comprehensive at-a-glance view of your essential
 ### Automatic Font Size Adjustment for Entity Page Values
 We've enhanced the entities pages with an automatic font size adjustment feature to improve the display of values, especially for longer strings or values with lengthy units.
 This smart adjustment reduces the occurrence of truncated values by dynamically resizing the font based on the string length.
-While the selection of fonts for the panel remains limited, this automatic resizing significantly enhances readability, ensuring that all displayed information is clear and fully visible at a glance.
+While the selection of fonts for the panel remains limited, this automatic resizing significantly enhances readability,
+ensuring that all displayed information is clear and fully visible at a glance.
+
+## v4.3.1 - Ensuring Compatibility with ESPHome v2024.3.0 and Enhancing Stability
+Patch v4.3.1 focuses primarily on ensuring full compatibility with the latest ESPHome v2024.3.0 IP address format changes, crucial for the smooth compilation and operation of the NSPanel project.
+This timely update addresses critical compatibility issues, alongside implementing key bug fixes and optimizations.
+It underscores our ongoing commitment to enhancing stability and ensuring a reliable experience for all NSPanel users, keeping pace with the evolving ESPHome ecosystem.
+
+### Support for ESPHome v2024.3.0 IP Address Format
+- **Criticality:** Critical (required for compiling with ESPHome 2024.3.0)
+- **Affected Components:** ESPHome
+- **Description:** This update introduces necessary adjustments to accommodate the new IP address format introduced by ESPHome v2024.3.0,
+ensuring uninterrupted project compilation and enhancing compatibility.
+This critical update is the cornerstone of patch v4.3.1, deployed simultaneously with ESPHome to ensure NSPanel users experience no disruption in service.
+This adaptation ensures that NSPanel firmware remains fully functional and up-to-date with ESPHome's latest advancements,
+reaffirming our commitment to providing a seamless and stable user experience.
+
+### Button Bars Visibility Enhancement and Configuration Change
+- **Criticality:** Breaking Change (with Enhancement)
+- **Affected Components:** Blueprint
+- **Description:** The visibility of button bars, indicating the status of entities linked to hardware buttons,
+has been updated to be visible across all pages by default, including the screensaver.
+This enhancement improves the accessibility of crucial status information.
+Users who previously customized the visibility settings for button bars will need to review and adjust their configurations to align with the new default behavior.
+This change enables users to selectively exclude button bars from specific pages if desired, providing greater flexibility and control over the interface's appearance.
+
+### Service `hw_button_state` Update
+- **Criticality:** Breaking Change (with Enhancement)
+- **Affected Components:** Blueprint and ESPHome
+- **Description:** The method for controlling the state of hardware buttons has been refined with the introduction of a `button_mask` parameter.
+This update simplifies the process of simultaneously updating the visual state of multiple hardware buttons,
+enhancing user interaction by providing a more intuitive interface for managing button states.
+Users can now specify the buttons they wish to control using a single `button_mask` parameter,
+offering a streamlined approach for activating or deactivating the on-screen indication bars of the hardware buttons.
+This change fosters a more flexible and efficient user experience in configuring the visual feedback for button states.
+
+### Celsius Display Issue for Embedded Temperature Sensor Resolved (#1834)
+- **Criticality:** Medium
+- **Affected Components:** ESPHome
+- **Description:** Addressed an issue where the NSPanel's built-in temperature sensor incorrectly displayed temperature readings in Celsius, even when Fahrenheit was expected.
+This fix ensures temperature readings are accurately represented according to the user's settings, improving usability and consistency across the system.
+
+### Resolution for Panel Naming When `device_name` Is Not Provided (#1907)
+- **Criticality:** Medium
+- **Affected Components:** ESPHome
+- **Description:** Corrected a bug that caused the new "Device Name" sensor to report "nspanel"
+and therefore fail on defining services names when a `device_name` substitution was not specified by the user.
+
+### External Temperature Sensor Selection Now Correctly Overrides Embedded Sensor Value (#1911)
+- **Criticality:** Medium
+- **Affected Components:** Blueprint and ESPHome
+- **Description:** Fixed a display issue where the built-in sensor's temperature reading persisted despite configuration for an external sensor.
+
+### Utilities Dashboard Now Correctly Omits Default Labels When Customized (#1899)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Description:** Enhanced the utilities dashboard by ensuring custom labels properly replace or remove default ones for a personalized display.
+
+### Clarification and Improvements to `rtttl_play` Service Documentation (#1901 and #1912)
+- **Criticality:** Minor
+- **Affected Components:** Documentation
+- **Description:** Updated documentation for clearer guidance on using the `rtttl_play` service for custom sounds and alerts.
+
+### Correction of Missing Icon Display Issue on Entities Page 3 (#1902)
+- **Criticality:** Minor
+- **Affected Components:** TFT
+- **Description:** Addressed a bug preventing certain icons from displaying on the third Entities page, ensuring a consistent user interface.
+
+### Icons No Longer Appear "Disabled" for Sensor Values of 0.0 (#1902)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Description:** Resolved an incorrect icon color display issue where they appeared disabled at a sensor value of exactly 0.0.
+
+### Vertical Alignment Improvements on Entities Pages for Enhanced Readability (#1903)
+- **Criticality:** Minor
+- **Affected Components:** TFT
+- **Description:** Adjusted the vertical alignment of text and icons on Entities pages for a more visually appealing presentation.
+
+### Enhanced Guidance on Handling Duplicated Entities on the Device's Page (#1905)
+- **Criticality:** Minor
+- **Affected Components:** Documentation
+- **Description:** Updated documentation to better address and resolve issues related to entity duplication on the device's page on Home Assistant.
+
+### Compilation Guidance Updated for Customizations with the Latest Version (#1914)
+- **Criticality:** Minor
+- **Affected Components:** Documentation
+- **Description:** Resolved documentation issues leading to compilation errors during customization, facilitating smoother custom feature implementation.
+
+### Elimination of Transient Icon Flashes on the Home Page During Page Transitions (#1915)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint,  ESPHome and TFT
+- **Description:** Fixed a visual glitch where icons briefly flashed during transitions, streamlining the visual experience.
+
+### Real-Time Brightness Adjustment Now Effective Even During Sleep Mode (#1919)
+- **Criticality:** Minor
+- **Affected Components:** ESPHome
+- **Description:** Ensured brightness settings changes are immediately applied, even when the panel is in sleep mode.
+
+### Smooth Cursor Movement on Utilities Page Near Zero Sensor Readings (#1926)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Description:** Ensured cursor movement on the Utilities page is smooth and accurate, even with sensor readings defining the cursor direction is between 0 and 1.
+
+### Notification Screen Clearing Now Functional with `notification_clear` Service Call (#1931)
+- **Criticality:** Minor
+- **Affected Components:** ESPHome
+- **Description:** Enabled clear display of notifications from the screen upon invoking the `notification_clear` service, enhancing display control.
+
+### Page Indicator Removed for Single-Page Views (#1883)
+- **Criticality:** Enhancement
+- **Affected Components:** TFT
+- **Description:** Improved UI by removing unnecessary page indicators when only one page is present, simplifying navigation.
+
+### Entities Page Font Adjustment for CJK Fonts Improved (#1884)
+- **Criticality:** Enhancement
+- **Affected Components:** ESPHome
+- **Description:** Optimized font sizing and display on Entities pages for CJK fonts, addressing readability issues.
+
+### User Option Added to Disable Entities Page Icons for a Text-Focused View (#1885)
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Description:** Introduced an option to disable icons on Entities pages, allowing for a simplified, text-only display.
+
+### Utilities Page Line Cursor Size Customization Option Added (#1910)
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Description:** Provided customization options for cursor size on the Utilities dashboard, enhancing data visualization.
+
+### Temperature Measurement Sampling Enhancement (#1918)
+- **Criticality:** Enhancement
+- **Affected Components:** ESPHome
+- **Description:** Enhanced the temperature reporting mechanism of the NSPanel's built-in temperature sensor by implementing a sampling method.
+Now, the sensor collects 12 intermediate measurements and calculates their average before reporting the temperature.
+This enhancement, which does not alter the 1-minute measurement interval, aims to provide smoother and more stable temperature readings,
+improving accuracy and reliability for users monitoring their environment.
+
+### Boot Page Visual Feedback Enhancements for Clearer System Status Display (#1923)
+- **Criticality:** Enhancement
+- **Affected Components:** ESPHome and TFT
+- **Description:** Updated the Boot page to offer clearer visual feedback on version information and system status, with a new progress bar.
 
 ## Support
 For support or more information about this update,
@@ -236,6 +375,7 @@ Your efforts have significantly improved its functionality and reliability (#183
 Your contributions have made our guides more informative and accessible, enriching the user experience for everyone (#1865).
 
 ## Previous releases
+- [v4.3 - Welcome to Framework ESP-IDF, an Utilities Dashboard and Enhanced Localization](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.0)
 - [v4.2.6 - Enhancing Stability and User Experience](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.6)
 - [v4.2.5 - Celebrating 1000 Stars with Enhanced Functionality and UI Improvements](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.5)
 - [v4.2.4 - Critical bug fixes](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.4)

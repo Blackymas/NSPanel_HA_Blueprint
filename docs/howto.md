@@ -292,7 +292,7 @@ By repeatedly calling this service whenever motion is detected, the panel can be
 
 HA can send a RTTTL to the NSPanel, custom melodies are possible.
 
-The use this function, the following service is called: ***nspanel_play_rtttl*** 
+The use this function, the following service is called: `rtttl_play`
 
 You can find many RTTTL strings on the web, the important thing is that they must start with the name and then a colon.
 
@@ -302,7 +302,7 @@ Here is an example:
 The Simpsons:d=4,o=5,b=160:c.6,e6,f#6,8a6,g.6,e6,c6,8a,8f#,8f#,8f#,2g,8p,8p,8f#,8f#,8f#,8g,a#.,8c6,8c6,8c6,c6
 ```
 
-![image-20230320222454441](pics/image-20230320222454441.png)
+![HA - Developer Tools - Services - RTTTL Play](pics/ha_developer_tools_services_rtttl_play.png)
 
 More information: https://esphome.io/components/rtttl.html#common-beeps
 

@@ -12,13 +12,12 @@ substitutions:
   device_name: NSPanel
   name: ${device_name}
   friendly_name: ${device_name}
-  ap_password: ${wifi_password}
   ota_password: ${wifi_password}
   web_password: ${wifi_password}
   temp_units: "°C"
   invalid_cooldown: "100ms"
   ##### DON'T CHANGE THIS ######
-  version: "4.3.0"
+  version: "4.3.1b1"
   ##############################
 
 ##### External components #####
@@ -28,16 +27,23 @@ external_components:
       # path: packages/Blackymas/components
       type: git
       url: https://github.com/Blackymas/NSPanel_HA_Blueprint
-      ref: main
+      ref: dev  # To do: Change to "main" when releasing
     components:
       - nspanel_ha_blueprint
     refresh: 300s
   - source:
       type: git
       url: https://github.com/edwardtfn/esphome
-      ref: nextion-v425
+      ref: nextion-v431
     components:
-      - nextion  # Change this when that PR#6192 gets released (2024.3?)
+      - nextion  # Change this when that PR#6192 gets released (2024.4?)
+    refresh: 300s
+  - source:
+      type: git
+      url: https://github.com/edwardtfn/esphome
+      ref: adc-sampling
+    components:
+      - adc  # Change this when PR#6330 is merged (2024.4?)
     refresh: 300s
 
 ##### ESPHOME CONFIGURATION #####
@@ -53,19 +59,7 @@ esphome:
       then:
         - lambda: |-
             if (isnan(blueprint_status->raw_state)) blueprint_status->publish_state(0);
-            std::string s = "${device_name}";
-            std::string result;
-            bool last_was_underscore = false;
-            for (char& c : s) {
-              if (isalnum(c)) {
-                result += tolower(c); // Add alphanumeric characters as lowercase
-                last_was_underscore = false;
-              } else if (!last_was_underscore) { // Replace non-alphanumeric with '_' but avoid consecutive '_'
-                result += '_';
-                last_was_underscore = true;
-              }
-            }
-            device_name->publish_state(result.c_str());
+            device_name->publish_state("${name}");
             notification_label->publish_state("");
             notification_text->publish_state("");
             notification_unread->turn_off();
@@ -110,9 +104,10 @@ wifi:
     - id: wifi_default
       ssid: ${wifi_ssid}
       password: ${wifi_password}
-  ap:
-    ssid: "${name}"
-    password: ${ap_password}
+  on_connect:
+    - script.execute: refresh_wifi_icon
+  on_disconnect:
+    - script.execute: refresh_wifi_icon
 
 ##### OTA PASSWORD #####
 ota:
@@ -173,6 +168,10 @@ time:
 api:
   id: api_server
   reboot_timeout: 60min
+  on_client_connected:
+    - script.execute: refresh_wifi_icon
+  on_client_disconnected:
+    - script.execute: refresh_wifi_icon
   services:
     # Dynamically configures button properties on a specified page, enhancing UI interactivity by allowing updates to button appearance and behavior based on given parameters.
     - service: button  # yamllint disable-line rule:indentation
@@ -188,17 +187,17 @@ api:
       then:
         - lambda: |-
             if (page == current_page->state and !id(is_uploading_tft)) {
-              disp1->send_command_printf("%spic.picc=%u", id.c_str(), state ? 47 : 46);
-              disp1->send_command_printf("%sbri.picc=%u", id.c_str(), state ? 47 : 46);
-              disp1->send_command_printf("%stext.picc=%u", id.c_str(), state ? 47 : 46);
-              disp1->send_command_printf("%sicon.picc=%u", id.c_str(), state ? 47 : 46);
-              disp1->send_command_printf("%sicon.font=%" PRIu32, id.c_str(), icon_font);
+              disp1->set_component_picc((id + "pic").c_str(), state ? 47 : 46);
+              disp1->set_component_picc((id + "bri").c_str(), state ? 47 : 46);
+              disp1->set_component_picc((id + "text").c_str(), state ? 47 : 46);
+              disp1->set_component_picc((id + "icon").c_str(), state ? 47 : 46);
+              disp1->set_component_font((id + "icon").c_str(), icon_font);
               disp1->set_component_foreground_color((id + "bri").c_str(), state ? 10597 : 65535);
               disp1->set_component_foreground_color((id + "text").c_str(), state ? 10597 : 65535);
               disp1->set_component_font_color((id + "icon").c_str(), esphome::display::ColorUtil::color_to_565(esphome::Color(icon_color[0], icon_color[1], icon_color[2])));
-              disp1->set_component_text_printf((id + "icon").c_str(), "%s", icon.c_str());
+              disp1->set_component_text((id + "icon").c_str(), icon.c_str());
               display_wrapped_text->execute((id + "text").c_str(), label.c_str(), 10);
-              disp1->set_component_text_printf((id + "bri").c_str(), "%s", (strcmp(bri.c_str(), "0") == 0) ? " " : bri.c_str());
+              disp1->set_component_text((id + "bri").c_str(), (strcmp(bri.c_str(), "0") == 0) ? " " : bri.c_str());
               set_component_visibility->execute((id + "pic").c_str(), true);
               set_component_visibility->execute((id + "icon").c_str(), true);
               set_component_visibility->execute((id + "text").c_str(), true);
@@ -233,7 +232,7 @@ api:
       then:
         - lambda: |-
             if (!id(is_uploading_tft))
-              disp1->set_component_text_printf(id.c_str(), "%s", txt.c_str());
+              disp1->set_component_text(id.c_str(), txt.c_str());
 
     # Updates the value of a specified component on the display.
     - service: component_val
@@ -266,11 +265,11 @@ api:
       then:
         - lambda: |-
             if (!id(is_uploading_tft)) {
-              nspanel_ha_blueprint::HomeAssistantEntity entity_id = nspanel_ha_blueprint::extractHomeAssistantEntity(entity);
+              HomeAssistantEntity entity_id = extractHomeAssistantEntity(entity);
               if (entity_id.domain != "invalid" or entity == "embedded_climate") {
                 detailed_entity->publish_state(entity);
                 if (entity_id.domain == "alarm_control_panel") entity_id.domain = "alarm";
-                disp1->send_command_printf("page %s", entity_id.domain.c_str());
+                goto_page->execute(entity_id.domain.c_str());
                 disp1->send_command_printf("back_page_id=%" PRIu8, get_page_id(back_page.c_str()));
                 if (entity_id.domain == "climate")
                   disp1->set_component_value("embedded", (entity == "embedded_climate") ? 1 : 0);
@@ -280,13 +279,16 @@ api:
     # Hardware Button State Indication Service
     - service: hw_button_state
       variables:
-        left: bool   # State for the left button indication bar
-        right: bool  # State for the right button indication bar
+        button_mask: int  # Bitwise value for buttons: 1 for "left button", 2 for "right button", 3 for both buttons
+        state: bool       # State for the button(s) indication: true for active, false for inactive
       then:
         - lambda: |-
             // Updates the visual state indication for hardware buttons
-            update_bitwise_setting(id(buttons_settings), left, ButtonSettings::ButtonLeft_State);
-            update_bitwise_setting(id(buttons_settings), right, ButtonSettings::ButtonRight_State);
+            // Use bitwise AND to check specific bits
+            if (button_mask & 1) // Checks if the least significant bit is set (left button)
+              update_bitwise_setting(id(buttons_settings), state, ButtonSettings::ButtonLeft_State);
+            if (button_mask & 2) // Checks if the second least significant bit is set (right button)
+              update_bitwise_setting(id(buttons_settings), state, ButtonSettings::ButtonRight_State);
             // Refreshes the indication bars on the display
             refresh_hardware_buttons_bars->execute();
 
@@ -300,7 +302,7 @@ api:
       then:
         - lambda: |-
             if (!id(is_uploading_tft) and !id.empty()) {
-              if (not icon.empty()) disp1->set_component_text_printf(id.c_str(), "%s", icon.c_str());
+              disp1->set_component_text(id.c_str(), visible ? icon.c_str() : "");
               if (icon_color.size() == 3)
                 disp1->set_component_font_color(id.c_str(), esphome::display::ColorUtil::color_to_565(esphome::Color(icon_color[0], icon_color[1], icon_color[2])));
               set_component_visibility->execute(id.c_str(), visible);
@@ -359,9 +361,7 @@ api:
 
         - lambda: |-
             if (!id(is_uploading_tft)) {
-              using namespace nspanel_ha_blueprint;
               using namespace esphome::display;
-
               // Relay settings
               update_bitwise_setting(id(relay_settings), relay1_local_control, RelaySettings::Relay1_Local);
               update_bitwise_setting(id(relay_settings), relay1_fallback, RelaySettings::Relay1_Fallback);
@@ -386,9 +386,6 @@ api:
                 disp1->set_component_font_color("home.chip_relay2", id(home_relay2_icon_color));
               }
 
-              // Refresh relays display
-              refresh_relays->execute();
-
               // Buttons bars settings
               id(buttons_bars_pages) = button_bar_pages;
               update_bitwise_setting(id(buttons_settings), button_left, ButtonSettings::ButtonLeft_Enabled);
@@ -403,8 +400,8 @@ api:
                                                                               button_bar_color_off[1],
                                                                               button_bar_color_off[2]));
 
-              // Refresh buttons bars display
-              refresh_hardware_buttons_bars->execute();
+              // Refresh relays display
+              refresh_relays->execute();
             }
             blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 4));
     # Sets up the "Home" page in ESPHome with customized settings and UI elements as defined in the project blueprint.
@@ -428,6 +425,7 @@ api:
       then:
         - lambda: |-
             if (!id(is_uploading_tft)) {
+              using namespace esphome::display;
               // Localization
               id(mui_time_format) = time_format;
               if (meridiem.size() == 2) {
@@ -436,19 +434,19 @@ api:
               }
 
               // Date/Time colors
-              id(home_date_color) = esphome::display::ColorUtil::color_to_565(esphome::Color(date_color[0], date_color[1], date_color[2]));
-              id(home_time_color) = esphome::display::ColorUtil::color_to_565(esphome::Color(time_color[0], time_color[1], time_color[2]));
+              id(home_date_color) = ColorUtil::color_to_565(esphome::Color(date_color[0], date_color[1], date_color[2]));
+              id(home_time_color) = ColorUtil::color_to_565(esphome::Color(time_color[0], time_color[1], time_color[2]));
               disp1->set_component_font_color("home.date", id(home_date_color));
               disp1->set_component_font_color("home.time", id(home_time_color));
 
               // Chips icon size
-              disp1->send_command_printf("home.chip_relay1.font=%" PRIi32, chip_font);
-              disp1->send_command_printf("home.chip_relay2.font=%" PRIi32, chip_font);
-              disp1->send_command_printf("home.chip_climate.font=%" PRIi32, chip_font);
+              disp1->set_component_font("home.chip_relay1", chip_font);
+              disp1->set_component_font("home.chip_relay2", chip_font);
+              disp1->set_component_font("home.chip_climate", chip_font);
               for (int i = 1; i <= 7; ++i) {
                 disp1->send_command_printf("home.chip%02d.font=%" PRIi32, i, chip_font);
               }
-              disp1->send_command_printf("home.wifi_icon.font=%" PRIi32, chip_font);
+              disp1->set_component_font("home.wifi_icon", chip_font);
               id(home_chip_font_id) = chip_font;
 
               // Custom buttons icon size
@@ -456,30 +454,32 @@ api:
               for (int i = 1; i <= 7; ++i) {
                 disp1->send_command_printf("home.button%02d.font=%" PRIu8, i, id(home_custom_buttons_font_id));
               }
-              disp1->send_command_printf("home.bt_notific.font=%" PRIu8, id(home_custom_buttons_font_id));
-              disp1->send_command_printf("home.bt_qrcode.font=%" PRIu8, id(home_custom_buttons_font_id));
-              disp1->send_command_printf("home.bt_entities.font=%" PRIu8, id(home_custom_buttons_font_id));
+              disp1->set_component_font("home.bt_notific", id(home_custom_buttons_font_id));
+              disp1->set_component_font("home.bt_qrcode", id(home_custom_buttons_font_id));
+              disp1->set_component_font("home.bt_entities", id(home_custom_buttons_font_id));
 
               // Outdoor temperature font size
-              disp1->send_command_printf("home.outdoor_temp.font==%" PRIi32, outdoor_temp_font);
+              disp1->set_component_font("home.outdoor_temp", outdoor_temp_font);
 
               // QRCode button
               set_component_visibility->execute("home.bt_qrcode", qrcode);
-              disp1->set_component_text_printf("home.bt_qrcode", "%s", qrcode_icon.c_str());
-              disp1->set_component_font_color("home.bt_qrcode", esphome::display::ColorUtil::color_to_565(esphome::Color(qrcode_icon_color[0], qrcode_icon_color[1], qrcode_icon_color[2])));
+              disp1->set_component_text("home.bt_qrcode", qrcode_icon.c_str());
+              disp1->set_component_font_color("home.bt_qrcode", ColorUtil::color_to_565(esphome::Color(qrcode_icon_color[0],
+                                                                                                        qrcode_icon_color[1],
+                                                                                                        qrcode_icon_color[2])));
 
               // Entities pages button
-              disp1->set_component_text_printf("home.bt_entities", "%s", entities_pages_icon.c_str());
-              disp1->set_component_font_color("home.bt_entities", esphome::display::ColorUtil::color_to_565(esphome::Color(entities_pages_icon_color[0],
-                                                                                                                          entities_pages_icon_color[1],
-                                                                                                                          entities_pages_icon_color[2])));
+              disp1->set_component_text("home.bt_entities", entities_pages_icon.c_str());
+              disp1->set_component_font_color("home.bt_entities", ColorUtil::color_to_565(esphome::Color(entities_pages_icon_color[0],
+                                                                                                          entities_pages_icon_color[1],
+                                                                                                          entities_pages_icon_color[2])));
 
               // Utilities button
               disp1->send_command_printf("is_utilities=%i", utilities ? 1 : 0);
-              disp1->set_component_text_printf("home.bt_utilities", "%s", utilities_icon.c_str());
-              disp1->set_component_font_color("home.bt_utilities", esphome::display::ColorUtil::color_to_565(esphome::Color(utilities_icon_color[0],
-                                                                                                                            utilities_icon_color[1],
-                                                                                                                            utilities_icon_color[2])));
+              disp1->set_component_text("home.bt_utilities", utilities_icon.c_str());
+              disp1->set_component_font_color("home.bt_utilities", ColorUtil::color_to_565(esphome::Color(utilities_icon_color[0],
+                                                                                                          utilities_icon_color[1],
+                                                                                                          utilities_icon_color[2])));
 
               blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 1));
             }
@@ -505,6 +505,7 @@ api:
     - service: notification_clear
       then:
         - lambda: |-
+            if (current_page->state == "notification") goto_page->execute("home");
             notification_label->publish_state("");
             notification_text->publish_state("");
             notification_unread->turn_off();
@@ -520,8 +521,8 @@ api:
             if (!id(is_uploading_tft)) {
               set_component_visibility->execute("home.bt_notific", true);
               goto_page->execute("notification");
-              timer_reset_all->execute("notification");
-              disp1->set_component_text_printf("notification.notifi_label", "%s", label.c_str());
+              timer_reset_all->execute();
+              disp1->set_component_text("notification.notifi_label", label.c_str());
               display_wrapped_text->execute("notification.notifi_text01", message.c_str(), display_mode->state == 2 ? 23 : 32);
               notification_label->publish_state(label.c_str());
               notification_text->publish_state(message.c_str());
@@ -551,8 +552,8 @@ api:
                   if (page_title.find("\\r") != std::string::npos) {
                     page_title = page_title.replace(page_title.find("\\r"), 2, " ");
                   }
-                  disp1->set_component_text_printf("page_label", "%s", page_title.c_str());
-                  disp1->set_component_text_printf("code_format", "%s", code_format.c_str());
+                  disp1->set_component_text("page_label", page_title.c_str());
+                  disp1->set_component_text("code_format", code_format.c_str());
                   if (code_arm_required) disp1->set_component_text_printf("code_arm_req", "1");
                   else disp1->set_component_text_printf("code_arm_req", "0");
 
@@ -567,7 +568,7 @@ api:
                   // Alarm page - Buttons
                   if (supported_features & 1 or state == "armed_home") // Alarm - Button - Home
                     {
-                      disp1->send_command_printf("bt_home_pic.pic=%i", (state == "armed_home") ? 43 : 42);
+                      disp1->set_component_pic("bt_home_pic", (state == "armed_home") ? 43 : 42);
                       disp1->set_component_background_color("bt_home_text", (state == "armed_home") ? 19818 : 52857);
                       disp1->set_component_background_color("bt_home_icon", (state == "armed_home") ? 19818 : 52857);
                       disp1->set_component_font_color("bt_home_text", (state == "armed_home") ? 65535 : 0);
@@ -577,7 +578,7 @@ api:
                     }
                   if (supported_features & 2 or state == "armed_away") // Alarm - Button - Away
                     {
-                      disp1->send_command_printf("bt_away_pic.pic=%i", (state == "armed_away") ? 43 : 42);
+                      disp1->set_component_pic("bt_away_pic", (state == "armed_away") ? 43 : 42);
                       disp1->set_component_background_color("bt_away_text", (state == "armed_away") ? 19818 : 52857);
                       disp1->set_component_background_color("bt_away_icon", (state == "armed_away") ? 19818 : 52857);
                       disp1->set_component_font_color("bt_away_text", (state == "armed_away") ? 65535 : 0);
@@ -586,7 +587,7 @@ api:
                     }
                   if (supported_features & 4 or state == "armed_night") // Alarm - Button - Night
                     {
-                      disp1->send_command_printf("bt_night_pic.pic=%i", (state == "armed_night") ? 43 : 42);
+                      disp1->set_component_pic("bt_night_pic", (state == "armed_night") ? 43 : 42);
                       disp1->set_component_background_color("bt_night_text", (state == "armed_night") ? 19818 : 52857);
                       disp1->set_component_background_color("bt_night_icon", (state == "armed_night") ? 19818 : 52857);
                       disp1->set_component_font_color("bt_night_text", (state == "armed_night") ? 65535 : 0);
@@ -595,7 +596,7 @@ api:
                     }
                   if (supported_features & 32 or state == "armed_vacation") // Alarm - Button - Vacation
                     {
-                      disp1->send_command_printf("bt_vacat_pic.pic=%i", (state == "armed_vacation") ? 43 : 42);
+                      disp1->set_component_pic("bt_vacat_pic", (state == "armed_vacation") ? 43 : 42);
                       disp1->set_component_background_color("bt_vacat_text", (state == "armed_vacation") ? 19818 : 52857);
                       disp1->set_component_background_color("bt_vacat_icon", (state == "armed_vacation") ? 19818 : 52857);
                       disp1->set_component_font_color("bt_vacat_text", (state == "armed_vacation") ? 65535 : 0);
@@ -604,7 +605,7 @@ api:
                     }
                   if (supported_features & 16 or state == "armed_bypass") // Alarm - Button - Custom bypass
                     {
-                      disp1->send_command_printf("bt_bypass_pic.pic=%i", (state == "armed_bypass") ? 43 : 42);
+                      disp1->set_component_pic("bt_bypass_pic", (state == "armed_bypass") ? 43 : 42);
                       disp1->set_component_background_color("bt_bypass_text", (state == "armed_bypass") ? 19818 : 52857);
                       disp1->set_component_background_color("bt_bypass_icon", (state == "armed_bypass") ? 19818 : 52857);
                       disp1->set_component_font_color("bt_bypass_text", (state == "armed_bypass") ? 65535 : 0);
@@ -613,7 +614,7 @@ api:
                     }
                   if ( true ) // Alarm - Button - Disarm
                     {
-                      disp1->send_command_printf("bt_disarm_pic.pic=%i", (state == "disarmed") ? 43 : 42);
+                      disp1->set_component_pic("bt_disarm_pic", (state == "disarmed") ? 43 : 42);
                       disp1->set_component_background_color("bt_disarm_text", (state == "disarmed") ? 19818 : 52857);
                       disp1->set_component_background_color("bt_disarm_icon", (state == "disarmed") ? 19818 : 52857);
                       disp1->set_component_font_color("bt_disarm_text", (state == "disarmed") ? 65535 : 0);
@@ -644,16 +645,16 @@ api:
               - lambda: if (current_page->state == "climate") detailed_entity->publish_state(entity);
               - script.execute:
                   id: set_climate
-                  current_temp: !lambda "return current_temp;"
-                  supported_features: !lambda "return supported_features;"
-                  target_temp: !lambda "return target_temp;"
-                  target_temp_high: !lambda "return target_temp_high;"
-                  target_temp_low: !lambda "return target_temp_low;"
-                  temp_step: !lambda "return temp_step;"
-                  total_steps: !lambda "return total_steps;"
-                  temp_offset: !lambda "return temp_offset;"
-                  climate_icon: !lambda "return climate_icon;"
-                  embedded_climate: !lambda "return embedded_climate;"
+                  current_temp: !lambda return current_temp;
+                  supported_features: !lambda return supported_features;
+                  target_temp: !lambda return target_temp;
+                  target_temp_high: !lambda return target_temp_high;
+                  target_temp_low: !lambda return target_temp_low;
+                  temp_step: !lambda return temp_step;
+                  total_steps: !lambda return total_steps;
+                  temp_offset: !lambda return temp_offset;
+                  climate_icon: !lambda return climate_icon;
+                  embedded_climate: !lambda return embedded_climate;
 
     # Dynamically updates the media player page with current state and media information.
     - service: page_media_player
@@ -673,7 +674,7 @@ api:
         - lambda: |-
             if (current_page->state == "media_player" and !id(is_uploading_tft)) {
               detailed_entity->publish_state(entity);
-              disp1->set_component_text_printf("page_label", "%s", friendly_name.c_str());
+              disp1->set_component_text("page_label", friendly_name.c_str());
               display_wrapped_text->execute("track", media_title.c_str(), display_mode->state == 2 ? 16 : 27);
               display_wrapped_text->execute("artist", media_artist.c_str(), display_mode->state == 2 ? 26 : 40);
 
@@ -689,10 +690,10 @@ api:
 
               // play/pause button
               if ((supported_features & 512 or supported_features & 16384) and state != "playing" and state != "off") {  //PLAY_MEDIA+PLAY
-                disp1->set_component_text_printf("bt_play_pause", "%s", "\uE409"); // mdi:play
+                disp1->set_component_text("bt_play_pause", "\uE409"); // mdi:play
                 set_component_visibility->execute("bt_play_pause", true);
               } else if (supported_features & 1 and state == "playing" ) {  //PAUSE
-                disp1->set_component_text_printf("bt_play_pause", "%s", "\uE3E3"); // mdi:pause
+                disp1->set_component_text("bt_play_pause", "\uE3E3"); // mdi:pause
                 set_component_visibility->execute("bt_play_pause", true);
               } else
                 set_component_visibility->execute("bt_play_pause", false);
@@ -708,10 +709,10 @@ api:
               // mute/unmute button - VOLUME_MUTE
               disp1->set_component_value("is_muted", is_volume_muted ? 1 : 0);
               if (supported_features & 8 and is_volume_muted) {  // unmute
-                disp1->set_component_text_printf("bt_mute", "%s", "\uEE07"); // mdi:volume-variant-off
+                disp1->set_component_text("bt_mute", "\uEE07"); // mdi:volume-variant-off
                 set_component_visibility->execute("bt_mute", true);
               } else if (supported_features & 8) {  // mute
-                disp1->set_component_text_printf("bt_mute", "%s", "\uE57E"); // mdi:volume-low
+                disp1->set_component_text("bt_mute", "\uE57E"); // mdi:volume-low
                 set_component_visibility->execute("bt_mute", true);
               } else
                 set_component_visibility->execute("bt_mute", false);
@@ -763,8 +764,8 @@ api:
         - lambda: |-
             if (!id(is_uploading_tft)) {
               set_component_visibility->execute("home.bt_qrcode", !(qrcode.empty()));
-              disp1->set_component_text_printf("qrcode.qrcode_label", "%s", title.c_str());
-              disp1->set_component_text_printf("qrcode.qrcode_value", "%s", qrcode.c_str());
+              disp1->set_component_text("qrcode.qrcode_label", title.c_str());
+              disp1->set_component_text("qrcode.qrcode_value", qrcode.c_str());
               if (show) goto_page->execute("qrcode");
               blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 2));
             }
@@ -775,7 +776,7 @@ api:
         tone: string  # The RTTTL string for the melody to be played. It should follow the RTTTL format, including the melody's name, default settings, and a sequence of notes.
       then:
         - rtttl.play:
-            rtttl: !lambda 'return tone;'
+            rtttl: !lambda return tone;
 
     # Updates an entity to display specific values with dynamic icons, names, and color codes.
     - service: value
@@ -789,18 +790,19 @@ api:
       then:
         - lambda: |-
             if (!id(is_uploading_tft) and !(id.empty())) {
-              if (!(icon.empty())) disp1->set_component_text_printf((id + "_icon").c_str(), "%s", icon.c_str());
+              using namespace esphome::display;
+              if (!(icon.empty())) disp1->set_component_text((id + "_icon").c_str(), icon.c_str());
               if (icon_color.size() == 3)
-                disp1->set_component_font_color((id + "_icon").c_str(), esphome::display::ColorUtil::color_to_565(esphome::Color(icon_color[0],
-                                                                                                                                icon_color[1],
-                                                                                                                                icon_color[2])));
+                disp1->set_component_font_color((id + "_icon").c_str(), ColorUtil::color_to_565(esphome::Color(icon_color[0],
+                                                                                                                icon_color[1],
+                                                                                                                icon_color[2])));
 
-              if (!(name.empty())) disp1->set_component_text_printf((id + "_label").c_str(), "%s", name.c_str());
-              if (!(value.empty())) disp1->set_component_text_printf(id.c_str(), "%s", adjustDecimalSeparator(value, id(mui_decimal_separator)).c_str());
+              if (!(name.empty())) disp1->set_component_text((id + "_label").c_str(), name.c_str());
+              if (!(value.empty())) disp1->set_component_text(id.c_str(), adjustDecimalSeparator(value, id(mui_decimal_separator)).c_str());
               if (value_color.size() == 3)
-                disp1->set_component_font_color(id.c_str(), esphome::display::ColorUtil::color_to_565(esphome::Color(value_color[0],
-                                                                                                                    value_color[1],
-                                                                                                                    value_color[2])));
+                disp1->set_component_font_color(id.c_str(), ColorUtil::color_to_565(esphome::Color(value_color[0],
+                                                                                                    value_color[1],
+                                                                                                    value_color[2])));
               if (current_page->state.find("entitypage") == 0 and !(value.empty())) {  // Adjust value's font on entities pages
                 // Adjusted length starts at 0
                 float adjusted_length = 0.0;
@@ -808,7 +810,7 @@ api:
                 // Iterate over each character in the string
                 for (char const &c: value) {
                   // Check if character is a space or other specified exceptions
-                  if (std::string(" iljtIf'-,;:!.\"|()[]{}").find(c) != std::string::npos) {
+                  if (display_charset->state == 2 or std::string(" iljtIf'-,;:!.\"|()[]{}").find(c) != std::string::npos) {
                     adjusted_length += 0.5; // Count these as half
                   } else {
                     adjusted_length += 1.0; // Count all other characters as 1
@@ -816,9 +818,9 @@ api:
                 }
                 // Decide which font to use based on adjusted length
                 if (adjusted_length > 8.0 and adjusted_length <= 12.0) {
-                  disp1->send_command_printf("%s.font=1", id.c_str());
+                  disp1->set_component_font(id.c_str(), 1);
                 } else if (adjusted_length > 12.0) {
-                  disp1->send_command_printf("%s.font=0", id.c_str());
+                  disp1->set_component_font(id.c_str(), 0);
                 }
               }
             }
@@ -832,10 +834,10 @@ api:
             if (!id(is_uploading_tft)) {
               if (current_page->state == "screensaver") goto_page->execute(wakeup_page_name->state.c_str());
               if (reset_timer)
-                timer_reset_all->execute(wakeup_page_name->state.c_str());
+                timer_reset_all->execute();
               else {
-                timer_sleep->execute(wakeup_page_name->state.c_str(), int(timeout_sleep->state));
-                timer_dim->execute(wakeup_page_name->state.c_str(), int(timeout_dim->state));
+                timer_sleep->execute();
+                timer_dim->execute();
               }
             }
 
@@ -846,22 +848,23 @@ display:
   - id: disp1
     platform: nextion
     uart_id: tf_uart
+    start_up_page: 0  # Boot page
     on_setup:
-      - script.execute: setup_sequence
+      lambda: |-
+        nextion_init->publish_state(true);
+        version_tft->update();
+        goto_page->execute("boot");
+
     on_page:
       lambda: |-
-        if (!id(is_uploading_tft)) {
-          page_id->update();
-          if (current_page->state != page_names[x] or x == 9) {
-            current_page->publish_state(page_names[x]);
-            page_changed->execute(page_names[x]);
-          }
+        if (current_page->state != page_names[x] or x == 9) {
+          current_page->publish_state(page_names[x]);
         }
 
     on_touch:
       lambda: |-
         if (!id(is_uploading_tft)) {
-          timer_reset_all->execute(page_names[page_id]);
+          timer_reset_all->execute();
           switch (page_id) {
             case 10:  // light
               switch (component_id) {
@@ -982,12 +985,6 @@ globals:
     restore_value: false
     initial_value: 'false'
 
-  ##### Is boot sequence completed? #####
-  - id: setup_sequence_completed
-    type: bool
-    restore_value: false
-    initial_value: 'false'
-
   ##### Media Player #####
   ###### Last volume level from Home Assistant ######
   - id: last_volume_level
@@ -1016,7 +1013,7 @@ globals:
   - id: embedded_indoor_temp
     type: bool
     restore_value: true
-    initial_value: 'false'
+    initial_value: 'true'
 
   ##### Date/time formats #####
   - id: home_date_color
@@ -1111,9 +1108,9 @@ binary_sensor:
           - if:
               condition:
                 or:
-                  - lambda: return (id(relay_settings) & nspanel_ha_blueprint::RelaySettings::Relay1_Local);
+                  - lambda: return (id(relay_settings) & RelaySettings::Relay1_Local);
                   - and:
-                      - lambda: return (id(relay_settings) & nspanel_ha_blueprint::RelaySettings::Relay1_Fallback);
+                      - lambda: return (id(relay_settings) & RelaySettings::Relay1_Fallback);
                       - or:
                           - not:
                               - api.connected:
@@ -1151,9 +1148,9 @@ binary_sensor:
           - if:
               condition:
                 or:
-                  - lambda: return (id(relay_settings) & nspanel_ha_blueprint::RelaySettings::Relay2_Local);
+                  - lambda: return (id(relay_settings) & RelaySettings::Relay2_Local);
                   - and:
-                      - lambda: return (id(relay_settings) & nspanel_ha_blueprint::RelaySettings::Relay2_Fallback);
+                      - lambda: return (id(relay_settings) & RelaySettings::Relay2_Fallback);
                       - or:
                           - not:
                               - api.connected:
@@ -1170,7 +1167,7 @@ binary_sensor:
   ##### Restart NSPanel Button - Setting Page #####
   - name: Restart
     platform: nextion
-    page_id: 7
+    page_id: 8
     component_id: 9
     internal: true
     on_click:
@@ -1178,7 +1175,7 @@ binary_sensor:
   ##### Restart NSPanel Button - Boot Page #####
   - name: Restart
     platform: nextion
-    page_id: 8
+    page_id: 0
     component_id: 4
     internal: true
     on_click:
@@ -1241,12 +1238,11 @@ number:
       then:
         - lambda: |-
             disp1->send_command_printf("brightness=%i", int(x));
-            disp1->send_command_printf("settings.brightslider.val=%i", int(x));
+            disp1->set_component_value("settings.brightslider", int(x));
             if (current_page->state != "screensaver") {
-              disp1->set_backlight_brightness(x/100);
-              current_brightness->update();
-              timer_dim->execute(current_page->state.c_str(), int(timeout_dim->state));
-              timer_sleep->execute(current_page->state.c_str(), int(timeout_sleep->state));
+              set_brightness->execute(x);
+              timer_dim->execute();
+              timer_sleep->execute();
               if (current_page->state == "settings") disp1->set_component_text_printf("bright_text", "%i%%", int(x));
             }
 
@@ -1266,10 +1262,10 @@ number:
       then:
         - lambda: |-
             disp1->send_command_printf("brightness_dim=%i", int(x));
-            disp1->send_command_printf("settings.dimslider.val=%i", int(x));
+            disp1->set_component_value("settings.dimslider", int(x));
             if (current_page->state != "screensaver" and current_brightness->state <= x) {
               set_brightness->execute(x);
-              timer_sleep->execute(current_page->state.c_str(), int(timeout_sleep->state));
+              timer_sleep->execute();
               if (current_page->state == "settings") disp1->set_component_text_printf("dim_text", "%i%%", int(x));
             }
 
@@ -1324,7 +1320,7 @@ number:
     icon: mdi:timer
     unit_of_measurement: "s"
     on_value:
-      - lambda: timer_page->execute(current_page->state.c_str(), int(x));
+      - lambda: timer_page->execute();
   - name: Timeout Dimming
     platform: template
     id: timeout_dim
@@ -1338,7 +1334,7 @@ number:
     icon: mdi:timer
     unit_of_measurement: "s"
     on_value:
-      - lambda: timer_dim->execute(current_page->state.c_str(), int(x));
+      - lambda: timer_dim->execute();
   - name: Timeout Sleep
     platform: template
     id: timeout_sleep
@@ -1353,8 +1349,8 @@ number:
     unit_of_measurement: "s"
     on_value:
       - lambda: |-
-          timer_dim->execute(current_page->state.c_str(), int(timeout_dim->state));
-          timer_sleep->execute(current_page->state.c_str(), int(x));
+          timer_dim->execute();
+          timer_sleep->execute();
 
 ##### START - SELECT CONFIGURATION #####
 select:
@@ -1441,9 +1437,7 @@ sensor:
             return 0;
     on_value:
       then:
-        - lambda: |-
-            // Update api value on Nextion
-            disp1->send_command_printf("api=%i", (x > 99) ? 1 : 0);
+        - script.execute: refresh_wifi_icon
 
   ##### INTERNAL TEMPERATURE SENSOR, ADC VALUE #####
   - id: ntc_source
@@ -1451,6 +1445,7 @@ sensor:
     pin: 38
     update_interval: 60s
     attenuation: 11db
+    samples: 12
 
   ##### INTERNAL TEMPERATURE SENSOR, adc reading converted to resistance (calculation)#####
   - id: resistance_sensor
@@ -1488,9 +1483,9 @@ sensor:
       then:
         - number.set:
             id: display_brightness
-            value: !lambda 'return int(x);'
+            value: !lambda return int(x);
         - lambda: |-
-            timer_reset_all->execute("settings");
+            timer_reset_all->execute();
 
   ###### Display DIM Brightness GET VALUE FROM NSPanel SLIDER #####
   - id: dimslider
@@ -1502,9 +1497,9 @@ sensor:
       then:
         - number.set:
             id: display_dim_brightness
-            value: !lambda 'return int(x);'
+            value: !lambda return int(x);
         - lambda: |-
-            timer_reset_all->execute("settings");
+            timer_reset_all->execute();
 
   ###### Display Brightness - Current value (%) #####
   - id: current_brightness
@@ -1517,23 +1512,6 @@ sensor:
     icon: mdi:brightness-percent
     internal: false
     disabled_by_default: false
-
-  ###### Page Id - Current #####
-  - id: page_id
-    name: Page Id
-    platform: nextion
-    variable_name: dp
-    precision: 0
-    accuracy_decimals: 0
-    internal: true
-    entity_category: diagnostic
-    on_value:
-      then:
-        - lambda: |-
-            if (!id(is_uploading_tft) and current_page->state != page_names[x]) {
-              current_page->publish_state(page_names[x]);
-              page_changed->execute(page_names[x]);
-            }
 
   ##### Display mode (1 = EU, 2 = US, 3 = US Landscape)
   - id: display_mode
@@ -1628,8 +1606,7 @@ switch:
             - lambda: !lambda return disp1->is_setup();
           timeout: 20s
       - lambda: |-
-          nextion_init->publish_state(disp1->is_setup());
-          goto_page->execute(wakeup_page_name->state.c_str());
+          goto_page->execute("boot");
     on_turn_off:
       - lambda: |-
           nextion_init->publish_state(false);
@@ -1644,6 +1621,21 @@ text_sensor:
     entity_category: diagnostic
     internal: false
     disabled_by_default: false
+    lambda: return {"${name}"};
+    filters:
+      - lambda: |-
+          std::string result;
+          bool last_was_underscore = false;
+          for (char& c : x) {
+            if (isalnum(c)) {
+              result += tolower(c); // Add alphanumeric characters as lowercase
+              last_was_underscore = false;
+            } else if (!last_was_underscore) { // Replace non-alphanumeric with '_' but avoid consecutive '_'
+              result += '_';
+              last_was_underscore = true;
+            }
+          }
+          return result;
 
   ##### Entity Id of the entity displayed on the detailed pages
   - id: detailed_entity
@@ -1656,10 +1648,21 @@ text_sensor:
   ##### Current page name #####
   - id: current_page
     name: Current Page
-    platform: template
+    platform: nextion
+    component_name: current_page
     icon: mdi:tablet-dashboard
     internal: false
     disabled_by_default: false
+    filters:
+      - lambda: |-
+          x = x.c_str();
+          x.shrink_to_fit();
+          return x;
+    on_value:
+      lambda: |-
+        if (!id(is_uploading_tft)) {
+          page_changed->execute();
+        }
 
   - id: notification_label
     name: Notification Label
@@ -1689,12 +1692,13 @@ text_sensor:
             deserializeJson(doc, x);
             std::string page = doc["page"];
             std::string component = doc["component"];
-            if (not (component == "currentpage" and (page == "screensaver" or page == "home"))) timer_reset_all->execute(page.c_str());
+            if (not (component == "currentpage" and (page == "screensaver" or page == "home"))) timer_reset_all->execute();
             std::string value = doc["value"];
             std::string entity = detailed_entity->state.c_str();  // doc["entity"];
-            auto ha_event = new esphome::api::CustomAPIDevice();
-            ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+            esphome::api::CustomAPIDevice ha_event;
+            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
               {
+                {"device_name", device_name->state.c_str()},
                 {"type", "generic"},
                 {"page", page},
                 {"component", component},
@@ -1742,6 +1746,7 @@ text_sensor:
             } else if (page == "light" or page == "climate") {  // Generic event
                 esphome::api::CustomAPIDevice ha_event;
                 ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
+                  {"device_name", device_name->state.c_str()},
                   {"type", "generic"},
                   {"page", page},
                   {"event", event},
@@ -1760,11 +1765,11 @@ text_sensor:
                   {
                     goto_page->execute("keyb_num");
                     disp1->set_component_value("keyb_num.page_id", 23); //Calling from Alarm page
-                    disp1->set_component_text_printf("keyb_num.domain", "%s", page.c_str());
-                    disp1->set_component_text_printf("keyb_num.key", "%s", key.c_str());
-                    disp1->set_component_text_printf("keyb_num.value", "%s", value.c_str());
-                    disp1->set_component_text_printf("keyb_num.entity", "%s", entity.c_str());
-                    disp1->set_component_text_printf("keyb_num.title", "%s", title.c_str());
+                    disp1->set_component_text("keyb_num.domain", page.c_str());
+                    disp1->set_component_text("keyb_num.key", key.c_str());
+                    disp1->set_component_text("keyb_num.value", value.c_str());
+                    disp1->set_component_text("keyb_num.entity", entity.c_str());
+                    disp1->set_component_text("keyb_num.title", title.c_str());
                   }
                 else service_call_alarm_control_panel->execute(entity.c_str(), key.c_str(), code_format.c_str(), "");
               }
@@ -1801,20 +1806,35 @@ text_sensor:
     name: Version TFT
     platform: nextion
     component_name: boot.tft_version
-    # entity_category: diagnostic
-    # icon: mdi:tag-text-outline
-    internal: true
+    entity_category: diagnostic
+    icon: mdi:tag-text-outline
+    internal: false
     update_interval: never
     on_value:
       - lambda: |-
-          if (current_page->state == "boot") {
-            page_boot->execute();
-            timer_reset_all->execute("boot");
-          }
           check_versions->execute();
 
 ### Scripts ######
 script:
+  - id: boot_progress
+    mode: restart
+    parameters:
+      step: uint
+    then:
+      - lambda: |-
+          timer_reset_all->execute();
+          if (step == 10) {
+            ESP_LOGD("script.boot_progress", "Progress: Completed");
+            disp1->set_component_value("boot.progress", 100);
+          } else {
+            step = std::min(100, int(round((blueprint_status->state + (step*10))/2)));
+            ESP_LOGD("script.boot_progress", "Progress: %i%%", step);
+            disp1->set_component_value("boot.progress", step);
+          }
+          if (current_page->state == "boot" and !isnan(display_charset->state) and !isnan(display_mode->state) and !version_tft->state.empty())
+            disp1->send_command_printf("tm_esphome.en=0");
+
+
   - id: change_climate_state
     mode: restart
     parameters:
@@ -1851,9 +1871,10 @@ script:
             if (not compare_versions("${version}", id(version_blueprint)))
               ESP_LOGE("script.check_versions", "Blueprint version mismatch!");
 
-            auto ha_event = new esphome::api::CustomAPIDevice();
-            ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+            esphome::api::CustomAPIDevice ha_event;
+            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
               {
+                {"device_name", device_name->state.c_str()},
                 {"type", "version"},
                 {"tft", version_tft->state.c_str()},
                 {"esphome", "${version}"},
@@ -1865,15 +1886,17 @@ script:
     mode: restart
     then:
       - lambda: |-
-          float unit_based_temperature = id(temp_nspanel).state;
-          char buffer[15]; // Buffer for formatted temperature string
-          if ("${temp_units}"[0] == 'F' || "${temp_units}"[0] == 'f') {
-              unit_based_temperature = (unit_based_temperature * 9.0 / 5.0) + 32; // Convert to Fahrenheit if necessary
-              snprintf(buffer, sizeof(buffer), "%.0f°F", unit_based_temperature); // Fahrenheit with no decimal
-          } else {
-              snprintf(buffer, sizeof(buffer), "%.1f°C", unit_based_temperature); // Celsius with one decimal
+          if (id(embedded_indoor_temp) or !wifi_component->is_connected() or !api_server->is_connected()) {
+            float unit_based_temperature = id(temp_nspanel).state;
+            char buffer[15]; // Buffer for formatted temperature string
+            if ("${temp_units}"[0] == 'F' || "${temp_units}"[0] == 'f' || "${temp_units}"[1] == 'F' || "${temp_units}"[1] == 'f') {
+                unit_based_temperature = (unit_based_temperature * 9.0 / 5.0) + 32; // Convert to Fahrenheit if necessary
+                snprintf(buffer, sizeof(buffer), "%.0f${temp_units}", unit_based_temperature); // Fahrenheit with no decimal
+            } else {
+                snprintf(buffer, sizeof(buffer), "%.1f${temp_units}", unit_based_temperature); // Celsius with one decimal
+            }
+            id(disp1)->set_component_text("home.indr_temp", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
           }
-          id(disp1)->set_component_text("home.indr_temp", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
 
   - id: display_wrapped_text
     mode: parallel
@@ -1909,7 +1932,7 @@ script:
               while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
             }
           }
-          disp1->set_component_text_printf(component.c_str(), "%s", wrappedText.c_str());
+          disp1->set_component_text(component.c_str(), wrappedText.c_str());
 
   - id: global_settings
     mode: restart
@@ -1925,10 +1948,10 @@ script:
     then:
       - lambda: |-
           if (id(is_uploading_tft)) global_settings->stop();
+          if (blueprint_status->state <= 99) goto_page->execute("boot");
           // Blueprint version
-          nspanel_ha_blueprint::copyStringToCharArray(id(version_blueprint), blueprint_version);
-          disp1->set_component_text_printf("boot.bluep_version", "%s", blueprint_version.c_str());
-          if (current_page->state == "boot") page_boot->execute();
+          copyStringToCharArray(id(version_blueprint), blueprint_version);
+          disp1->set_component_text("boot.bluep_version", blueprint_version.c_str());
           check_versions->execute();
 
           // MUI strings
@@ -1938,7 +1961,9 @@ script:
           // Screen saver page (sleep)
           id(screensaver_display_time) = screensaver_time;
           id(screensaver_display_time_font) = screensaver_time_font;
-          id(screensaver_display_time_color) = esphome::display::ColorUtil::color_to_565(esphome::Color(screensaver_time_color[0], screensaver_time_color[1], screensaver_time_color[2]));
+          id(screensaver_display_time_color) = esphome::display::ColorUtil::color_to_565(esphome::Color(screensaver_time_color[0],
+                                                                                                        screensaver_time_color[1],
+                                                                                                        screensaver_time_color[2]));
           page_screensaver->execute();
 
           // Entities pages alignment
@@ -1949,46 +1974,8 @@ script:
 
           if (current_page->state != "boot") {
             // Update current page
-            page_changed->execute(current_page->state.c_str());
+            page_changed->execute();
           }
-          disp1->set_component_text_printf("boot.bluep_version", "%s", blueprint_version.c_str());
-
-      - if:
-          condition:
-            - text_sensor.state:  # Is boot page visible?
-                id: current_page
-                state: boot
-          then:
-            - lambda: |-
-                ESP_LOGV("script.global_settings", "Boot page is visible");
-            - wait_until:
-                condition:
-                  - not:
-                      - text_sensor.state:  # Is boot page visible?
-                          id: current_page
-                          state: 'boot'
-                timeout: 2s
-            - if:
-                condition:
-                  - text_sensor.state:  # Avoid this being called twice by multiple boot triggers
-                      id: current_page
-                      state: 'boot'
-                then:
-                  - lambda: |-
-                      ESP_LOGV("script.global_settings", "Boot page still visible");
-                  - if:
-                      condition:
-                        switch.is_on: notification_sound
-                      then:
-                        - rtttl.play:
-                            rtttl: 'two short:d=4,o=5,b=100:16e6,16e6'
-                  - lambda: |-
-                      ESP_LOGD("script.global_settings", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
-                      goto_page->execute(wakeup_page_name->state.c_str());
-                      timer_reset_all->execute(wakeup_page_name->state.c_str());
-
-      - lambda: |-
-          ESP_LOGV("script.global_settings", "Finished");
 
   - id: goto_page
     mode: restart
@@ -1996,8 +1983,9 @@ script:
       page: string
     then:
       - lambda: |-
-          if (current_page->state != page)
+          if (current_page->state != page) {
             disp1->goto_page(page.c_str());
+          }
 
   - id: ha_button
     mode: parallel
@@ -2008,10 +1996,11 @@ script:
     then:
       - lambda: |-
           if (id(is_uploading_tft)) ha_button->stop();
-          timer_reset_all->execute(page.c_str());
-          auto ha_event = new esphome::api::CustomAPIDevice();
-          ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+          timer_reset_all->execute();
+          esphome::api::CustomAPIDevice ha_event;
+          ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
             {
+              {"device_name", device_name->state.c_str()},
               {"type", "button_click"},
               {"page", page},
               {"component", component},
@@ -2029,9 +2018,10 @@ script:
       - lambda: |-
           if (!id(is_uploading_tft)) {
             if (service != "" and not service.empty()) {
-              auto ha_event = new esphome::api::CustomAPIDevice();
-              ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+              esphome::api::CustomAPIDevice ha_event;
+              ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
                 {
+                  {"device_name", device_name->state.c_str()},
                   {"type", "service_call"},
                   {"service", service},
                   {"key", key},
@@ -2064,7 +2054,7 @@ script:
     mode: restart
     then:
       - lambda: |-
-          ESP_LOGV("script.page_blank", "Construct blank page");
+          ESP_LOGW("script.page_blank", "Construct blank page");
           disp1->set_component_text_printf("esp_version", "ESP: ${version}");  // ESPHome version
           #ifdef ARDUINO
           disp1->set_component_text_printf("framework", "Arduino");
@@ -2074,19 +2064,109 @@ script:
           disp1->send_command_printf("tm_esphome.en=0");
 
   - id: page_boot
-    mode: restart
+    mode: single
     then:
+      - logger.log: Page boot called
       - lambda: |-
+          boot_progress->execute(0);
           set_brightness->execute(100);
+          update_tft_info->execute();
           disp1->set_component_text_printf("boot.esph_version", "${version}");  // ESPHome version
-          if (current_page->state == "boot") {
-            #ifdef ARDUINO
-            disp1->set_component_text_printf("framework", "Arduino");
-            #elif defined(USE_ESP_IDF)
-            disp1->set_component_text_printf("framework", "ESP-IDF");
-            #endif
-            disp1->send_command_printf("tm_esphome.en=0");
+          boot_progress->execute(1);
+          #ifdef ARDUINO
+          disp1->set_component_text("framework", "Arduino");
+          #elif defined(USE_ESP_IDF)
+          disp1->set_component_text("framework", "ESP-IDF");
+          #endif
+          boot_progress->execute(2);
+      - logger.log: Wait for Wi-Fi
+      - wait_until:
+          condition:
+            - lambda: return (wifi_component->is_connected());
+          timeout: 10s
+      - if:
+          condition:
+            - lambda: return (wifi_component->is_connected());
+          then:  # Wi-Fi connected
+            - logger.log: Wi-Fi connected
+            - lambda: |-
+                boot_progress->execute(3);
+                if (current_page->state == "boot") {
+                  disp1->set_component_text("ip_addr", network::get_ip_addresses()[0].str().c_str());
+                  set_brightness->execute(100);
+                }
+            - logger.log: Wait for API
+            - wait_until:
+                condition:
+                  - lambda: return (api_server->is_connected());
+                timeout: 10s
+            - if:
+                condition:
+                  - lambda: return (api_server->is_connected());
+                then:  # API connected
+                  - logger.log: API connected
+                  - lambda: |-
+                      boot_progress->execute(4);
+                      if (blueprint_status->state <= 99) {
+                        esphome::api::CustomAPIDevice ha_event;
+                        ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+                          {
+                            {"device_name", device_name->state.c_str()},
+                            {"type", "boot"},
+                            {"step", "start"}
+                          });
+                      }
+      - wait_until:
+          condition:
+            - lambda: return (wifi_component->is_connected() and api_server->is_connected() and blueprint_status->state > 99);
+          timeout: 5s
+      - lambda: |-
+          boot_progress->execute(5);
+          disp1->send_command_printf("brightness=%i", int(display_brightness->state));
+          disp1->set_component_value("settings.brightslider", int(display_brightness->state));
+          disp1->send_command_printf("brightness_dim=%i", int(display_dim_brightness->state));
+          disp1->set_component_value("settings.dimslider", int(display_dim_brightness->state));
+          disp1->send_command_printf("brightness_sleep=%i", int(display_sleep_brightness->state));
+          boot_progress->execute(6);
+          nextion_init->publish_state(disp1->is_setup());
+          if (api_server->is_connected() and disp1->is_setup()) {
+            esphome::api::CustomAPIDevice ha_event;
+            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+              {
+                {"device_name", device_name->state.c_str()},
+                {"type", "boot"},
+                {"step", "nextion_init"}
+              });
           }
+          boot_progress->execute(7);
+          // Chips icon size
+          for (int i = 1; i <= 7; ++i) {
+            disp1->send_command_printf("home.chip%02d.font=%i", i, id(home_chip_font_id));
+          }
+          // Custom buttons icon size
+          for (int i = 1; i <= 7; ++i) {
+            disp1->send_command_printf("home.button%02d.font=%i", i, id(home_custom_buttons_font_id));
+          }
+          disp1->set_component_font("home.bt_notific", id(home_custom_buttons_font_id));
+          disp1->set_component_font("home.bt_qrcode", id(home_custom_buttons_font_id));
+          disp1->set_component_font("home.bt_entities", id(home_custom_buttons_font_id));
+          disp1->set_component_font("home.wifi_icon", id(home_chip_font_id));
+          disp1->set_component_font_color("home.chip_relay1", id(home_relay1_icon_color));
+          disp1->set_component_font_color("home.chip_relay2", id(home_relay2_icon_color));
+          boot_progress->execute(8);
+      - wait_until:
+          condition:
+            - lambda: return (wifi_component->is_connected() and api_server->is_connected() and blueprint_status->state > 99);
+          timeout: 10s
+      - lambda: boot_progress->execute(9);
+      - delay: 5s
+      - lambda: boot_progress->execute(10);
+      - delay: 1s
+      - lambda: |-
+          if (notification_sound->state) buzzer->play("two short:d=4,o=5,b=100:16e6,16e6");
+          set_brightness->execute(display_brightness->state);
+          ESP_LOGD("script.page_boot", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
+          goto_page->execute(wakeup_page_name->state.c_str());
 
   - id: page_buttonpage
     mode: restart
@@ -2120,32 +2200,33 @@ script:
 
   - id: page_changed
     mode: restart
-    parameters:
-      page: string
     then:
       - lambda: |-
-          // Go to boot page if not initiated
-          if (not nextion_init->state) goto_page->execute("boot");
-          // Reset globals
-          if (page != "alarm" &&
-              page != "climate" &&
-              page != "cover" &&
-              page != "fan" &&
-              page != "light" &&
-              page != "media_player" &&
-              page != "confirm" &&
-              page != "keyb_num") {
-              detailed_entity->publish_state("");
-              disp1->send_command_printf("back_page_id=0");
+          // Report new page to logs
+          ESP_LOGD("script.page_changed", "New page: %s", current_page->state.c_str());
+          if (current_page->state.empty()) {
+            goto_page->execute("boot");
+            page_changed->stop();
           }
-          if (page != "media_player") {
+
+          // Reset globals
+          if (current_page->state != "alarm" &&
+              current_page->state != "climate" &&
+              current_page->state != "cover" &&
+              current_page->state != "fan" &&
+              current_page->state != "light" &&
+              current_page->state != "media_player" &&
+              current_page->state != "confirm" &&
+              current_page->state != "keyb_num") {
+              detailed_entity->publish_state("");
+              disp1->send_command_printf("back_page_id=1");
+          }
+          if (current_page->state != "media_player") {
             id(last_volume_level) = 0;
             id(last_media_duration) = 0;
             id(last_media_position) = 0;
           }
 
-          // Report new page to logs
-          ESP_LOGD("script.page_changed", "New page: %s", page.c_str());
           if (!detailed_entity->state.empty())
             ESP_LOGD("script.page_changed", "Entity shown: %s", detailed_entity->state.c_str());
 
@@ -2153,47 +2234,48 @@ script:
           refresh_hardware_buttons_bars->execute();
 
           // Reset timers
-          timer_reset_all->execute(page.c_str());
+          if (current_page->state != "screensaver") timer_reset_all->execute();
 
           // Report new page to Home Assistant
-          auto ha_event = new esphome::api::CustomAPIDevice();
-          ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+          esphome::api::CustomAPIDevice ha_event;
+          ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
             {
+              {"device_name", device_name->state.c_str()},
               {"type", "page_changed"},
-              {"page", page.c_str()},
+              {"page", current_page->state.c_str()},
               {"entity", detailed_entity->state.c_str()}
             });
 
           // Call page constructor
-          if (page == "alarm") page_alarm->execute();
-          else if (page == "blank") page_blank->execute();
-          else if (page == "boot") page_boot->execute();
-          else if (page == "buttonpage01") page_buttonpage01->execute();
-          else if (page == "buttonpage02") page_buttonpage02->execute();
-          else if (page == "buttonpage03") page_buttonpage03->execute();
-          else if (page == "buttonpage04") page_buttonpage04->execute();
-          else if (page == "climate") page_climate->execute();
-          else if (page == "confirm") page_confirm->execute();
-          else if (page == "cover") page_cover->execute();
-          else if (page == "entitypage01") page_entitypage01->execute();
-          else if (page == "entitypage02") page_entitypage02->execute();
-          else if (page == "entitypage03") page_entitypage03->execute();
-          else if (page == "entitypage04") page_entitypage04->execute();
-          else if (page == "fan") page_fan->execute();
-          else if (page == "home") page_home->execute();
-          else if (page == "keyb_num") page_keyb_num->execute();
-          else if (page == "light") page_light->execute();
-          else if (page == "media_player") page_media_player->execute();
-          else if (page == "notification") page_notification->execute();
-          else if (page == "qrcode") page_qrcode->execute();
-          else if (page == "screensaver") page_screensaver->execute();
-          else if (page == "settings") page_settings->execute();
-          else if (page == "utilities") page_utilities->execute();
-          else if (page == "weather01") page_weather01->execute();
-          else if (page == "weather02") page_weather02->execute();
-          else if (page == "weather03") page_weather03->execute();
-          else if (page == "weather04") page_weather04->execute();
-          else if (page == "weather05") page_weather05->execute();
+          if (current_page->state == "alarm") page_alarm->execute();
+          else if (current_page->state == "blank") page_blank->execute();
+          else if (current_page->state == "boot") page_boot->execute();
+          else if (current_page->state == "buttonpage01") page_buttonpage01->execute();
+          else if (current_page->state == "buttonpage02") page_buttonpage02->execute();
+          else if (current_page->state == "buttonpage03") page_buttonpage03->execute();
+          else if (current_page->state == "buttonpage04") page_buttonpage04->execute();
+          else if (current_page->state == "climate") page_climate->execute();
+          else if (current_page->state == "confirm") page_confirm->execute();
+          else if (current_page->state == "cover") page_cover->execute();
+          else if (current_page->state == "entitypage01") page_entitypage01->execute();
+          else if (current_page->state == "entitypage02") page_entitypage02->execute();
+          else if (current_page->state == "entitypage03") page_entitypage03->execute();
+          else if (current_page->state == "entitypage04") page_entitypage04->execute();
+          else if (current_page->state == "fan") page_fan->execute();
+          else if (current_page->state == "home") page_home->execute();
+          else if (current_page->state == "keyb_num") page_keyb_num->execute();
+          else if (current_page->state == "light") page_light->execute();
+          else if (current_page->state == "media_player") page_media_player->execute();
+          else if (current_page->state == "notification") page_notification->execute();
+          else if (current_page->state == "qrcode") page_qrcode->execute();
+          else if (current_page->state == "screensaver") page_screensaver->execute();
+          else if (current_page->state == "settings") page_settings->execute();
+          else if (current_page->state == "utilities") page_utilities->execute();
+          else if (current_page->state == "weather01") page_weather01->execute();
+          else if (current_page->state == "weather02") page_weather02->execute();
+          else if (current_page->state == "weather03") page_weather03->execute();
+          else if (current_page->state == "weather04") page_weather04->execute();
+          else if (current_page->state == "weather05") page_weather05->execute();
       - delay: 1s
       - script.execute: refresh_hardware_buttons_bars
 
@@ -2277,7 +2359,7 @@ script:
     mode: restart
     then:
       - lambda: |-
-          disp1->set_component_text_printf("notification.notifi_label", "%s", notification_label->state.c_str());
+          disp1->set_component_text("notification.notifi_label", notification_label->state.c_str());
           display_wrapped_text->execute("notification.notifi_text01", notification_text->state.c_str(), display_mode->state == 2 ? 23 : 32);
 
   - id: page_qrcode
@@ -2291,21 +2373,18 @@ script:
           if (current_page->state == "screensaver" and !id(is_uploading_tft)) {
             disp1->send_command_printf("back_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
             if (id(screensaver_display_time)) {
-              disp1->send_command_printf("screensaver.text.font=%i", id(screensaver_display_time_font));
+              disp1->set_component_font("screensaver.text", id(screensaver_display_time_font));
               disp1->set_component_font_color("screensaver.text", id(screensaver_display_time_color));
               set_component_visibility->execute("screensaver.text", true);
               refresh_datetime->execute();
-            } else {
-              disp1->set_backlight_brightness(0.0f);
             }
-            current_brightness->update();
+            set_brightness->execute(display_sleep_brightness->state);
           }
 
   - id: page_settings
     mode: restart
     then:
       - lambda: |-
-          //disp1->set_component_text_printf("bt_sleep", "%s", (id(sleep_mode).state) ? "\uEA19" : "\uEA18"); //mdi:toggle-switch-outline or mdi:toggle-switch-off-outline
           set_component_visibility->execute("page_settings.lbl_sleep", false);
           set_component_visibility->execute("page_settings.bt_sleep", false);
 
@@ -2374,45 +2453,75 @@ script:
               std::string time_format_str_sleep = time_format_str;
               if (time_format_str_sleep.find("%p") != std::string::npos)
                 time_format_str_sleep.replace(time_format_str_sleep.find("%p"), sizeof("%p")-1, meridiem_text.c_str());
-              disp1->set_component_text_printf("text", "%s", id(time_provider).now().strftime(time_format_str_sleep).c_str());
+              disp1->set_component_text("text", id(time_provider).now().strftime(time_format_str_sleep).c_str());
           }
-          disp1->set_component_text_printf("home.meridiem", "%s", (time_format_str.find("%p") != std::string::npos) ? meridiem_text.c_str() : " ");
-          disp1->set_component_text_printf("home.time", "%s", id(time_provider).now().strftime(time_format_str).c_str());
+          disp1->set_component_text("home.meridiem", (time_format_str.find("%p") != std::string::npos) ? meridiem_text.c_str() : " ");
+          disp1->set_component_text("home.time", id(time_provider).now().strftime(time_format_str).c_str());
 
   - id: refresh_hardware_buttons_bars
     mode: restart
     then:
       - lambda: |-
+          #if ESPHOME_LOG_LEVEL > ESPHOME_LOG_LEVEL_DEBUG
+          ESP_LOGV("script.refresh_hardware_buttons_bars", "Page:               %s", current_page->state.c_str());
+          ESP_LOGV("script.refresh_hardware_buttons_bars", "Page id:            %i", get_page_id(current_page->state.c_str()));
+          ESP_LOGV("script.refresh_hardware_buttons_bars", "buttons_bars_pages: %i", id(buttons_bars_pages));
+          ESP_LOGV("script.refresh_hardware_buttons_bars", "relay_settings:     %i", id(relay_settings));
+          #endif
           if (!id(is_uploading_tft) and ((id(buttons_bars_pages) & (1 << get_page_id(current_page->state.c_str()))) != 0)) {
             switch (int(display_mode->state)) {
               case 1:  // EU model
-                if (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonLeft_Enabled) {  // Left button
-                  disp1->fill_area(48, 307, 118, 3, (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonLeft_State) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(47, 308, 120, 1, (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonLeft_State) ? id(buttons_color_on) : id(buttons_color_off));
+                if (id(buttons_settings) & ButtonSettings::ButtonLeft_Enabled) {  // Left button
+                  disp1->fill_area(48, 307, 118, 3,
+                                    (((id(relay_settings) & RelaySettings::Relay1_Local) and relay_1->state) or (id(buttons_settings) & ButtonSettings::ButtonLeft_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
+                  disp1->fill_area(47, 308, 120, 1,
+                                    (((id(relay_settings) & RelaySettings::Relay1_Local) and relay_1->state) or (id(buttons_settings) & ButtonSettings::ButtonLeft_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
                 }
-                if (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonRight_Enabled) {  // Right button
-                  disp1->fill_area(289, 307, 118, 3, (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonRight_State) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(288, 308, 120, 1, (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonRight_State) ? id(buttons_color_on) : id(buttons_color_off));
+                if (id(buttons_settings) & ButtonSettings::ButtonRight_Enabled) {  // Right button
+                  disp1->fill_area(289, 307, 118, 3,
+                                    (((id(relay_settings) & RelaySettings::Relay2_Local) and relay_2->state) or (id(buttons_settings) & ButtonSettings::ButtonRight_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
+                  disp1->fill_area(288, 308, 120, 1,
+                                    (((id(relay_settings) & RelaySettings::Relay2_Local) and relay_2->state) or (id(buttons_settings) & ButtonSettings::ButtonRight_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
                 }
                 break;
               case 2:  // US Portrait
-                if (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonLeft_Enabled) {  // Left button
-                  disp1->fill_area(17, 466, 118, 3, (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonLeft_State) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(16, 467, 120, 1, (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonLeft_State) ? id(buttons_color_on) : id(buttons_color_off));
+                if (id(buttons_settings) & ButtonSettings::ButtonLeft_Enabled) {  // Left button
+                  disp1->fill_area(17, 466, 118, 3,
+                                    (((id(relay_settings) & RelaySettings::Relay1_Local) and relay_1->state) or (id(buttons_settings) & ButtonSettings::ButtonLeft_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
+                  disp1->fill_area(16, 467, 120, 1,
+                                    (((id(relay_settings) & RelaySettings::Relay1_Local) and relay_1->state) or (id(buttons_settings) & ButtonSettings::ButtonLeft_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
                 }
-                if (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonRight_Enabled) {  // Right button
-                  disp1->fill_area(184, 466, 118, 3, (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonRight_State) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(183, 467, 120, 1, (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonRight_State) ? id(buttons_color_on) : id(buttons_color_off));
+                if (id(buttons_settings) & ButtonSettings::ButtonRight_Enabled) {  // Right button
+                  disp1->fill_area(184, 466, 118, 3,
+                                    (((id(relay_settings) & RelaySettings::Relay2_Local) and relay_2->state) or (id(buttons_settings) & ButtonSettings::ButtonRight_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
+                  disp1->fill_area(183, 467, 120, 1,
+                                    (((id(relay_settings) & RelaySettings::Relay2_Local) and relay_2->state) or (id(buttons_settings) & ButtonSettings::ButtonRight_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
                 }
                 break;
               case 3:  // US Landscape
-                if (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonLeft_Enabled) {  // Left button
-                  disp1->fill_area(467, 174, 3, 118, (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonLeft_State) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(468, 173, 1, 120, (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonLeft_State) ? id(buttons_color_on) : id(buttons_color_off));
+                if (id(buttons_settings) & ButtonSettings::ButtonLeft_Enabled) {  // Left button
+                  disp1->fill_area(467, 174, 3, 118,
+                                    (((id(relay_settings) & RelaySettings::Relay1_Local) and relay_1->state) or (id(buttons_settings) & ButtonSettings::ButtonLeft_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
+                  disp1->fill_area(468, 173, 1, 120,
+                                    (((id(relay_settings) & RelaySettings::Relay1_Local) and relay_1->state) or (id(buttons_settings) & ButtonSettings::ButtonLeft_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
                 }
-                if (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonRight_Enabled) {  // Right button
-                  disp1->fill_area(467, 28, 3, 118, (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonRight_State) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(468, 27, 1, 120, (id(buttons_settings) & nspanel_ha_blueprint::ButtonSettings::ButtonRight_State) ? id(buttons_color_on) : id(buttons_color_off));
+                if (id(buttons_settings) & ButtonSettings::ButtonRight_Enabled) {  // Right button
+                  disp1->fill_area(467, 28, 3, 118,
+                                    (((id(relay_settings) & RelaySettings::Relay2_Local) and relay_2->state) or (id(buttons_settings) & ButtonSettings::ButtonRight_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
+                  disp1->fill_area(468, 27, 1, 120,
+                                    (((id(relay_settings) & RelaySettings::Relay2_Local) and relay_2->state) or (id(buttons_settings) & ButtonSettings::ButtonRight_State)) ?
+                                    id(buttons_color_on) : id(buttons_color_off));
                 }
                 break;
             }
@@ -2423,27 +2532,26 @@ script:
     then:
       - lambda: |-
           // Chips - Relays
-          disp1->set_component_text_printf("home.chip_relay1", "%s", (relay_1->state) ? id(home_relay1_icon) : "\uFFFF");
-          disp1->set_component_text_printf("home.chip_relay2", "%s", (relay_2->state) ? id(home_relay2_icon) : "\uFFFF");
-          // Hardware buttons bars - Fallback mode
-          if (id(relay_settings) & nspanel_ha_blueprint::RelaySettings::Relay1_Local) disp1->send_command_printf("home.left_bt_pic.val=%i", (relay_1->state) ? 1 : 0);
-          if (id(relay_settings) & nspanel_ha_blueprint::RelaySettings::Relay2_Local) disp1->send_command_printf("home.right_bt_pic.val=%i", (relay_2->state) ? 1 : 0);
+          disp1->set_component_text("home.chip_relay1", (relay_1->state) ? id(home_relay1_icon) : "\uFFFF");
+          disp1->set_component_text("home.chip_relay2", (relay_2->state) ? id(home_relay2_icon) : "\uFFFF");
+          refresh_hardware_buttons_bars->execute();
 
   - id: refresh_wifi_icon
     mode: restart
     then:
       - lambda: |-
           if (nextion_init->state) {
+            disp1->send_command_printf("api=%i", (wifi_component->is_connected() and api_server->is_connected() and blueprint_status->state > 99) ? 1 : 0);
             // Update Wi-Fi icon color
             disp1->set_component_font_color("home.wifi_icon", (blueprint_status->state > 99) ? (wifi_rssi->state > -70 ? 33808 : 64992) : 63488);
             // Update Wi-Fi icon
-            disp1->set_component_text_printf("home.wifi_icon", "%s",
-                                              wifi_component->is_connected() ?
-                                                (api_server->is_connected() ?
-                                                  ((blueprint_status->state > 99) ? "\uE5A8" :  // mdi:wifi - All right!
-                                                  "\uE7CF") :                                   // mdi:home-assistant - Blueprint is out
-                                                "\uF256") :                                     // mdi:api-off
-                                              "\uE5A9");                                        // mdi:wifi-off
+            disp1->set_component_text("home.wifi_icon",
+                                      wifi_component->is_connected() ?
+                                        (api_server->is_connected() ?
+                                          ((blueprint_status->state > 99) ? "\uE5A8" :  // mdi:wifi - All right!
+                                          "\uE7CF") :                                   // mdi:home-assistant - Blueprint is out
+                                        "\uF256") :                                     // mdi:api-off
+                                      "\uE5A9");                                        // mdi:wifi-off
           }
 
   - id: restore_settings
@@ -2496,14 +2604,14 @@ script:
     then:
       - if:
           condition:
-            - lambda: !lambda return (tf_uart->get_baud_rate() != baud_rate);
+            - lambda: return (tf_uart->get_baud_rate() != baud_rate);
           then:
             - lambda: |-
                 ESP_LOGD("script.set_baud_rate", "Baud rate changing from %" PRIu32 " to %" PRIu32 " bps", tf_uart->get_baud_rate(), baud_rate);
                 ESP_LOGD("script.set_baud_rate", "Flush UART");
             - wait_until:
                 condition:
-                  - lambda: !lambda return (tf_uart->available() < 1);
+                  - lambda: return (tf_uart->available() < 1);
                 timeout: 5s
             - lambda: |-
                 ESP_LOGD("script.set_baud_rate", "Sending instruction '%s=%" PRIu32 "' to Nextion", definitive ? "bauds" : "baud", baud_rate);
@@ -2511,7 +2619,7 @@ script:
                 ESP_LOGD("script.set_baud_rate", "Flush UART");
             - wait_until:
                 condition:
-                  - lambda: !lambda return (tf_uart->available() < 1);
+                  - lambda: return (tf_uart->available() < 1);
                 timeout: 5s
             - lambda: |-
                 ESP_LOGD("script.set_baud_rate", "Set ESPHome new baud rate to %" PRIu32 " bps", baud_rate);
@@ -2623,118 +2731,14 @@ script:
       show: bool
     then:
       - lambda: |-
-          nspanel_ha_blueprint::NextionComponent component = nspanel_ha_blueprint::extractNextionComponent(component_id, current_page->state);
+          NextionComponent component = extractNextionComponent(component_id, current_page->state);
           if (component.is_current_page) disp1->send_command_printf("vis %s,%i", component.component_id.c_str(), show ? 1 : 0);
-
-  - id: setup_sequence
-    mode: restart
-    then:
-      - lambda: |-
-          page_id->update();
-      - wait_until:
-          condition:
-            - lambda: !lambda return (not isnan(page_id->state));
-          timeout: 15s
-      - lambda: display_charset->update();
-      - wait_until:
-          condition:
-            - lambda: !lambda return (not isnan(display_charset->state));
-          timeout: 5s
-      - lambda: display_mode->update();
-      - wait_until:
-          condition:
-            - lambda: !lambda return (not isnan(display_mode->state));
-          timeout: 5s
-      - if:
-          condition:
-            - lambda: !lambda return (not isnan(display_mode->state));
-          then:  # Project's TFT detected
-            - lambda: |-
-                goto_page->execute("boot");
-                version_tft->update();
-            - wait_until:
-                condition:
-                  - lambda: !lambda return (not version_tft->state.empty());
-                timeout: 5s
-            - wait_until:
-                condition:
-                  - lambda: !lambda return (wifi_component->is_connected());
-                timeout: 10s
-            - if:
-                condition:
-                  - lambda: !lambda return (wifi_component->is_connected());
-                then:  # Wi-Fi connected
-                  - lambda: |-
-                      if (current_page->state == "boot") {
-                        disp1->set_component_text("boot.ip_addr", network::get_ip_address().str().c_str());
-                        set_brightness->execute(100);
-                      }
-                  - wait_until:
-                      condition:
-                        - lambda: !lambda return (api_server->is_connected());
-                      timeout: 10s
-                  - if:
-                      condition:
-                        - lambda: !lambda return (api_server->is_connected());
-                      then:  # API connected
-                        - lambda: |-
-                            auto ha_event = new esphome::api::CustomAPIDevice();
-                            ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-                              {
-                                {"type", "boot"},
-                                {"step", "start"}
-                              });
-            - wait_until:
-                condition:
-                  - lambda: !lambda return id(setup_sequence_completed);
-                timeout: 1s
-            - lambda: |-
-                set_brightness->execute(display_brightness->state);
-                disp1->send_command_printf("brightness=%i", int(display_brightness->state));
-                disp1->send_command_printf("settings.brightslider.val=%i", int(display_brightness->state));
-                disp1->send_command_printf("brightness_dim=%i", int(display_dim_brightness->state));
-                disp1->send_command_printf("settings.dimslider.val=%i", int(display_dim_brightness->state));
-                disp1->send_command_printf("brightness_sleep=%i", int(display_sleep_brightness->state));
-                nextion_init->publish_state(disp1->is_setup());
-                if (api_server->is_connected() and disp1->is_setup()) {
-                  auto ha_event = new esphome::api::CustomAPIDevice();
-                  ha_event->fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-                    {
-                      {"type", "boot"},
-                      {"step", "nextion_init"}
-                    });
-                }
-                // Chips icon size
-                for (int i = 1; i <= 7; ++i) {
-                  disp1->send_command_printf("home.chip%02d.font=%i", i, id(home_chip_font_id));
-                }
-                // Custom buttons icon size
-                for (int i = 1; i <= 7; ++i) {
-                  disp1->send_command_printf("home.button%02d.font=%i", i, id(home_custom_buttons_font_id));
-                }
-                disp1->send_command_printf("home.bt_notific.font=%i", id(home_custom_buttons_font_id));
-                disp1->send_command_printf("home.bt_qrcode.font=%i", id(home_custom_buttons_font_id));
-                disp1->send_command_printf("home.bt_entities.font=%i", id(home_custom_buttons_font_id));
-                disp1->send_command_printf("home.wifi_icon.font=%i", id(home_chip_font_id));
-                disp1->set_component_font_color("home.chip_relay1", id(home_relay1_icon_color));
-                disp1->set_component_font_color("home.chip_relay2", id(home_relay2_icon_color));
-                timer_reset_all->execute("boot");
-                id(setup_sequence_completed) = true;
-            - wait_until:
-                condition:
-                  - not:
-                      - text_sensor.state:  # Is boot page visible?
-                          id: current_page
-                          state: boot
-                timeout: 10s
-            - lambda: |-
-                if (current_page->state == "boot") goto_page->execute(wakeup_page_name->state.c_str());
-      - logger.log: "Nextion setup sequence finished!"
 
   - id: stop_all
     mode: restart
     then:
       - lambda: |-
+          boot_progress->stop();
           change_climate_state->stop();
           check_versions->stop();
           display_embedded_temp->stop();
@@ -2783,47 +2787,41 @@ script:
           set_baud_rate->stop();
           set_brightness->stop();
           set_climate->stop();
-          setup_sequence->stop();
           timer_dim->stop();
           timer_page->stop();
           timer_reset_all->stop();
           timer_sleep->stop();
           update_alarm_icon->stop();
           update_climate_icon->stop();
+          update_tft_info->stop();
 
   ###### Timers ######
   - id: timer_reset_all  # Global timer reset - Triggered with a touch on the screen
     mode: restart
-    parameters:
-      page: string
     then:
       - lambda: |-
-          ESP_LOGV("script.timer_reset_all", "Reset timers");
-          timer_page->execute(page.c_str(), int(timeout_page->state));
-          timer_dim->execute(page.c_str(), int(timeout_dim->state));
-          timer_sleep->execute(page.c_str(), int(timeout_sleep->state));
+          timer_page->execute();
+          timer_dim->execute();
+          timer_sleep->execute();
   - id: timer_page       # Handles the fallback to home page after a timeout
     mode: restart
-    parameters:
-      page: string
-      timeout: uint
     then:
-      - lambda: |-
-          ESP_LOGV("script.timer_page", "Reset timer: %is", timeout);
       - if:
           condition:
             - lambda: |-
-                return (timeout >= 1 and
-                        page != "boot" and
-                        page != "confirm" and
-                        page != "home" and
-                        page != "notification" and
-                        page != "screensaver");
+                return (timeout_page->state >= 1 and
+                        current_page->state != "boot" and
+                        current_page->state != "confirm" and
+                        current_page->state != "home" and
+                        current_page->state != "notification" and
+                        current_page->state != "screensaver");
           then:
-            - delay: !lambda return (timeout *1000);
+            - delay: !lambda return (int(timeout_page->state) *1000);
             - lambda: |-
+                #if ESPHOME_LOG_LEVEL > ESPHOME_LOG_LEVEL_DEBUG
                 ESP_LOGV("script.timer_page", "Timed out on page: %s", current_page->state.c_str());
-                if (timeout >= 1 and
+                #endif
+                if (timeout_page->state >= 1 and
                     current_page->state != "boot" and
                     current_page->state != "confirm" and
                     current_page->state != "home" and
@@ -2835,49 +2833,38 @@ script:
                   }
   - id: timer_dim        # Handles the brightness dimming after a timeout
     mode: restart
-    parameters:
-      page: string
-      timeout: uint
     then:
       - lambda: |-
-          ESP_LOGV("script.timer_dim", "Reset timer: %is", timeout);
           if (current_brightness->state <= display_dim_brightness->state
-              and page != "screensaver"
-              and page != "boot"
-              and page != "blank-screensaver") {
-            ESP_LOGD("script.timer_dim", "Waking up on page: %s", page.c_str());
+              and current_page->state != "screensaver"
+              and current_page->state != "boot") {
+            ESP_LOGD("script.timer_dim", "Waking up on page: %s", current_page->state.c_str());
             set_brightness->execute(display_brightness->state);
           }
       - if:
           condition:
-            - lambda: !lambda return (timeout >= 1);
+            - lambda: return (timeout_dim->state >= 1);
           then:
-            - delay: !lambda return (timeout *1000);
+            - delay: !lambda return (int(timeout_dim->state) *1000);
             - lambda: |-
                 if (current_page->state != "screensaver" and
-                    current_page->state != "blank-screensaver" and
                     current_page->state != "boot" and
-                    timeout >= 1) {
+                    timeout_dim->state >= 1) {
                   set_brightness->execute(display_dim_brightness->state);
                 }
   - id: timer_sleep  # Handles the sleep (go to screensaver page) after a timeout
     mode: restart
-    parameters:
-      page: string
-      timeout: uint
     then:
-      - lambda: |-
-          ESP_LOGV("script.timer_sleep", "Reset timer: %is", timeout);
       - if:
           condition:
             - lambda: |-
-                return (timeout >= 1 and current_page->state != "screensaver" and current_page->state != "boot");
+                return (timeout_sleep->state >= 1 and current_page->state != "screensaver" and current_page->state != "boot");
           then:
-            - delay: !lambda return (timeout *1000);
+            - delay: !lambda return (int(timeout_sleep->state) *1000);
             - lambda: |-
                 if (current_page->state != "screensaver" and
                     current_page->state != "boot" and
-                    timeout >= 1) {
+                    timeout_sleep->state >= 1) {
                   ESP_LOGD("script.timer_sleep", "Going to sleep from page %s", current_page->state.c_str());
                   goto_page->execute("screensaver");
                   set_brightness->execute(display_sleep_brightness->state);
@@ -2954,54 +2941,71 @@ script:
                 switch (mode) // CLIMATE_MODE_OFF = 0, CLIMATE_MODE_HEAT_COOL = 1, CLIMATE_MODE_COOL = 2, CLIMATE_MODE_HEAT = 3, CLIMATE_MODE_FAN_ONLY = 4, CLIMATE_MODE_DRY = 5, CLIMATE_MODE_AUTO = 6
                   {
                     case 0: //CLIMATE_MODE_OFF
-                      disp1->set_component_text_printf(component.c_str(), "%s", "\uFFFF"); // (E424) Don't show icon when off
+                      disp1->set_component_text(component.c_str(), "\uFFFF"); // (E424) Don't show icon when off
                       disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
                       break;
                     case 1: //CLIMATE_MODE_HEAT_COOL
-                      disp1->set_component_text_printf(component.c_str(), "%s", "\uE069"); // mdi:autorenew
+                      disp1->set_component_text(component.c_str(), "\uE069"); // mdi:autorenew
                       disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
                       break;
                     case 2: //CLIMATE_MODE_COOL
-                      disp1->set_component_text_printf(component.c_str(), "%s", "\uE716"); // mdi:snowflake
+                      disp1->set_component_text(component.c_str(), "\uE716"); // mdi:snowflake
                       disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
                       break;
                     case 3: //CLIMATE_MODE_HEAT
-                      disp1->set_component_text_printf(component.c_str(), "%s", "\uE237"); // mdi:fire
+                      disp1->set_component_text(component.c_str(), "\uE237"); // mdi:fire
                       disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
                       break;
                     case 4: //CLIMATE_MODE_FAN_ONLY
-                      disp1->set_component_text_printf(component.c_str(), "%s", "\uE20F"); // mdi:fan
+                      disp1->set_component_text(component.c_str(), "\uE20F"); // mdi:fan
                       disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
                       break;
                     case 5: //CLIMATE_MODE_DRY
-                      disp1->set_component_text_printf(component.c_str(), "%s", "\uE58D"); // mdi:water-percent
+                      disp1->set_component_text(component.c_str(), "\uE58D"); // mdi:water-percent
                       disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
                       break;
                     case 6: //CLIMATE_MODE_AUTO
-                      disp1->set_component_text_printf(component.c_str(), "%s", "\uEE8D"); // mdi:calendar-sync
+                      disp1->set_component_text(component.c_str(), "\uEE8D"); // mdi:calendar-sync
                       disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
                       break;
                   }
                   break;
               case 2: //CLIMATE_ACTION_COOLING
-                disp1->set_component_text_printf(component.c_str(), "%s", "\uE716"); // mdi:snowflake
+                disp1->set_component_text(component.c_str(), "\uE716"); // mdi:snowflake
                 disp1->set_component_font_color(component.c_str(), 1055); // blue
                 break;
               case 3: //CLIMATE_ACTION_HEATING
-                disp1->set_component_text_printf(component.c_str(), "%s", "\uE237"); // mdi:fire
+                disp1->set_component_text(component.c_str(), "\uE237"); // mdi:fire
                 disp1->set_component_font_color(component.c_str(), 64164); // deep-orange
                 break;
               case 4: //CLIMATE_ACTION_IDLE
-                disp1->set_component_text_printf(component.c_str(), "%s", "\uE50E"); // mdi:thermometer
+                disp1->set_component_text(component.c_str(), "\uE50E"); // mdi:thermometer
                 disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
                 break;
               case 5: //CLIMATE_ACTION_DRYING
-                disp1->set_component_text_printf(component.c_str(), "%s", "\uE58D"); // mdi:water-percent
+                disp1->set_component_text(component.c_str(), "\uE58D"); // mdi:water-percent
                 disp1->set_component_font_color(component.c_str(), 64704); // orange
                 break;
               case 6: //CLIMATE_ACTION_FAN
-                disp1->set_component_text_printf(component.c_str(), "%s", "\uE20F"); // mdi:fan
+                disp1->set_component_text(component.c_str(), "\uE20F"); // mdi:fan
                 disp1->set_component_font_color(component.c_str(), 1530); // cyan
                 break;
             }
+
+  - id: update_tft_info
+    mode: restart
+    then:
+      - while:
+          condition:
+            - lambda: return (isnan(display_charset->state) or isnan(display_mode->state) or version_tft->state.empty());
+          then:
+            - lambda: |-
+                ESP_LOGD("script.update_tft_info", "Updating TFT info");
+                if (isnan(display_charset->state)) display_charset->update();
+                if (isnan(display_mode->state)) display_mode->update();
+                if (version_tft->state.empty()) version_tft->update();
+            - wait_until:
+                condition:
+                  - lambda: return (!isnan(display_charset->state) and !isnan(display_mode->state) and !(version_tft->state.empty()));
+                timeout: 10s
 ...
