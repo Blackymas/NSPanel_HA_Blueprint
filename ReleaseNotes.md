@@ -238,10 +238,21 @@ reaffirming our commitment to providing a seamless and stable user experience.
 ### Button Bars Visibility Enhancement and Configuration Change
 - **Criticality:** Breaking Change (with Enhancement)
 - **Affected Components:** Blueprint
-- **Description:** The visibility of button bars, indicating the status of entities linked to hardware buttons, has been updated to be visible across all pages by default, including the screensaver.
+- **Description:** The visibility of button bars, indicating the status of entities linked to hardware buttons,
+has been updated to be visible across all pages by default, including the screensaver.
 This enhancement improves the accessibility of crucial status information.
 Users who previously customized the visibility settings for button bars will need to review and adjust their configurations to align with the new default behavior.
 This change enables users to selectively exclude button bars from specific pages if desired, providing greater flexibility and control over the interface's appearance.
+
+### Service `hw_button_state` Update
+- **Criticality:** Breaking Change (with Enhancement)
+- **Affected Components:** Blueprint and ESPHome
+- **Description:** The method for controlling the state of hardware buttons has been refined with the introduction of a `button_mask` parameter.
+This update simplifies the process of simultaneously updating the visual state of multiple hardware buttons,
+enhancing user interaction by providing a more intuitive interface for managing button states.
+Users can now specify the buttons they wish to control using a single `button_mask` parameter,
+offering a streamlined approach for activating or deactivating the on-screen indication bars of the hardware buttons.
+This change fosters a more flexible and efficient user experience in configuring the visual feedback for button states.
 
 ### Celsius Display Issue for Embedded Temperature Sensor Resolved (#1834)
 - **Criticality:** Medium
