@@ -12,7 +12,7 @@ namespace nspanel_ha_blueprint {
 
     /**
     * @file pages.h
-    * Defines constants and functions related to page names for "NSPanel HA Blueprint" project..
+    * Defines constants and functions related to page names for "NSPanel HA Blueprint" project.
     */
 
     // Constants
