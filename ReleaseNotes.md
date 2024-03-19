@@ -252,7 +252,8 @@ This fix ensures temperature readings are accurately represented according to th
 ### Resolution for Panel Naming When `device_name` Is Not Provided (#1907)
 - **Criticality:** Medium
 - **Affected Components:** ESPHome
-- **Description:** Corrected a bug that caused the new "Device Name" sensor to report "nspanel" and therefore fail on defining services names when a `device_name` substitution was not specified by the user.
+- **Description:** Corrected a bug that caused the new "Device Name" sensor to report "nspanel"
+and therefore fail on defining services names when a `device_name` substitution was not specified by the user.
 
 ### External Temperature Sensor Selection Now Correctly Overrides Embedded Sensor Value (#1911)
 - **Criticality:** Medium
