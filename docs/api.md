@@ -254,26 +254,27 @@ data:
 > This setup provides a direct and user-friendly way to access and return from detailed entity information, enhancing the interface's usability.
 
 ### Hardware Button State Indication Service: `hw_button_state`
-Updates the on-screen indication bars for the hardware buttons, reflecting the current state of the entities they control.
+This service dynamically updates the on-screen indication bars for the hardware buttons, reflecting the current state of the entities they control.
+It's designed to provide immediate visual feedback, enhancing the user interface by showing the active/inactive state of the left and right hardware button indicators on the panel.
 
-**Usage:**
-This service updates the visual state (on/off) of the left and right hardware button indicators on the panel.
-It's used to provide visual feedback corresponding to the state of the entities controlled by these hardware buttons.
+**Usage:**  
+Utilize this service to modify the visual state (on/off) of hardware button indicators on the panel, corresponding to the state of entities controlled by these buttons.
+This allows for visual feedback that matches the operational state of the buttons.
 
-**Parameters:**
-- `left` (bool): The state to set for the left button's indication bar.
-- `right` (bool): The state to set for the right button's indication bar.
+**Parameters:**  
+- `button_mask` (int): A bitwise identifier for buttons. Use `1` for the left button, `2` for the right button, and `3` for both buttons.
+- `state` (bool): The state to apply to the button(s) indicated by `button_mask`. True for on (active), false for off (inactive).
 
 **Home Assistant Example:**
 ```yaml
 service: esphome.<your_panel_name>_hw_button_state
 data:
-  left: true   # Turns the left button's indication bar on
-  right: false # Turns the right button's indication bar off
+  button_mask: 3  # Targets both the left (1) and right (2) buttons
+  state: true     # Turns the indication bars on for both buttons
 ```
 > [!NOTE]
 > Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant.
-> This service dynamically updates the hardware button state indications, enhancing the user interface by providing immediate visual feedback.
+> This service leverages a bitmask (`button_mask`) for flexible control over multiple hardware buttons simultaneously, offering a streamlined method for updating their visual states.
 
 ### Icon Service: `icon`
 Updates a chip or custom button's icon, color, and visibility within Home Assistant.
@@ -693,7 +694,7 @@ For example tones and further inspiration, you can visit examples of RTTTL songs
 ```yaml
 service: esphome.<your_panel_name>_rtttl_play
 data:
-  tone: "d=4,o=5,b=140:c,e,g,8p,c6,e6,g6,8p,c7,p"
+  tone: "The Simpsons:d=4,o=5,b=160:c.6,e6,f#6,8a6,g.6,e6,c6,8a,8f#,8f#,8f#,2g,8p,8p,8f#,8f#,8f#,8g,a#.,8c6,8c6,8c6,c6"
 ```
 > [!NOTE]
 > Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant to ensure correct service execution.

@@ -288,7 +288,7 @@ binary_sensor:
     id: display_state
     platform: template
     lambda: |-
-      return (id(current_page).state != "screensaver");
+      return (current_page->state != "screensaver");
 ```
 
 You can easily invert the meaning to have a sensor for display sleeping:
@@ -300,7 +300,7 @@ binary_sensor:
     id: display_sleeping
     platform: template
     lambda: |-
-      return (id(current_page).state == "screensaver");
+      return (current_page->state == "screensaver");
 ```
 
 ### Deep sleep
@@ -373,7 +373,7 @@ button:
       then:
         - logger.log: Button Sleep pressed
         - lambda: |-
-            if (id(current_page).state != "screensaver") id(disp1).goto_page("screensaver");
+            goto_page->execute("screensaver");
   
   # Adds a button to wake-up the panel (similar to the existing service)
   - name: Wake-up
@@ -384,10 +384,10 @@ button:
       then:
         - logger.log: Button Wake-up pressed
         - lambda: |-
-            if (id(current_page).state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
-            // id(timer_page).execute(id(wakeup_page_name).state.c_str()); // enable this if you want page timeout to be reset
-            id(timer_sleep).execute(id(wakeup_page_name).state.c_str(), int(id(timeout_sleep).state));
-            id(timer_dim).execute(id(wakeup_page_name).state.c_str(), int(id(timeout_dim).state));
+            if (current_page->state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
+            // timer_page->execute(); // enable this if you want page timeout to be reset
+            timer_sleep->execute();
+            timer_dim->execute();
 ```
 
 ### Set display as a light
@@ -408,12 +408,12 @@ light:
         - lambda: |-
             ESP_LOGD("light.display_light", "Turn-on");
             if (current_page->state == "screensaver") disp1->goto_page(wakeup_page_name->state.c_str());
-            timer_reset_all->execute(wakeup_page_name->state.c_str());
+            timer_reset_all->execute();
     on_turn_off:
       then:
         - lambda: |-
             ESP_LOGD("light.display_light", "Turn-off");
-            disp1->goto_page("screensaver");
+            goto_page->execute("screensaver");
 
 output:
   # Output required by `display_light` to send the commands to Nextion
@@ -432,12 +432,12 @@ script:
   - id: !extend page_changed
     then:
       - lambda: |-
-          ESP_LOGD("script.page_changed(custom)", "page: %s", page.c_str());
+          ESP_LOGD("script.page_changed(custom)", "page: %s", current_page->state.c_str());
           ESP_LOGV("script.page_changed(custom)", "is_on(): %s", display_light->current_values.is_on() ? "True" : "False");
-          if (page == "screensaver" and display_light->current_values.is_on()) {
+          if (current_page->state == "screensaver" and display_light->current_values.is_on()) {
             auto call = display_light->turn_off();
             call.perform();
-          } else if (page != "screensaver" and (not display_light->current_values.is_on())) {
+          } else if (current_page->state != "screensaver" and (not display_light->current_values.is_on())) {
             auto call = display_light->turn_on();
             call.perform();
           }
@@ -737,11 +737,11 @@ switch:
     lambda: |-
       return (id(relay_settings) & nspanel_ha_blueprint::RelaySettings::Relay1_Local);
     turn_on_action:
-      - lambda: nspanel_ha_blueprint::update_relay_setting(id(relay_settings), true, RelaySettings::Relay1_Local);
+      - lambda: nspanel_ha_blueprint::update_bitwise_setting(id(relay_settings), true, RelaySettings::Relay1_Local);
     on_turn_on:
       - logger.log: "Relay 1 Local turned On!"
     turn_off_action:
-      - lambda: nspanel_ha_blueprint::update_relay_setting(id(relay_settings), false, RelaySettings::Relay1_Local);
+      - lambda: nspanel_ha_blueprint::update_bitwise_setting(id(relay_settings), false, RelaySettings::Relay1_Local);
     on_turn_off:
       - logger.log: "Relay 1 Local turned Off!"
   - name: Relay 2 Local
@@ -751,11 +751,11 @@ switch:
     internal: false
     lambda: return (id(relay_settings) & nspanel_ha_blueprint::RelaySettings::Relay2_Local);
     turn_on_action:
-      - lambda: nspanel_ha_blueprint::update_relay_setting(id(relay_settings), true, RelaySettings::Relay2_Local);
+      - lambda: nspanel_ha_blueprint::update_bitwise_setting(id(relay_settings), true, RelaySettings::Relay2_Local);
     on_turn_on:
       - logger.log: "Relay 2 Local turned On!"
     turn_off_action:
-      - lambda: nspanel_ha_blueprint::update_relay_setting(id(relay_settings), false, RelaySettings::Relay2_Local);
+      - lambda: nspanel_ha_blueprint::update_bitwise_setting(id(relay_settings), false, RelaySettings::Relay2_Local);
     on_turn_off:
       - logger.log: "Relay 2 Local turned Off!"
 ```

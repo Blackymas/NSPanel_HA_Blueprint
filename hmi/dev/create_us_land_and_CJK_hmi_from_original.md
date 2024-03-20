@@ -5,6 +5,9 @@
 - **Program.s:**
     - Change to `display_mode=3`
 
+- **Page boot:**
+    - Change component `progress` (the progress bar in the very bottom) width to 480.
+
 ## Creating `nspanel_CJK_xxx.HMI` from `nspanel_xxx.HMI`
 
 - **Program.s:**

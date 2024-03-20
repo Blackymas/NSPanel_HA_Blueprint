@@ -6,9 +6,9 @@
 - [Version compatibility matrix](version_compatibility.md)
 
 ## Common issues
-- [TFT Upload](tft_upload.md)
-- [Stuck on Initializing](error_initializing.md)
+- [Panel startup issues](error_initializing.md)
 - [Compiling Errors](error_compiling.md)
+- [TFT Upload](tft_upload.md)
 
 ## Advanced settings
 - [Customization](customization.md)
