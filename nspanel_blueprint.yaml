@@ -10,7 +10,7 @@ blueprint:
   description: >
     # NSPanel Configuration via Blueprint: Complete UI-Based Setup
 
-    **Version**: v4.3.1
+    **Version**: v4.3.2d1
 
 
     This project enables comprehensive configuration of your NSPanel through a Blueprint featuring a user interface.
@@ -3308,7 +3308,7 @@ trigger_variables:
 
 variables:
   ##### GENERAL #####
-  blueprint_version: '4.3.1'
+  blueprint_version: '4.3.2d1'
   date_format_temp: !input 'date_format'
   # Avoid breaking change for existing users with legacy type format
   date_format: '{{ date_format_temp if date_format_temp not in ["%d.%m", "%d/%m", "%-d/%-m", "%-m/%-d"] else "%A, " ~ date_format_temp }}'
@@ -5895,6 +5895,34 @@ variables:
         am: 上午
         pm: 下午
 
+  ##### Home page #####
+  home_page:
+    entity_value:
+      - entity: !input home_value01
+        icon: !input home_value01_icon
+        icon_color_rgb: !input home_value01_icon_color
+        label_color_rgb: !input home_value01_label_color
+        page: home
+        component: value01
+      - entity: !input home_value02
+        icon: !input home_value02_icon
+        icon_color_rgb: !input home_value02_icon_color
+        label_color_rgb: !input home_value02_label_color
+        page: home
+        component: value02
+      - entity: !input home_value03
+        icon: !input home_value03_icon
+        icon_color_rgb: !input home_value03_icon_color
+        label_color_rgb: !input home_value03_label_color
+        page: home
+        component: value03
+      - entity: !input home_value04
+        icon: !input home_value04_icon
+        icon_color_rgb: !input home_value04_icon_color
+        label_color_rgb: !input home_value04_label_color
+        page: home
+        component: value04
+
   ##### Button pages #####
   buttons_pages:
     labels:
@@ -7482,6 +7510,13 @@ action:
                   - &global_settings
                     if: '{{ true }}'
                     then:
+                      - *delay_default
+                      - service: 'esphome.{{ nspanel_name }}_component_text'
+                        data:
+                          id: boot.bluep_version
+                          txt: '{{ blueprint_version }}'
+                        continue_on_error: true
+
                       - &variables_hardware
                         variables:
                           hw_button_left_entity: !input left_button_entity
@@ -7509,7 +7544,9 @@ action:
                             enabled: !input qrcode_enabled
                             title: !input qrcode_label
                             qrcode: !input qrcode_value
+                          home_indoor_temp_icon: !input home_indoor_temp_icon
 
+                      ##### Home page #####
                       - *delay_default
                       - service: 'esphome.{{ nspanel_name }}_init_page_home'
                         data:
@@ -7544,6 +7581,71 @@ action:
                           utilities_icon_color: !input home_button08_icon_color
                           outdoor_temp_font: !input home_outdoor_temp_font
                         continue_on_error: true
+
+                      ##### Home page - outdoor_temp
+                      - *delay_default
+                      - service: 'esphome.{{ nspanel_name }}_component_color'
+                        data:
+                          id: home.outdoor_temp
+                          color: !input home_outdoor_temp_label_color
+                        continue_on_error: true
+
+                      ##### Home page - indr_temp
+                      - *delay_default
+                      - service: 'esphome.{{ nspanel_name }}_component_color'
+                        data:
+                          id: home.indr_temp
+                          color: !input home_indoor_temp_label_color
+                        continue_on_error: true
+                      - *delay_default
+                      - service: 'esphome.{{ nspanel_name }}_component_text'
+                        data:
+                          id: home.indr_temp_icon
+                          txt: >
+                            {{
+                              all_icons[home_indoor_temp_icon.split("mdi:")[1]]
+                              if home_indoor_temp_icon.split("mdi:") | count == 2 and home_indoor_temp_icon.split("mdi:")[1] in all_icons
+                              else all_icons.thermometer
+                            }}
+                        continue_on_error: true
+                      - *delay_default
+                      - service: 'esphome.{{ nspanel_name }}_component_color'
+                        data:
+                          id: home.indr_temp_icon
+                          color: !input home_indoor_temp_icon_color
+                        continue_on_error: true
+
+                      ##### Home page - Values 01 - 04
+                      - repeat:
+                          for_each: >
+                            {{
+                              home_page.entity_value
+                              | selectattr("entity", "defined")
+                              | rejectattr("entity", "eq", [])
+                              | list
+                            }}
+                          sequence:
+                          - *delay_default
+                          - service: 'esphome.{{ nspanel_name }}_component_color'
+                            data:
+                              id: '{{ repeat.item.page }}.{{ repeat.item.component }}'
+                              color: '{{ repeat.item.label_color_rgb }}'
+                            continue_on_error: true
+                          - *delay_default
+                          - service: 'esphome.{{ nspanel_name }}_component_text'
+                            data:
+                              id: '{{ repeat.item.page }}.{{ repeat.item.component }}_icon'
+                              txt: >
+                                {{
+                                  all_icons[repeat.item.icon.split("mdi:")[1]]
+                                  if
+                                    repeat.item.icon is defined and
+                                    repeat.item.icon is string and
+                                    repeat.item.icon.split("mdi:") | count == 2 and
+                                    repeat.item.icon.split("mdi:")[1] in all_icons
+                                  else ""
+                                }}
+                            continue_on_error: true
 
                       ##### NSPanel Left Button Name #####
                       - if: '{{ hardware.buttons.left.name | length > 0 }}'
@@ -7816,6 +7918,8 @@ action:
                       - alias: Home page
                         conditions: '{{ nspanel_event.page == pages.home }}'
                         sequence: &refresh_page_home
+                          - variables:
+                              page_constructor: true
                           ##### Weather Icon Home Page #####
                           - *delay_default
                           - &refresh-page_home-weather_pic
@@ -7832,7 +7936,7 @@ action:
                             if: '{{ true }}'
                             then:
                               - variables:
-                                  outdoor_temp_entity: !input 'outdoortemp'
+                                  outdoor_temp_entity: !input outdoortemp
                                   outdoor_temp_state: >
                                     {{
                                       states(outdoor_temp_entity, rounded=true) | default("unavailable")
@@ -7847,14 +7951,10 @@ action:
                                     }}
                               - condition: '{{ is_number(outdoor_temp) }}'
                               - *delay_default
-                              - service: 'esphome.{{ nspanel_name }}_value'
+                              - service: 'esphome.{{ nspanel_name }}_component_text'
                                 data:
                                   id: home.outdoor_temp
-                                  icon: ""
-                                  icon_color: []
-                                  name: ""
-                                  value: '{{ outdoor_temp | round(1) ~ temperature_units }}'
-                                  value_color: !input home_outdoor_temp_label_color
+                                  txt: '{{ outdoor_temp | round(1) ~ temperature_units }}'
                                 continue_on_error: true
 
                           ##### NSPanel Indoor Temp #####
@@ -7863,12 +7963,14 @@ action:
                             then:
                               - variables:
                                   home_indoor_temp_visible: !input home_indoor_temp_visible
-                              - *delay_default
-                              - service: 'esphome.{{ nspanel_name }}_components_visibility'
-                                data:
-                                  ids: ["home.indr_temp", "home.indr_temp_icon"]
-                                  visible: '{{ home_indoor_temp_visible }}'
-                                continue_on_error: true
+                              - if: '{{ page_constructor is defined and page_constructor }}'
+                                then:
+                                  - *delay_default
+                                  - service: 'esphome.{{ nspanel_name }}_components_visibility'
+                                    data:
+                                      ids: ["home.indr_temp", "home.indr_temp_icon"]
+                                      visible: '{{ home_indoor_temp_visible }}'
+                                    continue_on_error: true
                               - condition: '{{ home_indoor_temp_visible }}'
                               - variables:
                                   temperature_sensor: '{{ indoor_temperature_sensor }}'
@@ -7885,27 +7987,12 @@ action:
                                             else temperature_units
                                           )
                                       }}
-                                    icon: !input 'home_indoor_temp_icon'
                               - condition: '{{ is_number(indoor_temp.state) }}'
                               - *delay_default
-                              - service: 'esphome.{{ nspanel_name }}_value'
+                              - service: 'esphome.{{ nspanel_name }}_component_text'
                                 data:
                                   id: home.indr_temp
-                                  icon: >
-                                        {{
-                                          all_icons[indoor_temp.icon.split(":")[1]] | default(all_icons.thermometer)
-                                          if indoor_temp.icon.split(":") | count > 0
-                                          else
-                                            (
-                                              indoor_temp.icon
-                                              if indoor_temp.icon is string
-                                              else all_icons.thermometer
-                                            )
-                                        }}
-                                  icon_color: !input home_indoor_temp_icon_color
-                                  name: ""
-                                  value: '{{ indoor_temp.state | round(1) ~ indoor_temp.units if not embedded_indoor_temperature else "" }}'
-                                  value_color: !input home_indoor_temp_label_color
+                                  txt: '{{ indoor_temp.state | round(1) ~ indoor_temp.units if not embedded_indoor_temperature else "" }}'
                                 continue_on_error: true
 
                           ###### Notification button ######
@@ -7992,7 +8079,7 @@ action:
                                             visible: true
                                           continue_on_error: true
                                       else:
-                                        - if: '{{ pages.current == pages.home }}'
+                                        - if: '{{ pages.current == pages.home and page_constructor is defined and page_constructor }}'
                                           then:
                                             - *delay_default
                                             - service: 'esphome.{{ nspanel_name }}_components_visibility'
@@ -8126,38 +8213,11 @@ action:
                                         visible: '{{ chip_visible }}'
                                       continue_on_error: true
 
-                          ##### HOME VALUE 01 - 03
-                          - &variables_home_page_values
-                            variables:
-                              home_page_values:
-                                - entity: !input 'home_value01'
-                                  icon: !input 'home_value01_icon'
-                                  icon_color_rgb: !input 'home_value01_icon_color'
-                                  label_color_rgb: !input 'home_value01_label_color'
-                                  page: home
-                                  component: value01
-                                - entity: !input 'home_value02'
-                                  icon: !input 'home_value02_icon'
-                                  icon_color_rgb: !input 'home_value02_icon_color'
-                                  label_color_rgb: !input 'home_value02_label_color'
-                                  page: home
-                                  component: value02
-                                - entity: !input 'home_value03'
-                                  icon: !input 'home_value03_icon'
-                                  icon_color_rgb: !input 'home_value03_icon_color'
-                                  label_color_rgb: !input 'home_value03_label_color'
-                                  page: home
-                                  component: value03
-                                - entity: !input 'home_value04'
-                                  icon: !input 'home_value04_icon'
-                                  icon_color_rgb: !input 'home_value04_icon_color'
-                                  label_color_rgb: !input 'home_value04_label_color'
-                                  page: home
-                                  component: value04
+                          ##### Home page - Values 01 - 04
                           - repeat:
                               for_each: >
                                 {{
-                                  home_page_values
+                                  home_page.entity_value
                                   | selectattr("entity", "defined")
                                   | rejectattr("entity", "eq", [])
                                   | list
@@ -8196,14 +8256,28 @@ action:
                                                 if unit_of_measurement_raw and unit_of_measurement_raw is string and unit_of_measurement_raw | length > 0
                                                 else ""
                                               }}
+                                        - if: '{{ overlap.icon is not string }}'  # Do not plot icon if it has overlap
+                                          then:
+                                            - *delay_default
+                                            - service: 'esphome.{{ nspanel_name }}_component_text'
+                                              data:
+                                                id: '{{ repeat.item.page }}.{{ repeat.item.component }}_icon'
+                                                txt: '{{ entity.icon }}'
+                                              continue_on_error: true
+                                        - if: '{{ overlap.icon_color is not sequence }}'  # Do not color icon if it has overlap
+                                          then:
+                                            - *delay_default
+                                            - service: 'esphome.{{ nspanel_name }}_component_color'
+                                              data:
+                                                id: '{{ repeat.item.page }}.{{ repeat.item.component }}_icon'
+                                                color: '{{ entity.icon_color }}'
+                                              continue_on_error: true
+
                                         - *delay_default
-                                        - service: 'esphome.{{ nspanel_name }}_value'
+                                        - service: 'esphome.{{ nspanel_name }}_component_text'
                                           data:
                                             id: '{{ repeat.item.page }}.{{ repeat.item.component }}'
-                                            icon: '{{ entity.icon }}'
-                                            icon_color: '{{ entity.icon_color }}'
-                                            name: ""
-                                            value: &value_with_unit_and_translations >
+                                            txt: &value_with_unit_and_translations >
                                               {{
                                                 (
                                                   (states(entity_id, rounded=true) ~ (unit_of_measurement if unit_of_measurement is string and unit_of_measurement | length > 0 else ""))
@@ -8213,7 +8287,6 @@ action:
                                                 if entity_id_valid and entity_has_value
                                                 else mui[language].unavailable
                                               }}
-                                            value_color: '{{ repeat.item.label_color_rgb }}'
                                           continue_on_error: true
 
                       ## BUTTON PAGES 01 - 04 ##
@@ -10343,9 +10416,8 @@ action:
             id: home_values_state
           - '{{ pages.current == pages.home }}'
         sequence:
-          - *variables_home_page_values
           - repeat:
-              for_each: '{{ home_page_values | selectattr("entity", "defined") | selectattr("entity", "eq", trigger.event.data.entity_id) | list }}'
+              for_each: '{{ home_page.entity_value | selectattr("entity", "defined") | selectattr("entity", "eq", trigger.event.data.entity_id) | list }}'
               sequence:
                 - *display_value
 
