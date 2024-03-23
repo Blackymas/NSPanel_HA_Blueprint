@@ -225,6 +225,9 @@ api:
 ### Manual IP
 Set IP address manually.
 
+> [!ATTENTION]
+> At least one DNS server is required to enable TFT transfer direcly from GitHub, otherwise use `nextion_update_url`.
+
 ```yaml
 # Set IP address manually
 wifi:
@@ -234,6 +237,8 @@ wifi:
         static_ip: 192.168.0.123
         gateway: 192.168.0.1
         subnet: 255.255.255.0
+        dns1: 1.1.1.1  # At least one DNS server is required to enable TFT transfer direcly from GitHub, otherwise use `nextion_update_url`.
+        dns2: 8.8.8.8
 ```
 
 ### Hidden Wi-Fi
