@@ -7256,7 +7256,7 @@ trigger:
       id: weather_state_change
     - platform: state
       entity_id: !input sun_entity
-      id: weather_state_change
+      id: sun_state_change
 
   ##### Trigger - TFT #################################################################################################################
 
@@ -10092,68 +10092,160 @@ action:
                 conditions:
                   - '{{ nspanel_event.type == "version"}}'
                 sequence:
-                  - if: '{{ nspanel_event.blueprint != blueprint_version }}'
-                    then:
-                      - service: persistent_notification.create
-                        data:
-                          notification_id: 'NSPanel_HA_Blueprint_version_mismatch_{{ nspanel_name }}'
-                          title: NSPanel invalid Blueprint version
-                          message: >
-                            ESPHome cannot provide a valid Blueprint version.
-
-                            - Panel: {{ device_attr(nspanel_deviceid, "name") ~ (" (" ~ nspanel_name ~ ")") if nspanel_name != device_attr(nspanel_deviceid, "name") }}
-
-                            - TFT: {{ nspanel_event.tft }}
-
-                            - ESPHome: {{ nspanel_event.esphome }}
-
-                            - Blueprint (reported by ESPHome): {{
-                                                                  nspanel_event.blueprint
-                                                                  if
-                                                                    nspanel_event.blueprint is defined and
-                                                                    nspanel_event.blueprint is string and
-                                                                    nspanel_event.blueprint | length > 0
-                                                                  else "Unknown"
-                                                                }}
-
-                            - Blueprint (installed): {{ blueprint_version }}
-                        continue_on_error: true
-                    else:
-                      - if:
-                          - '{{ nspanel_event.blueprint.split(".")[0] == nspanel_event.esphome.split(".")[0] }}'
-                          - '{{ nspanel_event.blueprint.split(".")[1] == nspanel_event.esphome.split(".")[1] }}'
-                          - '{{ nspanel_event.blueprint.split(".")[0] == nspanel_event.tft.split(".")[0] }}'
-                          - '{{ nspanel_event.blueprint.split(".")[1] == nspanel_event.tft.split(".")[1] }}'
-                        then:
+                  - variables:
+                      versions:
+                        blueprint: >
+                          {{
+                            ('%03d' | format(blueprint_version.split('.')[0] | int)) ~ "." ~ '%03d' | format(blueprint_version.split('.')[1] | int)
+                            if blueprint_version.split('.') | count > 1
+                            else "000.000"
+                          }}
+                        esphome: >
+                          {{
+                            ('%03d' | format(nspanel_event.esphome.split('.')[0] | int)) ~ "." ~ '%03d' | format(nspanel_event.esphome.split('.')[1] | int)
+                            if nspanel_event.esphome.split('.') | count > 1
+                            else "000.000"
+                          }}
+                        tft: >
+                          {{
+                            ('%03d' | format(nspanel_event.tft.split('.')[0] | int)) ~ "." ~ '%03d' | format(nspanel_event.tft.split('.')[1] | int)
+                            if nspanel_event.tft.split('.') | count > 1
+                            else "000.000"
+                          }}
+                      versions_sorted: '{{ versions | dictsort(by="value") }}'
+                      oldest: '{{ versions_sorted[0] }}'
+                      newest: '{{ versions_sorted[-1] }}'
+                  - choose:
+                      # yamllint disable rule:line-length
+                      - alias: All versions are the same
+                        conditions:
+                          - '{{ oldest[1] == newest[1] }}'
+                          - '{{ nspanel_event.blueprint == blueprint_version }}'
+                        sequence:
                           - service: persistent_notification.dismiss
                             data:
                               notification_id: 'NSPanel_HA_Blueprint_version_mismatch_{{ nspanel_name }}'
                             continue_on_error: true
-                        else:
+                      - alias: Blueprint is older
+                        conditions:
+                          - '{{ oldest[1] != newest[1] }}'
+                          - '{{ oldest[0] == "blueprint" }}'
+                        sequence:
                           - service: persistent_notification.create
                             data:
                               notification_id: 'NSPanel_HA_Blueprint_version_mismatch_{{ nspanel_name }}'
-                              title: NSPanel component version mismatch
+                              title: NSPanel Blueprint Needs Update
                               message: >
-                                There's a version mismatch between NSPanel_HA_Blueprint components. Please update all the components to the same version.
+                                Your NSPanel Blueprint version is outdated.
 
-                                - Panel: {{ device_attr(nspanel_deviceid, "name") ~ (" (" ~ nspanel_name ~ ")") if nspanel_name != device_attr(nspanel_deviceid, "name") }}
+                                - Current Blueprint version: {{ blueprint_version }}
 
-                                - TFT: {{ nspanel_event.tft }}
+                                - Expected version: {{ nspanel_event.esphome if newest[0] == "esphome" else nspanel_event.tft }}, based on the panel **{{
+                                    device_attr(nspanel_deviceid, "name") ~ ((" - " ~ nspanel_name) if nspanel_name != device_attr(nspanel_deviceid, "name") else "") }}**.
 
-                                - ESPHome: {{ nspanel_event.esphome }}
+                                **How to Resolve This Issue**
 
-                                - Blueprint (reported by ESPHome): {{
-                                                                      nspanel_event.blueprint
-                                                                      if
-                                                                        nspanel_event.blueprint is defined and
-                                                                        nspanel_event.blueprint is string and
-                                                                        nspanel_event.blueprint | length > 0
-                                                                      else "Unknown"
-                                                                    }}
+                                1. Navigate to your [Blueprint Dashboard](/config/blueprint/dashboard).
 
-                                - Blueprint (installed): {{ blueprint_version }}
+                                2. Locate the blueprint named "**NSPanel Configuration**".
+
+                                3. Click on the corresponding 3-dot menu.
+
+                                4. Choose "**Re-import blueprint**".
+
+                                5. Select the "**Re-import**" button.
+
+                                6. Navigate to [YAML configuration reloading dashboard](/developer-tools/yaml).
+
+                                7. Select "**Automations**" to reload the automations.
+
+
+                                *For more detailed instructions, please refer to the online documentation: [How to Update Blueprint](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/howto.md#update-blueprint).*
                             continue_on_error: true
+                      - alias: ESPHome is older
+                        conditions:
+                          - '{{ oldest[1] != newest[1] }}'
+                          - '{{ oldest[0] == "esphome" }}'
+                        sequence:
+                          - service: persistent_notification.create
+                            data:
+                              notification_id: 'NSPanel_HA_Blueprint_version_mismatch_{{ nspanel_name }}'
+                              title: NSPanel ESPHome Needs Update
+                              message: >
+                                Your NSPanel ESPHome version is outdated for the panel **{{
+                                  device_attr(nspanel_deviceid, "name") ~ ((" (" ~ nspanel_name ~ ")") if nspanel_name != device_attr(nspanel_deviceid, "name") else "") }}**.
+
+                                - Current ESPHome version: {{ nspanel_event.esphome if nspanel_event.esphome is string and nspanel_event.esphome | length > 0 else oldest[1] }}
+
+                                - Expected version: {{ blueprint_version if newest[0] == "blueprint" else nspanel_event.tft }}
+
+                                **How to Resolve This Issue**
+
+                                1. Go to your ESPHome Dashboard.
+
+                                2. Locate the panel named {{ device_attr(nspanel_deviceid, "name") ~ ((" (" ~ nspanel_name ~ ")") if nspanel_name != device_attr(nspanel_deviceid, "name") else "") }}.
+
+                                3. Click on the corresponding 3-dot menu.
+
+                                4. Choose "**Clean Build Files**".
+
+                                5. In the pop-up dialog, wait for the cleaning to finish, then click "**Install**".
+
+                                6. Select "**Wirelessly**".
+
+
+                                *For more detailed instructions, please refer to the online documentation: [How to Update ESPHome](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/howto.md#update-esphome).*
+                            continue_on_error: true
+                      - alias: TFT is older
+                        conditions:
+                          - '{{ oldest[1] != newest[1] }}'
+                          - '{{ oldest[0] == "tft" }}'
+                        sequence:
+                          - service: persistent_notification.create
+                            data:
+                              notification_id: 'NSPanel_HA_Blueprint_version_mismatch_{{ nspanel_name }}'
+                              title: NSPanel TFT Display Needs Update
+                              message: >
+                                The TFT version on your NSPanel is outdated for the panel **{{
+                                  device_attr(nspanel_deviceid, "name") ~ ((" (" ~ nspanel_name ~ ")") if nspanel_name != device_attr(nspanel_deviceid, "name") else "") }}**.
+
+                                - Current TFT version: {{ nspanel_event.tft if nspanel_event.tft is string and nspanel_event.tft | length > 0 else oldest[1] }}
+
+                                - Expected version: {{ blueprint_version if newest[0] == "blueprint" else nspanel_event.esphome }}
+
+                                **How to Resolve This Issue**
+
+                                1. Navigate to the [device page](/config/devices/device/{{ nspanel_deviceid }}).
+
+                                2. In the "**Configuration**" section, find the option labeled "**Update TFT Display - Model**".
+
+                                3. Click "**Update TFT Display**" to initiate the update process.
+
+                                4. Please wait patiently until your panel restarts, indicating the update is complete.
+
+
+                                *For more detailed instructions, please refer to the online documentation: [How to Update TFT](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/howto.md#update-tft).*
+                            continue_on_error: true
+                      - alias: Blueprint not detected
+                        conditions:
+                          - '{{ oldest[1] == newest[1] }}'
+                          - '{{ nspanel_event.blueprint != blueprint_version }}'
+                        sequence:
+                          - service: persistent_notification.create
+                            data:
+                              notification_id: 'NSPanel_HA_Blueprint_version_mismatch_{{ nspanel_name }}'
+                              title: NSPanel Blueprint Communication Issue
+                              message: >
+                                The ESPHome is unable to verify the Blueprint version for the NSPanel.
+
+                                - Panel Details: **{{ device_attr(nspanel_deviceid, "name") ~ (" (" ~ nspanel_name ~ ")") if nspanel_name != device_attr(nspanel_deviceid, "name") }}**
+
+                                - Installed Blueprint Version: {{ blueprint_version }}
+
+
+                                Troubleshooting steps and more information are available in the online documentation: [Panel startup issues - Blueprint is not detected](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/error_initializing.md#blueprint-is-not-detected).
+                            continue_on_error: true
+                      # yamllint enable rule:line-length
 
               ##### Other events #####
               - alias: Other events
@@ -10589,9 +10681,12 @@ action:
       ##### WEATHER STATE - change update #####
       - alias: Weather - State changed
         conditions:
-          - condition: trigger
-            id: weather_state_change
-          - '{{ pages.current == pages.home and trigger.event.data.new_state.state not in enum.states.unknown }}'
+          - '{{ pages.current == pages.home }}'
+          - >
+            {{
+              (trigger.id == "weather_state_change" and trigger.event.data.new_state.state not in enum.states.unknown) or
+              (trigger.id == "sun_state_change" and trigger.to_state.state not in enum.states.unknown)
+            }}
         sequence:
           - *refresh-page_home-outdoor_temp
           - *refresh-page_home-weather_pic
