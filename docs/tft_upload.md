@@ -7,16 +7,13 @@
 > See [Common Issues | TFT Upload when NSPanel Lovelace UI has been installed](howto.md)
 
 ## Common Issues and Troubleshooting
-
 The following is a list of common issues affecting the TFT upload, along with suggested solutions.
 These issues are not specific to the NSPanel HA Blueprint project but are common to Nextion displays and ESPHome.
 
 ### Resolving "System data ERROR!" on Display
-
 ![System Data ERROR](pics/us_system_data_error_upside_down.jpg)
 
 #### Don't Panic!
-
 The "System data ERROR!" message, sometimes displayed upside-down, appears when a TFT upload is incomplete.
 While it may seem alarming, this message simply indicates that the TFT file on the display is invalid.
 A successful TFT upload will resolve this issue.
@@ -39,8 +36,11 @@ For troubleshooting, refer to the following sections:
 > or use a pin to press the hardware restart button in a small hole behind the device.
 > ![Image](pics/eu_reset_button.png)
 
-### Using the `nspanel_blank.tft` File to Assist
+### If using manual IP, make sure you have a DNS server configured
+At least one DNS server is required to enable TFT transfer direcly from GitHub, otherwise use `nextion_update_url`.
+If you are setting up a manual IP as a customization, please remember to add a valid DNS server for your panel.
 
+### Using the `nspanel_blank.tft` File to Assist
 Many TFT upload problems are associated with the Nextion Active Reparse Mode,
 which is used in some implementations like the original Sonoff firmware or other popular custom firmwares.
 Installing any TFT file from this project will disable this mode.
@@ -59,7 +59,6 @@ It should be automatically detected as a new integration, but if this is not hap
 click the **Add integration** button, select **ESPHome**, add the device hostname or IP address and follow the steps required.
 
 ### Wait a Bit Before Starting the TFT Upload
-
 - **Issue**: The Nextion display might not connect to ESPHome immediately after boot.
 - **Solution**: Wait up to 2 minutes for the boot script to complete.
 If you are already using a TFT from this project, the display of ESPHome version and the framework used (`arduino` vs `esp-idf`) is an indication that a communication was established.
@@ -68,7 +67,6 @@ If you haven't installed any TFT yet, look for Nextion related messages on ESPHo
 Observe any changes in the display or logs indicators to ensure the device is ready.
 
 ### Using a Local Source (Home Assistant)
-
 - **Issue**: Problems with downloading the TFT from GitHub.
 - **Solution**: Host the TFT file on your Home Assistant and change the `nextion_update_url` accordingly.
 - **Step-by-Step Guide**: Here's how you can change your `nextion_update_url`:
@@ -77,34 +75,29 @@ Observe any changes in the display or logs indicators to ensure the device is re
     3. Replace the URL with the local address where your TFT file is hosted.
 
 ### HTTP Instead of HTTPS
-
 - **Issue**: HTTPS connections may be problematic with ESP, especially when using `arduino` as framework.
 - **Solution**: Use HTTP for hosting the TFT file and updating the `nextion_update_url`.
 - **Why HTTP?**: HTTP can be more stable for these connections.
 To switch, simply replace 'https' with 'http' in your URLs and make sure your http server supports non-secure connections.
 
 ### Remove Customizations
-
 - **Issue**: Customizations like `bluetooth_proxy` and `ble_tracker` may interfere with the upload.
 - **Solution**: Temporarily remove any customizations to free up memory.
 - **How to Remove Customizations**: Identify any additional features you've added and remove them from your configuration file.
 Pay special attention to memory-intensive customizations.
 
 ### Use IP Address Instead of DNS
-
 - **Issue**: DNS may cause connection problems.
 - **Solution**: Use the IP address of your Home Assistant directly.
 - **Example**: Replace `http://homeassistant.local:8123/local/nspanel_blank.tft` with `http://192.168.0.100:8123/local/nspanel_blank.tft`.
 
 ### Check the File Size by Downloading to Your Computer
-
 - **Issue**: Ensuring the file size matches the GitHub version.
 - **Solution**: Use the same URL you provided to ESPHome to download the file on your computer and compare sizes.
 - **Verification Steps**: Download the file, then right-click and select 'Properties' to check the size.
 Compare this with the size listed on GitHub or from the file you downlodaded directly from GitHub.
 
 ### Power Cycle Your Panel
-
 - **Issue**: General troubleshooting.
 - **Solution**: Turn off the power supply, wait for a moment, and then power it back on.
 If your panel is already installed in the wall, you can often power cycle it by switching the relay connected to your panel in your electricity relay's panel.
@@ -118,7 +111,6 @@ This duration helps ensure that the system resets to a clean state.
 > ![Hardware Reset Button](pics/eu_reset_button.png)
 
 ### Consider changing the framework
-
 - **Issue**: You might be facing some situation where the transfer engine used by your framework cannot handle it properly.
 - **Solution**: Temporarily switch between the frameworks.
 - **Additional Guidance**: This project supports both `arduino` (ESPHome default) or `esp-idf` (this project default) frameworks.
@@ -127,7 +119,6 @@ The upload TFT engines have some differences, so changing the framework may solv
 You can set the framework you want by adding this to your ESPHome yaml:
 
 #### ESP-IDF
-
 ```yaml
 esp32:
   framework:
@@ -135,7 +126,6 @@ esp32:
 ```
 
 #### Arduino
-
 ```yaml
 esp32:
   framework:
@@ -143,7 +133,6 @@ esp32:
 ```
 
 ### Flash your panel again
-
 - **Issue**: Your firmware might be missing some important library, you may be using an outdated version or the ESP may be out of memory.
 - **Solution**: Remove all add-ons and non-essential customization and flash your panel again.
 - **Step-by-Step Guide**:
@@ -153,7 +142,6 @@ esp32:
     4. Add the add-ons and removed customization back and then flash it again.
 
 ### Try an alternative http service
-
 - **Issue**: Your current http server may be overloaded.
 - **Solution**: Try another http server installed in your computer.
 There are many options available for free to run under you local Windows, MAC or Linux machine.
@@ -166,7 +154,6 @@ There are many options available for free to run under you local Windows, MAC or
   | XAMPP | [apachefriends.org](https://www.apachefriends.org/index.html) | Linux, Windows, macOS | All-in-one package, easy to install, ideal for beginners | Not optimized for high-traffic sites, more suited for development than production |
 
 ## Additional Tips and Resources
-
 After troubleshooting, if issues persist, consult the [Issues](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues) and feel free to create a new one asking for more personalized assistance.
 
 Please share as much info as possible, like:
@@ -176,5 +163,4 @@ Please share as much info as possible, like:
 4. Describe what you have already tried.
 
 ## Important note
-
 Remember, these steps are a guideline and might vary slightly based on your specific setup and previously installed system.
