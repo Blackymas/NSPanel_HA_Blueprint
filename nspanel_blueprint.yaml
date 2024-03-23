@@ -943,6 +943,28 @@ blueprint:
             default: []
             selector:
               action:
+          left_button_state_entity:
+            name: Left hardware button - State Indicator Entity (Optional)
+            description: >
+              Specifies the entity reflecting the state of the left button's indicator bar. 
+
+              If not set, the state of the controlled entity itself will dictate the indicator's state.
+            default: []
+            selector: &hardware-button-state-selector
+              entity:
+                filter:
+                  domain:
+                    - binary_sensor
+                    - alarm_control_panel
+                    - climate
+                    - cover
+                    - fan
+                    - input_boolean
+                    - light
+                    - lock
+                    - media_player
+                    - remote
+                    - switch
           left_button_color:
             name: Left hardware button - Text color
             description: "Choose a color for the button's display text."
@@ -982,6 +1004,14 @@ blueprint:
             default: []
             selector:
               action:
+          right_button_state_entity:
+            name: Right hardware button - State Indicator Entity (Optional)
+            description: >
+              Specifies the entity reflecting the state of the right button's indicator bar. 
+
+              If not set, the state of the controlled entity itself will dictate the indicator's state.
+            default: []
+            selector: *hardware-button-state-selector
           right_button_color:
             name: Right hardware button - Text color
             description: "Choose a color for the button's display text."
@@ -7137,11 +7167,17 @@ trigger:
     - platform: state
       entity_id: !input left_button_entity
       id: left_button_state
+    - platform: state
+      entity_id: !input left_button_state_entity
+      id: left_button_alt_state
 
     ##### Right Button - State #####
     - platform: state
       entity_id: !input right_button_entity
       id: right_button_state
+    - platform: state
+      entity_id: !input right_button_state_entity
+      id: right_button_alt_state
 
   ##### Trigger - Page utilities - State change #################################################################################################################
     ##### Page utilities - Main line #####
@@ -7600,18 +7636,26 @@ action:
                       - &variables_hardware
                         variables:
                           hw_button_left_entity: !input left_button_entity
+                          hw_button_left_state_entity: !input left_button_state_entity
                           hw_button_right_entity: !input right_button_entity
+                          hw_button_right_state_entity: !input right_button_state_entity
                           hardware:
                             buttons:
                               left:
                                 entity: '{{ hw_button_left_entity }}'
                                 entity_is_valid: '{{ hw_button_left_entity is defined and hw_button_left_entity is string and hw_button_left_entity.split(".") | count == 2 }}'
+                                state_entity: '{{ hw_button_left_state_entity }}'
+                                state_entity_is_valid: >
+                                  {{ hw_button_left_state_entity is defined and hw_button_left_state_entity is string and hw_button_left_state_entity.split(".") | count == 2 }}
                                 name: !input 'left_button_name'
                                 hold_select: !input 'left_button_hold_select'
                                 bar_always_visible: !input hw_button_bar_left_always_show
                               right:
                                 entity: '{{ hw_button_right_entity }}'
                                 entity_is_valid: '{{ hw_button_right_entity is defined and hw_button_right_entity is string and hw_button_right_entity.split(".") | count == 2 }}'
+                                state_entity: '{{ hw_button_right_state_entity }}'
+                                state_entity_is_valid: >
+                                  {{ hw_button_right_state_entity is defined and hw_button_right_state_entity is string and hw_button_right_state_entity.split(".") | count == 2 }}
                                 name: !input 'right_button_name'
                                 hold_select: !input 'right_button_hold_select'
                                 bar_always_visible: !input hw_button_bar_right_always_show
@@ -7817,8 +7861,8 @@ action:
                           relay2_icon: '{{ all_icons[hardware.relay2_icon.split("mdi:")[1]] if hardware.relay2_icon.split("mdi:")[1] in all_icons else all_icons["numeric-2-box-outline"] }}'
                           relay2_icon_color: !input relay02_icon_color
                           relay2_fallback: !input relay_2_local_fallback
-                          button_left: '{{ hardware.buttons.left.bar_always_visible or hardware.buttons.left.entity_is_valid }}'
-                          button_right: '{{ hardware.buttons.right.bar_always_visible or hardware.buttons.right.entity_is_valid }}'
+                          button_left: '{{ hardware.buttons.left.bar_always_visible or hardware.buttons.left.state_entity_is_valid or hardware.buttons.left.entity_is_valid }}'
+                          button_right: '{{ hardware.buttons.right.bar_always_visible or hardware.buttons.right.state_entity_is_valid or hardware.buttons.right.entity_is_valid }}'
                           button_bar_pages: '{{ hw_buttons_bars_pages | map("int") | sum }}'
                           button_bar_color_on: !input hw_buttons_bar_color_on
                           button_bar_color_off: !input hw_buttons_bar_color_off
@@ -7831,8 +7875,16 @@ action:
                       - if: '{{ true }}'
                         then:
                           - variables:
-                              hw_btn_left_state: '{{ hardware.buttons.left.entity_is_valid and states(hardware.buttons.left.entity) | default("unavailable") in enum.states.on }}'
-                              hw_btn_right_state: '{{ hardware.buttons.right.entity_is_valid and states(hardware.buttons.right.entity) | default("unavailable") in enum.states.on }}'
+                              hw_btn_left_state: >
+                                {{ (states(hardware.buttons.left.state_entity) | default("unavailable")
+                                  if hardware.buttons.left.state_entity_is_valid
+                                  else (states(hardware.buttons.left.entity) | default("unavailable")
+                                    if hardware.buttons.left.entity_is_valid else "unavailable")) in enum.states.on }}
+                              hw_btn_right_state: >
+                                {{ (states(hardware.buttons.right.state_entity) | default("unavailable")
+                                  if hardware.buttons.right.state_entity_is_valid
+                                  else (states(hardware.buttons.right.entity) | default("unavailable")
+                                    if hardware.buttons.right.entity_is_valid else "unavailable")) in enum.states.on }}
                           - if: '{{ hw_btn_left_state == hw_btn_right_state }}'
                             then:  # Save one service call if both buttons have the same state
                               - *delay_default
@@ -10636,26 +10688,36 @@ action:
           - condition: trigger
             id:
               - left_button_state
+              - left_button_alt_state
               - right_button_state
+              - right_button_alt_state
         sequence:
           - *variables_hardware
           - variables:
-              button_name: '{{ "left" if trigger.id == "left_button_state" else "right" }}'
-              button_state: '{{ hardware.buttons[button_name].entity_is_valid and states(hardware.buttons[button_name].entity) | default("unavailable") in enum.states.on }}'
+              button_name: '{{ "left" if trigger.id in ["left_button_state", "left_button_alt_state"] else "right" }}'
+              button_state: >
+                {{ (states(hardware.buttons[button_name].state_entity) | default("unavailable")
+                   if hardware.buttons[button_name].state_entity_is_valid
+                   else (states(hardware.buttons[button_name].entity) | default("unavailable")
+                     if hardware.buttons[button_name].entity_is_valid else "unavailable")) in enum.states.on }}
           - service: 'esphome.{{ nspanel_name }}_hw_button_state'
             data:
-              button_mask: '{{ 1 if trigger.id == "left_button_state" else 2 }}'
+              button_mask: '{{ 1 if trigger.id in ["left_button_state", "left_button_alt_state"] else 2 }}'
               state: '{{ button_state }}'
             continue_on_error: true
           - delay:
               milliseconds: 250
           - variables:
-              button_state_new: '{{ hardware.buttons[button_name].entity_is_valid and states(hardware.buttons[button_name].entity) | default("unavailable") in enum.states.on }}'
+              button_state_new: >
+                {{ (states(hardware.buttons[button_name].state_entity) | default("unavailable")
+                   if hardware.buttons[button_name].state_entity_is_valid
+                   else (states(hardware.buttons[button_name].entity) | default("unavailable")
+                     if hardware.buttons[button_name].entity_is_valid else "unavailable")) in enum.states.on }}
           - if: '{{ button_state_new != button_state }}'
             then:
               - service: 'esphome.{{ nspanel_name }}_hw_button_state'
                 data:
-                  button_mask: '{{ 1 if trigger.id == "left_button_state" else 2 }}'
+                  button_mask: '{{ 1 if trigger.id in ["left_button_state", "left_button_alt_state"] else 2 }}'
                   state: '{{ button_state_new }}'
                 continue_on_error: true
 
