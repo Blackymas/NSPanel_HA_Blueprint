@@ -212,10 +212,10 @@ The NSPanel works nicely as a replacement for existing water underfloor heating 
 In my specific use case, the control valve is of the 'normally closed' type, meaning that an open relay indicates 'no heating.'
 I have utilized relay #1 for this purpose. It's important to note that this setup does not act as a PID controller but operates on a simple on-off mechanism.
 The system initiates heating at a preset value below and turns it off at a value above the set point.
-I have set these values to `0.3°C` below and `0.1°C` above the target temperature, respectively.
-These adjustments, `0.3` and `0.1`, have been effectively maintaining the desired temperature in all of our four rooms.
+I have set these values to `0.1°C` below and `0.1°C` above the target temperature, respectively.
+These adjustments have been effectively maintaining the desired temperature in all of our four rooms.
 The thermostat's settings range from a minimum of `15°C` to a maximum of `22°C`, with a granularity of `0.1°C` for adjustments.
-Furthermore, I have selected `21.2°C` as the default target temperature.
+Furthermore, I have selected `18.3°C` as the default target temperature.
 
 ```yaml
  ##### addon-configuration #####
@@ -224,21 +224,23 @@ Furthermore, I have selected `21.2°C` as the default target temperature.
   temp_min: "15" 
   temp_max: "22" 
   temp_step: "0.1"
-  cold_tolerance: "0.3"
+  cold_tolerance: "0.1"
   hot_tolerance: "0.1"
     
   ##### CHANGE ME END #####
 climate:
   - id: !extend thermostat_embedded
+    visual:
+      temperature_step: ${temp_step}
     preset:
       - name: Home
-        default_target_temperature_low: 21.2
+        default_target_temperature_low: 18.3
         mode: "heat"
 ```
 
-Please note that employing any filter to smooth the temperature readings, such as averaging, is discouraged.
+Please note that employing any filter to smooth the temperature readings, such as averaging, is discouraged if the relevant timescale exceeds 1min.
 Such filtering methods can delay the response times of an already slow underfloor heating system.
 Despite this, the temperature stability achieved is quite satisfactory, as illustrated in the graph below.
 
 ![Temperature vs Time](pics/addon_underfloor.png)
-*On March 5th, around 9:30 PM, a window was opened, and all heaters were set to 'off.'*
+*On March 24th (around 9:20 PM) and March 25th (around 7:30AM) a window was opened, and all heaters were set to 'off.' for 30min*
