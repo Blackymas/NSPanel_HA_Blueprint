@@ -5,17 +5,28 @@
 
 namespace nspanel_ha_blueprint {
 
-    // Definition and initialization of the global variable
-    UtilitiesGroupValues UtilitiesGroups[8] = {
-        { "grid", "\0", "\0", 0 },
-        { "group01", "\0", "\0", 0 },
-        { "group02", "\0", "\0", 0 },
-        { "group03", "\0", "\0", 0 },
-        { "group04", "\0", "\0", 0 },
-        { "group05", "\0", "\0", 0 },
-        { "group06", "\0", "\0", 0 },
-        { "home", "\0", "\0", 0 }
-    };
+    UtilitiesGroupValues UtilitiesGroups[8];
+
+    void resetUtilitiesGroups() {
+        // Temporary structure to hold the initial values
+        const UtilitiesGroupValues initialUtilitiesGroups[8] = {
+            { "grid", "\0", "\0", 0 },
+            { "group01", "\0", "\0", 0 },
+            { "group02", "\0", "\0", 0 },
+            { "group03", "\0", "\0", 0 },
+            { "group04", "\0", "\0", 0 },
+            { "group05", "\0", "\0", 0 },
+            { "group06", "\0", "\0", 0 },
+            { "home", "\0", "\0", 0 }
+        };
+
+        for (size_t i = 0; i < 8; ++i) {
+            std::strcpy(UtilitiesGroups[i].group_id, initialUtilitiesGroups[i].group_id);
+            std::strcpy(UtilitiesGroups[i].value1, initialUtilitiesGroups[i].value1);
+            std::strcpy(UtilitiesGroups[i].value2, initialUtilitiesGroups[i].value2);
+            UtilitiesGroups[i].direction = initialUtilitiesGroups[i].direction;
+        }
+    }
 
     uint8_t findUtilitiesGroupIndex(const char* group_id) {
         int low = 0;

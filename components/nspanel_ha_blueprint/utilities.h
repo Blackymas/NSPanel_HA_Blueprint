@@ -14,6 +14,7 @@ namespace nspanel_ha_blueprint {
 
     extern UtilitiesGroupValues UtilitiesGroups[8];
 
+    void resetUtilitiesGroups();
     uint8_t findUtilitiesGroupIndex(const char* group_id);
 
 }  // namespace nspanel_ha_blueprint
