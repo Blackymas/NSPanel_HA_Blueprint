@@ -233,11 +233,11 @@ and provides a structured way to return to either the home page or a specific bu
 
 **Usage:**
 Ideal for interfaces requiring detailed entity information across various contexts.
-By specifying the `entity_id` and `back_page`, users are offered a seamless navigation experience,
+By specifying the `entity` and `back_page`, users are offered a seamless navigation experience,
 ensuring they can easily access detailed information and return to their initial navigation point within the interface.
 
 **Parameters:**
-- `entity_id` (string): The unique identifier of the entity for which details are displayed.
+- `entity` (string): The unique identifier of the entity (`entity_id` in Home Assistant) for which details are displayed.
 - `back_page` (string): The page identifier to return to after viewing entity details.
 Valid options are `home` for the home page or `buttonpage01` to `buttonpage04` for button pages.
 No other pages are supported to maintain navigation consistency.
@@ -246,7 +246,7 @@ No other pages are supported to maintain navigation consistency.
 ```yaml
 service: esphome.<your_panel_name>_entity_details_show
 data:
-  entity_id: "light.living_room"
+  entity: "light.living_room"
   back_page: "buttonpage01"
 ```
 > [!NOTE]
