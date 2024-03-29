@@ -541,17 +541,19 @@ time:
 ### Frameworks
 > [!IMPORTANT]
 > When switching between frameworks, make sure to update the device with a serial cable as the partition table is different between the two frameworks
-as [OTA Update Component](https://esphome.io/components/ota) updates will not change the partition table.
-
-The `arduino` protocol still more popular and therefore more components are available, but as `esp-idf` is maintained by EspressIF and is kept updated,
-more boards are supported and the memory management is better, making it ideal if you wanna customize your panel to support memory consumption functionalities,
-like `bluetooth_proxy` or [Improv](https://www.improv-wifi.com/).
+as [OTA Update Component](https://esphome.io/components/ota) updates will not change the partition table. While it will appear to work, the device will boot the old framework after a reset.
 
 This project currently uses `esp-idf` as default framework.
 You can overlap the settings with this customization.
 
 > [!NOTE]
 > For more info about frameworks, please visit [ESPHome docs](https://esphome.io/components/esp32).
+
+`esp-idf` is maintained by EspressIF and is kept updated,
+more boards are supported and the memory management is better, making it ideal if you wanna customize your panel to support memory consumption functionalities,
+like `bluetooth_proxy` or [Improv](https://www.improv-wifi.com/). Consequently, this project uses `esp-idf` as the default framework since `v4.3`. 
+
+However, the `arduino` protocol still very popular and, therefore, more components are available and the project allows to switch between the frameworks by adding the following lines in your panel's yaml file.
 
 #### Framework `arduino`
 ```yaml
@@ -563,6 +565,7 @@ esp32:
 #### Framework `esp-idf`
 ```yaml
 # Change framework to `esp-idf`
+# (should not be required)
 esp32:
   framework:
     type: esp-idf
