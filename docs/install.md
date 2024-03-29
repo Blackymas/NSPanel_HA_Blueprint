@@ -88,8 +88,12 @@ Follow these steps to add a new device in the ESPHome Dashboard:
    ![Skip Installation](pics/ha_esphome_dashboard_new_device_03.png)
 5. Locate your newly created device in the ESPHome Dashboard and click **Edit**.  
    ![Edit Device](pics/ha_esphome_dashboard_new_device_04.png)
-6. (Optional) For enhanced security, consider copying the `api:` section to a temporary file.  
+6. (Optional) For enhanced security, consider copying the `api:` entry to your panel's yaml file while adding the key itself to the secrets file
    ![API Section](pics/ha_esphome_dashboard_new_device_05.png)
+
+which can be edited clicking `secrets` at the top right of your ESPHome menu.
+   
+   ![API Section](pics/ha_esphome_dashboard_new_device_05c.png)
 7. Note the device name at the beginning of the file under `esphome`.  
    ![Device Name](pics/ha_esphome_dashboard_new_device_05b.png)
 8. Clear all existing content and paste the following YAML configuration:
