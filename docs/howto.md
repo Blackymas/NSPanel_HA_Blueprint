@@ -138,13 +138,13 @@ The new firmware will be built and then flashed to your panel, which will restar
 4. The display starts the update process and then restarts.
 
 ## Notification via HA
-To show a notification on the NSPAnel, the following service call can be used:
+To show a notification on the NSPanel, the following service call can be used:
 
 ```yaml
 service: esphome.panelname_notification_show
 data:
-  label: Example text
-  message: Example text
+  label: Example label text
+  message: Example message text
 ```
 > [!NOTE]
 > For more details about this service call, please refer to our [API documentation](api.md#notification-show-service-notification_show).
@@ -177,7 +177,7 @@ trigger:
 
 ## Climate control with Relays
 > [!ATTENTION]
-> Although these instructions are still valid, since v4.0 there is a better way to setup a climate control using the panel's relays an the [add-on climate](addon_climate.md).
+> Although these instructions are still valid, since v4.0 there is a better way to setup a climate control using the panel's relays an the [add-on climate](addon_climate.md), which will continue to work even if Home Assistant and/or WiFi are not available. You probably only want to use this approach, if you are not using the build-in thermometer. 
 
 In order to use the NSPanel to control a radiator or underfloor heating, at least one Generic Thermostat must be created in the HA.
 More information can be found here: https://www.home-assistant.io/integrations/generic_thermostat/
