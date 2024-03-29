@@ -19,7 +19,7 @@ Don't use it for directly power your cooler/heater if exceeding the panel specif
 ## Installation
 
 You will need to add the reference to `addon_climate_heat`, `addon_climate_cool` or `addon_climate_dual` files on your ESPHome settings in the `package` section
-and after the `remote_package` (base code), as shown bellow (for `heat` in this example):
+and after the `remote_package` (base code), as shown below (for `heat` in this example):
 
 > [!NOTE]
 > Occasionally, ESPHome updates may result in the `entity_id` of embedded thermostats being appended with `_2`. 
@@ -210,7 +210,7 @@ packages:
 ### Real Use Case Example: Water Underfloor Heating with NSPanel
 The NSPanel works nicely as a replacement for existing water underfloor heating controllers, installed at eye level and often powered by 100-240VAC.
 In my specific use case, the control valve is of the 'normally closed' type, meaning that an open relay indicates 'no heating.'
-I have utilized relay #1 for this purpose. It's important to note that this setup does not act as a PID controller but operates on a simple on-off mechanism.
+I have utilized relay #1 for this purpose. It's important to note that this setup does not act as a PID controller, but operates on a simple on-off mechanism.
 The system initiates heating at a preset value below and turns it off at a value above the set point.
 I have set these values to `0.1°C` below and `0.1°C` above the target temperature, respectively.
 These adjustments have been effectively maintaining the desired temperature in all of our four rooms.
