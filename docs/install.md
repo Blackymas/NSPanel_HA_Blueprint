@@ -143,12 +143,10 @@ Learn about secrets in ESPHome: [Home Assistant Secrets in ESPHome](https://www.
     > it is strongly recommended to use HTTP, especially when employing the `arduino` framework.
     > The support for HTTPS in this context can be unstable,
     > often leading to issues with file transfers.
-
 12. (Optional) Enhance security with API encryption by adding the copied key from step 6 to the **My Customization** area.
 
     > [!TIP]
     > You can get a new randomly generated valid key from [ESPHome Native API Component](https://esphome.io/components/api.html#configuration-variables) page.
-
 13. After finalizing settings, click **Save** and close the YAML window.
 
 Your NSPanel is now configured in your ESPHome Dashboard.
