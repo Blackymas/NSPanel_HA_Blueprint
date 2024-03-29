@@ -15,9 +15,9 @@ framework.txt="esp-idf"
 ip_addr.txt="192.168.0.123"
 ```
 
-![Boot EU](../docs/pics/eu_boot.png)
+![Boot EU](../../docs/pics/eu_boot.png)
 
-![Boot US](../docs/pics/us_boot.png)
+![Boot US](../../docs/pics/us_boot.png)
 
 ## Home page
 
@@ -59,7 +59,7 @@ value03_state.txt="715 W"
 value03_icon.txt=""
 ```
 
-![Home EU](../docs/pics/eu_home.png)
+![Home EU](../../docs/pics/eu_home.png)
 
 **US version:**
 
@@ -100,7 +100,7 @@ value03_state.txt="715 W"
 value03_icon.txt=""
 ```
 
-![Home US](../docs/pics/us_home.png)
+![Home US](../../docs/pics/us_home.png)
 
 ## Settings page
 
@@ -108,8 +108,8 @@ value03_icon.txt=""
 page settings
 ```
 
-![Settings EU](../docs/pics/eu_settings.png)
-![Settings US](../docs/pics/us_settings.png)
+![Settings EU](../../docs/pics/eu_settings.png)
+![Settings US](../../docs/pics/us_settings.png)
 
 ## Buttons pages (DRAFT)
 
