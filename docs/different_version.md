@@ -65,11 +65,11 @@ They're created for each new release, allowing easy access to different project 
 ### For Nextion TFT Component
 The instructions to upload TFT will vary depending on the version you are installing and the framework you are using.
 
-#### v4.2 or later (ESP-IDF) or v4.2.5 or later (Arduino)
+#### v4.2 or later (if you are using ESP-IDF) or v4.2.5 or later (if you are using Arduino)
 1. Go to your device's page under **Settings** > **Devices & Services** > **ESPHome**.
 2. On the **Configuration** group, press **Update TFT display** and wait for the upload to complete. The system will automatically find the right TFT file for the ESPHome version you are running.
 
-#### v4.1 or earlier, or v4.2.4 or earlier for Arduino framework
+#### v4.1 or earlier (in either case) or v4.2.4 or earlier (if you are using Arduino)
 1. On the GitHub repository, click on your chosen version name on the [NSPanel_HA_Blueprint Tags](https://github.com/Blackymas/NSPanel_HA_Blueprint/tags) list, then select the tab **Code**.
 2. Double-check that the correct version is shown below the repository name:
 
