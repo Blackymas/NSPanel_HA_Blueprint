@@ -168,6 +168,14 @@ time:
         - logger.log: "System clock synchronized"
         - script.execute: refresh_datetime
 
+##### Web server #####
+web_server:
+  id: web_server_std
+  port: 80
+  auth:
+    username: admin
+    password: ${web_password}
+
 ##### START - API CONFIGURATION #####
 api:
   id: api_server
@@ -1756,92 +1764,92 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            cJSON *json = cJSON_Parse(x.c_str());
-            if (!json) {
-              ESP_LOGE("text_sensor.disp1_local_event", "Error parsing json: %s", x.c_str());
+            DynamicJsonDocument json(1024);
+            DeserializationError error = deserializeJson(json, x.c_str());
+            if (error) {
+                ESP_LOGE("text_sensor.disp1_local_event", "Error parsing json: %s", x.c_str());
+                ESP_LOGE("text_sensor.disp1_local_event", "Error: %s", error.c_str());
             } else {
-              const cJSON* page = cJSON_GetObjectItemCaseSensitive(json, "page");
-              const cJSON* event = cJSON_GetObjectItemCaseSensitive(json, "event");
-              const cJSON* component = cJSON_GetObjectItemCaseSensitive(json, "component");
-              const cJSON* key = cJSON_GetObjectItemCaseSensitive(json, "key");
-              const cJSON* value = cJSON_GetObjectItemCaseSensitive(json, "value");
-              const cJSON* embedded = cJSON_GetObjectItemCaseSensitive(json, "embedded");
+              const std::string page = json["page"];
+              const std::string event = json["event"];
+              const std::string component = json["component"];
+              const std::string key = json["key"];
+              const std::string value = json["value"];
 
               esphome::api::CustomAPIDevice ha_event;
               // Send event to Home Assistant
-              if (json_cmp_string(event, "short_click") or json_cmp_string(event, "long_click")) {
-                ha_button->execute(json_get_text(page), json_get_text(component), json_get_text(event));
-              } else if (json_cmp_string(page, "light") or json_cmp_string(page, "climate")) {  // Generic event
+              if (event == "short_click" or event == "long_click") {
+                ha_button->execute(page.c_str(), component.c_str(), event.c_str());
+              } else if (page == "light" or page == "climate") {  // Generic event
                 ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
                   {"device_name", device_name->state.c_str()},
                   {"type", "generic"},
-                  {"page", json_get_text(page, current_page->state.c_str())},
-                  {"component", json_get_text(component)},
-                  {"event", json_get_text(event)},
-                  {"value", json_get_text(value)},
+                  {"page", page.c_str()},
+                  {"component", component.c_str()},
+                  {"event", event.c_str()},
+                  {"value", value.c_str()},
                   {"entity", detailed_entity->state.c_str()}
                 });
               }
 
               // page based actions
-              if (json_cmp_string(page, "alarm")) {
-                const cJSON* code_format = cJSON_GetObjectItemCaseSensitive(json, "code_format");
-                const cJSON* code_arm_req = cJSON_GetObjectItemCaseSensitive(json, "code_arm_req");
-                const cJSON* title = cJSON_GetObjectItemCaseSensitive(json, "mui");
-                if (json_cmp_string(code_format, "number") and (json_cmp_string(key, "disarm") or json_cmp_string(code_arm_req, "1"))) {
+              if (page == "alarm") {
+                const std::string code_format = json["code_format"];
+                const std::string code_arm_req = json["code_arm_req"];
+                const std::string title = json["mui"];
+                if (code_format == "number" and (key == "disarm" or code_arm_req == "1")) {
                   goto_page->execute("keyb_num");
                   disp1->set_component_value("keyb_num.page_id", get_page_id("alarm")); //Calling from Alarm page
-                  disp1->set_component_text("keyb_num.domain", json_get_text(page));
-                  disp1->set_component_text("keyb_num.key", json_get_text(key));
-                  disp1->set_component_text("keyb_num.value", json_get_text(value));
+                  disp1->set_component_text("keyb_num.domain", page.c_str());
+                  disp1->set_component_text("keyb_num.key", key.c_str());
+                  disp1->set_component_text("keyb_num.value", value.c_str());
                   disp1->set_component_text("keyb_num.entity", detailed_entity->state.c_str());
-                  disp1->set_component_text("keyb_num.title", json_get_text(title));
-                  } else service_call_alarm_control_panel->execute(detailed_entity->state.c_str(), json_get_text(key), json_get_text(code_format), "");
-              } else if (json_cmp_string(page, "climate")) {
-                change_climate_state->execute((embedded != NULL and cJSON_IsNumber(embedded) and embedded->valueint == 1), json_get_text(key), json_get_text(value));
-              } else if (json_cmp_string(page, "cover")) {
-                if (json_cmp_string(key, "position")) ha_call_service->execute("cover.set_cover_position", json_get_text(key), json_get_text(value), detailed_entity->state.c_str());
-                else ha_call_service->execute((std::string("cover.") + json_get_text(key)), "", "", detailed_entity->state.c_str());
-              } else if (json_cmp_string(page, "fan")) {
-                if (json_cmp_string(key, "stop") or json_cmp_string(value, "0") == 0) ha_call_service->execute("fan.turn_off", "", "", detailed_entity->state.c_str());
-                else ha_call_service->execute("fan.turn_on", json_get_text(key), json_get_text(value), detailed_entity->state.c_str());
-              } else if (json_cmp_string(page, "keyb_num")) {
-                const cJSON* base_domain = cJSON_GetObjectItemCaseSensitive(json, "base_domain");
-                if (json_cmp_string(base_domain, "alarm")) {
-                  const cJSON* code_format = cJSON_GetObjectItemCaseSensitive(json, "code_format");
-                  const cJSON* pin = cJSON_GetObjectItemCaseSensitive(json, "pin");
-                  service_call_alarm_control_panel->execute(detailed_entity->state.c_str(), json_get_text(key), json_get_text(code_format), json_get_text(pin));
+                  disp1->set_component_text("keyb_num.title", title.c_str());
+                  } else service_call_alarm_control_panel->execute(detailed_entity->state.c_str(), key.c_str(), code_format.c_str(), "");
+              } else if (page == "climate") {
+                const uint8_t embedded = json["embedded"];
+                change_climate_state->execute(embedded == 1, key.c_str(), value.c_str());
+              } else if (page == "cover") {
+                if (key == "position") ha_call_service->execute("cover.set_cover_position", key.c_str(), value.c_str(), detailed_entity->state.c_str());
+                else ha_call_service->execute(("cover." + key).c_str(), "", "", detailed_entity->state.c_str());
+              } else if (page == "fan") {
+                if (key == "stop" or value == "0") ha_call_service->execute("fan.turn_off", "", "", detailed_entity->state.c_str());
+                else ha_call_service->execute("fan.turn_on", key.c_str(), value.c_str(), detailed_entity->state.c_str());
+              } else if (page == "keyb_num") {
+                const std::string base_domain = json["base_domain"];
+                if (base_domain == "alarm") {
+                  const std::string code_format = json["code_format"];
+                  const std::string pin = json["pin"];
+                  service_call_alarm_control_panel->execute(detailed_entity->state.c_str(), key.c_str(), code_format.c_str(), pin.c_str());
                 }
-                goto_page->execute(json_get_text(base_domain, "home"));
-              } else if (json_cmp_string(page, "light")) {
-                if ((json_cmp_string(key, "brightness_pct") or json_cmp_string(key, "color_temp")) and cJSON_IsNumber(value)) {
-                  ha_call_service->execute("light.turn_on", json_get_text(key), std::to_string(value->valueint), detailed_entity->state.c_str());
-                } else if (json_cmp_string(component, "rgb_color") and cJSON_IsArray(value)) {
-                  int* rgb_color = json_extract_rgb_array(value);
-                  if (rgb_color) {
+                goto_page->execute(base_domain.empty() ? "home" : base_domain.c_str());
+              } else if (page == "light") {
+                if (key == "brightness_pct" or key == "color_temp") {
+                  ha_call_service->execute("light.turn_on", key.c_str(), value.c_str(), detailed_entity->state.c_str());
+                } else if (component == "rgb_color") {
+                  JsonArray rgb_color = json["value"];
+                  if (rgb_color.size() == 3) {
                     ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
                       {
                         {"device_name", device_name->state.c_str()},
                         {"type", "service_call"},
                         {"service", "light.turn_on"},
                         {"key", "rgb_color"},
-                        {"red",std::to_string(rgb_color[0])},
-                        {"green",std::to_string(rgb_color[1])},
-                        {"blue",std::to_string(rgb_color[2])},
+                        {"red",std::to_string(rgb_color[0].as<int>())},
+                        {"green",std::to_string(rgb_color[1].as<int>())},
+                        {"blue",std::to_string(rgb_color[2].as<int>())},
                         {"entity", detailed_entity->state.c_str()}
                       });
-                    free(rgb_color);
                   }
                 }
-              } else if (json_cmp_string(page, "media_player")) {
-                if (json_cmp_string(key, "volume_mute"))
-                  ha_call_service->execute("media_player.volume_mute", "is_volume_muted", json_get_text(value), detailed_entity->state.c_str());
-                else if (json_cmp_string(key, "volume_set"))
-                  ha_call_service->execute("media_player.volume_set", "volume_level", json_percentage_to_float_string(value).c_str(), detailed_entity->state.c_str());
-                else if ((key != NULL and key->valuestring != NULL and key->valuestring[0] != '\0'))
-                  ha_call_service->execute((std::string("media_player.") + json_get_text(key)), "", "", detailed_entity->state.c_str());
+              } else if (page == "media_player") {
+                if (key == "volume_mute")
+                  ha_call_service->execute("media_player.volume_mute", "is_volume_muted", value.c_str(), detailed_entity->state.c_str());
+                else if (key == "volume_set")
+                  ha_call_service->execute("media_player.volume_set", "volume_level", to_string(stof(value) / 100), detailed_entity->state.c_str());
+                else if (!key.empty())
+                  ha_call_service->execute((std::string("media_player.") + key.c_str()), "", "", detailed_entity->state.c_str());
               }
-              cJSON_Delete(json);
             }
 
   ##### Versioning #####
