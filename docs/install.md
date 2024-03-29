@@ -97,35 +97,35 @@ which can be edited clicking `secrets` at the top right of your ESPHome menu.
 7. Note the device name at the beginning of the file under `esphome`.  
    ![Device Name](pics/ha_esphome_dashboard_new_device_05b.png)
 8. Clear all existing content and paste the following YAML configuration:
-    ```yaml
-    substitutions:
-      # Settings - Editable values
-      device_name: "YOUR_NSPANEL_NAME"
-      friendly_name: "Your panel's friendly name"
-      wifi_ssid: !secret wifi_ssid
-      wifi_password: !secret wifi_password
-      nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"  # Optional
-      # Add-on configuration (if needed)
-      # heater_relay: "1"  # Possible values: "1" or "2"
+```yaml
+substitutions:
+  # Settings - Editable values
+  device_name: "YOUR_NSPANEL_NAME"
+  friendly_name: "Your panel's friendly name"
+  wifi_ssid: !secret wifi_ssid
+  wifi_password: !secret wifi_password
+  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"  # Optional
+  # Add-on configuration (if needed)
+  # heater_relay: "1"  # Possible values: "1" or "2"
 
-    # Customization area
-    ##### My customization - Start #####
-    ##### My customization - End #####
+# Customization area
+##### My customization - Start #####
+##### My customization - End #####
 
-    # Core and optional configurations
-    packages:
-      remote_package:
-        url: https://github.com/Blackymas/NSPanel_HA_Blueprint
-        ref: main
-        files:
-          - nspanel_esphome.yaml # Basic package
-          # Optional advanced and add-on configurations
-          # - esphome/nspanel_esphome_advanced.yaml
-          # - nspanel_esphome_addon_climate_cool.yaml
-          # - nspanel_esphome_addon_climate_heat.yaml
-          # - nspanel_esphome_addon_climate_dual.yaml
-        refresh: 300s
-    ```
+# Core and optional configurations
+packages:
+  remote_package:
+    url: https://github.com/Blackymas/NSPanel_HA_Blueprint
+    ref: main
+    files:
+      - nspanel_esphome.yaml # Basic package
+      # Optional advanced and add-on configurations
+      # - esphome/nspanel_esphome_advanced.yaml
+      # - nspanel_esphome_addon_climate_cool.yaml
+      # - nspanel_esphome_addon_climate_heat.yaml
+      # - nspanel_esphome_addon_climate_dual.yaml
+    refresh: 300s
+```
 
    ![YAML Code](pics/ha_esphome_dashboard_new_device_06.png)
 9. Modify the **Settings** section with your device name (as noted in step 7) and Wi-Fi details.  
@@ -136,7 +136,6 @@ Learn about secrets in ESPHome: [Home Assistant Secrets in ESPHome](https://www.
     ensuring that the file is accessible to the NSPanel.
     This URL will be used by ESPHome to download the TFT file to your panel.
     For more information on hosting the TFT file and setting up the URL, see the [Upload TFT](#upload-tft) section.
-
     > [!CAUTION]
     > **Prefer HTTP over HTTPS for File Transfer**  
     > While you might encounter examples using HTTPS in URLs for file transfer,
@@ -144,7 +143,6 @@ Learn about secrets in ESPHome: [Home Assistant Secrets in ESPHome](https://www.
     > The support for HTTPS in this context can be unstable,
     > often leading to issues with file transfers.
 12. (Optional) Enhance security with API encryption by adding the copied key from step 6 to the **My Customization** area.
-
     > [!TIP]
     > You can get a new randomly generated valid key from [ESPHome Native API Component](https://esphome.io/components/api.html#configuration-variables) page.
 13. After finalizing settings, click **Save** and close the YAML window.
