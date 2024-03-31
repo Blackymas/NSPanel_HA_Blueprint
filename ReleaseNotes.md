@@ -408,6 +408,15 @@ not only enhances the NSPanel's functionality but also broadens the scope for mo
 Your active participation and contributions have been instrumental in refining this feature.
 Special thanks to @andythomas and @grigi for their exceptional work in testing and proposing these adjustments, truly embodying the spirit of community-driven development.
 
+### Documentation Improvement for TFT Upload Process (#1969)
+- **Criticality:** Enhancement
+- **Affected Components:** Documentation
+- **Issue Number:** #1969
+- **Description:** Enhanced the documentation to clarify the necessity of DNS for downloading TFT files from GitHub during the TFT upload process.
+This update addresses confusion encountered when manually setting IP addresses as part of customizations, emphasizing that a DNS server must be specified to enable remote TFT downloads.
+For setups lacking DNS configuration, the documentation now highlights the alternative of using local TFT transfer via the `nextion_update_url` substitution.
+This clarification aims to streamline the TFT update process, ensuring users have a clear understanding of the requirements for successful TFT file downloads and uploads,
+thereby enhancing the overall setup experience.
 
 ### Close Icon Visibility Enhancement (#1984)
 - **Criticality:** Enhancement
