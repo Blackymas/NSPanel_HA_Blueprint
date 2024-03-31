@@ -391,6 +391,24 @@ The procedure below guides you through cleaning build files in the ESPHome Dashb
 > Cleaning build files is a mandatory step for this update to apply successfully.
 > It ensures your NSPanel operates smoothly with the new improvements post-update.
 
+### Enhanced Temperature Measurement Strategy (#1918)
+- **Criticality:** Enhancement
+- **Affected Components:** ESPHome
+- **Issue Number:** #1918
+- **Description:** Thanks to the dedicated efforts and thorough testing by our community,
+the NSPanel's built-in temperature sensor now employs a more sophisticated measurement strategy for enhanced accuracy and responsiveness.
+By integrating a combination of four samples per measurement and employing a `sliding_window_moving_average` filter with a window size of six,
+the sensor's reporting frequency has been adjusted to every 10 seconds.
+This methodological enhancement, chiefly proposed and tested by community members @andythomas and @grigi,
+ensures a smoother temperature curve and faster response to environmental changes such as opening a window.
+While the adjusted frequency means data is reported more often, ESPHome's efficient data transmission only when changes occur ensures that the impact on Home Assistant's data processing is minimal.
+This significant improvement, sparked by proactive community involvement,
+not only enhances the NSPanel's functionality but also broadens the scope for more dynamic and responsive environmental automations.
+
+Your active participation and contributions have been instrumental in refining this feature.
+Special thanks to @andythomas and @grigi for their exceptional work in testing and proposing these adjustments, truly embodying the spirit of community-driven development.
+
+
 ### Close Icon Visibility Enhancement (#1984)
 - **Criticality:** Enhancement
 - **Affected Components:** TFT
