@@ -398,6 +398,14 @@ This update minimizes the issue, ensuring smooth operation and reducing the chan
 - **Description:** Resolved an issue where button page labels consisting solely of numbers were not being displayed, ensuring that numeric titles are now properly shown.
 This fix enhances interface clarity by allowing users to utilize numerical identifiers for their button pages, thereby improving navigation and usability within the NSPanel environment.
 
+### Automatic Update for Weather Icon at Sunrise and Sunset (#1971)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Issue Number:** #1971
+- **Description:** Addressed a bug where the weather icon on the home page did not automatically update to reflect changes at sunrise and sunset, necessitating a manual page reload.
+With this fix, the icon now refreshes automatically to provide an accurate representation of the weather conditions in relation to the day and night cycle.
+This improvement ensures a more dynamic and responsive user interface, enhancing the visual experience by seamlessly integrating natural environmental changes.
+
 ### Enhanced Temperature Measurement Strategy (#1918)
 - **Criticality:** Enhancement
 - **Affected Components:** ESPHome
