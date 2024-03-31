@@ -362,6 +362,15 @@ improving accuracy and reliability for users monitoring their environment.
 ## v4.3.2 - Patch
 To add some text here
 
+### Utilities Dashboard Performance Bug Resolved (#1964)
+- **Criticality:** Medium
+- **Affected Components:** Blueprint and ESPHome
+- **Issue Number:** #1964
+- **Description:** Fixed a significant performance bug in the "Utilities Dashboard" related to sensors with high update frequencies.
+Previously, sensors updating frequently could overload the Home Assistant host, causing the blueprint execution to delay.
+As updates persisted, this led to multiple instances of the blueprint being triggered, eventually hitting the limit of 50 concurrent instances.
+This update minimizes the issue, ensuring smooth operation and reducing the chances of a overload state, thereby maintaining efficient and reliable dashboard performance.
+
 ### Device Reboot Issue on Wake Up Resolved (#1976)
 - **Criticality:** Medium
 - **Affected Components:** Blueprint
