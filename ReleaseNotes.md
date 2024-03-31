@@ -391,6 +391,13 @@ This update minimizes the issue, ensuring smooth operation and reducing the chan
 > Cleaning build files is a mandatory step for this update to apply successfully.
 > It ensures your NSPanel operates smoothly with the new improvements post-update.
 
+### Fix for Numeric Button Page Labels Not Displaying (#1961)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Issue Number:** #1961
+- **Description:** Resolved an issue where button page labels consisting solely of numbers were not being displayed, ensuring that numeric titles are now properly shown.
+This fix enhances interface clarity by allowing users to utilize numerical identifiers for their button pages, thereby improving navigation and usability within the NSPanel environment.
+
 ### Enhanced Temperature Measurement Strategy (#1918)
 - **Criticality:** Enhancement
 - **Affected Components:** ESPHome
