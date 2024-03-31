@@ -359,8 +359,10 @@ improving accuracy and reliability for users monitoring their environment.
 - **Affected Components:** ESPHome and TFT
 - **Description:** Updated the Boot page to offer clearer visual feedback on version information and system status, with a new progress bar.
 
-## v4.3.2 - Patch
-To add some text here
+## v4.3.2 - Enhancements and Critical Fixes for a Seamless Experience
+In this patch, we focus on enhancing the NSPanel experience by introducing critical fixes and requested enhancements to improve overall system stability and user interaction.
+This update addresses key issues, such as the incorrect display of the "boot" page upon wake-up, and optimizes the performance of the Utilities Dashboard to prevent potential overload states.
+With updates across firmware, user interface, and documentation, v4.3.2 underscores our dedication to delivering a seamless and robust smart home control solution.
 
 ### Device Reboot Issue on Wake Up Resolved (#1947 and #1976)
 - **Criticality:** Medium
@@ -531,10 +533,6 @@ This update broadens the NSPanel's integration capabilities with home automation
 This fix ensures that Hebrew text is correctly aligned and presented, enhancing the interface for Hebrew-speaking users.
 The commitment to support diverse languages and correct such localization issues underscores our dedication to providing a user-friendly experience for all NSPanel users,
 regardless of their language.
-
-
-
-
 
 ## Support
 For support or more information about this update,
