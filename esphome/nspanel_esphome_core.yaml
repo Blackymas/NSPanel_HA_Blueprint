@@ -69,7 +69,11 @@ esphome:
             notification_label->publish_state("");
             notification_text->publish_state("");
             notification_unread->turn_off();
-        - script.execute: restore_settings
+        - wait_until:
+            condition:
+              - lambda: return (not isnan(stoi(baud_rate->state)));
+            timeout: 60s
+        - lambda: if (stoi(baud_rate->state) != tf_uart->get_baud_rate()) set_baud_rate->execute(stoi(baud_rate->state), true);
         - wait_until:
             condition:
               - lambda: return disp1->is_setup();
@@ -110,9 +114,11 @@ wifi:
       ssid: ${wifi_ssid}
       password: ${wifi_password}
   on_connect:
-    - script.execute: refresh_wifi_icon
+    then:
+      - script.execute: watchdog
   on_disconnect:
-    - script.execute: refresh_wifi_icon
+    then:
+      - script.execute: watchdog
 
 ##### OTA PASSWORD #####
 ota:
@@ -157,10 +163,13 @@ time:
     on_time:
       - seconds: 0
         then:
-          - lambda:
+          - lambda: |-
               refresh_datetime->execute();
               refresh_relays->execute(3);
               refresh_hardware_buttons_bars->execute(3);
+      - seconds: 30
+        then:
+          - script.execute: watchdog
 
     on_time_sync:
       then:
@@ -174,9 +183,11 @@ api:
   id: api_server
   reboot_timeout: 60min
   on_client_connected:
-    - script.execute: refresh_wifi_icon
+    then:
+      - script.execute: watchdog
   on_client_disconnected:
-    - script.execute: refresh_wifi_icon
+    then:
+      - script.execute: watchdog
   services:
     # Dynamically configures button properties on a specified page, enhancing UI interactivity by allowing updates to button appearance and behavior based on given parameters.
     - service: button  # yamllint disable-line rule:indentation
@@ -2600,7 +2611,7 @@ script:
     mode: restart
     then:
       - lambda: |-
-          if (!id(is_uploading_tft) and nextion_init->state) {
+          if (!id(is_uploading_tft)) {
             disp1->send_command_printf("api=%i", (wifi_component->is_connected() and api_server->is_connected() and blueprint_status->state > 99) ? 1 : 0);
             // Update Wi-Fi icon color
             disp1->set_component_font_color("home.wifi_icon", (blueprint_status->state > 99) ? (wifi_rssi->state > -70 ? 33808 : 64992) : 63488);
@@ -2613,15 +2624,6 @@ script:
                                         "\uF256") :                                     // mdi:api-off
                                       "\uE5A9");                                        // mdi:wifi-off
           }
-
-  - id: restore_settings
-    mode: restart
-    then:
-      - wait_until:
-          condition:
-            - lambda: return (not isnan(stoi(baud_rate->state)));
-      - lambda: |-
-          set_baud_rate->execute(stoi(baud_rate->state), true);
 
   - id: service_call_alarm_control_panel
     mode: restart
@@ -3081,7 +3083,6 @@ script:
     then:
       - lambda: |-
           static const char *const TAG = "script.watchdog";
-          ESP_LOGV(TAG, "Starting");
           if (id(is_uploading_tft)) {
             ESP_LOGW(TAG, "TFT upload in progress");
           } else {
@@ -3184,7 +3185,6 @@ script:
               ESP_LOGW(TAG, "  TFT:         UNKNOWN");
             else
               ESP_LOGI(TAG, "  TFT:         %s", version_tft->state.c_str());
+            refresh_wifi_icon->execute();
           }
-          refresh_wifi_icon->execute();
-          ESP_LOGV(TAG, "Finished");
 ...
