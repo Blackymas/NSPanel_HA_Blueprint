@@ -371,10 +371,10 @@ This correction ensures the panel directly accesses the "home" page, streamlinin
 Effective implementation of this fix necessitates clearing the build files before updating.
 The procedure below guides you through cleaning build files in the ESPHome Dashboard, an essential step to actualize this update.
 
-### Utilities Dashboard Performance Bug Resolved (#1964)
+### Utilities Dashboard Performance Bug Resolved (#1949 and #1964)
 - **Criticality:** Medium
 - **Affected Components:** Blueprint and ESPHome
-- **Issue Number:** #1964
+- **Issue Number:** #1949 and #1964
 - **Description:** Fixed a significant performance bug in the "Utilities Dashboard" related to sensors with high update frequencies.
 Previously, sensors updating frequently could overload the Home Assistant host, causing the blueprint execution to delay.
 As updates persisted, this led to multiple instances of the blueprint being triggered, eventually hitting the limit of 50 concurrent instances.
@@ -391,6 +391,14 @@ This update minimizes the issue, ensuring smooth operation and reducing the chan
 > Cleaning build files is a mandatory step for this update to apply successfully.
 > It ensures your NSPanel operates smoothly with the new improvements post-update.
 
+### Fix for Inverted Chip Icon Color Issue (#1928)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint, TFT
+- **Issue Number:** #1928
+- **Description:** Resolved an issue where the color of icons on inverted chips did not display correctly on the home page, affecting the visual distinction and readability of these elements.
+This fix ensures that icons on inverted chips are now properly rendered, maintaining consistency and enhancing the overall aesthetic of the user interface.
+This correction contributes to a more intuitive and visually appealing experience for users, reinforcing the clarity of information presented on the NSPanel.
+
 ### Fix for Numeric Button Page Labels Not Displaying (#1961)
 - **Criticality:** Minor
 - **Affected Components:** Blueprint
@@ -405,6 +413,25 @@ This fix enhances interface clarity by allowing users to utilize numerical ident
 - **Description:** Addressed a bug where the weather icon on the home page did not automatically update to reflect changes at sunrise and sunset, necessitating a manual page reload.
 With this fix, the icon now refreshes automatically to provide an accurate representation of the weather conditions in relation to the day and night cycle.
 This improvement ensures a more dynamic and responsive user interface, enhancing the visual experience by seamlessly integrating natural environmental changes.
+
+### Typo Correction in Blueprint Inputs (#2003)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Issue Number:** #2003
+- **Description:** Corrected a minor typo in the blueprint inputs to ensure accuracy and clarity in the configuration options.
+This adjustment, made in the description for the `hw_buttons_bar_color_off` input, showcases our commitment to detail and high-quality documentation, enhancing user experience by providing clear and precise instructions.
+- **Special Thanks:** Our thanks go to @colincachia for this attentive correction. This action highlights the importance of community involvement and the collective effort to maintain the project's high standards, even in the smallest details.
+
+### Custom Binary State Entities for Hardware Button Status Display Enhancement (#1904, #1933, #1959, #1973)
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Issue Number:** #1904, #1933, #1959, #1973
+- **Description:** This update introduces the capability to assign custom binary state entities to the hardware button status display.
+This significant enhancement allows for the hardware button bar to reflect the status of a different entity than the one assigned to the button itself,
+providing users with greater customization and flexibility in their interface interactions.
+This development enriches user feedback mechanisms, enabling more intuitive and dynamic control options within the NSPanel environment.
+- **Special Thanks:** Our heartfelt appreciation goes to @lafriks for their invaluable contribution and initiative in developing this feature.
+These efforts have notably advanced the customization potential of NSPanel, fostering a more versatile and user-centric experience.
 
 ### Enhanced Temperature Measurement Strategy (#1918)
 - **Criticality:** Enhancement
@@ -421,17 +448,6 @@ This significant improvement, sparked by proactive community involvement,
 not only enhances the NSPanel's functionality but also broadens the scope for more dynamic and responsive environmental automations.
 - **Special Thanks:** To @andythomas and @grigi for their exceptional work in testing and proposing these adjustments, truly embodying the spirit of community-driven development.
 Your active participation and contributions have been instrumental in refining this feature.
-
-### Custom Binary State Entities for Hardware Button Status Display Enhancement (#1959, #1973)
-- **Criticality:** Enhancement
-- **Affected Components:** Blueprint
-- **Issue Number:** #1959, #1973
-- **Description:** This update introduces the capability to assign custom binary state entities to the hardware button status display.
-This significant enhancement allows for the hardware button bar to reflect the status of a different entity than the one assigned to the button itself,
-providing users with greater customization and flexibility in their interface interactions.
-This development enriches user feedback mechanisms, enabling more intuitive and dynamic control options within the NSPanel environment.
-- **Special Thanks:** Our heartfelt appreciation goes to @lafriks for their invaluable contribution and initiative in developing this feature.
-These efforts have notably advanced the customization potential of NSPanel, fostering a more versatile and user-centric experience.
 
 ### Enhanced Version Mismatch Notifications for Comprehensive System Compatibility (#1966 and #1968)
 - **Criticality:** Enhancement
