@@ -404,9 +404,19 @@ ensures a smoother temperature curve and faster response to environmental change
 While the adjusted frequency means data is reported more often, ESPHome's efficient data transmission only when changes occur ensures that the impact on Home Assistant's data processing is minimal.
 This significant improvement, sparked by proactive community involvement,
 not only enhances the NSPanel's functionality but also broadens the scope for more dynamic and responsive environmental automations.
-
+- **Special Thanks:** To @andythomas and @grigi for their exceptional work in testing and proposing these adjustments, truly embodying the spirit of community-driven development.
 Your active participation and contributions have been instrumental in refining this feature.
-Special thanks to @andythomas and @grigi for their exceptional work in testing and proposing these adjustments, truly embodying the spirit of community-driven development.
+
+### Custom Binary State Entities for Hardware Button Status Display Enhancement (#1959, #1973)
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Issue Number:** #1959, #1973
+- **Description:** This update introduces the capability to assign custom binary state entities to the hardware button status display.
+This significant enhancement allows for the hardware button bar to reflect the status of a different entity than the one assigned to the button itself,
+providing users with greater customization and flexibility in their interface interactions.
+This development enriches user feedback mechanisms, enabling more intuitive and dynamic control options within the NSPanel environment.
+- **Special Thanks:** Our heartfelt appreciation goes to @lafriks for their invaluable contribution and initiative in developing this feature.
+These efforts have notably advanced the customization potential of NSPanel, fostering a more versatile and user-centric experience.
 
 ### Documentation Improvement for TFT Upload Process (#1969)
 - **Criticality:** Enhancement
