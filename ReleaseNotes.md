@@ -421,8 +421,10 @@ This improvement ensures a more dynamic and responsive user interface, enhancing
 - **Affected Components:** Blueprint
 - **Issue Number:** #2003
 - **Description:** Corrected a minor typo in the blueprint inputs to ensure accuracy and clarity in the configuration options.
-This adjustment, made in the description for the `hw_buttons_bar_color_off` input, showcases our commitment to detail and high-quality documentation, enhancing user experience by providing clear and precise instructions.
-- **Special Thanks:** Our thanks go to @colincachia for this attentive correction. This action highlights the importance of community involvement and the collective effort to maintain the project's high standards, even in the smallest details.
+This adjustment, made in the description for the `hw_buttons_bar_color_off` input, showcases our commitment to detail and high-quality documentation,
+enhancing user experience by providing clear and precise instructions.
+- **Special Thanks:** Our thanks go to @colincachia for this attentive correction.
+This action highlights the importance of community involvement and the collective effort to maintain the project's high standards, even in the smallest details.
 
 ### Custom Binary State Entities for Hardware Button Status Display Enhancement (#1904, #1933, #1959, #1973)
 - **Criticality:** Enhancement
