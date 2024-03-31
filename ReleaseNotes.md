@@ -362,6 +362,15 @@ improving accuracy and reliability for users monitoring their environment.
 ## v4.3.2 - Patch
 To add some text here
 
+### Alarm Control with Hardware Button Enhancement (#1995)
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Issue Number:** #1995
+- **Description:** Enhanced the functionality of hardware buttons for a more intuitive interaction with alarm control panels.
+Now, a short click on a hardware button assigned to an entity from the `alarm_control_panel` domain will open its detailed page, aligning with the behavior for `climate` and `media_player` entities.
+This update facilitates quicker access to alarm controls directly from the NSPanel, streamlining user interactions.
+Long clicks continue to open the detailed page for these and other domains, maintaining a consistent and user-friendly experience across various controls.
+
 ### Documentation Updates for Arduino References (#1997)
 - **Criticality:** Enhancement
 - **Affected Components:** Documentation
