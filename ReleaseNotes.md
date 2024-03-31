@@ -418,6 +418,14 @@ For setups lacking DNS configuration, the documentation now highlights the alter
 This clarification aims to streamline the TFT update process, ensuring users have a clear understanding of the requirements for successful TFT file downloads and uploads,
 thereby enhancing the overall setup experience.
 
+### Documentation Update for "Folder-Watcher" Engine Use (#1974)
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Issue Number:** #1974
+- **Description:** Updated documentation to provide clearer instructions on the "folder-watcher" engine's use within the NSPanel project.
+This engine, which triggers TFT updates upon changes in a user-specified folder, may not be widely used but offers valuable functionality for those who do.
+The documentation now more accurately describes how to leverage this feature for automated TFT updates, aiming to improve understanding and ease of use for interested users.
+
 ### Close Icon Visibility Enhancement (#1984)
 - **Criticality:** Enhancement
 - **Affected Components:** TFT
