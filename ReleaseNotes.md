@@ -362,6 +362,26 @@ improving accuracy and reliability for users monitoring their environment.
 ## v4.3.2 - Patch
 To add some text here
 
+### Device Reboot Issue on Wake Up Resolved (#1976)
+- **Criticality:** Medium
+- **Affected Components:** Blueprint
+- **Issue Number:** #1976
+- **Description:** Resolved a critical issue causing the NSPanel to boot to the "boot" page rather than the "home" page under certain conditions, such as upon waking.
+This correction ensures the panel directly accesses the "home" page, streamlining user interaction by promptly presenting the main interface.
+Effective implementation of this fix necessitates clearing the build files before updating.
+The procedure below guides you through cleaning build files in the ESPHome Dashboard, an essential step to actualize this update.
+
+#### How to Clean-up Build Files
+1. Navigate to your ESPHome Dashboard.
+2. Select the 3-dot menu adjacent to your device's listing.
+3. Choose "**Clean Build Files**".
+
+![Clean Build Files Instruction](https://raw.githubusercontent.com/Blackymas/NSPanel_HA_Blueprint/dev/docs/pics/esphome_dashboard_clean_build_files.png)
+
+> [!IMPORTANT]
+> Cleaning build files is a mandatory step for this update to apply successfully.
+> It ensures your NSPanel operates smoothly with the new improvements post-update.
+
 ### Alarm Control with Hardware Button Enhancement (#1995)
 - **Criticality:** Enhancement
 - **Affected Components:** Blueprint
