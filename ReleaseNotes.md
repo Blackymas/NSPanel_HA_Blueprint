@@ -359,6 +359,32 @@ improving accuracy and reliability for users monitoring their environment.
 - **Affected Components:** ESPHome and TFT
 - **Description:** Updated the Boot page to offer clearer visual feedback on version information and system status, with a new progress bar.
 
+## v4.3.2 - Patch
+To add some text here
+
+### Expanded Wake-Up Sensor Support (#1998)
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Issue Number:** #1998
+- **Description:** The range of supported device classes for wake-up sensors on the NSPanel has been significantly expanded.
+Now, in addition to the previously supported door, motion, and occupancy sensors, the NSPanel firmware accommodates a wider variety of sensor types.
+These enhancements enable the panel to wake up from sleep mode upon detecting various environmental changes, improving responsiveness and user interaction.
+The newly supported device classes include:
+  - door
+  - garage_door
+  - lock
+  - motion
+  - occupancy
+  - opening
+  - smoke
+  - sound
+  - vibration
+  - window
+This update broadens the NSPanel's integration capabilities with home automation systems, allowing for a more dynamic and reactive smart home environment.
+
+
+
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
