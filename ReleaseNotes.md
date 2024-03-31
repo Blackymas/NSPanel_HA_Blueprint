@@ -362,6 +362,15 @@ improving accuracy and reliability for users monitoring their environment.
 ## v4.3.2 - Patch
 To add some text here
 
+### Device Reboot Issue on Wake Up Resolved (#1947 and #1976)
+- **Criticality:** Medium
+- **Affected Components:** Blueprint
+- **Issue Number:** #1947 and #1976
+- **Description:** Resolved a critical issue causing the NSPanel to boot to the "boot" page rather than the "home" page under certain conditions, such as upon waking.
+This correction ensures the panel directly accesses the "home" page, streamlining user interaction by promptly presenting the main interface.
+Effective implementation of this fix necessitates clearing the build files before updating.
+The procedure below guides you through cleaning build files in the ESPHome Dashboard, an essential step to actualize this update.
+
 ### Utilities Dashboard Performance Bug Resolved (#1964)
 - **Criticality:** Medium
 - **Affected Components:** Blueprint and ESPHome
@@ -370,15 +379,6 @@ To add some text here
 Previously, sensors updating frequently could overload the Home Assistant host, causing the blueprint execution to delay.
 As updates persisted, this led to multiple instances of the blueprint being triggered, eventually hitting the limit of 50 concurrent instances.
 This update minimizes the issue, ensuring smooth operation and reducing the chances of a overload state, thereby maintaining efficient and reliable dashboard performance.
-
-### Device Reboot Issue on Wake Up Resolved (#1976)
-- **Criticality:** Medium
-- **Affected Components:** Blueprint
-- **Issue Number:** #1976
-- **Description:** Resolved a critical issue causing the NSPanel to boot to the "boot" page rather than the "home" page under certain conditions, such as upon waking.
-This correction ensures the panel directly accesses the "home" page, streamlining user interaction by promptly presenting the main interface.
-Effective implementation of this fix necessitates clearing the build files before updating.
-The procedure below guides you through cleaning build files in the ESPHome Dashboard, an essential step to actualize this update.
 
 #### How to Clean-up Build Files
 1. Navigate to your ESPHome Dashboard.
@@ -417,6 +417,15 @@ providing users with greater customization and flexibility in their interface in
 This development enriches user feedback mechanisms, enabling more intuitive and dynamic control options within the NSPanel environment.
 - **Special Thanks:** Our heartfelt appreciation goes to @lafriks for their invaluable contribution and initiative in developing this feature.
 These efforts have notably advanced the customization potential of NSPanel, fostering a more versatile and user-centric experience.
+
+### Enhanced Version Mismatch Notifications for Comprehensive System Compatibility (#1966 and #1968)
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Issue Number:** #1966 and #1968
+- **Description:** The version mismatch notification system has been significantly improved to cover all critical components of the NSPanel project,
+including the ESPHome firmware, Home Assistant blueprint, and Nextion TFT file.
+This update ensures that notifications are more descriptive, pinpointing which component is out of sync and providing specific instructions for resolution.
+This targeted approach helps users quickly identify and rectify compatibility issues, maintaining the system's overall harmony and preventing disruptions in functionality.
 
 ### Documentation Improvement for TFT Upload Process (#1969)
 - **Criticality:** Enhancement
