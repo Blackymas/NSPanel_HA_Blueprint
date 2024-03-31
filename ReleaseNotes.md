@@ -392,6 +392,16 @@ The newly supported device classes include:
   - window
 This update broadens the NSPanel's integration capabilities with home automation systems, allowing for a more dynamic and reactive smart home environment.
 
+### Hebrew Translation Text Reversal Fix (#1999)
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Issue Number:** #1999
+- **Description:** Addressed a specific issue with the Hebrew translation where text was displayed in reverse order, hindering readability and user experience.
+This fix ensures that Hebrew text is correctly aligned and presented, enhancing the interface for Hebrew-speaking users.
+The commitment to support diverse languages and correct such localization issues underscores our dedication to providing a user-friendly experience for all NSPanel users,
+regardless of their language.
+
+
 
 
 
