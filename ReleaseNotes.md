@@ -362,6 +362,16 @@ improving accuracy and reliability for users monitoring their environment.
 ## v4.3.2 - Patch
 To add some text here
 
+### Documentation Updates for Arduino References (#1997)
+- **Criticality:** Enhancement
+- **Affected Components:** Documentation
+- **Issue Number:** #1997
+- **Description:** Comprehensive updates and refinements were made to the project documentation, with a particular focus on correcting and clarifying references related to the Arduino framework.
+This effort led to a thorough review and subsequent enhancement of various sections of the documentation, improving clarity, accuracy, and usefulness across the board.
+Special thanks to the author of this PR, @andythomas, whose dedicated work went beyond just addressing
+Arduino framework references to include minor fixes and overall improvements to the documentation.
+These contributions have significantly elevated the quality of information available to users, ensuring that the documentation remains a reliable and up-to-date resource for the community.
+
 ### Expanded Wake-Up Sensor Support (#1998)
 - **Criticality:** Enhancement
 - **Affected Components:** Blueprint
