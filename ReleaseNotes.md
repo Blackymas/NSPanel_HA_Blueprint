@@ -391,6 +391,14 @@ The procedure below guides you through cleaning build files in the ESPHome Dashb
 > Cleaning build files is a mandatory step for this update to apply successfully.
 > It ensures your NSPanel operates smoothly with the new improvements post-update.
 
+### Close Icon Visibility Enhancement (#1984)
+- **Criticality:** Enhancement
+- **Affected Components:** TFT
+- **Issue Number:** #1984
+- **Description:** Enhanced the visibility of the "close" icon (represented as an "x" sign) located at the top right corner of various pages.
+By slightly increasing the size of this icon, users can now more easily identify and interact with it, improving the overall usability of the NSPanel interface.
+This minor yet impactful adjustment ensures a smoother, more intuitive navigation experience for all users.
+
 ### Alarm Control with Hardware Button Enhancement (#1995)
 - **Criticality:** Enhancement
 - **Affected Components:** Blueprint
