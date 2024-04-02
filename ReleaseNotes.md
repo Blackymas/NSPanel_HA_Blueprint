@@ -426,6 +426,15 @@ enhancing user experience by providing clear and precise instructions.
 - **Special Thanks:** Our thanks go to @colincachia for this attentive correction.
 This action highlights the importance of community involvement and the collective effort to maintain the project's high standards, even in the smallest details.
 
+### Immediate Brightness Adjustment from Home Assistant Fixed
+- **Criticality:** Minor
+- **Affected Components:** ESPHome
+- **Issue Number:** #2006
+- **Description:** Resolved a minor issue affecting brightness adjustments made from Home Assistant.
+Previously, when the brightness target was reduced via Home Assistant, the change was not immediately reflected on the NSPanel.
+This update ensures that any adjustments to brightness settings are promptly applied,
+maintaining consistency between the Home Assistant interface and the NSPanel's display for a more synchronized and responsive user experience.
+
 ### Custom Binary State Entities for Hardware Button Status Display Enhancement (#1904, #1933, #1959, #1973)
 - **Criticality:** Enhancement
 - **Affected Components:** Blueprint
