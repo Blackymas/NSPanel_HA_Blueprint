@@ -12,7 +12,7 @@ If you are coming from there, you have to chose one of the 3 options:
 
 ### Common steps
 
-1. Download the file [`nspanel_blank.tft`](../nspanel_blank.tft) from our GitHub repository.
+1. Download the file [`nspanel_blank.tft`](../hmi/nspanel_blank.tft) from our GitHub repository.
 2. Upload the same file (`nspanel_blank.tft`) to the folder _**"www"**_ in your Home Assistant
 3. Double check if the file is available by trying to download it using your local url (typically [`http://homeassistant.local:8123/local/nspanel_blank.tft`](http://homeassistant.local:8123/local/nspanel_blank.tft)).
 

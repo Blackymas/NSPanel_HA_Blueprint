@@ -12,15 +12,15 @@ You can write a short message with your findings, and we'll include it here.
 Below are the topics covered in this document, each with relevant tips and solutions.
 
 1. [How do I create "Issues" when I have a problem ](#how-to-create-issues-when-i-have-a-problem)
-1. [Update Blueprint](#update-blueprint)
-1. [Update ESPHome](#update-esphome)
-1. [Update TFT](#update-tft)
-1. [Notification via HA](#notification-via-ha)
-1. [Climate control with relays](#climate-control-with-relays)
-1. [Call a page directly](#call-a-page-directly)
-1. [Play RTTTL Sound](#play-rtttl-sound)
-1. [Start automations via Input_Boolean](#start-automations-via-input_boolean)
-1. [Updating Wi-Fi and OTA passwords in ESPHome with this project](#updating-wi-fi-settings-and-ota-passwords-in-esphome-with-this-project)
+2. [Update Blueprint](#update-blueprint)
+3. [Update ESPHome](#update-esphome)
+4. [Update TFT](#update-tft)
+5. [Notification via HA](#notification-via-ha)
+6. [Climate control with relays](#climate-control-with-relays)
+7. [Call a page directly](#call-a-page-directly)
+8. [Play RTTTL Sound](#play-rtttl-sound)
+9. [Start automations via Input_Boolean](#start-automations-via-input_boolean)
+10. [Updating Wi-Fi and OTA passwords in ESPHome with this project](#updating-wi-fi-settings-and-ota-passwords-in-esphome-with-this-project)
 
 ## How to create "issues" when I have a problem
 
@@ -138,13 +138,13 @@ The new firmware will be built and then flashed to your panel, which will restar
 4. The display starts the update process and then restarts.
 
 ## Notification via HA
-To show a notification on the NSPAnel, the following service call can be used:
+To show a notification on the NSPanel, the following service call can be used:
 
 ```yaml
 service: esphome.panelname_notification_show
 data:
-  label: Example text
-  message: Example text
+  label: Example label text
+  message: Example message text
 ```
 > [!NOTE]
 > For more details about this service call, please refer to our [API documentation](api.md#notification-show-service-notification_show).
@@ -177,7 +177,9 @@ trigger:
 
 ## Climate control with Relays
 > [!ATTENTION]
-> Although these instructions are still valid, since v4.0 there is a better way to setup a climate control using the panel's relays an the [add-on climate](addon_climate.md).
+> Although these instructions are still valid, since v4.0 there is a better way to setup a climate control using the panel's relays an the [add-on climate](addon_climate.md), 
+> which will continue to work even if Home Assistant and/or WiFi are not available. 
+> You probably only want to use this approach, if you are not using the build-in thermometer. 
 
 In order to use the NSPanel to control a radiator or underfloor heating, at least one Generic Thermostat must be created in the HA.
 More information can be found here: https://www.home-assistant.io/integrations/generic_thermostat/
