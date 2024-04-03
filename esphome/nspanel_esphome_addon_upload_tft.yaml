@@ -19,7 +19,7 @@ external_components:
   - source:
       type: git
       url: https://github.com/Blackymas/NSPanel_HA_Blueprint
-      ref: main
+      ref: v4.3.2
     components:
       - nspanel_ha_blueprint_upload_tft
     refresh: 300s
@@ -164,6 +164,15 @@ script:
             display_wrapped_text->execute("confirm.body", message.c_str(), 18);
             disp1->set_backlight_brightness(1);
             App.feed_wdt();
+          }
+
+  - id: select_tft_file_model
+    mode: restart
+    then:
+      - lambda: |-
+          if (!isnan(display_mode->state) and !isnan(display_charset->state)) {
+            std::string PanelModel = getNSPanelText(int(display_mode->state), int(display_charset->state));
+            if (!PanelModel.empty() and tft_file_model->state != PanelModel) tft_file_model->publish_state(PanelModel);
           }
 
   - id: !extend stop_all
@@ -413,16 +422,22 @@ select:
     icon: mdi:swap-horizontal
 
 sensor:
+  - id: !extend display_charset
+    on_value:
+      then:
+        - script.execute: select_tft_file_model
+
   - id: !extend display_mode
     on_value:
       then:
-        lambda: |-
-          static const char *const TAG = "addon_upload_tft.sensor.display_mode";
-          id(tft_is_valid) = (display_mode->state > 0 and display_mode->state < 4);
-          if (id(tft_is_valid))
-            ESP_LOGD(TAG, "Valid TFT: True");
-          else {
-            ESP_LOGW(TAG, "Display mode: %i", int(display_mode->state));
-            ESP_LOGW(TAG, "Valid TFT:    False");
-          }
+        - lambda: |-
+            static const char *const TAG = "addon_upload_tft.sensor.display_mode";
+            id(tft_is_valid) = (display_mode->state > 0 and display_mode->state < 4);
+            if (id(tft_is_valid)) {
+              ESP_LOGD(TAG, "Valid TFT: True");
+              select_tft_file_model->execute();
+            } else {
+              ESP_LOGW(TAG, "Display mode: %i", int(display_mode->state));
+              ESP_LOGW(TAG, "Valid TFT:    False");
+            }
 ...
