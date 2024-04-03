@@ -416,6 +416,14 @@ This fix enhances interface clarity by allowing users to utilize numerical ident
 With this fix, the icon now refreshes automatically to provide an accurate representation of the weather conditions in relation to the day and night cycle.
 This improvement ensures a more dynamic and responsive user interface, enhancing the visual experience by seamlessly integrating natural environmental changes.
 
+### Fix for Missing Titles and Icons on Detailed Entities Pages (#1978)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Issue Number:** #1978
+- **Description:** Resolved an issue on detailed entities pages where page titles and icons were not being displayed, leading to a lack of clarity and navigation challenges for users.
+This fix ensures that each detailed page now correctly showcases its respective title and icon,
+enhancing the overall user interface by providing immediate context and visual cues for better usability and navigation within the NSPanel environment.
+
 ### Typo Correction in Blueprint Inputs (#2003)
 - **Criticality:** Minor
 - **Affected Components:** Blueprint
