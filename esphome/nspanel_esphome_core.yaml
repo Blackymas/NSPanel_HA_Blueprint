@@ -33,7 +33,7 @@ external_components:
   - source:
       type: git
       url: https://github.com/edwardtfn/esphome
-      ref: nextion-v431
+      ref: nextion-v432
     components:
       - nextion  # Change this when that PR#6192 gets released (2024.4?)
     refresh: 300s
@@ -892,13 +892,11 @@ display:
   - id: disp1
     platform: nextion
     uart_id: tf_uart
-    start_up_page: 0  # Boot page
     on_setup:
       lambda: |-
         if (!id(is_uploading_tft)) {
           nextion_init->publish_state(true);
           version_tft->update();
-          goto_page->execute("boot");
         }
 
     on_page:
@@ -1572,6 +1570,17 @@ sensor:
     internal: false
     disabled_by_default: false
 
+  ##### Charset (1 = International (original), 2 = CJK languages)
+  - id: display_charset
+    name: Display charset
+    platform: nextion
+    variable_name: charset
+    precision: 0
+    accuracy_decimals: 0
+    internal: false
+    icon: mdi:translate
+    entity_category: diagnostic
+
   ##### Display mode (1 = EU, 2 = US, 3 = US Landscape)
   - id: display_mode
     name: Display mode
@@ -1581,17 +1590,6 @@ sensor:
     accuracy_decimals: 0
     internal: false
     icon: mdi:phone-rotate-portrait
-    entity_category: diagnostic
-
-  ##### Charset (1 = International (original), 2 = CJK languages)
-  - name: Display charset
-    id: display_charset
-    platform: nextion
-    variable_name: charset
-    precision: 0
-    accuracy_decimals: 0
-    internal: false
-    icon: mdi:translate
     entity_category: diagnostic
 
   ##### Wi-Fi Signal stregth
@@ -1693,13 +1691,6 @@ switch:
     restore_mode: ALWAYS_ON
     internal: true
     disabled_by_default: false
-    on_turn_on:
-      - wait_until:
-          condition:
-            - lambda: !lambda return disp1->is_setup();
-          timeout: 20s
-      - lambda: |-
-          goto_page->execute("boot");
     on_turn_off:
       - lambda: |-
           nextion_init->publish_state(false);
@@ -1909,6 +1900,37 @@ text_sensor:
 
 ### Scripts ######
 script:
+  - id: boot_event
+    mode: restart
+    parameters:
+      init: bool
+    then:
+      - lambda: |-
+          if (init) {
+            esphome::api::CustomAPIDevice ha_event;
+            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+              {
+                {"device_name", device_name->state.c_str()},
+                {"type", "boot"},
+                {"step", "start"}
+              });
+          }
+      - while:
+          condition:
+            - lambda: return (blueprint_status->state < 99);
+          then:
+            - delay: 10s
+            - lambda: |-
+                if (blueprint_status->state < 99) {
+                  esphome::api::CustomAPIDevice ha_event;
+                  ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+                    {
+                      {"device_name", device_name->state.c_str()},
+                      {"type", "boot"},
+                      {"step", "timeout"}
+                    });
+                }
+
   - id: boot_progress
     mode: restart
     parameters:
@@ -2039,32 +2061,32 @@ script:
       decimal_separator: string
     then:
       - lambda: |-
-          if (id(is_uploading_tft)) global_settings->stop();
-          if (blueprint_status->state <= 99) goto_page->execute("boot");
-          // Blueprint version
-          version_blueprint->publish_state(blueprint_version.c_str());
-          disp1->set_component_text("boot.bluep_version", blueprint_version.c_str());
-          check_versions->execute();
+          if (!id(is_uploading_tft)) {
+            // Blueprint version
+            version_blueprint->publish_state(blueprint_version.c_str());
+            disp1->set_component_text("boot.bluep_version", blueprint_version.c_str());
+            check_versions->execute();
 
-          // MUI strings
-          id(mui_please_confirm_global) = mui_please_confirm;
-          id(mui_unavailable_global) = mui_unavailable;
+            // MUI strings
+            id(mui_please_confirm_global) = mui_please_confirm;
+            id(mui_unavailable_global) = mui_unavailable;
 
-          // Screen saver page (sleep)
-          id(screensaver_display_time) = screensaver_time;
-          id(screensaver_display_time_font) = screensaver_time_font;
-          id(screensaver_display_time_color) = rgbTo565(screensaver_time_color);
-          page_screensaver->execute();
+            // Screen saver page (sleep)
+            id(screensaver_display_time) = screensaver_time;
+            id(screensaver_display_time_font) = screensaver_time_font;
+            id(screensaver_display_time_color) = rgbTo565(screensaver_time_color);
+            page_screensaver->execute();
 
-          // Entities pages alignment
-          id(page_entity_value_horizontal_alignment) = ent_value_xcen;
+            // Entities pages alignment
+            id(page_entity_value_horizontal_alignment) = ent_value_xcen;
 
-          // Decimal separator
-          if (not decimal_separator.empty()) id(mui_decimal_separator) = decimal_separator[0];
+            // Decimal separator
+            if (not decimal_separator.empty()) id(mui_decimal_separator) = decimal_separator[0];
 
-          if (current_page->state != "boot") {
-            // Update current page
-            page_changed->execute();
+            if (current_page->state != "boot") {
+              // Update current page
+              page_changed->execute();
+            }
           }
 
   - id: goto_page
@@ -2195,15 +2217,7 @@ script:
                   - logger.log: API connected
                   - lambda: |-
                       boot_progress->execute(4);
-                      if (blueprint_status->state <= 99) {
-                        esphome::api::CustomAPIDevice ha_event;
-                        ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-                          {
-                            {"device_name", device_name->state.c_str()},
-                            {"type", "boot"},
-                            {"step", "start"}
-                          });
-                      }
+                      if (blueprint_status->state <= 99) boot_event->execute(true);
       - wait_until:
           condition:
             - lambda: return (wifi_component->is_connected() and api_server->is_connected() and blueprint_status->state > 99);
@@ -2806,6 +2820,7 @@ script:
     mode: restart
     then:
       - lambda: |-
+          boot_event->stop();
           boot_progress->stop();
           change_climate_state->stop();
           check_versions->stop();
@@ -3135,13 +3150,7 @@ script:
               ESP_LOGW(TAG, "  Init steps:  %i (%0.1f%%)", int(blueprint_status->raw_state), blueprint_status->state);
               ESP_LOGW(TAG, "  State:       %s", (wifi_connected and api_connected) ? "Pending" : "DISCONNECTED");
               ESP_LOGI(TAG, "Requesting blueprint settings");
-              esphome::api::CustomAPIDevice ha_event;
-              ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-                {
-                  {"device_name", device_name->state.c_str()},
-                  {"type", "boot"},
-                  {"step", "timeout"}
-                });
+              boot_event->execute(false);
             }
 
             // Report ESPHome
