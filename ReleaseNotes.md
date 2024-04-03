@@ -426,7 +426,7 @@ enhancing the overall user interface by providing immediate context and visual c
 
 ### Swipe Functionality Restored on Button and Home Pages (#1980 and #1994)
 - **Criticality:** Minor
-- **Affected Components:** Blueprint, TFT
+- **Affected Components:** TFT
 - **Issue Number:** #1980 and #1994
 - **Description:** Addressed issues impacting swipe functionality on button pages and the home page, which previously hindered smooth navigation through swipe gestures.
 This update restores proper swipe operation, allowing users to effortlessly switch between pages with a simple gesture.
