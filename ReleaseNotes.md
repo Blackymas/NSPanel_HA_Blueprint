@@ -545,6 +545,14 @@ This fix ensures that Hebrew text is correctly aligned and presented, enhancing 
 The commitment to support diverse languages and correct such localization issues underscores our dedication to providing a user-friendly experience for all NSPanel users,
 regardless of their language.
 
+### Enhanced TFT Update Reliability in ESPHome Nextion Component
+- **Criticality:** Enhancement
+- **Affected Components:** ESPHome
+- **Description:** Improved the reliability of TFT updates within the ESPHome Nextion component.
+This enhancement optimizes the process of updating the NSPanel's display, ensuring smoother transitions and reducing the potential for update failures.
+The upgrade targets the underlying mechanisms of the Nextion component in ESPHome,
+refining its functionality to offer a more dependable and efficient update experience for users implementing TFT changes.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
