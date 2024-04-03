@@ -424,6 +424,14 @@ This improvement ensures a more dynamic and responsive user interface, enhancing
 This fix ensures that each detailed page now correctly showcases its respective title and icon,
 enhancing the overall user interface by providing immediate context and visual cues for better usability and navigation within the NSPanel environment.
 
+### Swipe Functionality Restored on Button and Home Pages (#1980 and #1994)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint, TFT
+- **Issue Number:** #1980 and #1994
+- **Description:** Addressed issues impacting swipe functionality on button pages and the home page, which previously hindered smooth navigation through swipe gestures.
+This update restores proper swipe operation, allowing users to effortlessly switch between pages with a simple gesture.
+Enhancing swipe responsiveness contributes to a more fluid and intuitive user experience, reinforcing the ease of navigating the NSPanel's interface.
+
 ### Typo Correction in Blueprint Inputs (#2003)
 - **Criticality:** Minor
 - **Affected Components:** Blueprint
