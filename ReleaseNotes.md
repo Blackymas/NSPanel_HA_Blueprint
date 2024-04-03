@@ -359,6 +359,216 @@ improving accuracy and reliability for users monitoring their environment.
 - **Affected Components:** ESPHome and TFT
 - **Description:** Updated the Boot page to offer clearer visual feedback on version information and system status, with a new progress bar.
 
+## v4.3.2 - Enhancements and Critical Fixes for a Seamless Experience
+In this patch, we focus on enhancing the NSPanel experience by introducing critical fixes and requested enhancements to improve overall system stability and user interaction.
+This update addresses key issues, such as the incorrect display of the "boot" page upon wake-up, and optimizes the performance of the Utilities Dashboard to prevent potential overload states.
+With updates across firmware, user interface, and documentation, v4.3.2 underscores our dedication to delivering a seamless and robust smart home control solution.
+
+### Device Reboot Issue on Wake Up Resolved (#1947 and #1976)
+- **Criticality:** Medium
+- **Affected Components:** Blueprint
+- **Issue Number:** #1947 and #1976
+- **Description:** Resolved a critical issue causing the NSPanel to boot to the "boot" page rather than the "home" page under certain conditions, such as upon waking.
+This correction ensures the panel directly accesses the "home" page, streamlining user interaction by promptly presenting the main interface.
+Effective implementation of this fix necessitates clearing the build files before updating.
+The procedure below guides you through cleaning build files in the ESPHome Dashboard, an essential step to actualize this update.
+
+### Utilities Dashboard Performance Bug Resolved (#1949 and #1964)
+- **Criticality:** Medium
+- **Affected Components:** Blueprint and ESPHome
+- **Issue Number:** #1949 and #1964
+- **Description:** Fixed a significant performance bug in the "Utilities Dashboard" related to sensors with high update frequencies.
+Previously, sensors updating frequently could overload the Home Assistant host, causing the blueprint execution to delay.
+As updates persisted, this led to multiple instances of the blueprint being triggered, eventually hitting the limit of 50 concurrent instances.
+This update minimizes the issue, ensuring smooth operation and reducing the chances of a overload state, thereby maintaining efficient and reliable dashboard performance.
+
+#### How to Clean-up Build Files
+1. Navigate to your ESPHome Dashboard.
+2. Select the 3-dot menu adjacent to your device's listing.
+3. Choose "**Clean Build Files**".
+
+![Clean Build Files Instruction](https://raw.githubusercontent.com/Blackymas/NSPanel_HA_Blueprint/dev/docs/pics/esphome_dashboard_clean_build_files.png)
+
+> [!IMPORTANT]
+> Cleaning build files is a mandatory step for this update to apply successfully.
+> It ensures your NSPanel operates smoothly with the new improvements post-update.
+
+### Fix for Inverted Chip Icon Color Issue (#1928)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint, TFT
+- **Issue Number:** #1928
+- **Description:** Resolved an issue where the color of icons on inverted chips did not display correctly on the home page, affecting the visual distinction and readability of these elements.
+This fix ensures that icons on inverted chips are now properly rendered, maintaining consistency and enhancing the overall aesthetic of the user interface.
+This correction contributes to a more intuitive and visually appealing experience for users, reinforcing the clarity of information presented on the NSPanel.
+
+### Fix for Numeric Button Page Labels Not Displaying (#1961)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Issue Number:** #1961
+- **Description:** Resolved an issue where button page labels consisting solely of numbers were not being displayed, ensuring that numeric titles are now properly shown.
+This fix enhances interface clarity by allowing users to utilize numerical identifiers for their button pages, thereby improving navigation and usability within the NSPanel environment.
+
+### Automatic Update for Weather Icon at Sunrise and Sunset (#1971)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Issue Number:** #1971
+- **Description:** Addressed a bug where the weather icon on the home page did not automatically update to reflect changes at sunrise and sunset, necessitating a manual page reload.
+With this fix, the icon now refreshes automatically to provide an accurate representation of the weather conditions in relation to the day and night cycle.
+This improvement ensures a more dynamic and responsive user interface, enhancing the visual experience by seamlessly integrating natural environmental changes.
+
+### Fix for Missing Titles and Icons on Detailed Entities Pages (#1978)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Issue Number:** #1978
+- **Description:** Resolved an issue on detailed entities pages where page titles and icons were not being displayed, leading to a lack of clarity and navigation challenges for users.
+This fix ensures that each detailed page now correctly showcases its respective title and icon,
+enhancing the overall user interface by providing immediate context and visual cues for better usability and navigation within the NSPanel environment.
+
+### Swipe Functionality Restored on Button and Home Pages (#1980 and #1994)
+- **Criticality:** Minor
+- **Affected Components:** TFT
+- **Issue Number:** #1980 and #1994
+- **Description:** Addressed issues impacting swipe functionality on button pages and the home page, which previously hindered smooth navigation through swipe gestures.
+This update restores proper swipe operation, allowing users to effortlessly switch between pages with a simple gesture.
+Enhancing swipe responsiveness contributes to a more fluid and intuitive user experience, reinforcing the ease of navigating the NSPanel's interface.
+
+### Typo Correction in Blueprint Inputs (#2003)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Issue Number:** #2003
+- **Description:** Corrected a minor typo in the blueprint inputs to ensure accuracy and clarity in the configuration options.
+This adjustment, made in the description for the `hw_buttons_bar_color_off` input, showcases our commitment to detail and high-quality documentation,
+enhancing user experience by providing clear and precise instructions.
+- **Special Thanks:** Our thanks go to @colincachia for this attentive correction.
+This action highlights the importance of community involvement and the collective effort to maintain the project's high standards, even in the smallest details.
+
+### Immediate Brightness Adjustment from Home Assistant Fixed
+- **Criticality:** Minor
+- **Affected Components:** ESPHome
+- **Issue Number:** #2006
+- **Description:** Resolved a minor issue affecting brightness adjustments made from Home Assistant.
+Previously, when the brightness target was reduced via Home Assistant, the change was not immediately reflected on the NSPanel.
+This update ensures that any adjustments to brightness settings are promptly applied,
+maintaining consistency between the Home Assistant interface and the NSPanel's display for a more synchronized and responsive user experience.
+
+### Custom Binary State Entities for Hardware Button Status Display Enhancement (#1904, #1933, #1959, #1973)
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Issue Number:** #1904, #1933, #1959, #1973
+- **Description:** This update introduces the capability to assign custom binary state entities to the hardware button status display.
+This significant enhancement allows for the hardware button bar to reflect the status of a different entity than the one assigned to the button itself,
+providing users with greater customization and flexibility in their interface interactions.
+This development enriches user feedback mechanisms, enabling more intuitive and dynamic control options within the NSPanel environment.
+- **Special Thanks:** Our heartfelt appreciation goes to @lafriks for their invaluable contribution and initiative in developing this feature.
+These efforts have notably advanced the customization potential of NSPanel, fostering a more versatile and user-centric experience.
+
+### Enhanced Temperature Measurement Strategy (#1918)
+- **Criticality:** Enhancement
+- **Affected Components:** ESPHome
+- **Issue Number:** #1918
+- **Description:** Thanks to the dedicated efforts and thorough testing by our community,
+the NSPanel's built-in temperature sensor now employs a more sophisticated measurement strategy for enhanced accuracy and responsiveness.
+By integrating a combination of four samples per measurement and employing a `sliding_window_moving_average` filter with a window size of six,
+the sensor's reporting frequency has been adjusted to every 10 seconds.
+This methodological enhancement, chiefly proposed and tested by community members @andythomas and @grigi,
+ensures a smoother temperature curve and faster response to environmental changes such as opening a window.
+While the adjusted frequency means data is reported more often, ESPHome's efficient data transmission only when changes occur ensures that the impact on Home Assistant's data processing is minimal.
+This significant improvement, sparked by proactive community involvement,
+not only enhances the NSPanel's functionality but also broadens the scope for more dynamic and responsive environmental automations.
+- **Special Thanks:** To @andythomas and @grigi for their exceptional work in testing and proposing these adjustments, truly embodying the spirit of community-driven development.
+Your active participation and contributions have been instrumental in refining this feature.
+
+### Enhanced Version Mismatch Notifications for Comprehensive System Compatibility (#1966 and #1968)
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Issue Number:** #1966 and #1968
+- **Description:** The version mismatch notification system has been significantly improved to cover all critical components of the NSPanel project,
+including the ESPHome firmware, Home Assistant blueprint, and Nextion TFT file.
+This update ensures that notifications are more descriptive, pinpointing which component is out of sync and providing specific instructions for resolution.
+This targeted approach helps users quickly identify and rectify compatibility issues, maintaining the system's overall harmony and preventing disruptions in functionality.
+
+### Documentation Improvement for TFT Upload Process (#1969)
+- **Criticality:** Enhancement
+- **Affected Components:** Documentation
+- **Issue Number:** #1969
+- **Description:** Enhanced the documentation to clarify the necessity of DNS for downloading TFT files from GitHub during the TFT upload process.
+This update addresses confusion encountered when manually setting IP addresses as part of customizations, emphasizing that a DNS server must be specified to enable remote TFT downloads.
+For setups lacking DNS configuration, the documentation now highlights the alternative of using local TFT transfer via the `nextion_update_url` substitution.
+This clarification aims to streamline the TFT update process, ensuring users have a clear understanding of the requirements for successful TFT file downloads and uploads,
+thereby enhancing the overall setup experience.
+
+### Documentation Update for "Folder-Watcher" Engine Use (#1974)
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Issue Number:** #1974
+- **Description:** Updated documentation to provide clearer instructions on the "folder-watcher" engine's use within the NSPanel project.
+This engine, which triggers TFT updates upon changes in a user-specified folder, may not be widely used but offers valuable functionality for those who do.
+The documentation now more accurately describes how to leverage this feature for automated TFT updates, aiming to improve understanding and ease of use for interested users.
+
+### Close Icon Visibility Enhancement (#1984)
+- **Criticality:** Enhancement
+- **Affected Components:** TFT
+- **Issue Number:** #1984
+- **Description:** Enhanced the visibility of the "close" icon (represented as an "x" sign) located at the top right corner of various pages.
+By slightly increasing the size of this icon, users can now more easily identify and interact with it, improving the overall usability of the NSPanel interface.
+This minor yet impactful adjustment ensures a smoother, more intuitive navigation experience for all users.
+
+### Alarm Control with Hardware Button Enhancement (#1995)
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Issue Number:** #1995
+- **Description:** Enhanced the functionality of hardware buttons for a more intuitive interaction with alarm control panels.
+Now, a short click on a hardware button assigned to an entity from the `alarm_control_panel` domain will open its detailed page, aligning with the behavior for `climate` and `media_player` entities.
+This update facilitates quicker access to alarm controls directly from the NSPanel, streamlining user interactions.
+Long clicks continue to open the detailed page for these and other domains, maintaining a consistent and user-friendly experience across various controls.
+
+### Documentation Updates for Arduino References (#1997)
+- **Criticality:** Enhancement
+- **Affected Components:** Documentation
+- **Issue Number:** #1997
+- **Description:** Comprehensive updates and refinements were made to the project documentation, with a particular focus on correcting and clarifying references related to the Arduino framework.
+This effort led to a thorough review and subsequent enhancement of various sections of the documentation, improving clarity, accuracy, and usefulness across the board.
+Special thanks to the author of this PR, @andythomas, whose dedicated work went beyond just addressing
+Arduino framework references to include minor fixes and overall improvements to the documentation.
+These contributions have significantly elevated the quality of information available to users, ensuring that the documentation remains a reliable and up-to-date resource for the community.
+
+### Expanded Wake-Up Sensor Support (#1998)
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Issue Number:** #1998
+- **Description:** The range of supported device classes for wake-up sensors on the NSPanel has been significantly expanded.
+Now, in addition to the previously supported door, motion, and occupancy sensors, the NSPanel firmware accommodates a wider variety of sensor types.
+These enhancements enable the panel to wake up from sleep mode upon detecting various environmental changes, improving responsiveness and user interaction.
+The newly supported device classes include:
+  - door
+  - garage_door
+  - lock
+  - motion
+  - occupancy
+  - opening
+  - smoke
+  - sound
+  - vibration
+  - window
+This update broadens the NSPanel's integration capabilities with home automation systems, allowing for a more dynamic and reactive smart home environment.
+
+### Hebrew Translation Text Reversal Fix (#1999)
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Issue Number:** #1999
+- **Description:** Addressed a specific issue with the Hebrew translation where text was displayed in reverse order, hindering readability and user experience.
+This fix ensures that Hebrew text is correctly aligned and presented, enhancing the interface for Hebrew-speaking users.
+The commitment to support diverse languages and correct such localization issues underscores our dedication to providing a user-friendly experience for all NSPanel users,
+regardless of their language.
+
+### Enhanced TFT Update Reliability in ESPHome Nextion Component
+- **Criticality:** Enhancement
+- **Affected Components:** ESPHome
+- **Description:** Improved the reliability of TFT updates within the ESPHome Nextion component.
+This enhancement optimizes the process of updating the NSPanel's display, ensuring smoother transitions and reducing the potential for update failures.
+The upgrade targets the underlying mechanisms of the Nextion component in ESPHome,
+refining its functionality to offer a more dependable and efficient update experience for users implementing TFT changes.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
@@ -375,6 +585,7 @@ Your efforts have significantly improved its functionality and reliability (#183
 Your contributions have made our guides more informative and accessible, enriching the user experience for everyone (#1865).
 
 ## Previous releases
+- [v4.3.1 - Ensuring Compatibility with ESPHome v2024.3.0 and Enhancing Stability](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.1)
 - [v4.3 - Welcome to Framework ESP-IDF, an Utilities Dashboard and Enhanced Localization](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.0)
 - [v4.2.6 - Enhancing Stability and User Experience](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.6)
 - [v4.2.5 - Celebrating 1000 Stars with Enhanced Functionality and UI Improvements](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.2.5)

@@ -42,4 +42,40 @@ namespace nspanel_ha_blueprint_upload_tft {
         return url; // Return the constructed URL
     }
 
+    /**
+    * @brief Generates a descriptive text for the NSPanel based on the given display mode and charset.
+    * 
+    * This function maps numeric codes for the display mode and charset to a human-readable
+    * description of an NSPanel configuration. It supports different geographic regions and language
+    * character sets. If the inputs do not match any predefined configuration, the function returns
+    * an empty string, allowing for easy detection of unexpected or invalid inputs.
+    *
+    * @param displayMode An integer representing the display mode of the NSPanel:
+    *                    1 for "EU", 2 for "US", and 3 for "US Landscape".
+    * @param charset An integer indicating the character set used:
+    *                1 for "International (original)" and 2 for "CJK languages".
+    * @return std::string A string describing the NSPanel configuration based on the inputs.
+    *                     Returns an empty string if the inputs do not match any known configuration.
+    */
+    std::string getNSPanelText(int displayMode, int charset) {
+
+        if (displayMode < 1 or displayMode > 3 or charset < 1 or charset > 2) return "";
+
+        std::string text;
+        // Determine the base text based on the display mode
+        switch(displayMode) {
+            case 1: text = "NSPanel EU"; break;
+            case 2: text = "NSPanel US"; break;
+            case 3: text = "NSPanel US Landscape"; break;
+            default: return ""; // Return an empty string for unmatched display modes
+        }
+
+        // Append the charset text if necessary
+        if (charset == 2) {
+            text += " (CJK languages)";
+        }
+
+        return text;
+    }
+
 }  // namespace nspanel_ha_blueprint_upload_tft
