@@ -27,7 +27,7 @@ external_components:
       # path: packages/Blackymas/components
       type: git
       url: https://github.com/Blackymas/NSPanel_HA_Blueprint
-      ref: v4.3.2
+      ref: dev  # To do: Change to tag when releasing
     components:
       - nspanel_ha_blueprint
     refresh: 300s
@@ -50,16 +50,10 @@ external_components:
 esphome:
   name: ${name}
   friendly_name: ${friendly_name}
-  min_version: 2024.3.0
+  min_version: 2023.12.0
   platformio_options:
     build_flags:
       - -Wno-missing-field-initializers
-      # - -mfix-esp32-psram-cache-issue
-      # - -fdata-sections
-      # - -ffunction-sections
-      # - -Wl,--gc-sections
-      # - -Os
-      # - -flto
 
   on_boot:
     - priority: 600.0  # This is where most sensors are set up.
@@ -105,6 +99,11 @@ esp32:
   board: esp32dev
   framework:
     type: esp-idf
+
+debug:
+
+psram:
+  id: ext_ram
 
 ##### WIFI SETUP #####
 wifi:
@@ -2212,7 +2211,11 @@ script:
             - lambda: |-
                 boot_progress->execute(3);
                 if (current_page->state == "boot") {
+                  #if ESPHOME_VERSION_CODE < VERSION_CODE(2024, 3, 0)  // Code for ESPHome earlier than v2024.3.0
+                  disp1->set_component_text("ip_addr", network::get_ip_address().str().c_str());
+                  #else  // Code for ESPHome v2024.3.0 or newer
                   disp1->set_component_text("ip_addr", network::get_ip_addresses()[0].str().c_str());
+                  #endif  // ESPHome version based code
                   set_brightness->execute(100);
                 }
             - logger.log: Wait for API
@@ -3166,25 +3169,32 @@ script:
             // Report ESPHome
             ESP_LOGI(TAG, "ESPHome:");
             ESP_LOGI(TAG, "  Version:     ${version}");
+            ESP_LOGI(TAG, "  Compiler:    %s", ESPHOME_VERSION);
             // Report framework
             #ifdef ARDUINO
             ESP_LOGI(TAG, "  Framework:   Arduino");
-            size_t total_heap_size = ESP.getHeapSize();
-            size_t free_heap_size = ESP.getFreeHeap();
             #elif defined(USE_ESP_IDF)
             ESP_LOGI(TAG, "  Framework:   ESP-IDF");
-            size_t total_heap_size = heap_caps_get_total_size(MALLOC_CAP_DEFAULT);
-            size_t free_heap_size = esp_get_free_heap_size();
             #endif
-            if (total_heap_size != 0) {
-              std::string numStr = std::to_string(free_heap_size);
-              int insertPosition = numStr.length() - 3;
-              while (insertPosition > 0) {
-                  numStr.insert(insertPosition, " ");
-                  insertPosition -= 3;
-              }
-              ESP_LOGI(TAG, "  Free heap:   %s bytes (%d%%)", numStr.c_str(),
-                      int(round(((float)free_heap_size / total_heap_size) * 100.0f)));
+            // Report memory
+            const size_t internal_heap_size = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
+            const size_t internal_heap_size_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+            const size_t psram_heap_size = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
+            const size_t psram_heap_size_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+            ESP_LOGI(TAG, "  Free heap:");
+
+            if (internal_heap_size != 0) {
+              ESP_LOGI(TAG, "    Internal:  %7d bytes (%0.1f%%)", internal_heap_size_free,
+                      ((float)internal_heap_size_free / internal_heap_size) * 100.0f);
+            } else {
+              ESP_LOGI(TAG, "    Internal:  %7d bytes", internal_heap_size_free);
+            }
+
+            if (psram_heap_size != 0) {
+              ESP_LOGI(TAG, "    PSRAM:     %7d bytes (%0.1f%%)", psram_heap_size_free,
+                      ((float)psram_heap_size_free / psram_heap_size) * 100.0f);
+            } else {
+              ESP_LOGI(TAG, "    PSRAM:     %7d bytes", psram_heap_size_free);
             }
             // Report UART
             ESP_LOGI(TAG, "UART:");
