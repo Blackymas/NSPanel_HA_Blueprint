@@ -106,14 +106,14 @@ Follow these steps to add a new device in the ESPHome Dashboard:
 8. Clear all existing content and paste the following YAML configuration:
    ```yaml
    substitutions:
-   # Settings - Editable values
-   device_name: "YOUR_NSPANEL_NAME"
-   friendly_name: "Your panel's friendly name"
-   wifi_ssid: !secret wifi_ssid
-   wifi_password: !secret wifi_password
-   nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"  # Optional
-   # Add-on configuration (if needed)
-   # heater_relay: "1"  # Possible values: "1" or "2"
+     # Settings - Editable values
+     device_name: "YOUR_NSPANEL_NAME"
+     friendly_name: "Your panel's friendly name"
+     wifi_ssid: !secret wifi_ssid
+     wifi_password: !secret wifi_password
+     nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"  # Optional
+     # Add-on configuration (if needed)
+     # heater_relay: "1"  # Possible values: "1" or "2"
 
    # Customization area
    ##### My customization - Start #####
@@ -121,17 +121,17 @@ Follow these steps to add a new device in the ESPHome Dashboard:
 
    # Core and optional configurations
    packages:
-   remote_package:
-      url: https://github.com/Blackymas/NSPanel_HA_Blueprint
-      ref: main
-      files:
+     remote_package:
+       url: https://github.com/Blackymas/NSPanel_HA_Blueprint
+       ref: main
+       refresh: 300s
+       files:
          - nspanel_esphome.yaml # Basic package
          # Optional advanced and add-on configurations
          # - esphome/nspanel_esphome_advanced.yaml
          # - nspanel_esphome_addon_climate_cool.yaml
          # - nspanel_esphome_addon_climate_heat.yaml
          # - nspanel_esphome_addon_climate_dual.yaml
-      refresh: 300s
    ```
 
    ![YAML Code](pics/ha_esphome_dashboard_new_device_06.png)
