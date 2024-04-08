@@ -1,25 +1,19 @@
 // versioning.h
+
 #pragma once
-#include <cstdio> // For sscanf
 
 namespace nspanel_ha_blueprint {
 
     /**
-     * Compares two version strings by major and minor version numbers.
-     * Assumes version strings are in the format "major.minor".
+     * Compares two version strings by major and minor version numbers, assuming the version
+     * strings are formatted as "major.minor". This function parses both version strings and
+     * compares their major and minor components.
      *
-     * @param version1 First version string to compare.
-     * @param version2 Second version string to compare.
-     * @return true if the major and minor versions are equal, false otherwise.
+     * @param version1 The first version string to compare, in "major.minor" format.
+     * @param version2 The second version string to compare, in "major.minor" format.
+     * @return True if both the major and minor versions of version1 and version2 are equal,
+     *         false otherwise.
      */
-    inline bool compare_versions(const char* version1, const char* version2) {
-        int major1 = 0, minor1 = 0;
-        int major2 = 0, minor2 = 0;
-
-        sscanf(version1, "%d.%d", &major1, &minor1);
-        sscanf(version2, "%d.%d", &major2, &minor2);
-
-        return (major1 == major2) && (minor1 == minor2);
-    }
+    bool compare_versions(const char* version1, const char* version2);
 
 }  // namespace nspanel_ha_blueprint
