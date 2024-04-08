@@ -60,6 +60,7 @@ esphome:
     - priority: 600.0  # This is where most sensors are set up.
       then:
         - lambda: |-
+            set_timezone->execute(id(mui_timezone).c_str());
             if (isnan(blueprint_status->raw_state)) blueprint_status->publish_state(0);
             device_name->publish_state("${name}");
             notification_label->publish_state("");
@@ -875,14 +876,9 @@ api:
       variables:
         timezone: string
       then:
-        - lambda: |-
-            if (!timezone.empty()) {
-              time_provider->dump_config();
-              ESP_LOGI("api.service.set_timezone", "Setting timezone: %s", timezone.c_str());
-              time_provider->set_timezone(timezone.c_str());
-              time_provider->call_setup();
-              time_provider->dump_config();
-            }
+        - script.execute:
+            id: set_timezone
+            timezone: !lambda return timezone;
 
     # Wake Up Service
     - service: wake_up
@@ -999,6 +995,12 @@ display:
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
+
+  - id: mui_timezone
+    type: std::string
+    restore_value: true
+    max_restore_data_length: 36
+    initial_value: ""
 
   - id: mui_bytes_per_char
     type: uint8_t
@@ -2859,6 +2861,19 @@ script:
           NextionComponent component = extractNextionComponent(component_id, current_page->state);
           if (component.is_current_page) disp1->send_command_printf("vis %s,%i", component.component_id, show ? 1 : 0);
 
+  - id: set_timezone
+    mode: restart
+    parameters:
+      timezone: string
+    then:
+      - lambda: |-
+          id(mui_timezone) = timezone;
+          if (!timezone.empty()) {
+            ESP_LOGD("script.set_timezone", "Setting timezone: %s", timezone.c_str());
+            time_provider->set_timezone(timezone.c_str());
+            time_provider->call_setup();
+            time_provider->dump_config();
+          }
 
   - id: stop_all
     mode: restart
