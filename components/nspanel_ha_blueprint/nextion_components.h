@@ -27,11 +27,23 @@ namespace nspanel_ha_blueprint {
 
     /**
      * Converts an RGB color represented as a vector of integers to the 16-bit 5-6-5 format supported by Nextion displays.
-     * 
+     *
+     * This function takes a vector containing three integer values representing
+     * the red, green, and blue components of an RGB color, each in the range 0-255.
+     * It then converts these values into a single uint16_t value in 5-6-5 format,
+     * commonly used for color displays. The conversion process masks and shifts
+     * the components to fit into the 5 bits for red, 6 bits for green, and 5 bits for blue.
+     *
      * @param rgb A vector of integers with exactly three elements: [red, green, blue].
-     * @return The color encoded in 16-bit 5-6-5 format, or UINT16_MAX if the input vector does not contain exactly three elements.
+     * @return The color encoded in 16-bit 5-6-5 format, or UINT16_MAX if the input vector
+     * does not contain at least three elements.
      */
     template <typename Container>
-    uint16_t rgbTo565(const Container& rgb);
+    inline uint16_t rgbTo565(const Container& rgb) {
+        if (rgb.size() != 3) {
+            return UINT16_MAX; // Use UINT16_MAX as an error indicator
+        }
+        return ((rgb[0] & 0xF8) << 8) | ((rgb[1] & 0xFC) << 3) | (rgb[2] >> 3);
+    }
 
 }  // namespace nspanel_ha_blueprint

@@ -33,15 +33,4 @@ namespace nspanel_ha_blueprint {
         return result;
     }
 
-    template <typename Container>
-    uint16_t rgbTo565(const Container& rgb) {
-        if (rgb.size() != 3) {
-            return UINT16_MAX;
-        }
-        return ((rgb[0] & 0xF8) << 8) | ((rgb[1] & 0xFC) << 3) | (rgb[2] >> 3);
-    }
-
-    // Template instantiation for std::vector<int>
-    template uint16_t rgbTo565<std::vector<int>>(const std::vector<int>& rgb);
-
 }  // namespace nspanel_ha_blueprint
