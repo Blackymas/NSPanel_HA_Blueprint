@@ -1,8 +1,10 @@
 // upload_tft.cpp
 
+#ifdef NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
+
 #include "upload_tft.h"
 
-namespace nspanel_ha_blueprint_upload_tft {
+namespace nspanel_ha_blueprint {
 
     std::string construct_tft_url(const std::string& branch, const std::string& model,
                                     const std::string& defaultUrl, const std::string& baseUrl) {
@@ -25,4 +27,6 @@ namespace nspanel_ha_blueprint_upload_tft {
         return text;
     }
 
-}  // namespace nspanel_ha_blueprint_upload_tft
+}  // namespace nspanel_ha_blueprint
+
+#endif  // NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT

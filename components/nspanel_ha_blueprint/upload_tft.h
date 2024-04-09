@@ -2,9 +2,11 @@
 
 #pragma once
 
+#ifdef NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
+
 #include <string>
 
-namespace nspanel_ha_blueprint_upload_tft {
+namespace nspanel_ha_blueprint {
 
     /**
      * Constructs the TFT file URL based on branch, model, default URL, and base URL.
@@ -27,4 +29,6 @@ namespace nspanel_ha_blueprint_upload_tft {
      */
     std::string getNSPanelText(int displayMode, int charset);
 
-}  // namespace nspanel_ha_blueprint_upload_tft
+}  // namespace nspanel_ha_blueprint
+
+#endif  // NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
