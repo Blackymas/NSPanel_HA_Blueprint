@@ -631,6 +631,14 @@ This enhancement provides users with greater customization flexibility, enabling
 - **Description:** Enhanced the home page by allowing for longer text for entities values.
 This improvement accommodates more detailed values, improving clarity and user understanding of displayed data and controls.
 
+### Timezone Selector Added to Blueprint
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint and ESPHome
+- **Description:** Introduced a timezone selector within the Blueprint configuration, streamlining the setup process and enhancing user convenience.
+  This addition simplifies the configuration of the NSPanel, significantly reducing the need for YAML customizations related to timezone settings.
+  By providing a direct method to specify the timezone, this enhancement ensures that time displays and other time-sensitive features on the NSPanel accurately reflect the user's local time,
+  contributing to a more personalized and accurate user experience.
+
 ### Prebuilt Firmware Updates (#2024) - EXPERIMENTAL
 - **Criticality:** Enhancement
 - **Affected Components:** ESPHome
