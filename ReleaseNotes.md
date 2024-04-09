@@ -610,6 +610,14 @@ This update ensures that the home page accurately reflects the current configura
 - **Description:** Fixed an issue where touching the temperature display on the home page erroneously opened the climate control page, even in the absence of configured climate entities.
 This update ensures that interactions with the temperature display are consistent with the available configurations, enhancing the intuitive use of the NSPanel.
 
+### Internal Temperature Reporting Fix After Sleep (#2030)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Issue Number:** #2030
+- **Description:** Resolved an issue where the internal temperature indicator disappeared for a few seconds upon waking the panel from sleep mode.
+This fix ensures the internal temperature, especially when sourced from the panel's internal sensor,
+remains consistently displayed without interruption when transitioning from sleep to the home page, enhancing the stability and reliability of environmental monitoring on the NSPanel.
+
 ### Advanced Settings Page Entity Name Enhancement (#1909)
 - **Criticality:** Enhancement
 - **Affected Components:** Blueprint
