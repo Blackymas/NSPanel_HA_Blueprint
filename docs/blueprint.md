@@ -142,6 +142,10 @@ For more details about these specifications, please visit the [WPA3™ Specifica
 
 ## Hardware Buttons
 
+### Visibility Pages
+
+Choose the pages where the bars, indicating the status of entities linked to hardware buttons, will be displayed.
+
 ### Activate Relay x local Fallback (Optional)
 
 Normally, the internal relays of the NSPanels are triggered via HA.
