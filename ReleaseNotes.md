@@ -569,6 +569,103 @@ This enhancement optimizes the process of updating the NSPanel's display, ensuri
 The upgrade targets the underlying mechanisms of the Nextion component in ESPHome,
 refining its functionality to offer a more dependable and efficient update experience for users implementing TFT changes.
 
+## v4.3.3 - Enhancing Flexibility and User Experience
+With the v4.3.3 update, we're focused on refining the NSPanel's usability and customization capabilities, addressing user feedback to enhance the intuitive interaction with the panel.
+From streamlining light entity controls to expanding text length for entities on the home page, each change is aimed at improving the user experience.
+This patch also introduces experimental features, such as prebuilt firmware updates and PSRAM use, pushing the boundaries of what's possible with NSPanel,
+while also ensuring a smoother, more reliable interface across different languages and configurations.
+
+### Simplified Light Entity Control on Custom Buttons (#1844)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Issue Number:** #1844
+- **Description:** Addressed an inconsistency where light entities with only on/off capabilities erroneously showed an extended screen with a brightness slider.
+This fix streamlines the control interface for such light entities, aligning with their actual capabilities.
+
+### Deletion of Button Icons from Home Page Enabled (#1992)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Issue Number:** #1992
+- **Description:** Resolved an issue preventing the removal of button icons from the home page.
+Users can now delete or change button icons as needed, providing flexibility in customizing the panel's appearance.
+
+### Correction of Missing Characters on Button Pages for Multi-Byte Languages (#2000)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint, ESPHome, and TFT
+- **Issue Number:** #2000
+- **Description:** Resolved a display issue affecting multi-byte languages, where specific characters were missing on the button pages.
+This fix ensures complete and accurate representation of all languages across the NSPanel interface, including Hebrew and others where a character may occupy more than a single byte.
+
+### Entity Display Persistence on Home Page Addressed (#2018)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Issue Number:** #2018
+- **Description:** Fixed a bug where entities removed from the blueprint continued to display on the home page.
+This update ensures that the home page accurately reflects the current configuration, removing any unassigned entities.
+
+### Resolved Unintended Climate Control Page Access (#2021)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Issue Number:** #2021
+- **Description:** Fixed an issue where touching the temperature display on the home page erroneously opened the climate control page, even in the absence of configured climate entities.
+This update ensures that interactions with the temperature display are consistent with the available configurations, enhancing the intuitive use of the NSPanel.
+
+### Internal Temperature Reporting Fix After Sleep (#2030)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Issue Number:** #2030
+- **Description:** Resolved an issue where the internal temperature indicator disappeared for a few seconds upon waking the panel from sleep mode.
+This fix ensures the internal temperature, especially when sourced from the panel's internal sensor,
+remains consistently displayed without interruption when transitioning from sleep to the home page, enhancing the stability and reliability of environmental monitoring on the NSPanel.
+
+### Advanced Settings Page Entity Name Enhancement (#1909)
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Issue Number:** #1909
+- **Description:** Improved the advanced settings page by providing clearer entity names when opened from a custom button,
+enhancing user navigation and configuration understanding within the NSPanel settings.
+
+### Support for `mdi:void` Icon on Homepage for Blank Display (#2019)
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Issue Number:** #2019
+- **Description:** Implemented support for the `mdi:void` icon on the homepage, allowing for a blank display where no icon is preferred.
+This enhancement provides users with greater customization flexibility, enabling a cleaner and more minimalistic interface by opting not to show any icon.
+
+### Extended Text Length for Entities on Home Page (#2020)
+- **Criticality:** Enhancement
+- **Affected Components:** TFT
+- **Issue Number:** #2020
+- **Description:** Enhanced the home page by allowing for longer text for entities values.
+This improvement accommodates more detailed values, improving clarity and user understanding of displayed data and controls.
+
+### Timezone Selector Added to Blueprint
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint and ESPHome
+- **Description:** Introduced a timezone selector within the Blueprint configuration, streamlining the setup process and enhancing user convenience.
+  This addition simplifies the configuration of the NSPanel, significantly reducing the need for YAML customizations related to timezone settings.
+  By providing a direct method to specify the timezone, this enhancement ensures that time displays and other time-sensitive features on the NSPanel accurately reflect the user's local time,
+  contributing to a more personalized and accurate user experience.
+
+### Prebuilt Firmware Updates (#2024) - EXPERIMENTAL
+- **Criticality:** Enhancement
+- **Affected Components:** ESPHome
+- **Issue Number:** #2024
+- **Description:** The prebuilt firmware has been updated to incorporate the latest fixes and enhancements,
+   ensuring users have access to the most current and stable version without the need for manual compilation.
+   This is another important step in our goal torwards [Simplifying User Experience for NSPanel Firmware](https://github.com/Blackymas/NSPanel_HA_Blueprint/discussions/1602),
+   allowing users to directly download the firmware from GitHub without the need of compiling it locally.
+- **Special Thanks:** To @MichaelHeimann for trimming this feature, fixing bugs and reviving this idea.
+
+### Use of PSRAM (#1815, #1946, and #1983) - EXPERIMENTAL
+- **Criticality:** Enhancement
+- **Affected Components:** ESPHome
+- **Issue Number:** #1815, #1946, and #1983
+- **Description:** We are introducing the use of PSRAM memory available on the NSPanel.
+   This will possibly open space for additional features to be developed in the future and the use of more customizations for your panel.
+- **Special Thanks:** To @Bascht74 and @olicooper for giving the directions to enable the use of non-standard pins for PSRAM used in NSPanel,
+   and to @X-Ryl669 and @MichaelHeimann for all the tests, tips, and feedback around this.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)

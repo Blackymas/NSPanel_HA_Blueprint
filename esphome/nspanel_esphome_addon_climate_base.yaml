@@ -32,6 +32,11 @@ substitutions:
   addon_climate_dual: "false"
   ##############################
 
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE
+
 climate:
   - platform: thermostat
     name: Thermostat
@@ -192,4 +197,51 @@ script:
       - lambda: |-
           if (current_page->state == "climate" and !id(is_uploading_tft))
             id(is_addon_climate_visible) = embedded_climate;
+
+  - id: !extend watchdog
+    then:
+      - lambda: |-
+          // Check if more than one or none of the climate options are defined
+          #if defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL) && defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT)
+            #error "Invalid settings for add-on Climate. More than one option selected: Cool + Heat."
+          #elif defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL) && defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL)
+            #error "Invalid settings for add-on Climate. More than one option selected: Cool + Dual."
+          #elif defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT) && defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL)
+            #error "Invalid settings for add-on Climate. More than one option selected: Heat + Dual."
+          #elif !defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL) && !defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT) && !defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL)
+            #error "Invalid settings for add-on Climate. No option selected between Cool, Heat or Dual."
+          #endif
+          if (!id(is_uploading_tft)) {
+            static const char *const TAG = "addon_climate_base.script.watchdog";
+            uint cooler_relay = ${cooler_relay};
+            uint heater_relay = ${heater_relay};
+            ESP_LOGI(TAG, "Add-on climate:");
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL
+            ESP_LOGI(TAG, "  Cool:  Enabled");
+            if (cooler_relay == 1 or cooler_relay == 2)
+              ESP_LOGI(TAG, "  Relay: %u", cooler_relay);
+            else
+              ESP_LOGE(TAG, "  Relay: %u", cooler_relay);
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT
+            ESP_LOGI(TAG, "  Heat:  Enabled");
+            if (heater_relay == 1 or heater_relay == 2)
+              ESP_LOGI(TAG, "  Relay: %u", heater_relay);
+            else
+              ESP_LOGE(TAG, "  Relay: %u", heater_relay);
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+            ESP_LOGI(TAG, "  Dual:  Enabled");
+            if (cooler_relay == 1 or cooler_relay == 2)
+              ESP_LOGI(TAG, "  Relay (cooler): %u", cooler_relay);
+            else
+              ESP_LOGE(TAG, "  Relay (cooler): %u", cooler_relay);
+            if (heater_relay == 1 or heater_relay == 2)
+              ESP_LOGI(TAG, "  Relay (heater): %u", heater_relay);
+            else
+              ESP_LOGE(TAG, "  Relay (heater): %u", heater_relay);
+            if (cooler_relay == heater_relay)
+              ESP_LOGE(TAG, "  Double relay assignment");
+            #endif
+          }
 ...
