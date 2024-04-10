@@ -39,6 +39,10 @@ Select how you want to see the date displayed on your panel (Home page and weath
 
 Select how you want to see the time displayed on your panel's Home page.
 
+### Timezone
+
+Select the timezone for this panel. Default (nothing) sets the timezone of the machine the firmware was compiled on. Important to set for prebuilt firmware.
+
 ### Delay to avoid synchronization problems
 
 If the Wi-Fi signal is poor, you may have issues when loading some pages.
