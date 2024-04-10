@@ -17,7 +17,7 @@ substitutions:
   invalid_cooldown: "100ms"
   bytes_per_char: "1"
   ##### DON'T CHANGE THIS ######
-  version: "4.3.3"
+  version: "4.3.4"
   ##############################
 
 ##### External components #####
@@ -27,7 +27,7 @@ external_components:
       # path: packages/Blackymas/components
       type: git
       url: https://github.com/Blackymas/NSPanel_HA_Blueprint
-      ref: v4.3.3
+      ref: v4.3.4
     components:
       - nspanel_ha_blueprint
     refresh: 300s
@@ -799,6 +799,30 @@ api:
       then:
         - lambda: if (!id(is_uploading_tft)) buzzer->play(tone);
 
+    - service: set_bool
+      variables:
+        component: string
+        val: bool
+      then:
+        - lambda: |-
+            if (component == "is_climate") id(is_climate) = val;
+
+    - service: set_string
+      variables:
+        component: string
+        val: string
+      then:
+        - lambda: |-
+            if (component == "timezone") set_timezone->execute(val.c_str());
+
+    - service: set_timezone  # To do: Merge this on another init service for v4.4.0
+      variables:
+        timezone: string
+      then:
+        - script.execute:
+            id: set_timezone
+            timezone: !lambda return timezone;
+
     # Utilities group refresh
     - service: utilities_group_refresh
       variables:
@@ -874,14 +898,6 @@ api:
               }
             }
 
-    - service: set_timezone  # To do: Merge this on another init service for v4.4.0
-      variables:
-        timezone: string
-      then:
-        - script.execute:
-            id: set_timezone
-            timezone: !lambda return timezone;
-
     # Wake Up Service
     - service: wake_up
       variables:
@@ -938,9 +954,9 @@ display:
               switch (component_id) {
                 case 4:   // indr_temp
                 case 27:  // indr_temp_icon
-                  if (id(is_embedded_thermostat) and !touch_event) {  // Release
-                    detailed_entity->publish_state("embedded_climate");
-                    disp1->set_component_value("climate.embedded", 1);
+                  if (id(is_climate) and !touch_event) {  // Release
+                    detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
+                    disp1->set_component_value("climate.embedded", id(is_embedded_thermostat) ? 1 : 0);
                     goto_page->execute("climate");
                   }
                   break;
@@ -997,6 +1013,11 @@ display:
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
+
+  - id: is_climate
+    type: bool
+    restore_value: true
+    initial_value: 'true'
 
   - id: mui_timezone
     type: std::string
