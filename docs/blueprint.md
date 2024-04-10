@@ -43,11 +43,6 @@ Select how you want to see the time displayed on your panel's Home page.
 
 Select the timezone for this panel. Default (nothing) sets the timezone of the machine the firmware was compiled on. Important to set for prebuilt firmware.
 
-### Delay to avoid synchronization problems
-
-If the Wi-Fi signal is poor, you may have issues when loading some pages.
-If this happens, try to increase this delay as that may help.
-
 ## Weather and Temperature
 
 ### Weather entity from HA
@@ -232,6 +227,21 @@ The entities are numbered as follows:
 Additionally there is the possibility to choose an icon of your choice for the Entities button on the Home page.
 
 Of course there is also the possibility to enter a label for each of the 4 pages and the aligment for the values on the entities pages.
+
+## Advanced Settings ##
+
+### System settings - Decimal Separator
+
+Choose the decimal separator for displaying numbers.
+
+### Delay to avoid synchronization problems
+
+If the Wi-Fi signal is poor, you may have issues when loading some pages.
+If this happens, try to increase this delay as that may help.
+
+### Nextion TFT File Folder (Optional)
+
+Specify the path to the folder containing the Nextion TFT file. This is to be used together with the option nextion_upload_tft on the "Update TFT Display - Model" option on the device's page.
 
 ## Example Screenshots
 
