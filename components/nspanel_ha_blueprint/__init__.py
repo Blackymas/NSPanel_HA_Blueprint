@@ -1,7 +1,7 @@
 # __init__.py
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components.esp32 import add_idf_sdkconfig_option, get_esp32_variant
+from esphome.components.esp32 import add_idf_sdkconfig_option
 from esphome.core import CORE, coroutine_with_priority
 
 CODEOWNERS = ["@edwardtfn"]
