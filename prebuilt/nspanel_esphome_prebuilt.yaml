@@ -13,7 +13,6 @@ substitutions:
   device_name: nspanel
   wifi_ssid: nspanel
   wifi_password: NSPanel_Blueprint
-  pre_built: "true"
 
 ##### External components #####
 external_components:
@@ -33,8 +32,8 @@ api:
         url: string
       then:
         - ota_http.flash:
-            url: !lambda return url.c_str();
-            verify_ssl: false
+            md5_url: !lambda return fw_url->state + ".md5";
+            url: !lambda return fw_url->state;
         - lambda: |-
             static const char *const TAG = "prebuilt.button.bt_firmware_update";
             ESP_LOGE(TAG, "Firmware update failed!");
@@ -51,8 +50,8 @@ button:
     on_press:
       then:
         - ota_http.flash:
-            url: !lambda return id(firmware_url).state;
-            verify_ssl: false
+            md5_url: !lambda return fw_url->state + ".md5";
+            url: !lambda return fw_url->state;
         - lambda: |-
             static const char *const TAG = "prebuilt.button.bt_firmware_update";
             ESP_LOGE(TAG, "Firmware update failed!");
@@ -60,7 +59,7 @@ button:
 captive_portal:
 
 dashboard_import:
-  package_import_url: github://Blackymas/NSPanel_HA_Blueprint/prebuilt/nspanel_esphome_prebuilt.yaml@dev  # Must be updated
+  package_import_url: github://Blackymas/NSPanel_HA_Blueprint/prebuilt/nspanel_esphome_prebuilt.yaml@main
   import_full_config: false
 
 esp32_improv:
@@ -71,12 +70,9 @@ esphome:
   project:
     name: esphome.NSPanel_HA_Blueprint
     version: "${version}"
-  on_boot:
-    - priority: 602.0
-      then:
-        - text_sensor.template.publish:
-            id: firmware_url
-            state: https://raw.githubusercontent.com/Blackymas/NSPanel_HA_Blueprint/dev/prebuilt/nspanel_esphome_prebuilt.bin  # Must be updated
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_PREBUILT
 
 improv_serial:
 
@@ -88,6 +84,7 @@ ota:
   password: !remove
 
 ota_http:
+  exclude_certificate_bundle: true
 
 select:
   - id: !extend tft_file_model
@@ -101,13 +98,23 @@ select:
       - "NSPanel US (CJK languages)"
       - "NSPanel US Landscape (CJK languages)"
 
-text_sensor:
-  - id: firmware_url
-    name: Firmware update - URL
+text:
+  - id: fw_url
+    name: Firmware URL
     platform: template
-    update_interval: 60s
-    internal: true
     icon: mdi:cloud-download
+    mode: text
+    optimistic: true
+    entity_category: config
+    internal: false
+    update_interval: never
+    restore_value: true
+    initial_value: "https://raw.githubusercontent.com/Blackymas/NSPanel_HA_Blueprint/main/prebuilt/nspanel_esphome_prebuilt.bin"
+    on_value:
+      then:
+        - lambda: |-
+            ESP_LOGD("text.fw_url", "New Firmware URL set: %s", x.c_str());
+
 
 wifi:
   networks: !remove

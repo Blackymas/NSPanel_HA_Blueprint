@@ -15,8 +15,9 @@ substitutions:
   ota_password: ${wifi_password}
   temp_units: "°C"
   invalid_cooldown: "100ms"
+  bytes_per_char: "1"
   ##### DON'T CHANGE THIS ######
-  version: "4.3.2"
+  version: "4.3.3"
   ##############################
 
 ##### External components #####
@@ -26,7 +27,7 @@ external_components:
       # path: packages/Blackymas/components
       type: git
       url: https://github.com/Blackymas/NSPanel_HA_Blueprint
-      ref: v4.3.2
+      ref: v4.3.3
     components:
       - nspanel_ha_blueprint
     refresh: 300s
@@ -49,21 +50,17 @@ external_components:
 esphome:
   name: ${name}
   friendly_name: ${friendly_name}
-  min_version: 2024.3.0
+  min_version: 2023.12.0
   platformio_options:
     build_flags:
       - -Wno-missing-field-initializers
-      # - -mfix-esp32-psram-cache-issue
-      # - -fdata-sections
-      # - -ffunction-sections
-      # - -Wl,--gc-sections
-      # - -Os
-      # - -flto
+      - -D NSPANEL_HA_BLUEPRINT_CORE
 
   on_boot:
     - priority: 600.0  # This is where most sensors are set up.
       then:
         - lambda: |-
+            set_timezone->execute(id(mui_timezone).c_str());
             if (isnan(blueprint_status->raw_state)) blueprint_status->publish_state(0);
             device_name->publish_state("${name}");
             notification_label->publish_state("");
@@ -104,6 +101,9 @@ esp32:
   board: esp32dev
   framework:
     type: esp-idf
+
+psram:
+  id: ext_ram
 
 ##### WIFI SETUP #####
 wifi:
@@ -167,14 +167,17 @@ time:
               refresh_datetime->execute();
               refresh_relays->execute(3);
               refresh_hardware_buttons_bars->execute(3);
+              refresh_wifi_icon->execute();
       - seconds: 30
         then:
           - script.execute: watchdog
 
     on_time_sync:
       then:
-        - logger.log: "System clock synchronized"
-        - script.execute: refresh_datetime
+        - lambda: |-
+            ESP_LOGD("time.on_time_sync", "System clock synchronized");
+            ESP_LOGD("time.on_time_sync", "Timezone: %s", time_provider->get_timezone().c_str());
+            refresh_datetime->execute();
 
 json:  # Can be replaced by web_server
 
@@ -339,6 +342,7 @@ api:
         screensaver_time_font: int     # Specifies the font id for the screensaver time display.
         screensaver_time_color: int[]  # RGB color for the screensaver time display, e.g., [165, 42, 42] for reddish-brown.
         decimal_separator: string      # The char to be used as decimal separator.
+        # bytes_per_char: init
       then:
         - if:
             condition:
@@ -354,6 +358,7 @@ api:
                   screensaver_time_font: !lambda return screensaver_time_font;
                   screensaver_time_color: !lambda return screensaver_time_color;
                   decimal_separator: !lambda return decimal_separator;
+                  # bytes_per_char: !lambda return bytes_per_char;
               - script.wait: global_settings
               - lambda: blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 5));
 
@@ -869,6 +874,14 @@ api:
               }
             }
 
+    - service: set_timezone  # To do: Merge this on another init service for v4.4.0
+      variables:
+        timezone: string
+      then:
+        - script.execute:
+            id: set_timezone
+            timezone: !lambda return timezone;
+
     # Wake Up Service
     - service: wake_up
       variables:
@@ -925,9 +938,9 @@ display:
               switch (component_id) {
                 case 4:   // indr_temp
                 case 27:  // indr_temp_icon
-                  if (!touch_event) {  // Release
-                    detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
-                    disp1->set_component_value("climate.embedded", id(is_embedded_thermostat) ? 1 : 0);
+                  if (id(is_embedded_thermostat) and !touch_event) {  // Release
+                    detailed_entity->publish_state("embedded_climate");
+                    disp1->set_component_value("climate.embedded", 1);
                     goto_page->execute("climate");
                   }
                   break;
@@ -984,6 +997,16 @@ display:
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
+
+  - id: mui_timezone
+    type: std::string
+    restore_value: true
+    initial_value: ""
+
+  - id: mui_bytes_per_char
+    type: uint8_t
+    restore_value: true
+    initial_value: ${bytes_per_char}
 
   ###### Buttons settings ######
   # Bit # Settings             #
@@ -1705,16 +1728,34 @@ text_sensor:
     entity_category: diagnostic
     internal: false
     disabled_by_default: false
-    lambda: return {"${name}"};
+    lambda: |-
+      return {"${name}"};
     filters:
       - lambda: |-
+          #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT
+          std::string suffix = "00ERROR";  // Default suffix in case of an error
+          uint8_t mac[6] = {0,0,0,0,0,0};
+          if (esp_read_mac(mac, ESP_MAC_WIFI_STA) == ESP_OK) {
+            suffix.clear();  // Clear the default error suffix
+            for (int i = 3; i < 6; ++i) {  // Use last 3 bytes of MAC
+              char hex[3];
+              snprintf(hex, sizeof(hex), "%02X", mac[i]);
+              suffix += hex;
+            }
+          }
+          // Proceed with suffix (either MAC-based or default error indicator)
+          const std::string raw_name = (x + "-" + suffix);
+          #else
+          const std::string raw_name = x;
+          #endif
+
           std::string result;
           bool last_was_underscore = false;
-          for (char& c : x) {
+          for (const char& c : raw_name) {
             if (isalnum(c)) {
-              result += tolower(c); // Add alphanumeric characters as lowercase
+              result += tolower(c);  // Add alphanumeric characters as lowercase
               last_was_underscore = false;
-            } else if (!last_was_underscore) { // Replace non-alphanumeric with '_' but avoid consecutive '_'
+            } else if (!last_was_underscore) {  // Replace non-alphanumeric with '_' but avoid consecutive '_'
               result += '_';
               last_was_underscore = true;
             }
@@ -2029,12 +2070,12 @@ script:
           } else {
             while (startPos < text_to_display.length()) {
               while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
-              int endPos = startPos + line_length_limit;
+              int endPos = startPos + (line_length_limit * id(mui_bytes_per_char));
               if (endPos >= text_to_display.length()) endPos = text_to_display.length();
               else
                 {
                   while (endPos > startPos && text_to_display[endPos] != ' ') { endPos--; }
-                  if (endPos == startPos) endPos = startPos + line_length_limit; // Handle case of long word
+                  if (endPos == startPos) endPos = startPos + (line_length_limit * id(mui_bytes_per_char)); // Handle case of long word
                 }
               wrappedText += text_to_display.substr(startPos, endPos-startPos);
               if (endPos < text_to_display.length())
@@ -2059,6 +2100,7 @@ script:
       screensaver_time_font: int
       screensaver_time_color: int32_t[]
       decimal_separator: string
+      # bytes_per_char: int
     then:
       - lambda: |-
           if (!id(is_uploading_tft)) {
@@ -2070,6 +2112,7 @@ script:
             // MUI strings
             id(mui_please_confirm_global) = mui_please_confirm;
             id(mui_unavailable_global) = mui_unavailable;
+            // id(mui_bytes_per_char) = bytes_per_char;
 
             // Screen saver page (sleep)
             id(screensaver_display_time) = screensaver_time;
@@ -2202,7 +2245,11 @@ script:
             - lambda: |-
                 boot_progress->execute(3);
                 if (current_page->state == "boot") {
+                  #if ESPHOME_VERSION_CODE < VERSION_CODE(2024, 3, 0)  // Code for ESPHome earlier than v2024.3.0
+                  disp1->set_component_text("ip_addr", network::get_ip_address().str().c_str());
+                  #else  // Code for ESPHome v2024.3.0 or newer
                   disp1->set_component_text("ip_addr", network::get_ip_addresses()[0].str().c_str());
+                  #endif  // ESPHome version based code
                   set_brightness->execute(100);
                 }
             - logger.log: Wait for API
@@ -2495,7 +2542,7 @@ script:
   - id: page_utilities
     mode: restart
     then:
-      - lambda: resetUtilitiesGroups();
+      - lambda: if (UtilitiesGroups == nullptr) resetUtilitiesGroups();
 
   - id: page_weather
     mode: restart
@@ -2815,11 +2862,25 @@ script:
           NextionComponent component = extractNextionComponent(component_id, current_page->state);
           if (component.is_current_page) disp1->send_command_printf("vis %s,%i", component.component_id, show ? 1 : 0);
 
+  - id: set_timezone
+    mode: restart
+    parameters:
+      timezone: string
+    then:
+      - lambda: |-
+          id(mui_timezone) = timezone;
+          if (!timezone.empty()) {
+            ESP_LOGD("script.set_timezone", "Setting timezone: %s", timezone.c_str());
+            time_provider->set_timezone(timezone.c_str());
+            time_provider->call_setup();
+            time_provider->dump_config();
+          }
 
   - id: stop_all
     mode: restart
     then:
       - lambda: |-
+          cleanupUtilitiesGroups();
           boot_event->stop();
           boot_progress->stop();
           change_climate_state->stop();
@@ -3097,6 +3158,7 @@ script:
     mode: restart
     then:
       - lambda: |-
+          #include <esp_heap_caps.h>
           static const char *const TAG = "script.watchdog";
           if (id(is_uploading_tft)) {
             ESP_LOGW(TAG, "TFT upload in progress");
@@ -3156,25 +3218,32 @@ script:
             // Report ESPHome
             ESP_LOGI(TAG, "ESPHome:");
             ESP_LOGI(TAG, "  Version:     ${version}");
+            ESP_LOGI(TAG, "  Compiler:    %s", ESPHOME_VERSION);
             // Report framework
             #ifdef ARDUINO
             ESP_LOGI(TAG, "  Framework:   Arduino");
-            size_t total_heap_size = ESP.getHeapSize();
-            size_t free_heap_size = ESP.getFreeHeap();
             #elif defined(USE_ESP_IDF)
             ESP_LOGI(TAG, "  Framework:   ESP-IDF");
-            size_t total_heap_size = heap_caps_get_total_size(MALLOC_CAP_DEFAULT);
-            size_t free_heap_size = esp_get_free_heap_size();
             #endif
-            if (total_heap_size != 0) {
-              std::string numStr = std::to_string(free_heap_size);
-              int insertPosition = numStr.length() - 3;
-              while (insertPosition > 0) {
-                  numStr.insert(insertPosition, " ");
-                  insertPosition -= 3;
-              }
-              ESP_LOGI(TAG, "  Free heap:   %s bytes (%d%%)", numStr.c_str(),
-                      int(round(((float)free_heap_size / total_heap_size) * 100.0f)));
+            // Report memory
+            const size_t internal_heap_size = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
+            const size_t internal_heap_size_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+            const size_t psram_heap_size = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
+            const size_t psram_heap_size_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+            ESP_LOGI(TAG, "  Free heap:");
+
+            if (internal_heap_size != 0) {
+              ESP_LOGI(TAG, "    Internal:  %7d bytes (%0.1f%%)", internal_heap_size_free,
+                      ((float)internal_heap_size_free / internal_heap_size) * 100.0f);
+            } else {
+              ESP_LOGI(TAG, "    Internal:  %7d bytes", internal_heap_size_free);
+            }
+
+            if (psram_heap_size != 0) {
+              ESP_LOGI(TAG, "    PSRAM:     %7d bytes (%0.1f%%)", psram_heap_size_free,
+                      ((float)psram_heap_size_free / psram_heap_size) * 100.0f);
+            } else {
+              ESP_LOGI(TAG, "    PSRAM:     %7d bytes", psram_heap_size_free);
             }
             // Report UART
             ESP_LOGI(TAG, "UART:");
@@ -3200,6 +3269,46 @@ script:
               ESP_LOGW(TAG, "  TFT:         UNKNOWN");
             else
               ESP_LOGI(TAG, "  TFT:         %s", version_tft->state.c_str());
+            ESP_LOGI(TAG, "Packages:");
+            #ifdef NSPANEL_HA_BLUEPRINT_CORE
+            ESP_LOGI(TAG, "  - Core");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADVANCED
+            ESP_LOGI(TAG, "  - Advanced");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
+            ESP_LOGI(TAG, "  - Upload TFT");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE
+            ESP_LOGI(TAG, "  - Climate - Base");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL
+            ESP_LOGI(TAG, "  - Climate - Cool");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+            ESP_LOGI(TAG, "  - Climate - Dual");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT
+            ESP_LOGI(TAG, "  - Climate - Heat");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT
+            ESP_LOGI(TAG, "  - Pre-built");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY
+            ESP_LOGI(TAG, "  - Pre-built (Wall Display)");
+            #endif
+            #if defined(USE_BLUETOOTH_PROXY) || defined(USE_WEBSERVER) || defined(USE_CAPTIVE_PORTAL)
+            ESP_LOGI(TAG, "Non-standard components:");
+            #ifdef USE_CAPTIVE_PORTAL
+            ESP_LOGI(TAG, "  - Captive portal");
+            #endif
+            #ifdef USE_BLUETOOTH_PROXY
+            ESP_LOGI(TAG, "  - Bluetooth proxy");
+            #endif
+            #ifdef USE_WEBSERVER
+            ESP_LOGI(TAG, "  - Web server");
+            #endif
+            #endif
             refresh_wifi_icon->execute();
           }
 ...

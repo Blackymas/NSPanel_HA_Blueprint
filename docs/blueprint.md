@@ -39,10 +39,9 @@ Select how you want to see the date displayed on your panel (Home page and weath
 
 Select how you want to see the time displayed on your panel's Home page.
 
-### Delay to avoid synchronization problems
+### Timezone
 
-If the Wi-Fi signal is poor, you may have issues when loading some pages.
-If this happens, try to increase this delay as that may help.
+Select the timezone for this panel. Default (nothing) sets the timezone of the machine the firmware was compiled on. Important to set for prebuilt firmware.
 
 ## Weather and Temperature
 
@@ -65,11 +64,11 @@ An indoor temperature sensor is not necessary.
 Leave the field empty if you want to use the temperature sensor of the NSPanel.
 If the value of the sensor needs to be corrected, this can be done via the temperature correction for the NSPanel under HA Devices.
 
-## Home page - Sensor
+## Home page - Entities States
 
-### Sensor 01-03 - Entity (Optional)
+### Home page - Entity 01-04 (Optional)
 
-Up to three sensors can be displayed on the home screen.
+Up to four entities can be displayed on the home screen.
 Select the corresponding HA entity.
 
 ## Home page - Chips
@@ -137,6 +136,10 @@ Your QR code string will look like this:
 For more details about these specifications, please visit the [WPA3™ Specification v3.1, chapter 7](https://www.wi-fi.org/system/files/WPA3%20Specification%20v3.1.pdf#page=24).
 
 ## Hardware Buttons
+
+### Visibility Pages
+
+Choose the pages where the bars, indicating the status of entities linked to hardware buttons, will be displayed.
 
 ### Activate Relay x local Fallback (Optional)
 
@@ -224,6 +227,21 @@ The entities are numbered as follows:
 Additionally there is the possibility to choose an icon of your choice for the Entities button on the Home page.
 
 Of course there is also the possibility to enter a label for each of the 4 pages and the aligment for the values on the entities pages.
+
+## Advanced Settings
+
+### System settings - Decimal Separator
+
+Choose the decimal separator for displaying numbers.
+
+### Delay to avoid synchronization problems
+
+If the Wi-Fi signal is poor, you may have issues when loading some pages.
+If this happens, try to increase this delay as that may help.
+
+### Nextion TFT File Folder (Optional)
+
+Specify the path to the folder containing the Nextion TFT file. This is to be used together with the option nextion_upload_tft on the "Update TFT Display - Model" option on the device's page.
 
 ## Example Screenshots
 
