@@ -69,11 +69,11 @@ An indoor temperature sensor is not necessary.
 Leave the field empty if you want to use the temperature sensor of the NSPanel.
 If the value of the sensor needs to be corrected, this can be done via the temperature correction for the NSPanel under HA Devices.
 
-## Home page - Sensor
+## Home page - Entities States
 
-### Sensor 01-03 - Entity (Optional)
+### Home page - Entity 01-04 (Optional)
 
-Up to three sensors can be displayed on the home screen.
+Up to four entities can be displayed on the home screen.
 Select the corresponding HA entity.
 
 ## Home page - Chips
