@@ -696,6 +696,7 @@ Your efforts have significantly improved its functionality and reliability (#183
 Your contributions have made our guides more informative and accessible, enriching the user experience for everyone (#1865).
 
 ## Previous releases
+- [v4.3.3 - Enhancing Flexibility and User Experience](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.3)
 - [v4.3.2 - Enhancements and Critical Fixes for a Seamless Experience](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.2)
 - [v4.3.1 - Ensuring Compatibility with ESPHome v2024.3.0 and Enhancing Stability](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.1)
 - [v4.3 - Welcome to Framework ESP-IDF, an Utilities Dashboard and Enhanced Localization](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.0)
