@@ -1,27 +1,26 @@
 // mdiicons.cpp
 
-#include "MdiIcons.h"
+#include "mdiicons.h"
 #include "esphome/core/log.h"
 
 using namespace esphome;
 
-// Setup method to allocate and initialize the icon pool
+MdiIcons::MdiIcons() : iconPool(nullptr), iconPoolSize(0), iconPoolCapacity(100) {}
+
 void MdiIcons::setup() {
-    iconPool = new MdiIcon[iconPoolCapacity];  // Allocate memory for the icon pool
+    iconPool = new MdiIcon[iconPoolCapacity];
     if (!iconPool) {
         ESP_LOGE("MdiIcons", "Failed to allocate memory for icons in PSRAM");
         return;
     }
-    memset(iconPool, 0, iconPoolCapacity * sizeof(MdiIcon));  // Initialize memory to zero
+    memset(iconPool, 0, iconPoolCapacity * sizeof(MdiIcon));
     ESP_LOGI("MdiIcons", "Icon pool initialized with capacity %u", iconPoolCapacity);
 }
 
-// Method to log the configuration of the icon pool
 void MdiIcons::dump_config() {
-    ESP_LOGCONFIG("MdiIcons", "MDI Icons component initialized with a pool capacity of %u", iconPoolCapacity);
+    ESP_LOGCONFIG("MdiIcons", "MDI Icons: Initialized with pool capacity %u", iconPoolCapacity);
 }
 
-// Method to find an icon by name. Returns a pointer to the icon if found, otherwise nullptr
 const MdiIcon* MdiIcons::find_icon(const char* name) const {
     for (size_t i = 0; i < iconPoolSize; ++i) {
         if (strcmp(iconPool[i].name, name) == 0) {
@@ -31,7 +30,6 @@ const MdiIcon* MdiIcons::find_icon(const char* name) const {
     return nullptr;
 }
 
-// Method to add a new icon to the pool. Checks for duplicates, resizes the pool if necessary, and adds the icon
 bool MdiIcons::add_icon(const char* name, const char* code) {
     if (find_icon(name) != nullptr) {
         ESP_LOGW("MdiIcons", "Icon '%s' is already in the pool. Not adding again.", name);
@@ -51,7 +49,6 @@ bool MdiIcons::add_icon(const char* name, const char* code) {
     return true;
 }
 
-// Method to double the capacity of the icon pool when it is full
 void MdiIcons::resize_pool() {
     size_t newCapacity = iconPoolCapacity * 2;
     MdiIcon* newPool = new MdiIcon[newCapacity];
