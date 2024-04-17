@@ -575,89 +575,80 @@ esp32:
 ### Bluetooth proxy
 <!-- markdownlint-disable MD028 -->
 > [!IMPORTANT]
-> The [ESP32 Platform](#framework-esp-idf) component should be configured to use the `esp-idf` framework,
-> as the `arduino` framework uses significantly more memory and performs poorly with the Bluetooth stack enabled.
+> **Problem Overview:**
+> Enabling Bluetooth consumes a significant amount of your device's memory (RAM), leading to potential issues:
+> - **Device Crashes:** Adding extra features on top of Bluetooth may overload the memory capacity, causing crashes.
+> - **Unstable HTTPS Connections:** There may be difficulties establishing or maintaining secure internet connections.
+> - **Failed TFT Screen Updates:** Insufficient RAM can cause screen update processes (TFT flashing) to fail.
+>
+> **Solution:**
+> **Freeing Up Memory:**
+> To prevent these problems, remove the Bluetooth components to free up memory:
+> 1. **Flash the Device:** Apply a fresh installation of the software without the Bluetooth features to increase available RAM.
+> 2. **During TFT Update:** Perform this step specifically when updating the TFT screen to ensure enough RAM is available for the process.
 
 > [!IMPORTANT]
-> The Bluetooth stack significantly reduces device RAM.
-> Enabling this with additional customizations/components may lead to crashes due to low memory.
-> HTTPS connections might be erratic, and local TFT flashing could fail due to insufficient RAM.
+> **Framework Recommendation:**
+> Utilize the [ESP32 Platform](#framework-esp-idf) with the `esp-idf` framework for optimal performance, especially when the Bluetooth feature is enabled.
+> The `arduino` framework is not recommended as it significantly increases memory usage and reduces system stability with Bluetooth.
+
+> [!WARNING]
+> **Correct Component IDs:**
+> It's crucial to use specific IDs for Bluetooth components (`ble_proxy` and `ble_tracker`). These IDs allow the system to properly manage Bluetooth services,
+> stopping them temporarily during the TFT update to free up RAM, thus enhancing the update's success rate.
 >
-> Solutions include:
-> 1. Flash the device (remove Bluetooth components) while updating TFT.
-> 2. Flash from a local (HTTP) source at a low baud rate (9600 or lower) to avoid memory crashes. This method is slower.
-<!-- markdownlint-enable MD028 -->
+> Even if using only the `bluetooth_proxy`, you must define `esp32_ble_tracker` with the specified ID as shown below.
+> This setup is necessary for system compatibility and does not affect the firmware size but ensures proper functionality.
+
 ```yaml
-# Enable Bluetooth proxy
+# Configuration for Bluetooth Proxy
 bluetooth_proxy:
   id: ble_proxy
 
-# Give an id for the BLE Tracker (which is part of BT proxy)
+# Configuration for the BLE Tracker (required as part of the Bluetooth Proxy)
 esp32_ble_tracker:
   id: ble_tracker
 
-# Modify upload tft engine to stop BLE scan while uploading
-script:
-  - id: !extend upload_tft
-    then:
-      - lambda: |-
-          static const char *const TAG = "CUSTOM.script.upload_tft";
-          ble_tracker->dump_config();
-          ESP_LOGD(TAG, "Stopping BLE Tracker scan...");
-          ble_tracker->stop_scan();
-          ESP_LOGD(TAG, "Disabling BLE Tracker scan...");
-          ble_tracker->set_scan_active(false);
-          ESP_LOGD(TAG, "State: %s", id(ble_proxy)->has_active() ? "Active" : "Passive");
-          while (ble_proxy->get_bluetooth_connections_limit() != ble_proxy->get_bluetooth_connections_free()) {
-            ESP_LOGD(TAG, "Connections: %i of %i", int(ble_proxy->get_bluetooth_connections_limit() - ble_proxy->get_bluetooth_connections_free()), int(ble_proxy->get_bluetooth_connections_limit()));
-            if (id(ble_proxy)->has_active()) {
-              ESP_LOGD(TAG, "Setting passive mode...");
-              ble_proxy->set_active(false);
-            }
-            vTaskDelay(pdMS_TO_TICKS(1000));
-            App.feed_wdt();
-          }
-
-# Set Wi-Fi power save mode to "LIGHT" as required for Bluetooth on ESP32
+# Wi-Fi settings adjusted for Bluetooth compatibility on ESP32
 wifi:
-  power_save_mode: LIGHT
+  power_save_mode: LIGHT  # Required for Bluetooth
 ```
 
 ### BLE Tracker
 <!-- markdownlint-disable MD028 -->
 > [!IMPORTANT]
-> The [ESP32 Platform](#framework-esp-idf) component should be configured to use the `esp-idf` framework,
-> as the `arduino` framework uses significantly more memory and performs poorly with the Bluetooth stack enabled.
+> **Problem Overview:**
+> Enabling the BLE Tracker consumes a significant amount of your device's memory (RAM), which can lead to potential issues:
+> - **Device Crashes:** Running additional features along with the BLE Tracker may exceed the memory limits, causing the device to crash.
+> - **Unstable HTTPS Connections:** Secure internet connections might become unreliable.
+> - **Failed TFT Screen Updates:** A lack of sufficient RAM can disrupt the screen updating process (TFT flashing).
+>
+> **Solution:**
+> **Freeing Up Memory:**
+> To mitigate these issues, simplify the device's configuration to increase available memory:
+> 1. **Flash the Device:** Reinstall the software with minimal features to maximize available RAM.
+> 2. **During TFT Update:** Specifically clear memory-consuming processes when updating the TFT screen to prevent update failures.
 
 > [!IMPORTANT]
-> The Bluetooth stack significantly reduces device RAM.
-> Enabling this with additional customizations/components may lead to crashes due to low memory.
-> HTTPS connections might be erratic, and local TFT flashing could fail due to insufficient RAM.
+> **Framework Recommendation:**
+> For best performance, especially when using BLE features, it's advised to employ the [ESP32 Platform](#framework-esp-idf) with the `esp-idf` framework.
+> The `arduino` framework is less efficient as it consumes more memory and can compromise the stability of BLE functionalities.
+
+> [!WARNING]
+> **Component ID Usage:**
+> The `esp32_ble_tracker` must be configured with the specific ID `ble_tracker` to correctly manage BLE operations.
+> This ID setup is critical for system performance and stability during intensive operations like TFT updates.
 >
-> Solutions include:
-> 1. Flash the device (remove Bluetooth components) while updating TFT.
-> 2. Flash from a local (HTTP) source at a low baud rate (9600 or lower) to avoid memory crashes. This method is slower.
-<!-- markdownlint-enable MD028 -->
+> Defining the `esp32_ble_tracker` with `ble_tracker` as the ID does not increase the firmware's size but is vital for operational success and system compatibility.
+
 ```yaml
-# Enable Bluetooth tracker
+# Configuration for the BLE Tracker
 esp32_ble_tracker:
   id: ble_tracker
 
-# Modify upload tft engine to stop BLE tracker while uploading
-script:
-  - id: !extend upload_tft
-    then:
-      - lambda: |-
-          static const char *const TAG = "CUSTOM.script.upload_tft";
-          ble_tracker->dump_config();
-          ESP_LOGI(TAG, "Stopping BLE Tracker scan...");
-          ble_tracker->stop_scan();
-          ESP_LOGI(TAG, "Disabling BLE Tracker scan...");
-          ble_tracker->set_scan_active(false);
-
-# Set Wi-Fi power save mode to "LIGHT" as required for Bluetooth on ESP32
+# Wi-Fi settings optimized for BLE functionality on ESP32
 wifi:
-  power_save_mode: LIGHT
+  power_save_mode: LIGHT  # Required for Bluetooth
 ```
 
 ### Logger via UART
