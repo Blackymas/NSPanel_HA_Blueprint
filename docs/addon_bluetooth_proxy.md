@@ -14,7 +14,7 @@ To install, add the reference to `nspanel_esphome_addon_bluetooth_proxy` in your
 following the `remote_package` entry, as illustrated below:
 
 > [!WARNING]
-> While the `esp-idf` framework is the default and recommended for the [ESP32 Platform](#framework-esp-idf) when Bluetooth features are enabled,
+> While the `esp-idf` framework is the default and recommended for the [ESP32 Platform](customization.md#framework-esp-idf) when Bluetooth features are enabled,
 > ensure it is not switched to the `arduino` framework. The `arduino` framework significantly increases memory usage, which may prevent installation on your panel.
 
 ```yaml
