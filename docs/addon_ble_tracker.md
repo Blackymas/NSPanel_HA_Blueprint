@@ -1,16 +1,20 @@
 # Add-on: BLE Tracker
 
 ## Description
-This add-on enables your NSPanel to use its internal Bluetooth module to track nearby Bluetooth Low Energy (BLE) devices using the [ESPHome BLE Tracker component](https://esphome.io/components/esp32_ble_tracker.html).
+This add-on enables your NSPanel to use its internal Bluetooth module to track nearby Bluetooth Low Energy (BLE) devices
+using the [ESPHome BLE Tracker component](https://esphome.io/components/esp32_ble_tracker.html).
 
 > [!IMPORTANT]
-> Configuring the BLE Tracker on your NSPanel is crucial for enabling device discovery and presence detection functionalities efficiently. This component should be managed with careful consideration of ESP32's memory capabilities, especially when other Bluetooth components are used concurrently.
+> Configuring the BLE Tracker on your NSPanel is crucial for enabling device discovery and presence detection functionalities efficiently.
+This component should be managed with careful consideration of ESP32's memory capabilities, especially when other Bluetooth components are used concurrently.
 
 ## Prerequisites
-- The `esp-idf` framework is recommended for the [ESP32 Platform](customization.md#framework-esp-idf) to ensure optimal operation and compatibility when using BLE features. The `arduino` framework is not advised as it may increase memory usage and impact the performance negatively.
+- The `esp-idf` framework is recommended for the [ESP32 Platform](customization.md#framework-esp-idf) to ensure optimal operation and compatibility when using BLE features.
+The `arduino` framework is not advised as it may increase memory usage and impact the performance negatively.
 
 > [!WARNING]
-> Using the `arduino` framework can lead to high memory consumption which might interfere with the stability of BLE operations on the NSPanel. It is crucial to use the `esp-idf` framework to avoid such issues.
+> Using the `arduino` framework can lead to high memory consumption which might interfere with the stability of BLE operations on the NSPanel.
+It is crucial to use the `esp-idf` framework to avoid such issues.
 
 ## Configuration Steps
 1. **Edit Your ESPHome YAML File**: Incorporate the BLE Tracker component into your NSPanel's configuration by adding the necessary entries under the `esp32_ble_tracker:` section as shown below:
