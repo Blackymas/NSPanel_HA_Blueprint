@@ -56,8 +56,9 @@ It is crucial to use the `esp-idf` framework to avoid such issues.
     ```
 2. **Update Substitutions**: Customize `"YOUR_NSPANEL_NAME"` and `"Your Friendly Name"` to appropriate identifiers for your device and its Bluetooth functionality.
 3. **Save and Upload**: After making the necessary changes, save your configuration file and upload it to your NSPanel via the ESPHome dashboard.
-    > [!NOTE]
-    > The first time this component is enabled for an ESP32, the code partition needs to be resized.
-    > Please flash the ESP32 via USB when adding this to your configuration. After that, you can use OTA updates again.
+
+> [!NOTE]
+> The first time this component is enabled for an ESP32, the code partition needs to be resized.
+> Please flash the ESP32 via USB when adding this to your configuration. After that, you can use OTA updates again.
 
 This configuration allows your NSPanel to efficiently manage Bluetooth connections, acting as a proxy for various BLE operations.
