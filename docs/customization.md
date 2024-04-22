@@ -95,6 +95,7 @@ packages:
       - nspanel_esphome.yaml # Basic package
       # Optional advanced and add-on configurations
       # - esphome/nspanel_esphome_advanced.yaml
+      # - esphome/nspanel_esphome_addon_ble_tracker.yaml
       # - esphome/nspanel_esphome_addon_bluetooth_proxy.yaml
       # - esphome/nspanel_esphome_addon_climate_cool.yaml
       # - esphome/nspanel_esphome_addon_climate_heat.yaml
@@ -577,7 +578,7 @@ esp32:
 Please refer to the "[Add-on: Bluetooth Proxy](addon_bluetooth_proxy.md)" guide.
 
 ### BLE Tracker
-Please refer to the "[Add-on: Bluetooth Proxy](addon_bluetooth_proxy.md)" guide.
+Please refer to the "[Add-on: BLE Tracker Proxy](addon_ble_tracker.md)" guide.
 
 ### Logger via UART
 
