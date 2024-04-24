@@ -17,7 +17,7 @@ substitutions:
   invalid_cooldown: "100ms"
   bytes_per_char: "1"
   ##### DON'T CHANGE THIS ######
-  version: "4.3.4"
+  version: "4.3.5"
   ##############################
 
 ##### External components #####
@@ -27,16 +27,24 @@ external_components:
       # path: packages/Blackymas/components
       type: git
       url: https://github.com/Blackymas/NSPanel_HA_Blueprint
-      ref: v4.3.4
+      ref: v4.3.5
     components:
       - nspanel_ha_blueprint
     refresh: 300s
   - source:
       type: git
       url: https://github.com/edwardtfn/esphome
-      ref: nextion-v432
+      ref: nextion-v435
     components:
-      - nextion  # Change this when that PR#6192 gets released (2024.4?)
+      - nextion  # Change this when that PR#6192 gets released (2024.5?)
+      - psram    # Change this when that PR#6526 gets released (2024.5?)
+    refresh: 300s
+  - source:
+      type: git
+      url: https://github.com/edwardtfn/esphome
+      ref: esp32ble-01
+    components:
+      - esp32_ble_tracker  # Change this when that PR#6585 gets released (2024.5?)
     refresh: 300s
   - source:
       type: git
@@ -62,6 +70,7 @@ esphome:
         - lambda: |-
             set_timezone->execute(id(mui_timezone).c_str());
             if (isnan(blueprint_status->raw_state)) blueprint_status->publish_state(0);
+            version_esphome->publish_state("${version}");
             device_name->publish_state("${name}");
             notification_label->publish_state("");
             notification_text->publish_state("");
@@ -115,10 +124,10 @@ wifi:
       password: ${wifi_password}
   on_connect:
     then:
-      - script.execute: watchdog
+      - script.execute: refresh_wifi_icon
   on_disconnect:
     then:
-      - script.execute: watchdog
+      - script.execute: refresh_wifi_icon
 
 ##### OTA PASSWORD #####
 ota:
@@ -168,9 +177,31 @@ time:
               refresh_relays->execute(3);
               refresh_hardware_buttons_bars->execute(3);
               refresh_wifi_icon->execute();
-      - seconds: 30
+      - seconds: 30  # Watchdog
         then:
-          - script.execute: watchdog
+          - lambda: |-
+              if (not wifi_component->is_connected()) {
+                ESP_LOGW("watchdog", "Retrying Wi-Fi connection");
+                wifi_component->retry_connect();
+              }
+              if (not api_server->is_connected() and
+                  current_page->state != "blank" and
+                  current_page->state != "boot" and
+                  current_page->state != "confirm" and
+                  current_page->state != "home" and
+                  current_page->state != "qrcode" and
+                  current_page->state != "screensaver" and
+                  current_page->state != "settings") {
+                ESP_LOGW("watchdog", "API disconnected. Falling back to Home page.");
+                goto_page->execute("home");
+                blueprint_status->publish_state(0);
+              }
+              refresh_wifi_icon->execute();
+
+      - minutes: /10
+        seconds: 5
+        then:
+          - script.execute: dump_config
 
     on_time_sync:
       then:
@@ -187,10 +218,11 @@ api:
   reboot_timeout: 60min
   on_client_connected:
     then:
-      - script.execute: watchdog
+      - script.execute: refresh_wifi_icon
+      - script.execute: dump_config
   on_client_disconnected:
     then:
-      - script.execute: watchdog
+      - script.execute: refresh_wifi_icon
   services:
     # Dynamically configures button properties on a specified page, enhancing UI interactivity by allowing updates to button appearance and behavior based on given parameters.
     - service: button  # yamllint disable-line rule:indentation
@@ -231,7 +263,7 @@ api:
       then:
         - lambda: |-
             if (!id(is_uploading_tft))
-              disp1->send_command_printf("%s", cmd.c_str());
+              disp1->send_command(cmd.c_str());
 
     # Changes the foreground color of a specified component on the display.
     - service: component_color
@@ -342,7 +374,6 @@ api:
         screensaver_time_font: int     # Specifies the font id for the screensaver time display.
         screensaver_time_color: int[]  # RGB color for the screensaver time display, e.g., [165, 42, 42] for reddish-brown.
         decimal_separator: string      # The char to be used as decimal separator.
-        # bytes_per_char: init
       then:
         - if:
             condition:
@@ -358,7 +389,6 @@ api:
                   screensaver_time_font: !lambda return screensaver_time_font;
                   screensaver_time_color: !lambda return screensaver_time_color;
                   decimal_separator: !lambda return decimal_separator;
-                  # bytes_per_char: !lambda return bytes_per_char;
               - script.wait: global_settings
               - lambda: blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 5));
 
@@ -769,7 +799,7 @@ api:
                 set_component_visibility->execute("time_total", true);
                 set_component_visibility->execute("time_progress", true);
               } else {
-                disp1->send_command_printf("prg_timer.en=0");
+                disp1->send_command("prg_timer.en=0");
                 set_component_visibility->execute("time_current", false);
                 set_component_visibility->execute("time_total", false);
                 set_component_visibility->execute("time_progress", false);
@@ -806,6 +836,14 @@ api:
       then:
         - lambda: |-
             if (component == "is_climate") id(is_climate) = val;
+
+    - service: set_int
+      variables:
+        component: string
+        val: int
+      then:
+        - lambda: |-
+            if (component == "bytes_per_char") id(mui_bytes_per_char) = val;
 
     - service: set_string
       variables:
@@ -950,18 +988,6 @@ display:
                   break;
               }
               break;
-            case 1:  // Home
-              switch (component_id) {
-                case 4:   // indr_temp
-                case 27:  // indr_temp_icon
-                  if (id(is_climate) and !touch_event) {  // Release
-                    detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
-                    disp1->set_component_value("climate.embedded", id(is_embedded_thermostat) ? 1 : 0);
-                    goto_page->execute("climate");
-                  }
-                  break;
-              }
-              break;
             case 8:  // Settings
               switch (component_id) {
                 case 9:  // Reboot button
@@ -973,7 +999,7 @@ display:
               break;
             case 10:  // light
               switch (component_id) {
-                case 34:  // power_button
+                case 32:  // power_button
                   if (!touch_event) {  // Release
                     ha_call_service->execute("light.toggle", "", "", detailed_entity->state.c_str());
                   }
@@ -1001,7 +1027,7 @@ display:
               break;
             case 22:  // fan
               switch (component_id) {
-                case 17:  // bt_oscillate
+                case 15:  // bt_oscillate
                   if (!touch_event) {  // Release
                     ha_call_service->execute("fan.oscillate", "oscillating", "toggle", detailed_entity->state.c_str());
                   }
@@ -1287,7 +1313,7 @@ binary_sensor:
     entity_category: diagnostic
     icon: mdi:tablet-dashboard
     lambda: |-
-      return disp1->is_setup();
+      return (!id(is_uploading_tft) and disp1->is_setup());
 
 ##### START - BUTTON CONFIGURATION #####
 button:
@@ -1659,6 +1685,7 @@ switch:
         esphome::api::CustomAPIDevice ha_event;
         ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
           {"device_name", device_name->state.c_str()},
+          {"esphome_version", "${version}"},
           {"type", "notification_changed"},
           {"component", "notification_unread"},
           {"action", "turn_on"}
@@ -1668,6 +1695,7 @@ switch:
         esphome::api::CustomAPIDevice ha_event;
         ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
           {"device_name", device_name->state.c_str()},
+          {"esphome_version", "${version}"},
           {"type", "notification_changed"},
           {"component", "notification_unread"},
           {"action", "turn_off"}
@@ -1818,6 +1846,7 @@ text_sensor:
         esphome::api::CustomAPIDevice ha_event;
         ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
           {"device_name", device_name->state.c_str()},
+          {"esphome_version", "${version}"},
           {"type", "notification_changed"},
           {"component", "notification_label"},
           {"action", "new_value"}
@@ -1831,6 +1860,7 @@ text_sensor:
         esphome::api::CustomAPIDevice ha_event;
         ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
           {"device_name", device_name->state.c_str()},
+          {"esphome_version", "${version}"},
           {"type", "notification_changed"},
           {"component", "notification_text"},
           {"action", "new_value"}
@@ -1861,10 +1891,19 @@ text_sensor:
               esphome::api::CustomAPIDevice ha_event;
               // Send event to Home Assistant
               if (event == "short_click" or event == "long_click") {
-                ha_button->execute(page.c_str(), component.c_str(), event.c_str());
+                if (api_server->is_connected() and page == "home" and component == "weather") {
+                  goto_page->execute("weather01");
+                } else if (id(is_climate) and page == "home" and (component == "indr_temp" or component == "indr_temp_icon")) {
+                  detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
+                  disp1->set_component_value("climate.embedded", id(is_embedded_thermostat) ? 1 : 0);
+                  goto_page->execute("climate");
+                } else {
+                  ha_button->execute(page.c_str(), component.c_str(), event.c_str());
+                }
               } else if (page == "light" or page == "climate") {  // Generic event
                 ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
                   {"device_name", device_name->state.c_str()},
+                  {"esphome_version", "${version}"},
                   {"type", "generic"},
                   {"page", page.c_str()},
                   {"component", component.c_str()},
@@ -1914,6 +1953,7 @@ text_sensor:
                     ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
                       {
                         {"device_name", device_name->state.c_str()},
+                        {"esphome_version", "${version}"},
                         {"type", "service_call"},
                         {"service", "light.turn_on"},
                         {"key", "rgb_color"},
@@ -1948,6 +1988,16 @@ text_sensor:
       - lambda: |-
           check_versions->execute();
 
+  - id: version_esphome
+    name: Version ESPHome
+    platform: template
+    entity_category: diagnostic
+    icon: mdi:tag-text-outline
+    internal: false
+    update_interval: never
+    lambda: |-
+      return {"${version}"};
+
   - id: version_tft
     name: Version TFT
     platform: nextion
@@ -1973,6 +2023,7 @@ script:
             ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
               {
                 {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
                 {"type", "boot"},
                 {"step", "start"}
               });
@@ -1988,6 +2039,7 @@ script:
                   ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
                     {
                       {"device_name", device_name->state.c_str()},
+                      {"esphome_version", "${version}"},
                       {"type", "boot"},
                       {"step", "timeout"}
                     });
@@ -2009,7 +2061,7 @@ script:
             disp1->set_component_value("boot.progress", step);
           }
           if (current_page->state == "boot" and !isnan(display_charset->state) and !isnan(display_mode->state) and !version_tft->state.empty())
-            disp1->send_command_printf("tm_esphome.en=0");
+            disp1->send_command("tm_esphome.en=0");
 
   - id: change_climate_state
     mode: restart
@@ -2051,6 +2103,7 @@ script:
             ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
               {
                 {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
                 {"type", "version"},
                 {"tft", version_tft->state.c_str()},
                 {"esphome", "${version}"},
@@ -2063,13 +2116,13 @@ script:
     then:
       - lambda: |-
           if (id(embedded_indoor_temp) or !wifi_component->is_connected() or !api_server->is_connected()) {
-            float unit_based_temperature = id(temp_nspanel).state;
+            const std::string temp_units = "${temp_units}";
+            const bool temp_unit_fahrenheit = (temp_units == "°F" || temp_units == "F" || temp_units == "°f" || temp_units == "f");
             char buffer[15]; // Buffer for formatted temperature string
-            if ("${temp_units}"[0] == 'F' || "${temp_units}"[0] == 'f' || "${temp_units}"[1] == 'F' || "${temp_units}"[1] == 'f') {
-                unit_based_temperature = (unit_based_temperature * 9.0 / 5.0) + 32; // Convert to Fahrenheit if necessary
-                snprintf(buffer, sizeof(buffer), "%.0f${temp_units}", unit_based_temperature); // Fahrenheit with no decimal
+            if (temp_unit_fahrenheit) {
+              snprintf(buffer, sizeof(buffer), "%.0f${temp_units}", (id(temp_nspanel).state * 9.0 / 5.0) + 32); // Fahrenheit with no decimal
             } else {
-                snprintf(buffer, sizeof(buffer), "%.1f${temp_units}", unit_based_temperature); // Celsius with one decimal
+              snprintf(buffer, sizeof(buffer), "%.1f${temp_units}", id(temp_nspanel).state); // Celsius with one decimal
             }
             id(disp1)->set_component_text("home.indr_temp", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
           }
@@ -2110,6 +2163,167 @@ script:
           }
           disp1->set_component_text(component.c_str(), wrappedText.c_str());
 
+  - id: dump_config
+    mode: restart
+    then:
+      - delay: 10s
+      - lambda: |-
+          #include <esp_heap_caps.h>
+          static const char *const TAG = "nspanel_ha_blueprint";
+          if (id(is_uploading_tft)) {
+            ESP_LOGW(TAG, "TFT upload in progress");
+          } else {
+            // report Wi-Fi status
+            bool wifi_connected = wifi_component->is_connected();
+            if (wifi_connected) {
+              float rssi = wifi_rssi->state;
+              const char *rssi_status = "Unknown"; // Use const char* to avoid dynamic memory allocation
+              if (rssi > -50) rssi_status = "Excellent";
+              else if (rssi > -60) rssi_status = "Good";
+              else if (rssi > -70) rssi_status = "Fair";
+              else if (rssi > -80) rssi_status = "Weak";
+              else rssi_status = "Poor";
+              if (rssi > -70) ESP_LOGCONFIG(TAG, "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
+              else if (rssi > -80) ESP_LOGW(TAG, "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
+              else ESP_LOGE(TAG, "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
+            }
+            else {
+              ESP_LOGW(TAG, "Wi-Fi:         DISCONNECTED");
+            }
+
+            // report API status
+            bool api_connected = api_server->is_connected();
+            if (api_connected) {
+              ESP_LOGCONFIG(TAG, "API:           Connected");
+            } else {
+              ESP_LOGW(TAG, "API:           DISCONNECTED");
+            }
+
+            if (!wifi_connected or !api_connected) blueprint_status->publish_state(0);
+
+            // Report blueprint version
+            ESP_LOGCONFIG(TAG, "Blueprint:");
+            if (blueprint_status->state > 99) {
+              ESP_LOGCONFIG(TAG, "  Version:     %s", version_blueprint->state.c_str());
+              ESP_LOGCONFIG(TAG, "  Init steps:  %i (%0.1f%%)", int(blueprint_status->raw_state), blueprint_status->state);
+            } else {
+              ESP_LOGW(TAG, "  Init steps:  %i (%0.1f%%)", int(blueprint_status->raw_state), blueprint_status->state);
+              ESP_LOGW(TAG, "  State:       %s", (wifi_connected and api_connected) ? "Pending" : "DISCONNECTED");
+              ESP_LOGCONFIG(TAG, "Requesting blueprint settings");
+              boot_event->execute(false);
+            }
+
+            // Report ESPHome
+            ESP_LOGCONFIG(TAG, "ESPHome:");
+            ESP_LOGCONFIG(TAG, "  Version:     ${version}");
+            ESP_LOGCONFIG(TAG, "  Compiler:    %s", ESPHOME_VERSION);
+            // Report framework
+            #ifdef ARDUINO
+            ESP_LOGCONFIG(TAG, "  Framework:   Arduino");
+            #elif defined(USE_ESP_IDF)
+            ESP_LOGCONFIG(TAG, "  Framework:   ESP-IDF");
+            #endif
+            // Report memory
+            const size_t internal_heap_size = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
+            const size_t internal_heap_size_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+            ESP_LOGCONFIG(TAG, "  Free heap:");
+
+            if (internal_heap_size != 0) {
+              ESP_LOGCONFIG(TAG, "    Internal:  %7d bytes (%0.1f%%)", internal_heap_size_free,
+                      ((float)internal_heap_size_free / internal_heap_size) * 100.0f);
+            } else {
+              ESP_LOGCONFIG(TAG, "    Internal:  %7d bytes", internal_heap_size_free);
+            }
+
+            #ifdef USE_PSRAM
+            const size_t psram_heap_size = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
+            const size_t psram_heap_size_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+            if (psram_heap_size != 0) {
+              ESP_LOGCONFIG(TAG, "    PSRAM:     %7d bytes (%0.1f%%)", psram_heap_size_free,
+                      ((float)psram_heap_size_free / psram_heap_size) * 100.0f);
+            } else {
+              ESP_LOGCONFIG(TAG, "    PSRAM:     %7d bytes", psram_heap_size_free);
+            }
+            #endif
+
+            // Report UART
+            ESP_LOGCONFIG(TAG, "UART:");
+            ESP_LOGCONFIG(TAG, "  Baud rate:   %" PRIu32 " bps", tf_uart->get_baud_rate());
+            ESP_LOGCONFIG(TAG, "  Queue size:  %d", tf_uart->available());
+
+            // Report Nextion status
+            nextion_init->publish_state(!id(is_uploading_tft) and nextion_init->state and disp1->is_setup());
+            ESP_LOGCONFIG(TAG, "Nextion:");
+            ESP_LOGCONFIG(TAG, "  Queue size:  %d", disp1->queue_size());
+            if (disp1->is_setup())
+              ESP_LOGCONFIG(TAG, "  Is setup:    True");
+            else {
+              ESP_LOGW(TAG, "  Is setup:    False");
+              ESP_LOGW(TAG, "  Is detected: %s", YESNO(disp1->is_detected()));
+              //exit_reparse->execute();
+            }
+            if (nextion_init->state) {
+              ESP_LOGCONFIG(TAG, "  Init:        True");
+            } else
+              ESP_LOGW(TAG, "  Init:        False");
+            if (version_tft->state.empty())
+              ESP_LOGW(TAG, "  TFT:         UNKNOWN");
+            else
+              ESP_LOGCONFIG(TAG, "  TFT:         %s", version_tft->state.c_str());
+            ESP_LOGCONFIG(TAG, "Packages:");
+            #ifdef NSPANEL_HA_BLUEPRINT_CORE
+            ESP_LOGCONFIG(TAG, "  - Core");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADVANCED
+            ESP_LOGCONFIG(TAG, "  - Advanced");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_BLUETOOTH_PROXY
+            ESP_LOGCONFIG(TAG, "  - Bluetooth Proxy");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
+            ESP_LOGCONFIG(TAG, "  - Upload TFT");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE
+            ESP_LOGCONFIG(TAG, "  - Climate - Base");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL
+            ESP_LOGCONFIG(TAG, "  - Climate - Cool");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+            ESP_LOGCONFIG(TAG, "  - Climate - Dual");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT
+            ESP_LOGCONFIG(TAG, "  - Climate - Heat");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT
+            ESP_LOGCONFIG(TAG, "  - Pre-built");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY
+            ESP_LOGCONFIG(TAG, "  - Pre-built (Wall Display)");
+            #endif
+            #if defined(USE_BLUETOOTH_PROXY) || defined(USE_WEBSERVER) || defined(USE_CAPTIVE_PORTAL)
+            ESP_LOGCONFIG(TAG, "Components:");
+            #ifdef USE_ESP32_BLE_SERVER
+            ESP_LOGCONFIG(TAG, "  - BLE server");
+            #endif
+            #ifdef USE_ESP32_BLE_CLIENT
+            ESP_LOGCONFIG(TAG, "  - BLE tracker");
+            #endif
+            #ifdef USE_BLUETOOTH_PROXY
+            ESP_LOGCONFIG(TAG, "  - Bluetooth proxy");
+            #endif
+            #ifdef USE_CAPTIVE_PORTAL
+            ESP_LOGCONFIG(TAG, "  - Captive portal");
+            #endif
+            #ifdef USE_IMPROV
+            ESP_LOGCONFIG(TAG, "  - Improv (BLE)");
+            #endif
+            #ifdef USE_WEBSERVER
+            ESP_LOGCONFIG(TAG, "  - Web server");
+            #endif
+            #endif
+          }
+
   - id: global_settings
     mode: restart
     parameters:
@@ -2121,7 +2335,6 @@ script:
       screensaver_time_font: int
       screensaver_time_color: int32_t[]
       decimal_separator: string
-      # bytes_per_char: int
     then:
       - lambda: |-
           if (!id(is_uploading_tft)) {
@@ -2133,7 +2346,6 @@ script:
             // MUI strings
             id(mui_please_confirm_global) = mui_please_confirm;
             id(mui_unavailable_global) = mui_unavailable;
-            // id(mui_bytes_per_char) = bytes_per_char;
 
             // Screen saver page (sleep)
             id(screensaver_display_time) = screensaver_time;
@@ -2158,10 +2370,7 @@ script:
     parameters:
       page: string
     then:
-      - lambda: |-
-          if (current_page->state != page) {
-            disp1->goto_page(page.c_str());
-          }
+      - lambda: if (current_page->state != page) disp1->goto_page(page.c_str());
 
   - id: ha_button
     mode: parallel
@@ -2177,6 +2386,7 @@ script:
           ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
             {
               {"device_name", device_name->state.c_str()},
+              {"esphome_version", "${version}"},
               {"type", "button_click"},
               {"page", page},
               {"component", component},
@@ -2197,6 +2407,7 @@ script:
             ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
               {
                 {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
                 {"type", "service_call"},
                 {"service", service},
                 {"key", key},
@@ -2235,7 +2446,7 @@ script:
           #elif defined(USE_ESP_IDF)
           disp1->set_component_text("framework", "ESP-IDF");
           #endif
-          disp1->send_command_printf("tm_esphome.en=0");
+          disp1->send_command("tm_esphome.en=0");
 
   - id: page_boot
     mode: single
@@ -2305,6 +2516,7 @@ script:
             ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
               {
                 {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
                 {"type", "boot"},
                 {"step", "nextion_init"}
               });
@@ -2324,6 +2536,9 @@ script:
           disp1->set_component_font("home.wifi_icon", id(home_chip_font_id));
           disp1->set_component_font_color("home.chip_relay1", id(home_relay1_icon_color));
           disp1->set_component_font_color("home.chip_relay2", id(home_relay2_icon_color));
+          #if defined(USE_ESP32_BLE_SERVER) || defined(USE_ESP32_BLE_CLIENT) || defined(USE_BLUETOOTH_PROXY) || defined(USE_IMPROV)
+          disp1->set_component_text("home.bt_icon", "\uE0AE");
+          #endif
           boot_progress->execute(8);
       - wait_until:
           condition:
@@ -2390,7 +2605,7 @@ script:
               current_page->state != "confirm" &&
               current_page->state != "keyb_num") {
               detailed_entity->publish_state("");
-              disp1->send_command_printf("back_page_id=1");
+              disp1->send_command("back_page_id=1");
           }
           if (current_page->state != "media_player") {
             id(last_volume_level) = 0;
@@ -2412,6 +2627,7 @@ script:
           ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
             {
               {"device_name", device_name->state.c_str()},
+              {"esphome_version", "${version}"},
               {"type", "page_changed"},
               {"page", current_page->state.c_str()},
               {"entity", detailed_entity->state.c_str()}
@@ -2640,7 +2856,7 @@ script:
           #if ESPHOME_LOG_LEVEL > ESPHOME_LOG_LEVEL_DEBUG
           ESP_LOGV("script.refresh_hardware_buttons_bars", "Page:               %s", current_page->state.c_str());
           ESP_LOGV("script.refresh_hardware_buttons_bars", "Page id:            %i", get_page_id(current_page->state.c_str()));
-          ESP_LOGV("script.refresh_hardware_buttons_bars", "buttons_bars_pages: %i", id(buttons_bars_pages));
+          ESP_LOGV("script.refresh_hardware_buttons_bars", "buttons_bars_pages: %" PRIu32, id(buttons_bars_pages));
           ESP_LOGV("script.refresh_hardware_buttons_bars", "relay_settings:     %i", id(relay_settings));
           ESP_LOGV("script.refresh_hardware_buttons_bars", "button_mask:        %i", button_mask);
           #endif
@@ -2776,20 +2992,11 @@ script:
     parameters:
       brightness: float
     then:
-      - if:
-          condition:
-            - lambda: return (!id(is_uploading_tft));
-          then:
-            - lambda: |-
-                if (!id(is_uploading_tft)) {
-                  if (brightness == display_brightness->state and current_page->state != "boot" and current_page->state != "screensaver")
-                    disp1->send_command_printf("wakeup_timer.en=1");
-                  else
-                    disp1->set_backlight_brightness(brightness / 100.0f);
-                  current_brightness->update();
-                }
-            - delay: 5s
-            - lambda: if (!id(is_uploading_tft)) current_brightness->update();
+      - lambda: |-
+          if (!id(is_uploading_tft)) {
+            disp1->set_backlight_brightness(brightness / 100.0f);
+            current_brightness->update();
+          }
 
   - id: set_climate
     mode: restart
@@ -2908,6 +3115,7 @@ script:
           check_versions->stop();
           display_embedded_temp->stop();
           display_wrapped_text->stop();
+          dump_config->stop();
           global_settings->stop();
           ha_button->stop();
           ha_call_service->stop();
@@ -2959,7 +3167,6 @@ script:
           update_alarm_icon->stop();
           update_climate_icon->stop();
           update_tft_info->stop();
-          watchdog->stop();
 
   ###### Timers ######
   - id: timer_reset_all  # Global timer reset - Triggered with a touch on the screen
@@ -3174,162 +3381,4 @@ script:
                 condition:
                   - lambda: return (!isnan(display_charset->state) and !isnan(display_mode->state) and !(version_tft->state.empty()));
                 timeout: 10s
-
-  - id: watchdog
-    mode: restart
-    then:
-      - lambda: |-
-          #include <esp_heap_caps.h>
-          static const char *const TAG = "script.watchdog";
-          if (id(is_uploading_tft)) {
-            ESP_LOGW(TAG, "TFT upload in progress");
-          } else {
-            // report Wi-Fi status
-            bool wifi_connected = wifi_component->is_connected();
-            if (wifi_connected) {
-              float rssi = wifi_rssi->state;
-              const char *rssi_status = "Unknown"; // Use const char* to avoid dynamic memory allocation
-              if (rssi > -50) rssi_status = "Excellent";
-              else if (rssi > -60) rssi_status = "Good";
-              else if (rssi > -70) rssi_status = "Fair";
-              else if (rssi > -80) rssi_status = "Weak";
-              else rssi_status = "Poor";
-              if (rssi > -70) ESP_LOGI(TAG, "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
-              else if (rssi > -80) ESP_LOGW(TAG, "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
-              else ESP_LOGE(TAG, "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
-            }
-            else {
-              ESP_LOGW(TAG, "Wi-Fi:         DISCONNECTED");
-              ESP_LOGI(TAG, "Retrying Wi-Fi connection");
-              wifi_component->retry_connect();
-            }
-
-            // report API status
-            bool api_connected = api_server->is_connected();
-            if (api_connected) {
-              ESP_LOGI(TAG, "API:           Connected");
-            } else {
-              ESP_LOGW(TAG, "API:           DISCONNECTED");
-              blueprint_status->publish_state(0);
-              if (current_page->state != "blank" and
-                  current_page->state != "boot" and
-                  current_page->state != "home" and
-                  current_page->state != "screensaver" and
-                  current_page->state != "settings" and
-                  current_page->state != "qrcode") {
-                ESP_LOGI(TAG, "Fallback to page Home");
-                disp1->goto_page("home");
-              }
-            }
-
-            if (!wifi_connected or !api_connected) blueprint_status->publish_state(0);
-
-            // Report blueprint version
-            ESP_LOGI(TAG, "Blueprint:");
-            if (blueprint_status->state > 99) {
-              ESP_LOGI(TAG, "  Version:     %s", version_blueprint->state.c_str());
-              ESP_LOGI(TAG, "  Init steps:  %i (%0.1f%%)", int(blueprint_status->raw_state), blueprint_status->state);
-            } else {
-              ESP_LOGW(TAG, "  Init steps:  %i (%0.1f%%)", int(blueprint_status->raw_state), blueprint_status->state);
-              ESP_LOGW(TAG, "  State:       %s", (wifi_connected and api_connected) ? "Pending" : "DISCONNECTED");
-              ESP_LOGI(TAG, "Requesting blueprint settings");
-              boot_event->execute(false);
-            }
-
-            // Report ESPHome
-            ESP_LOGI(TAG, "ESPHome:");
-            ESP_LOGI(TAG, "  Version:     ${version}");
-            ESP_LOGI(TAG, "  Compiler:    %s", ESPHOME_VERSION);
-            // Report framework
-            #ifdef ARDUINO
-            ESP_LOGI(TAG, "  Framework:   Arduino");
-            #elif defined(USE_ESP_IDF)
-            ESP_LOGI(TAG, "  Framework:   ESP-IDF");
-            #endif
-            // Report memory
-            const size_t internal_heap_size = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
-            const size_t internal_heap_size_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
-            const size_t psram_heap_size = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
-            const size_t psram_heap_size_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
-            ESP_LOGI(TAG, "  Free heap:");
-
-            if (internal_heap_size != 0) {
-              ESP_LOGI(TAG, "    Internal:  %7d bytes (%0.1f%%)", internal_heap_size_free,
-                      ((float)internal_heap_size_free / internal_heap_size) * 100.0f);
-            } else {
-              ESP_LOGI(TAG, "    Internal:  %7d bytes", internal_heap_size_free);
-            }
-
-            if (psram_heap_size != 0) {
-              ESP_LOGI(TAG, "    PSRAM:     %7d bytes (%0.1f%%)", psram_heap_size_free,
-                      ((float)psram_heap_size_free / psram_heap_size) * 100.0f);
-            } else {
-              ESP_LOGI(TAG, "    PSRAM:     %7d bytes", psram_heap_size_free);
-            }
-            // Report UART
-            ESP_LOGI(TAG, "UART:");
-            ESP_LOGI(TAG, "  Baud rate:   %" PRIu32 " bps", tf_uart->get_baud_rate());
-            ESP_LOGI(TAG, "  Queue size:  %d", tf_uart->available());
-
-            // Report Nextion status
-            nextion_init->publish_state(nextion_init->state and disp1->is_setup());
-            ESP_LOGI(TAG, "Nextion:");
-            ESP_LOGI(TAG, "  Queue size:  %d", disp1->queue_size());
-            if (disp1->is_setup())
-              ESP_LOGI(TAG, "  Is setup:    True");
-            else {
-              ESP_LOGW(TAG, "  Is setup:    False");
-              ESP_LOGW(TAG, "  Is detected: %s", YESNO(disp1->is_detected()));
-              //exit_reparse->execute();
-            }
-            if (nextion_init->state) {
-              ESP_LOGI(TAG, "  Init:        True");
-            } else
-              ESP_LOGW(TAG, "  Init:        False");
-            if (version_tft->state.empty())
-              ESP_LOGW(TAG, "  TFT:         UNKNOWN");
-            else
-              ESP_LOGI(TAG, "  TFT:         %s", version_tft->state.c_str());
-            ESP_LOGI(TAG, "Packages:");
-            #ifdef NSPANEL_HA_BLUEPRINT_CORE
-            ESP_LOGI(TAG, "  - Core");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADVANCED
-            ESP_LOGI(TAG, "  - Advanced");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
-            ESP_LOGI(TAG, "  - Upload TFT");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE
-            ESP_LOGI(TAG, "  - Climate - Base");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL
-            ESP_LOGI(TAG, "  - Climate - Cool");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
-            ESP_LOGI(TAG, "  - Climate - Dual");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT
-            ESP_LOGI(TAG, "  - Climate - Heat");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT
-            ESP_LOGI(TAG, "  - Pre-built");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY
-            ESP_LOGI(TAG, "  - Pre-built (Wall Display)");
-            #endif
-            #if defined(USE_BLUETOOTH_PROXY) || defined(USE_WEBSERVER) || defined(USE_CAPTIVE_PORTAL)
-            ESP_LOGI(TAG, "Non-standard components:");
-            #ifdef USE_CAPTIVE_PORTAL
-            ESP_LOGI(TAG, "  - Captive portal");
-            #endif
-            #ifdef USE_BLUETOOTH_PROXY
-            ESP_LOGI(TAG, "  - Bluetooth proxy");
-            #endif
-            #ifdef USE_WEBSERVER
-            ESP_LOGI(TAG, "  - Web server");
-            #endif
-            #endif
-            refresh_wifi_icon->execute();
-          }
 ...

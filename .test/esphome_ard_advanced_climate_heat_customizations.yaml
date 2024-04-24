@@ -1,0 +1,240 @@
+---
+substitutions:
+  device_name: nspanel
+  wifi_ssid: "nspanel"
+  wifi_password: "NSPanel_HA_Blueprint"
+  nextion_blank_url: "http://homeassistant.local:8123/local/nspanel_blank.tft"
+
+packages:
+  basic_package: !include ../nspanel_esphome.yaml  # Core package
+  advanced_package: !include ../esphome/nspanel_esphome_advanced.yaml
+  addon_climate_heat: !include ../esphome/nspanel_esphome_addon_climate_heat.yaml
+
+esp32:
+  framework:
+    type: arduino
+
+##### Customizations from Wiki #####
+api:
+  # Encrypt the communication between ESPHome and Home Assistant
+  encryption:
+    key: !secret api_encryption_key
+  # Reboot if HA is not connected for 15 minutes
+  reboot_timeout: 15min
+
+binary_sensor:
+  # Is display awake?
+  - name: ${device_name} Display state
+    id: display_state
+    platform: template
+    lambda: |-
+      return (current_page->state != "screensaver");
+
+button:
+  # Adds a button to put the panel to sleep
+  - name: ${device_name} Sleep
+    id: force_sleep
+    platform: template
+    icon: mdi:sleep
+    on_press:
+      then:
+        - logger.log: Button Sleep pressed
+        - lambda: |-
+            goto_page->execute("screensaver");
+
+  # Adds a button to wake-up the panel (similar to the existing service)
+  - name: ${device_name} Wake-up
+    id: force_wake_up
+    platform: template
+    icon: mdi:alarm
+    on_press:
+      then:
+        - logger.log: Button Wake-up pressed
+        - lambda: |-
+            if (current_page->state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
+            // timer_page->execute(); // enable this if you want page timeout to be reset
+            timer_sleep->execute();
+            timer_dim->execute();
+
+# Add custom presets to your climate (heat in this example)
+climate:
+  - id: !extend thermostat_embedded
+    heat_deadband: 0.3
+    heat_overrun: 0.0
+    default_preset: "Home"
+    preset:
+      - name: "Off"
+        default_target_temperature_low: ${temp_min} ${temp_units}
+        mode: "off"
+      - name: Home
+        default_target_temperature_low: 21 ${temp_units}
+        mode: "heat"
+      - name: Away
+        default_target_temperature_low: 16.5 ${temp_units}
+        mode: "heat"
+      - name: Sleep
+        default_target_temperature_low: 17.5 ${temp_units}
+        mode: "heat"
+
+esphome:
+  # change OTA password, remove after flashing
+  on_boot:
+    - priority: 601.0
+      then:
+        - lambda: |-
+            id(my_ota).set_auth_password("New password");
+  # Limit the amount of resources used for compiling
+  compile_process_limit: 1
+
+light:
+  # Add the display as a light in Home Assistant
+  - name: ${device_name} Display
+    id: display_light
+    icon: mdi:tablet-dashboard
+    platform: monochromatic
+    output: display_output
+    default_transition_length: 0s
+    on_turn_on:
+      then:
+        - lambda: |-
+            ESP_LOGD("light.display_light", "Turn-on");
+            if (current_page->state == "screensaver") disp1->goto_page(wakeup_page_name->state.c_str());
+            timer_reset_all->execute();
+    on_turn_off:
+      then:
+        - lambda: |-
+            ESP_LOGD("light.display_light", "Turn-off");
+            goto_page->execute("screensaver");
+
+logger:
+  # Enable hardware UART serial logging
+  baud_rate: 115200
+
+ota:
+  # change OTA password, remove after flashing
+  password: !secret wifi_password
+  id: my_ota
+
+output:
+  # Output required by `display_light` to send the commands to Nextion
+  - id: display_output
+    platform: template
+    type: float
+    write_action:
+      - lambda: |-
+          ESP_LOGV("output.display_output", "state: %f", state);
+          uint8_t current_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
+          ESP_LOGV("output.display_output", "current_brightness: %i%%", current_brightness);
+          set_brightness->execute(current_brightness);
+
+script:
+  # Updates the existing `page_changed` script to update the `display_light` status when a page changes
+  - id: !extend page_changed
+    then:
+      - lambda: |-
+          ESP_LOGD("script.page_changed(custom)", "page: %s", current_page->state.c_str());
+          ESP_LOGV("script.page_changed(custom)", "is_on(): %s", display_light->current_values.is_on() ? "True" : "False");
+          if (current_page->state == "screensaver" and display_light->current_values.is_on()) {
+            auto call = display_light->turn_off();
+            call.perform();
+          } else if (current_page->state != "screensaver" and (not display_light->current_values.is_on())) {
+            auto call = display_light->turn_on();
+            call.perform();
+          }
+
+  # Updates the existing `set_brightness` script to update the `display_light` status when a new brightness level is set
+  - id: !extend set_brightness
+    then:
+      - lambda: |-
+          ESP_LOGD("script.set_brightness(custom)", "brightness: %.0f%%", brightness);
+          uint8_t current_light_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
+          ESP_LOGV("script.set_brightness(custom)", "current_light_brightness: %i%%", current_light_brightness);
+          if (brightness != current_light_brightness) {
+            if (current_page->state != "screensaver" and brightness > 0) {
+              auto call = display_light->turn_on();
+              call.set_brightness(current_brightness->state / 100.0f);
+              call.perform();
+            } else if (display_light->current_values.is_on()) {
+              auto call = display_light->turn_off();
+              call.set_brightness(0);
+              call.perform();
+            }
+          }
+
+time:
+  - id: !extend time_provider
+    timezone: "America/Cancun"
+    # Use my own local network time server
+    platform: sntp
+    servers:
+      - !secret mysntpserver
+      - europe.pool.ntp.org
+      - 0.pool.ntp.org
+    # Scheduled relay
+    on_time:
+      - hours: 7
+        minutes: 30
+        seconds: 0
+        then:
+          - switch.turn_on: relay_1
+      - hours: 12
+        minutes: 15
+        seconds: 0
+        then:
+          - switch.turn_off: relay_1
+      - hours: 19
+        minutes: 30
+        seconds: 0
+        then:
+          - switch.turn_on: relay_1
+      - hours: 23
+        minutes: 30
+        seconds: 0
+        then:
+          - switch.turn_off: relay_1
+      # Scheduled climate
+      - hours: 7
+        minutes: 0
+        seconds: 0
+        then:
+          - climate.control:
+              id: thermostat_embedded
+              mode: auto
+              target_temperature: 22°C
+      - hours: 19
+        minutes: 0
+        seconds: 0
+        then:
+          - climate.control:
+              id: thermostat_embedded
+              mode: auto
+              target_temperature: 20°C
+      - hours: 23
+        minutes: 0
+        seconds: 0
+        then:
+          - climate.control:
+              id: thermostat_embedded
+              mode: auto
+              target_temperature: 18°C
+
+web_server:
+  # Custom web server credentials
+  auth:
+    username: !secret web_server_username
+    password: !secret web_server_password
+
+wifi:
+  networks:
+    - id: !extend wifi_default
+      # Set IP address manually
+      manual_ip:
+        static_ip: 192.168.0.123
+        gateway: 192.168.0.1
+        subnet: 255.255.255.0
+      # Set dual network
+      priority: 10
+    - ssid: !secret wifi_ssid_backup
+      password: !secret wifi_password_backup
+      priority: 0
+...

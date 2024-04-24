@@ -89,6 +89,16 @@ globals:
     initial_value: 'esphome::nextion::Nextion::TFTUploadResult::UNKNOWN'
 
 script:
+  - id: !extend dump_config
+    then:
+      - lambda: |-
+          if (!id(is_uploading_tft)) {
+            static const char *const TAG = "nspanel_ha_blueprint";
+            ESP_LOGCONFIG(TAG, "Add-on Upload TFT:");
+            ESP_LOGCONFIG(TAG, "  File model: %s", tft_file_model->state.c_str());
+            ESP_LOGCONFIG(TAG, "  Valid TFT:  %s", YESNO(id(tft_is_valid)));
+          }
+
   - id: nextion_status
     mode: restart
     then:
@@ -179,6 +189,25 @@ script:
           then:
             - switch.turn_on: screen_power
             - delay: 5s
+      - lambda: if (id(tft_is_valid)) disp1->goto_page("home");
+      - delay: 2s
+      - script.execute: open_upload_dialog
+      - script.wait: open_upload_dialog
+      - wait_until:
+          condition:
+            - lambda: return (current_page->state == "confirm");
+          timeout: 2s
+      - script.execute:
+          id: report_upload_progress
+          message: "Set Nextion unavailable for blueprint calls"
+      - script.wait: report_upload_progress
+      - binary_sensor.template.publish:
+          id: nextion_init
+          state: false
+      - script.execute:
+          id: report_upload_progress
+          message: "Preparing for upload..."
+      - script.wait: report_upload_progress
       # Then start the upload
       - lambda: |-
           static const char *const TAG = "addon_upload_tft.script.upload_tft";
@@ -195,7 +224,50 @@ script:
           ESP_LOGD(TAG, "  Upload URL: %s", url.c_str());
           disp1->set_tft_url(url.c_str());
 
-      - lambda: if (id(tft_is_valid)) disp1->goto_page("home");
+          #ifdef USE_IMPROV
+          ESP_LOGD(TAG, "Stop Improv BLE");
+          ble_improv->dump_config();
+          ble_improv->stop();
+          ble_improv->dump_config();
+          #endif
+          #ifdef USE_CAPTIVE_PORTAL
+          ESP_LOGD(TAG, "Stop Captive Portal");
+          ap_captive_portal->dump_config();
+          ap_captive_portal->end();
+          ap_captive_portal->dump_config();
+          #endif
+          #ifdef USE_ESP32_BLE_CLIENT
+          ble_tracker->dump_config();
+          ESP_LOGD(TAG, "Disable BLE");
+          #ifdef USE_BLUETOOTH_PROXY
+          ESP_LOGD(TAG, "  Bluetooth proxy: %s", ble_proxy->has_active() ? "Active" : "Passive");
+          while (ble_proxy->has_active() and
+                 ble_proxy->get_bluetooth_connections_limit() != ble_proxy->get_bluetooth_connections_free()) {
+            ESP_LOGD(TAG, "    BT proxy connections: %i of %i",
+                     int(ble_proxy->get_bluetooth_connections_limit() - ble_proxy->get_bluetooth_connections_free()),
+                     int(ble_proxy->get_bluetooth_connections_limit()));
+            if (ble_proxy->has_active()) {
+              ESP_LOGD(TAG, "    BT proxy set passive mode...");
+              ble_proxy->set_active(false);
+            }
+            #ifdef ARDUINO
+            delay(1000);
+            #elif defined(USE_ESP_IDF)
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            #endif
+            App.feed_wdt();
+          }
+          #endif  // USE_BLUETOOTH_PROXY
+          ESP_LOGD(TAG, "  Stopping BLE Tracker scan...");
+          ble_tracker->stop_scan();
+          ESP_LOGD(TAG, "  Disabling BLE Tracker scan...");
+          ble_tracker->set_scan_active(false);
+          ESP_LOGD(TAG, "  Disabling BLE...");
+          ble_tracker->get_parent()->disable();
+          ble_tracker->dump_config();
+          #endif  // USE_ESP32_BLE_CLIENT
+
+      - lambda: if (id(tft_is_valid) and current_page->state != "confirm") disp1->goto_page("home");
       - delay: 2s
       - script.execute: open_upload_dialog
       - script.wait: open_upload_dialog
@@ -203,13 +275,6 @@ script:
           condition:
             - lambda: return (current_page->state == "confirm");
           timeout: 2s
-      - script.execute:
-          id: report_upload_progress
-          message: "Set Nextion unavailable for blueprint calls"
-      - script.wait: report_upload_progress
-      - binary_sensor.template.publish:
-          id: nextion_init
-          state: false
       - script.execute:
           id: report_upload_progress
           message: "Stopping other scripts"
@@ -361,16 +426,6 @@ script:
             - lambda: |-
                 ESP_LOGI("addon_upload_tft.script.upload_tft_attempt", "Restarting ESPHome");
                 App.safe_reboot();
-
-  - id: !extend watchdog
-    then:
-      - lambda: |-
-          if (!id(is_uploading_tft)) {
-            static const char *const TAG = "addon_upload_tft.script.watchdog";
-            ESP_LOGI(TAG, "Add-on Upload TFT:");
-            ESP_LOGI(TAG, "  File model: %s", tft_file_model->state.c_str());
-            ESP_LOGI(TAG, "  Valid TFT:  %s", YESNO(id(tft_is_valid)));
-          }
 
 select:
   - id: tft_file_model
