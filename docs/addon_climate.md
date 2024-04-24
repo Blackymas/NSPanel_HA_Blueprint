@@ -46,14 +46,16 @@ packages:
   remote_package:
     url: https://github.com/Blackymas/NSPanel_HA_Blueprint
     ref: main
+    refresh: 300s
     files:
       - nspanel_esphome.yaml # Basic package
       # Optional advanced and add-on configurations
       # - esphome/nspanel_esphome_advanced.yaml
-      # - nspanel_esphome_addon_climate_cool.yaml
-      - nspanel_esphome_addon_climate_heat.yaml
-      # - nspanel_esphome_addon_climate_dual.yaml
-    refresh: 300s
+      # - esphome/nspanel_esphome_addon_ble_tracker.yaml
+      # - esphome/nspanel_esphome_addon_bluetooth_proxy.yaml
+      # - esphome/nspanel_esphome_addon_climate_cool.yaml
+      - esphome/nspanel_esphome_addon_climate_heat.yaml
+      # - esphome/nspanel_esphome_addon_climate_dual.yaml
 ```
 
 ## Configuration
@@ -116,14 +118,16 @@ packages:
   remote_package:
     url: https://github.com/Blackymas/NSPanel_HA_Blueprint
     ref: main
+    refresh: 300s
     files:
       - nspanel_esphome.yaml # Basic package
       # Optional advanced and add-on configurations
       # - esphome/nspanel_esphome_advanced.yaml
-      - nspanel_esphome_addon_climate_cool.yaml
-      # - nspanel_esphome_addon_climate_heat.yaml
-      # - nspanel_esphome_addon_climate_dual.yaml
-    refresh: 300s
+      # - esphome/nspanel_esphome_addon_ble_tracker.yaml
+      # - esphome/nspanel_esphome_addon_bluetooth_proxy.yaml
+      - esphome/nspanel_esphome_addon_climate_cool.yaml
+      # - esphome/nspanel_esphome_addon_climate_heat.yaml
+      # - esphome/nspanel_esphome_addon_climate_dual.yaml
 ```
 
 ### Heater
@@ -155,15 +159,18 @@ packages:
   remote_package:
     url: https://github.com/Blackymas/NSPanel_HA_Blueprint
     ref: main
+    refresh: 300s
     files:
       - nspanel_esphome.yaml # Basic package
       # Optional advanced and add-on configurations
       # - esphome/nspanel_esphome_advanced.yaml
-      # - nspanel_esphome_addon_climate_cool.yaml
-      - nspanel_esphome_addon_climate_heat.yaml
-      # - nspanel_esphome_addon_climate_dual.yaml
-    refresh: 300s
+      # - esphome/nspanel_esphome_addon_ble_tracker.yaml
+      # - esphome/nspanel_esphome_addon_bluetooth_proxy.yaml
+      # - esphome/nspanel_esphome_addon_climate_cool.yaml
+      - esphome/nspanel_esphome_addon_climate_heat.yaml
+      # - esphome/nspanel_esphome_addon_climate_dual.yaml
 ```
+
 
 ### Dual
 
@@ -197,14 +204,16 @@ packages:
   remote_package:
     url: https://github.com/Blackymas/NSPanel_HA_Blueprint
     ref: main
+    refresh: 300s
     files:
       - nspanel_esphome.yaml # Basic package
       # Optional advanced and add-on configurations
       # - esphome/nspanel_esphome_advanced.yaml
-      # - nspanel_esphome_addon_climate_cool.yaml
-      # - nspanel_esphome_addon_climate_heat.yaml
-      - nspanel_esphome_addon_climate_dual.yaml
-    refresh: 300s
+      # - esphome/nspanel_esphome_addon_ble_tracker.yaml
+      # - esphome/nspanel_esphome_addon_bluetooth_proxy.yaml
+      # - esphome/nspanel_esphome_addon_climate_cool.yaml
+      # - esphome/nspanel_esphome_addon_climate_heat.yaml
+      - esphome/nspanel_esphome_addon_climate_dual.yaml
 ```
 
 ### Real Use Case Example: Water Underfloor Heating with NSPanel

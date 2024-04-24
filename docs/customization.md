@@ -90,14 +90,16 @@ packages:
   remote_package:
     url: https://github.com/Blackymas/NSPanel_HA_Blueprint
     ref: main
+    refresh: 300s
     files:
       - nspanel_esphome.yaml # Basic package
       # Optional advanced and add-on configurations
       # - esphome/nspanel_esphome_advanced.yaml
-      # - nspanel_esphome_addon_climate_cool.yaml
-      - nspanel_esphome_addon_climate_heat.yaml
-      # - nspanel_esphome_addon_climate_dual.yaml
-    refresh: 300s
+      # - esphome/nspanel_esphome_addon_ble_tracker.yaml
+      # - esphome/nspanel_esphome_addon_bluetooth_proxy.yaml
+      # - esphome/nspanel_esphome_addon_climate_cool.yaml
+      # - esphome/nspanel_esphome_addon_climate_heat.yaml
+      # - esphome/nspanel_esphome_addon_climate_dual.yaml
 ```
 
 ## Memory Management
@@ -572,93 +574,11 @@ esp32:
     type: esp-idf
 ```
 
-### Bluetooth proxy
-<!-- markdownlint-disable MD028 -->
-> [!IMPORTANT]
-> The [ESP32 Platform](#framework-esp-idf) component should be configured to use the `esp-idf` framework,
-> as the `arduino` framework uses significantly more memory and performs poorly with the Bluetooth stack enabled.
-
-> [!IMPORTANT]
-> The Bluetooth stack significantly reduces device RAM.
-> Enabling this with additional customizations/components may lead to crashes due to low memory.
-> HTTPS connections might be erratic, and local TFT flashing could fail due to insufficient RAM.
->
-> Solutions include:
-> 1. Flash the device (remove Bluetooth components) while updating TFT.
-> 2. Flash from a local (HTTP) source at a low baud rate (9600 or lower) to avoid memory crashes. This method is slower.
-<!-- markdownlint-enable MD028 -->
-```yaml
-# Enable Bluetooth proxy
-bluetooth_proxy:
-  id: ble_proxy
-
-# Give an id for the BLE Tracker (which is part of BT proxy)
-esp32_ble_tracker:
-  id: ble_tracker
-
-# Modify upload tft engine to stop BLE scan while uploading
-script:
-  - id: !extend upload_tft
-    then:
-      - lambda: |-
-          static const char *const TAG = "CUSTOM.script.upload_tft";
-          ble_tracker->dump_config();
-          ESP_LOGD(TAG, "Stopping BLE Tracker scan...");
-          ble_tracker->stop_scan();
-          ESP_LOGD(TAG, "Disabling BLE Tracker scan...");
-          ble_tracker->set_scan_active(false);
-          ESP_LOGD(TAG, "State: %s", id(ble_proxy)->has_active() ? "Active" : "Passive");
-          while (ble_proxy->get_bluetooth_connections_limit() != ble_proxy->get_bluetooth_connections_free()) {
-            ESP_LOGD(TAG, "Connections: %i of %i", int(ble_proxy->get_bluetooth_connections_limit() - ble_proxy->get_bluetooth_connections_free()), int(ble_proxy->get_bluetooth_connections_limit()));
-            if (id(ble_proxy)->has_active()) {
-              ESP_LOGD(TAG, "Setting passive mode...");
-              ble_proxy->set_active(false);
-            }
-            vTaskDelay(pdMS_TO_TICKS(1000));
-            App.feed_wdt();
-          }
-
-# Set Wi-Fi power save mode to "LIGHT" as required for Bluetooth on ESP32
-wifi:
-  power_save_mode: LIGHT
-```
+### Bluetooth Proxy
+Please refer to the "[Add-on: Bluetooth Proxy](addon_bluetooth_proxy.md)" guide.
 
 ### BLE Tracker
-<!-- markdownlint-disable MD028 -->
-> [!IMPORTANT]
-> The [ESP32 Platform](#framework-esp-idf) component should be configured to use the `esp-idf` framework,
-> as the `arduino` framework uses significantly more memory and performs poorly with the Bluetooth stack enabled.
-
-> [!IMPORTANT]
-> The Bluetooth stack significantly reduces device RAM.
-> Enabling this with additional customizations/components may lead to crashes due to low memory.
-> HTTPS connections might be erratic, and local TFT flashing could fail due to insufficient RAM.
->
-> Solutions include:
-> 1. Flash the device (remove Bluetooth components) while updating TFT.
-> 2. Flash from a local (HTTP) source at a low baud rate (9600 or lower) to avoid memory crashes. This method is slower.
-<!-- markdownlint-enable MD028 -->
-```yaml
-# Enable Bluetooth tracker
-esp32_ble_tracker:
-  id: ble_tracker
-
-# Modify upload tft engine to stop BLE tracker while uploading
-script:
-  - id: !extend upload_tft
-    then:
-      - lambda: |-
-          static const char *const TAG = "CUSTOM.script.upload_tft";
-          ble_tracker->dump_config();
-          ESP_LOGI(TAG, "Stopping BLE Tracker scan...");
-          ble_tracker->stop_scan();
-          ESP_LOGI(TAG, "Disabling BLE Tracker scan...");
-          ble_tracker->set_scan_active(false);
-
-# Set Wi-Fi power save mode to "LIGHT" as required for Bluetooth on ESP32
-wifi:
-  power_save_mode: LIGHT
-```
+Please refer to the "[Add-on: BLE Tracker Proxy](addon_ble_tracker.md)" guide.
 
 ### Logger via UART
 

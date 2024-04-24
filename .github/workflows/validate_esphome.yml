@@ -1,5 +1,5 @@
 ---
-name: Validate ESPHome
+name: Validate and Build ESPHome
 
 # yamllint disable-line rule:truthy
 on:
@@ -28,173 +28,301 @@ on:
   workflow_dispatch:
 
 concurrency:
-  # yamllint disable-line rule:line-length
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  setup_dependencies:
+    name: Setup & Cache Dependencies
+    runs-on: ubuntu-latest
+    outputs:
+      cache-hit-idf-v4: ${{ steps.cache-idf-v4.outputs.cache-hit }}
+      cache-hit-idf-v5: ${{ steps.cache-idf-v5.outputs.cache-hit }}
+      cache-hit-arduino: ${{ steps.cache-arduino.outputs.cache-hit }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Cache ESP-IDF v4 Dependencies
+        id: cache-idf-v4
+        uses: actions/cache@main
+        with:
+          path: |
+            ~/.esphome/cache
+            ~/.platformio/packages
+            ~/.platformio/platforms
+          key: ${{ runner.os }}-esp-idf-v4-${{ hashFiles('**/esphome_idf_basic.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-esp-idf-v4-
+
+      - name: Cache ESP-IDF v5 Dependencies
+        id: cache-idf-v5
+        uses: actions/cache@main
+        with:
+          path: |
+            ~/.esphome/cache
+            ~/.platformio/packages
+            ~/.platformio/platforms
+          key: ${{ runner.os }}-esp-idf-v5-${{ hashFiles('**/esphome_idf5_basic.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-esp-idf-v5-
+
+      - name: Cache Arduino Dependencies
+        id: cache-arduino
+        uses: actions/cache@main
+        with:
+          path: |
+            ~/.esphome/cache
+            ~/.platformio/packages
+            ~/.platformio/platforms
+          key: ${{ runner.os }}-arduino-${{ hashFiles('**/esphome_ard_basic.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-arduino-
+
   code_scan:
     name: Code scan (YAML)
     runs-on: "ubuntu-latest"
+    needs: setup_dependencies
     steps:
-      - uses: actions/checkout@main
-        with:
-          fetch-depth: '0'
-      - name: Validate nspanel_esphome.yaml
-        run: yamllint -c "./.rules/yamllint.yml" nspanel_esphome.yaml
-      - name: Validate nspanel_esphome_core.yaml
-        run: yamllint -c "./.rules/yamllint.yml" esphome/nspanel_esphome_core.yaml
-      - name: Validate nspanel_esphome_addon_climate_cool.yaml
-        run: yamllint -c "./.rules/yamllint.yml" nspanel_esphome_addon_climate_cool.yaml
-      - name: Validate nspanel_esphome_addon_climate_heat.yaml
-        run: yamllint -c "./.rules/yamllint.yml" nspanel_esphome_addon_climate_heat.yaml
-      - name: Validate nspanel_esphome_addon_climate_dual.yaml
-        run: yamllint -c "./.rules/yamllint.yml" nspanel_esphome_addon_climate_dual.yaml
-      - name: Validate nspanel_esphome_addon_upload_tft.yaml
-        run: yamllint -c "./.rules/yamllint.yml" esphome/nspanel_esphome_addon_upload_tft.yaml
-      - name: Validate nspanel_esphome_advanced.yaml
-        run: yamllint -c "./.rules/yamllint.yml" esphome/nspanel_esphome_advanced.yaml
-      - name: Validate nspanel_esphome_addon_climate_base.yaml
-        run: yamllint -c "./.rules/yamllint.yml" esphome/nspanel_esphome_addon_climate_base.yaml
-      - name: Validate nspanel_esphome_addon_climate_cool.yaml
-        run: yamllint -c "./.rules/yamllint.yml" esphome/nspanel_esphome_addon_climate_cool.yaml
-      - name: Validate nspanel_esphome_addon_climate_heat.yaml
-        run: yamllint -c "./.rules/yamllint.yml" esphome/nspanel_esphome_addon_climate_heat.yaml
-      - name: Validate nspanel_esphome_addon_climate_dual.yaml
-        run: yamllint -c "./.rules/yamllint.yml" esphome/nspanel_esphome_addon_climate_dual.yaml
-      - name: Validate nspanel_esphome_prebuilt.yaml
-        run: yamllint -c "./.rules/yamllint.yml" prebuilt/nspanel_esphome_prebuilt.yaml
-      - name: Validate wall_display.yaml
-        run: yamllint -c "./.rules/yamllint.yml" prebuilt/wall_display.yaml
+      - name: Checkout Code
+        uses: actions/checkout@main
 
-  build_core:
-    name: Core
-    runs-on: "ubuntu-latest"
-    needs:
-      - code_scan
-    steps:
-      - uses: actions/checkout@main
+      - name: Setup Python
+        uses: actions/setup-python@main
         with:
-          fetch-depth: '0'
-      - name: Build core
+          python-version: '3.8'
+
+      - name: Install Yamllint
+        run: pip install yamllint
+
+      - name: Validate YAML files
+        run: find . -name "*.yaml" -exec yamllint -c ./.rules/yamllint.yml {} +
+
+  build_cores:
+    name: Core
+    needs: [code_scan, setup_dependencies]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: idf_v4
+            yaml_file: ".test/esphome_idf_basic.yaml"
+            cache-hit: ${{ needs.setup_dependencies.outputs.cache-hit-idf-v4 }}
+          - id: idf_v5
+            yaml_file: ".test/esphome_idf5_basic.yaml"
+            cache-hit: ${{ needs.setup_dependencies.outputs.cache-hit-idf-v5 }}
+          - id: ard
+            yaml_file: ".test/esphome_ard_basic.yaml"
+            cache-hit: ${{ needs.setup_dependencies.outputs.cache-hit-arduino }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Firmware
+        if: steps.matrix.outputs.cache-hit != 'true'
         uses: barndawgie/build-action@v1.9.0
         with:
-          yaml_file: "./.test/esphome_basic.yaml"
+          yaml_file: ${{ matrix.yaml_file }}
 
   build_advanced:
     name: Advanced
-    runs-on: "ubuntu-latest"
-    needs:
-      - build_core
-    steps:
-      - uses: actions/checkout@main
-        with:
-          fetch-depth: '0'
-      - name: Build core+advanced
-        uses: barndawgie/build-action@v1.9.0
-        with:
-          yaml_file: "./.test/esphome_advanced.yaml"
+    needs: build_cores
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - id: idf_v4
+            base: idf_v4
+            yaml_file: ".test/esphome_idf_advanced.yaml"
+          - id: idf_v5
+            base: idf_v5
+            yaml_file: ".test/esphome_idf5_advanced.yaml"
+          - id: ard
+            base: ard
+            yaml_file: ".test/esphome_ard_advanced.yaml"
 
-  build_climate_heat:
-    name: Climate (heat)
-    runs-on: "ubuntu-latest"
-    needs:
-      - build_core
     steps:
-      - uses: actions/checkout@main
-        with:
-          fetch-depth: '0'
-      - name: Build core+climate_heat
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Build Advanced Firmware
         uses: barndawgie/build-action@v1.9.0
         with:
-          yaml_file: "./.test/esphome_climate_heat.yaml"
+          yaml_file: ${{ matrix.yaml_file }}
+
+  build_ble_tracker:
+    name: BLE Tracker
+    needs: build_cores
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - id: idf_v4
+            base: idf_v4
+            yaml_file: ".test/esphome_idf_ble_tracker.yaml"
+          - id: idf_v5
+            base: idf_v5
+            yaml_file: ".test/esphome_idf5_ble_tracker.yaml"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Build BLE Tracker Firmware
+        uses: barndawgie/build-action@v1.9.0
+        with:
+          yaml_file: ${{ matrix.yaml_file }}
+
+  build_bluetooth_proxy:
+    name: Bluetooth Proxy
+    needs: build_cores
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - id: idf_v4
+            base: idf_v4
+            yaml_file: ".test/esphome_idf_bluetooth_proxy.yaml"
+          - id: idf_v5
+            base: idf_v5
+            yaml_file: ".test/esphome_idf5_bluetooth_proxy.yaml"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Build Bluetooth Proxy Firmware
+        uses: barndawgie/build-action@v1.9.0
+        with:
+          yaml_file: ${{ matrix.yaml_file }}
 
   build_climate_cool:
-    name: Climate (cool)
-    runs-on: "ubuntu-latest"
-    needs:
-      - build_core
+    name: Climate Cool
+    needs: build_cores
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - id: idf_v4
+            base: idf_v4
+            yaml_file: ".test/esphome_idf_climate_cool.yaml"
+          - id: idf_v5
+            base: idf_v5
+            yaml_file: ".test/esphome_idf5_climate_cool.yaml"
+          - id: ard
+            base: ard
+            yaml_file: ".test/esphome_ard_climate_cool.yaml"
+
     steps:
-      - uses: actions/checkout@main
-        with:
-          fetch-depth: '0'
-      - name: Build core+climate_cool
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Build Climate Cool Firmware
         uses: barndawgie/build-action@v1.9.0
         with:
-          yaml_file: "./.test/esphome_climate_cool.yaml"
+          yaml_file: ${{ matrix.yaml_file }}
+
+  build_climate_heat:
+    name: Climate Heat
+    needs: build_cores
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - id: idf_v4
+            base: idf_v4
+            yaml_file: ".test/esphome_idf_climate_heat.yaml"
+          - id: idf_v5
+            base: idf_v5
+            yaml_file: ".test/esphome_idf5_climate_heat.yaml"
+          - id: ard
+            base: ard
+            yaml_file: ".test/esphome_ard_climate_heat.yaml"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Build Climate Heat Firmware
+        uses: barndawgie/build-action@v1.9.0
+        with:
+          yaml_file: ${{ matrix.yaml_file }}
 
   build_climate_dual:
-    name: Climate (dual)
-    runs-on: "ubuntu-latest"
-    needs:
-      - build_core
+    name: Climate Dual
+    needs: build_cores
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - id: idf_v4
+            base: idf_v4
+            yaml_file: ".test/esphome_idf_climate_dual.yaml"
+          - id: idf_v5
+            base: idf_v5
+            yaml_file: ".test/esphome_idf5_climate_dual.yaml"
+          - id: ard
+            base: ard
+            yaml_file: ".test/esphome_ard_climate_dual.yaml"
+
     steps:
-      - uses: actions/checkout@main
-        with:
-          fetch-depth: '0'
-      - name: Build core+climate_dual
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Build Climate Dial Firmware
         uses: barndawgie/build-action@v1.9.0
         with:
-          yaml_file: "./.test/esphome_climate_dual.yaml"
+          yaml_file: ${{ matrix.yaml_file }}
 
-  build_climate_heat_advanced:
-    name: Advanced+climate (heat)
-    runs-on: "ubuntu-latest"
+  build_customizations:
+    name: Customizations
     needs:
-      - build_climate_heat
       - build_advanced
+      - build_climate_heat
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - id: idf_v4
+            base: idf_v4
+            yaml_file: ".test/esphome_idf_advanced_climate_heat_customizations.yaml"
+          - id: ard
+            base: ard
+            yaml_file: ".test/esphome_ard_advanced_climate_heat_customizations.yaml"
+
     steps:
-      - uses: actions/checkout@main
-        with:
-          fetch-depth: '0'
-      - name: Build core+advanced+climate_heat
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Build Customizations Firmware
         uses: barndawgie/build-action@v1.9.0
         with:
-          yaml_file: "./.test/esphome_advanced_climate_heat.yaml"
+          yaml_file: ${{ matrix.yaml_file }}
 
-  build_climate_cool_advanced_arduino:
-    name: Arduino
-    runs-on: "ubuntu-latest"
+  build_climate_ble_proxy:
+    name: Climate Cool + Bluetooth Proxy
     needs:
       - build_climate_cool
-      - build_advanced
-    steps:
-      - uses: actions/checkout@main
-        with:
-          fetch-depth: '0'
-      - name: Build core+advanced+climate_cool+arduino
-        uses: barndawgie/build-action@v1.9.0
-        with:
-          yaml_file: "./.test/esphome_advanced_climate_cool_arduino.yaml"
+      - build_bluetooth_proxy
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - id: idf_v4
+            base: idf_v4
+            yaml_file: ".test/esphome_idf_climate_cool_bluetooth_proxy.yaml"
 
-  build_climate_dual_esp_idf5:
-    name: esp-idf v5 & Climate Dual & Bluetooth proxy
-    runs-on: "ubuntu-latest"
-    needs:
-      - build_advanced
-      - build_climate_dual
     steps:
-      - uses: actions/checkout@main
-        with:
-          fetch-depth: '0'
-      - name: Build core+climate_dual+bt_proxy+esp_idf5
-        uses: barndawgie/build-action@v1.9.0
-        with:
-          yaml_file: "./.test/esphome_advanced_climate_dual_esp_idf5.yaml"
+      - name: Checkout repository
+        uses: actions/checkout@main
 
-  build_climate_heat_advanced_customization:
-    name: Customizations
-    runs-on: "ubuntu-latest"
-    needs:
-      - code_scan
-    steps:
-      - uses: actions/checkout@main
-        with:
-          fetch-depth: '0'
-      - name: Build core+advanced+climate_heat+customizations
+      - name: Build Customizations Firmware
         uses: barndawgie/build-action@v1.9.0
         with:
-          yaml_file: "./.test/esphome_advanced_climate_heat_customizations.yaml"
+          yaml_file: ${{ matrix.yaml_file }}
 
   build_prebuilt_firmware:
     name: Prebuilt Firmware
@@ -203,8 +331,6 @@ jobs:
     if: github.ref == 'refs/heads/dev' || github.base_ref == 'dev'
     steps:
       - uses: actions/checkout@main
-        with:
-          fetch-depth: '0'
 
       - name: Build ESPHome Prebuilt Firmware
         uses: barndawgie/build-action@v1.9.0
@@ -228,68 +354,20 @@ jobs:
           cp prebuilt/.esphome/build/nspanel/.pioenvs/nspanel/firmware.bin prebuilt/wall_display.bin || true
           cp prebuilt/.esphome/build/nspanel/.pioenvs/nspanel/firmware-factory.bin prebuilt/wall_display-factory.bin || true
 
-      - name: Generate checksum nspanel_esphome_prebuilt
-        uses: jmgilman/actions-generate-checksum@v1
-        with:
-          method: md5
-          patterns: prebuilt/nspanel_esphome_prebuilt.bin
-          output: prebuilt/nspanel_esphome_prebuilt.bin.md5
-
-      - name: Generate checksum nspanel_esphome_prebuilt-factory
-        uses: jmgilman/actions-generate-checksum@v1
-        with:
-          method: md5
-          patterns: prebuilt/nspanel_esphome_prebuilt-factory.bin
-          output: prebuilt/nspanel_esphome_prebuilt-factory.bin.md5
-
-      - name: Generate checksum wall_display
-        uses: jmgilman/actions-generate-checksum@v1
-        with:
-          method: md5
-          patterns: prebuilt/wall_display.bin
-          output: prebuilt/wall_display.bin.md5
-
-      - name: Generate checksum wall_display-factory
-        uses: jmgilman/actions-generate-checksum@v1
-        with:
-          method: md5
-          patterns: prebuilt/wall_display-factory.bin
-          output: prebuilt/wall_display-factory.bin.md5
-
-      - name: Set Commit Message
-        id: set_commit_message
+      - name: Generate checksum for Firmware Files
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "COMMIT_MESSAGE=Pre-built firmware for NSPanel - ${{ github.event.pull_request.title }}" >> $GITHUB_ENV
-          elif [[ "${{ github.event_name }}" == "push" ]]; then
-            commit_message=$(git log -1 --pretty=format:'%s')
-            echo "COMMIT_MESSAGE=Pre-built firmware for NSPanel - $commit_message" >> $GITHUB_ENV
-          else
-            echo "COMMIT_MESSAGE=Pre-built firmware for NSPanel" >> $GITHUB_ENV
-          fi
+          md5sum prebuilt/nspanel_esphome_prebuilt.bin > prebuilt/nspanel_esphome_prebuilt.bin.md5
+          md5sum prebuilt/nspanel_esphome_prebuilt-factory.bin > prebuilt/nspanel_esphome_prebuilt-factory.bin.md5
+          md5sum prebuilt/wall_display.bin > prebuilt/wall_display.bin.md5
+          md5sum prebuilt/wall_display-factory.bin > prebuilt/wall_display-factory.bin.md5
 
       - name: Commit and Push Firmware Files
         run: |
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
-          git add prebuilt/*.bin
-          git add prebuilt/*.md5
-          git commit -m "${{ env.COMMIT_MESSAGE }}"
+          git add prebuilt/*.bin prebuilt/*.md5
+          git commit -m "Pre-built firmware update: ${{ github.run_id }}"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build_climate_cool_bluetooth_proxy:
-    name: Climate cool & BLE proxy
-    runs-on: "ubuntu-latest"
-    needs:
-      - build_climate_cool
-    steps:
-      - uses: actions/checkout@main
-        with:
-          fetch-depth: '0'
-      - name: Build core+climate_cool+bluetooth_proxy
-        uses: barndawgie/build-action@v1.9.0
-        with:
-          yaml_file: "./.test/esphome_climate_cool_bluetooth_proxy.yaml"
 ...

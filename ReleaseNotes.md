@@ -680,6 +680,67 @@ Users can now interact with the temperature display as intended, facilitating se
 This update is essential for ensuring that the NSPanel functions correctly, maintaining the quality and reliability expected by our users.
 We apologize for any inconvenience caused and thank you for your continued support.
 
+## v4.3.5 - Experimenting with Bluetooth Capabilities
+This patch release v4.3.5 introduces experimental Bluetooth features alongside critical fixes and enhancements.
+The new Bluetooth capabilities leverage the previously untapped potential of the NSPanel's Bluetooth modem, enabled by the increased memory availability in the ESP-IDF framework.
+
+### New Bluetooth Features (Experimental)
+- **BLE Tracker Add-on**
+  - **Description:** This add-on enables the NSPanel to act as a Bluetooth Low Energy (BLE) tracker, allowing it to detect and report the presence of BLE devices in its vicinity.
+  This feature is instrumental for presence detection and smart home automation scenarios.
+
+- **Bluetooth Proxy Add-on**
+  - **Description:** The Bluetooth Proxy add-on allows the NSPanel to act as a bridge or proxy for other Bluetooth devices, facilitating communication between BLE devices and Home Assistant.
+  This can significantly extend the functionality of Home Assistant in managing Bluetooth devices without direct connectivity.
+
+### Temperature Display and Control Fixes
+- **Temperature Increment Error in Climate Card Resolved (#2076)**
+  - **Criticality:** Medium
+  - **Affected Components:** ESPHome
+  - **Description:** Corrected a rounding error in the climate card, which caused temperature set points to adjust in increments of 0.9 degrees.
+  This fix ensures temperature adjustments are now rounded to the nearest whole number, aligning with expected control behavior.
+
+- **Consistent Temperature Unit Display Across Panels (#2056)**
+  - **Criticality:** Medium
+  - **Affected Components:** ESPHome
+  - **Description:** Resolved an issue where the internal temperature sensor did not convert temperatures from Celsius to Fahrenheit for display on the home screen,
+  despite displaying correctly on the climate page. Temperatures are now consistently shown in the user-defined units across all NSPanel displays.
+
+### Control and Interface Enhancements
+- **Improved Custom Button Response for Dimmable Color Lights (#2072)**
+  - **Criticality:** Minor
+  - **Affected Components:** Blueprint
+  - **Description:** Fixed a bug where custom buttons for dimmable color lights only toggled the lights on/off.
+  The buttons now correctly adjust brightness and color settings, enhancing user control.
+
+- **Homepage Weather and Climate Control Delay Minimized (#2056)**
+  - **Criticality:** Minor
+  - **Affected Components:** ESPHome and TFT
+  - **Description:** Introduced a minor delay optimization for weather updates and climate control interactions on the home page, improving the responsiveness and user experience.
+
+- **Consistent Icon Color Display on Home Page (#2043)**
+  - **Criticality:** Minor
+  - **Affected Components:** Blueprint
+  - **Description:** Addressed an issue where icons on the home page always displayed in white, regardless of the set color.
+  Icons now correctly reflect the specified colors, enhancing visual consistency and user interface aesthetics.
+
+### System Stability and Functionality
+- **Restoration of Webserver Functionality Post-Upgrade (#2054, #2050)**
+  - **Criticality:** Critical
+  - **Affected Components:** ESPHome
+  - **Description:** Fixed issues that caused the webserver component to stop functioning following recent upgrades.
+  This repair restores full webserver functionality, essential for user access and system configuration via a web interface.
+
+- **Reliability Improvements for TFT Uploads with Bluetooth Components (#1946, #1815)**
+  - **Criticality:** Medium
+  - **Affected Components:** ESPHome
+  - **Description:** Enhanced the reliability of TFT file uploads when the Bluetooth proxy or the BLE Tracker are enabled.
+  This fix addresses disruptions previously experienced during TFT updates, ensuring smoother and more reliable firmware installations.
+
+This update, v4.3.5, is a significant step towards harnessing the full potential of the NSPanel's hardware capabilities, especially its Bluetooth functionality,
+while continuing to refine the user experience and system stability.
+We appreciate the community's active involvement in identifying these issues and thank everyone for their contributions to improving the firmware.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
@@ -696,6 +757,7 @@ Your efforts have significantly improved its functionality and reliability (#183
 Your contributions have made our guides more informative and accessible, enriching the user experience for everyone (#1865).
 
 ## Previous releases
+- [v4.3.4 - Urgent Fix for Home Screen Interaction](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.4)
 - [v4.3.3 - Enhancing Flexibility and User Experience](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.3)
 - [v4.3.2 - Enhancements and Critical Fixes for a Seamless Experience](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.2)
 - [v4.3.1 - Ensuring Compatibility with ESPHome v2024.3.0 and Enhancing Stability](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.1)

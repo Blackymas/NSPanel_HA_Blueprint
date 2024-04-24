@@ -12,7 +12,8 @@
 
 ## Advanced settings
 - [Customization](customization.md)
-- [Add-on climate](addon_climate.md)
+- [Add-on Bluetooth Proxy](addon_bluetooth_proxy.md)
+- [Add-on Climate](addon_climate.md)
 - [Alarm Control Panel](alarm.md)
 - [API](api.md)
 - [Using Different Versions of This Project](different_version.md)
