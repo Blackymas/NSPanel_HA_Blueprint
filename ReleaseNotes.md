@@ -767,6 +767,20 @@ These fixes ensure that custom buttons properly trigger actions for climate and 
 This patch release v4.3.6 ensures that custom buttons on the NSPanel are fully operational, addressing urgent issues that impacted user interaction and control of climate and alarm systems.
 We thank our community for their prompt reporting and patience as we continue to enhance the NSPanel experience.
 
+## v4.3.7 - Quick Fix for Captive Portal Compile Error
+This patch addresses a critical compile error related to the captive portal feature, ensuring smooth and successful firmware compilations for users utilizing this feature.
+
+### Captive Portal Compile Error Resolved (#2088)
+- **Criticality:** Critical
+- **Affected Components:** ESPHome
+- **Issue Number:** #2088
+- **Description:** Fixed a critical issue where users faced a compilation error due to an undeclared reference to 'ap_captive_portal'.
+This fix corrects the reference error, restoring the ability to compile with the captive portal enabled.
+Users who do not utilize the captive portal can continue without modification, while those who do should see successful compilations without further adjustments.
+
+This release ensures that all users, regardless of their use of the captive portal feature, can compile and update their firmware without interruption.
+We apologize for any inconvenience caused and appreciate your patience as we continue to improve the NSPanel firmware.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
@@ -783,6 +797,8 @@ Your efforts have significantly improved its functionality and reliability (#183
 Your contributions have made our guides more informative and accessible, enriching the user experience for everyone (#1865).
 
 ## Previous releases
+- [v4.3.6 - Critical Fixes for Custom Buttons](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.6)
+- [v4.3.5 - Experimenting with Bluetooth Capabilities](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.5)
 - [v4.3.4 - Urgent Fix for Home Screen Interaction](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.4)
 - [v4.3.3 - Enhancing Flexibility and User Experience](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.3)
 - [v4.3.2 - Enhancements and Critical Fixes for a Seamless Experience](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.2)
