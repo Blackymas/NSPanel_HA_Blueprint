@@ -10,7 +10,7 @@ blueprint:
   description: >
     # NSPanel Configuration via Blueprint: Complete UI-Based Setup
 
-    **Version**: v4.3.5
+    **Version**: v4.3.6
 
 
     This project enables comprehensive configuration of your NSPanel through a Blueprint featuring a user interface.
@@ -3826,7 +3826,7 @@ trigger_variables:
       group06: !input utilities_page01_group06_line_reference
 
 variables:
-  blueprint_version: '4.3.5'
+  blueprint_version: '4.3.6'
   pages:
     current: '{{ states(currentpage) }}'
     home: "home"
@@ -9155,36 +9155,47 @@ action:
                                 }}
                           - &variables_light_modes
                             variables:
+                              entity_id_valid: '{{ entity_id is defined and entity_id is string and entity_id.split(".") | count == 2 }}'
+                              entity_domain: '{{ entity_id.split(".")[0] if entity_id_valid }}'
                               supported_features: '{{ state_attr(entity_id, "supported_features") | int(0) }}'
-                              supported_color_modes: '{{ state_attr(entity_id, "supported_color_modes") | default("unknown") }}'
+                              supported_color_modes_temp: '{{ state_attr(entity_id, "supported_color_modes") | default([]) }}'
+                              supported_color_modes: '{{ supported_color_modes_temp if supported_color_modes_temp else [] }}'
                               color_mode_brightness: >
                                 {{
-                                  supported_features | bitwise_and(1) > 0 or
-                                  enum.ColorMode.BRIGHTNESS in supported_color_modes or
-                                  "brightness" in supported_color_modes or
-                                  state_attr(entity_id, "brightness") | int(-1) >= 0
+                                  entity_domain == "light" and
+                                  (
+                                    supported_features | bitwise_and(1) > 0 or
+                                    enum.ColorMode.BRIGHTNESS in supported_color_modes or
+                                    "brightness" in supported_color_modes or
+                                    state_attr(entity_id, "brightness") | int(-1) >= 0
+                                  )
                                 }}
                               color_mode_color: >
                                 {{
-                                  supported_features | bitwise_and(16) > 0 or
-                                  enum.ColorMode.HS in supported_color_modes or
-                                  enum.ColorMode.XY in supported_color_modes or
-                                  enum.ColorMode.RGB in supported_color_modes or
-                                  enum.ColorMode.RGBW in supported_color_modes or
-                                  enum.ColorMode.RGBWW in supported_color_modes or
-                                  "hs" in supported_color_modes or
-                                  "xy" in supported_color_modes or
-                                  "rgb" in supported_color_modes or
-                                  "rgbw" in supported_color_modes or
-                                  "rgbww" in supported_color_modes or
-                                  state_attr(entity_id, "rgb_color") is sequence
+                                  entity_domain == "light" and
+                                  (
+                                    supported_features | bitwise_and(16) > 0 or
+                                    enum.ColorMode.HS in supported_color_modes or
+                                    enum.ColorMode.XY in supported_color_modes or
+                                    enum.ColorMode.RGB in supported_color_modes or
+                                    enum.ColorMode.RGBW in supported_color_modes or
+                                    enum.ColorMode.RGBWW in supported_color_modes or                                    "hs" in supported_color_modes or
+                                    "xy" in supported_color_modes or
+                                    "rgb" in supported_color_modes or
+                                    "rgbw" in supported_color_modes or
+                                    "rgbww" in supported_color_modes or
+                                    state_attr(entity_id, "rgb_color") | default("unknown") is sequence
+                                  )
                                 }}
                               color_mode_color_temp: >
                                 {{
-                                  supported_features | bitwise_and(2) > 0 or
-                                  enum.ColorMode.COLOR_TEMP in supported_color_modes or
-                                  "color_temp" in supported_color_modes or
-                                  state_attr(entity_id, "color_temp") | int(-1) >= 0
+                                  entity_domain == "light" and
+                                  (
+                                    supported_features | bitwise_and(2) > 0 or
+                                    enum.ColorMode.COLOR_TEMP in supported_color_modes or
+                                    "color_temp" in supported_color_modes or
+                                    state_attr(entity_id, "color_temp") | int(-1) >= 0
+                                  )
                                 }}
                           ##### LIGHT State #####
                           - variables:
@@ -10745,6 +10756,7 @@ action:
                         sequence:
                           - variables:
                               last_click_button: '{{ home_page.custom_buttons | selectattr("component", "defined") | selectattr("component", "eq", nspanel_event.component) | list }}'
+                            continue_on_error: true
                           - condition: '{{ last_click_button | count >= 0 }}'
                           - variables:
                               last_click_button: '{{ last_click_button[0] }}'
@@ -10752,9 +10764,8 @@ action:
                               overlap:
                                 icon: '{{ last_click_button.icon if last_click_button.icon is defined else None }}'
                                 name: '{{ last_click_button.name if last_click_button.name is defined else None }}'
-                          - *variable_entity
-                          - condition: '{{ entity_id_valid }}'
                           - *variables_light_modes
+                          - condition: '{{ entity_id_valid }}'
                           - if: >
                               {{
                                 entity_domain in ["alarm_control_panel", "climate", "media_player"] or
@@ -10765,6 +10776,7 @@ action:
                             then:
                               - variables:
                                   back_page: '{{ pages.home }}'
+                              - *variable_entity
                               - *entity_details_show
                             else:
                               - *short_press-service_call
