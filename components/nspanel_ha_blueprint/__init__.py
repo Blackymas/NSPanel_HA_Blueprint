@@ -15,6 +15,7 @@ CONFIG_SCHEMA = cv.All(
     cv.Schema({}),
 )
 
+
 @coroutine_with_priority(1.0)
 async def to_code(config):
     if CORE.using_arduino:
