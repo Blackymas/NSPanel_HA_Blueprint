@@ -741,6 +741,32 @@ This update, v4.3.5, is a significant step towards harnessing the full potential
 while continuing to refine the user experience and system stability.
 We appreciate the community's active involvement in identifying these issues and thank everyone for their contributions to improving the firmware.
 
+## v4.3.6 - Critical Fixes for Custom Buttons
+This release of v4.3.6 is an urgent patch to address critical issues affecting the functionality of custom buttons on the NSPanel.
+These fixes ensure that custom buttons properly trigger actions for climate and alarm controls, and correct the integration with external thermostat entities.
+
+### Fixes for Custom Button Functionality
+- **Climate Page Accessibility Restored (#2067)**
+  - **Criticality:** Critical
+  - **Affected Components:** Blueprint
+  - **Description:** Resolved an issue where the climate page was not opening when triggered from a custom button.
+  Users can now access the climate controls directly from the home screen without interruption.
+
+- **Alarm Control from Custom Button Restored (#2081)**
+  - **Criticality:** Critical
+  - **Affected Components:** Blueprint
+  - **Description:** Fixed a malfunction where custom buttons configured for alarm control were unresponsive.
+  This update restores full functionality, allowing for immediate access and control of alarm settings from the home page.
+
+- **Integration of External Thermostat Entities Fixed (#2080)**
+  - **Criticality:** Critical
+  - **Affected Components:** ESPHome
+  - **Description:** Corrected an issue introduced in v4.3.5 where external thermostat entities (the ones controlled by Home Assistant) linked to custom buttons were not functioning correctly.
+  With this fix, users can again utilize custom buttons to control their external thermostats effectively.
+
+This patch release v4.3.6 ensures that custom buttons on the NSPanel are fully operational, addressing urgent issues that impacted user interaction and control of climate and alarm systems.
+We thank our community for their prompt reporting and patience as we continue to enhance the NSPanel experience.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
