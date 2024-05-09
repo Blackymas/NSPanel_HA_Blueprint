@@ -235,16 +235,20 @@ After ensuring your device is properly connected, proceed to update or install t
    - If you're **updating** your panel, the **Wirelessly** option is typically the right choice.
    This method will compile and transfer the firmware directly to your panel over Wi-Fi.
    - For **initial installations** or updates via a USB-to-Serial TTL adapter, select either **Plug into this computer** or **Manual download**.
-   Both these options will compile the firmware and prompt you to download it to your computer.
+   Both these options will compile the firmware and allow you to download it to your computer.
+   ![140043](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/5879533/3c08d3b7-df9b-4862-8ced-347deff41cb5)
+
 
 4. **Transfer Firmware via USB-to-Serial TTL:**
    - Navigate to [ESPHome Web](https://web.esphome.io/) on your computer.
    - Click **Connect** and choose the serial interface connected to your USB-to-Serial TTL adapter.
+     ![141609](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/5879533/fde27c26-3434-48f5-a028-6baee15ab35e)
 
-     ![ESPHome Web Interface](pics/esphome_web_home.png)
 
    - Once connected, opt to install an existing firmware to your panel.
    Select the compiled firmware file and initiate the installation.
+   ![141248](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/5879533/ad6a5813-131c-43d5-9174-3a9f73d5b6bf)
+
 
 The firmware installation process will take a few minutes.
 After completion, reassemble your panel and mount it back on the wall.
