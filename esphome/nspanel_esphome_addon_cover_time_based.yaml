@@ -1,0 +1,179 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHome Add-on for Cover control based on time                                            #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+##### ATTENTION: This will add cover elements to the core system and requires the core part.  #####
+#####################################################################################################
+---
+substitutions:
+  ### Local cover defaults ###
+  interlock_wait_time: 250ms
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_ADDON_COVER_TIME_BASED
+  on_boot:
+    - priority: 700.22
+      then:
+        - wait_until:
+            condition:
+              - lambda: return cover_open_duration->has_state();
+              - lambda: return !isnan(cover_open_duration->state);
+        - lambda: cover_embedded->set_open_duration(cover_open_duration->state);
+    - priority: 700.21
+      then:
+        - wait_until:
+            condition:
+              - lambda: return cover_close_duration->has_state();
+              - lambda: return !isnan(cover_close_duration->state);
+        - lambda: cover_embedded->set_close_duration(cover_close_duration->state);
+
+cover:
+  - id: cover_embedded
+    name: Cover
+    platform: time_based
+    open_action:
+      - switch.turn_on: cover_open_virtual_relay
+    open_duration: 1ms
+    close_action:
+      - switch.turn_on: cover_close_virtual_relay
+    close_duration: 1ms
+    stop_action:
+      - switch.turn_off: cover_open_virtual_relay
+      - switch.turn_off: cover_close_virtual_relay
+      - switch.turn_off: relay_1
+      - switch.turn_off: relay_2
+
+number:
+  - id: cover_open_duration
+    name: Cover open duration
+    icon: mdi:timer
+    platform: template
+    unit_of_measurement: ms
+    internal: false
+    entity_category: config
+    min_value: 1
+    max_value: 600000
+    step: 1
+    initial_value: 1
+    optimistic: true
+    restore_value: true
+    on_value:
+      - lambda: if (!isnan(x)) cover_embedded->set_open_duration(x);
+      - delay: 10s
+      - lambda: cover_embedded->dump_config();
+  - id: cover_close_duration
+    name: Cover close duration
+    icon: mdi:timer
+    platform: template
+    unit_of_measurement: ms
+    internal: false
+    entity_category: config
+    min_value: 1
+    max_value: 600000
+    step: 1
+    initial_value: 1
+    optimistic: true
+    restore_value: true
+    on_value:
+      - lambda: if (!isnan(x)) cover_embedded->set_close_duration(x);
+      - delay: 10s
+      - lambda: cover_embedded->dump_config();
+
+script:
+  - id: !extend dump_config
+    then:
+      - lambda: |-
+          // Check if more than one or none of the climate options are defined
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE
+            #error "Configuration error: The add-on cover and add-on climate cannot be installed simultaneously."
+          #endif
+          static const char *const TAG = "nspanel_ha_blueprint";
+          ESP_LOGCONFIG(TAG, "Add-on cover (time based):");
+          cover_embedded->dump_config();
+
+  - id: set_physical_relays
+    mode: queued
+    parameters:
+      open: bool
+      state: bool
+    then:
+      - lambda: |-
+          auto cover_relays_active_index = cover_relays_mode->active_index();
+          if (cover_relays_active_index.has_value()) {
+            const bool cover_mode_std = (cover_relays_active_index.value() == 0);
+            auto relay_open = (cover_mode_std) ? relay_1 : relay_2;
+            auto relay_close = (cover_mode_std) ? relay_2 : relay_1;
+
+            if (open) {
+              if (state) relay_open->turn_on();
+              else relay_open->turn_off();
+            } else {
+              if (state) relay_close->turn_on();
+              else relay_close->turn_off();
+            }
+          } else {
+            relay_1->turn_off();
+            relay_2->turn_off();
+          }
+
+select:
+  - id: cover_relays_mode
+    name: Cover relays mode
+    platform: template
+    options:
+      - "Relay 1 opens, relay 2 closes"
+      - "Relay 2 opens, relay 1 closes"
+    optimistic: true
+    restore_value: true
+    internal: false
+    entity_category: config
+    disabled_by_default: false
+    icon: mdi:dip-switch
+
+switch:
+  - id: !extend relay_1
+    interlock: [relay_1, relay_2]
+    interlock_wait_time: ${interlock_wait_time}
+    restore_mode: ALWAYS_OFF
+    internal: true
+  - id: !extend relay_2
+    interlock: [relay_1, relay_2]
+    interlock_wait_time: ${interlock_wait_time}
+    restore_mode: ALWAYS_OFF
+    internal: true
+
+  - id: cover_open_virtual_relay
+    platform: template
+    internal: true
+    restore_mode: ALWAYS_OFF
+    optimistic: true
+    on_turn_on:
+      - script.execute:
+          id: set_physical_relays
+          open: true
+          state: true
+    on_turn_off:
+      - script.execute:
+          id: set_physical_relays
+          open: true
+          state: false
+  - id: cover_close_virtual_relay
+    platform: template
+    internal: true
+    restore_mode: ALWAYS_OFF
+    optimistic: true
+    on_turn_on:
+      - script.execute:
+          id: set_physical_relays
+          open: false
+          state: true
+    on_turn_off:
+      - script.execute:
+          id: set_physical_relays
+          open: false
+          state: false
+...
