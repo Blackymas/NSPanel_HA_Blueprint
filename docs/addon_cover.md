@@ -76,7 +76,7 @@ You will find the following configuration entities under the device's page (**Se
 
 <!-- markdownlint-disable MD013 MD033 -->
 |Entity|Supported values|Default|Description|
-|:-|:-:|:-:|:-:|:-|
+|:-|:-:|:-:|:-|
 |Cover relays mode|`Relay 1 opens, relay 2 closes` or `Relay 2 opens, relay 1 closes`|`Relay 1 opens, relay 2 closes`|This will define which relay (1 or 2) is used to open the cover and which is used to close the cover.|
 |Cover open duration|`1ms` to `600000ms`|`1ms` (disabled)|The amount of time it takes the cover to open from the fully closed state.|
 |Cover close duration|`1ms` to `600000ms`|`1ms` (disabled)|The amount of time it takes the cover to close from the fully open state.|
