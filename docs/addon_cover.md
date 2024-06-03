@@ -30,8 +30,8 @@ as shown below:
 > [!NOTE]
 > Occasionally, ESPHome updates may result in the `entity_id` of embedded covers 
 > being appended with `_2`. If you experience this change, refer to this [forum 
-> post](https://community.home-assistant.io/t/esphome-devices-all-renamed-with-2-
-> added/388146) on the Home Assistant Forum for guidance.
+> post](https://community.home-assistant.io/t/esphome-devices-all-renamed-with-2-added/388146)
+> on the Home Assistant Forum for guidance.
 
 ```yaml
 substitutions:
