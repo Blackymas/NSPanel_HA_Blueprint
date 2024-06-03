@@ -14,8 +14,8 @@ using its relays to drive the motor to open or close a cover.
 ### Attention
 The NSPanel is limited to 2A per relay.
 Don't use it to directly power your cover's motor if it exceeds the panel specifications:
-    - 150W/110V/Gang, 300W/110V/Total
-    - 300W/220V/Gang, 600W/220V/Total
+  - 150W/110V/Gang, 300W/110V/Total
+  - 300W/220V/Gang, 600W/220V/Total
 
 > [!NOTE]
 > More details on the [Sonoff NSPanel's page](https://sonoff.tech/product/central-control-panel/nspanel/)
