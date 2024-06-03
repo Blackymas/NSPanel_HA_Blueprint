@@ -781,6 +781,70 @@ Users who do not utilize the captive portal can continue without modification, w
 This release ensures that all users, regardless of their use of the captive portal feature, can compile and update their firmware without interruption.
 We apologize for any inconvenience caused and appreciate your patience as we continue to improve the NSPanel firmware.
 
+## v4.3.8 - Enhancements and Bug Fixes
+This patch introduces important enhancements and fixes several bugs,
+ensuring improved performance and user experience.
+
+> [!WARNING]
+> Home Assistant v2024.6.0 and ESPHome v2024.3.0 are required.
+> Please take a look at our [Version compatibility matrix](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/version_compatibility.md) for a full list.
+
+### Bluetooth Proxy Addon Crash Fixed (#2119)
+- **Criticality:** Major
+- **Affected Components:** ESPHome
+- **Issue Number:** #2119
+- **Description:** Resolved a critical issue where the Bluetooth Proxy addon caused the NSPanel to crash.
+  This fix stabilizes the Bluetooth functionality,
+  ensuring reliable performance when the Bluetooth Proxy addon is enabled.
+
+### Climate Page Entity State Icons Display Fixed (#2111)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Issue Number:** #2111
+- **Description:** Fixed an issue where the entity state icons were not displayed on the climate page.
+  This update ensures that all relevant icons are visible,
+  providing a complete and informative interface for climate control.
+
+### ESPHome v2024.5.0 Build Warning Resolved (#2117)
+- **Criticality:** Minor
+- **Affected Components:** ESPHome
+- **Issue Number:** #2117
+- **Description:** Addressed a warning (error) encountered when building NSPanel using ESPHome version 2024.5.0.
+  This fix ensures compatibility with the latest ESPHome version,
+  allowing for seamless firmware updates and builds.
+
+### Alarm Page Button Alignment on EU Display Fixed (#2110)
+- **Criticality:** Minor
+- **Affected Components:** TFT
+- **Issue Number:** #2110
+- **Description:** Fixed the alignment of buttons on the alarm page for the EU display.
+  This update centers the buttons correctly,
+  providing a consistent and aesthetically pleasing interface for EU panel users.
+
+### Larger Alarm Pin Pad (#2103)
+- **Criticality:** Enhancement
+- **Affected Components:** TFT
+- **Issue Number:** #2103
+- **Description:** Enhanced the panel's alarm pin pad by increasing its size for better usability.
+  This improvement makes it easier for users to input their alarm pins accurately and comfortably.
+
+### Support for Collapsible Sections in Blueprints
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint
+- **Description:** Added support for collapsible sections in blueprints, a feature introduced in Home Assistant v2024.6.
+  This enhancement makes the blueprint interface much cleaner and more organized by allowing sections to be collapsed.
+
+### Experimental Add-On Cover
+- **Criticality:** Enhancement - **EXPERIMENTAL**
+- **Affected Components:** ESPHome, Blueprint
+- **Description:** Introduced an experimental add-on for cover control.
+  This feature is designed to provide advanced cover management options through the NSPanel interface.
+  For detailed instructions and usage,
+  refer to the [add-on cover documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/addon_cover.md).
+
+These updates address critical issues and enhance the overall functionality and user experience of the NSPanel.
+We appreciate the community's feedback and contributions, which help us continually improve this project.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
@@ -797,6 +861,7 @@ Your efforts have significantly improved its functionality and reliability (#183
 Your contributions have made our guides more informative and accessible, enriching the user experience for everyone (#1865).
 
 ## Previous releases
+- [v4.3.7 - Quick Fix for Captive Portal Compile Error](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.7)
 - [v4.3.6 - Critical Fixes for Custom Buttons](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.6)
 - [v4.3.5 - Experimenting with Bluetooth Capabilities](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.5)
 - [v4.3.4 - Urgent Fix for Home Screen Interaction](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.4)
