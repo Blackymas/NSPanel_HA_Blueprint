@@ -80,6 +80,7 @@ You will find the following configuration entities under the device's page (**Se
 |Cover open duration|`1ms` to `600000ms`|`1ms` (disabled)|The amount of time it takes the cover to open from the fully closed state.|
 |Cover close duration|`1ms` to `600000ms`|`1ms` (disabled)|The amount of time it takes the cover to close from the fully open state.|
 |Cover acceleration wait time|`0ms` to `10000ms`|`0ms`|Considers the wait time needed by the cover to start moving after a command is issued, accounting for large inertia.|
+|Cover direction change wait time|`0ms` to `10000ms`|`100ms`|Stops cover and forces a wait time between direction changes, protecting motors. If set, an intermediate stop action will be invoked if an open/close action is issued while moving in the opposite direction.|
 |Cover interlock wait time|`1ms` to `5000ms`|`250ms`|Imposes a time delay from one switch turning off until the other can turn on, preventing both switches from being on simultaneously.<br>***ATTENTION***, this is a software interlock, please read more abou on [ESPHome Switch Interlocking](https://esphome.io/components/switch/gpio.html#interlocking) page|
 <!-- markdownlint-enable MD013 MD033 -->
 
