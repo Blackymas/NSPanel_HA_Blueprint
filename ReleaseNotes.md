@@ -794,8 +794,7 @@ ensuring improved performance and user experience.
 - **Affected Components:** ESPHome
 - **Issue Number:** #2119
 - **Description:** Resolved a critical issue where the Bluetooth Proxy addon caused the NSPanel to crash.
-  This fix stabilizes the Bluetooth functionality,
-  ensuring reliable performance when the Bluetooth Proxy addon is enabled.
+  This fix stabilizes the Bluetooth functionality, ensuring reliable performance when the Bluetooth Proxy addon is enabled.
 
 ### Climate Page Entity State Icons Display Fixed (#2111)
 - **Criticality:** Minor
@@ -839,8 +838,7 @@ ensuring improved performance and user experience.
 - **Affected Components:** ESPHome, Blueprint
 - **Description:** Introduced an experimental add-on for cover control.
   This feature is designed to provide advanced cover management options through the NSPanel interface.
-  For detailed instructions and usage,
-  refer to the [add-on cover documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/addon_cover.md).
+  For detailed instructions and usage, refer to the [add-on cover documentation](docs/addon_cover.md).
 
 These updates address critical issues and enhance the overall functionality and user experience of the NSPanel.
 We appreciate the community's feedback and contributions, which help us continually improve this project.
@@ -859,6 +857,7 @@ We extend our heartfelt thanks to the contributors who have played a pivotal rol
 Your efforts have significantly improved its functionality and reliability (#1839).
 - **@andythomas**: For the comprehensive enhancements made to our documentation.
 Your contributions have made our guides more informative and accessible, enriching the user experience for everyone (#1865).
+-  **@AJediIAm**: For the valuable contributions in reviewing and improving the installation documentation (#2106 & #2107).
 
 ## Previous releases
 - [v4.3.7 - Quick Fix for Captive Portal Compile Error](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.7)
