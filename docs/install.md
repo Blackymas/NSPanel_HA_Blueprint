@@ -134,6 +134,7 @@ Follow these steps to add a new device in the ESPHome Dashboard:
          # - esphome/nspanel_esphome_addon_climate_cool.yaml
          - esphome/nspanel_esphome_addon_climate_heat.yaml
          # - esphome/nspanel_esphome_addon_climate_dual.yaml
+         # - esphome/nspanel_esphome_addon_cover.yaml
    ```
 
    ![YAML Code](pics/ha_esphome_dashboard_new_device_06.png)
