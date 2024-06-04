@@ -820,6 +820,14 @@ ensuring improved performance and user experience.
   This update centers the buttons correctly,
   providing a consistent and aesthetically pleasing interface for EU panel users.
 
+### Utility Dashboard Loading Issue Fixed (#2122)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint, ESPHome
+- **Issue Number:** #2122
+- **Description:** Resolved an issue where the Utility Dashboard was not loading all information.
+  This fix ensures that the Utility Dashboard reliably loads all information each time it is accessed,
+  maintaining consistent functionality and performance.
+
 ### Larger Alarm Pin Pad (#2103)
 - **Criticality:** Enhancement
 - **Affected Components:** TFT
