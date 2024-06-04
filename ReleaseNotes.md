@@ -836,6 +836,14 @@ ensuring improved performance and user experience.
   This fix ensures that the unit of measurement provided by Home Assistant is consistently displayed,
   improving the readability and aesthetics of the temperature information.
 
+### Wake Up Enhancement for Timeout Sleep Setting (#2055)
+- **Criticality:** Enhancement
+- **Affected Components:** ESPHome
+- **Issue Number:** #2055
+- **Description:** Introduced a new feature allowing the NSPanel to wake up when the Timeout Sleep setting is set to 0.
+  This enhancement ensures that the display remains active if the sleep timeout is disabled,
+  aligning with user preferences for continuous operation.
+
 ### Larger Alarm Pin Pad (#2103)
 - **Criticality:** Enhancement
 - **Affected Components:** TFT
