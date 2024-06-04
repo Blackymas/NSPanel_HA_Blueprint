@@ -828,6 +828,14 @@ ensuring improved performance and user experience.
   This fix ensures that the Utility Dashboard reliably loads all information each time it is accessed,
   maintaining consistent functionality and performance.
 
+### Temperature Display Unit Fix on Home Page (#755)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Issue Number:** #755
+- **Description:** Corrected an issue where the temperature display on the home page showed inconsistent unit (e.g., `°`).
+  This fix ensures that the unit of measurement provided by Home Assistant is consistently displayed,
+  improving the readability and aesthetics of the temperature information.
+
 ### Larger Alarm Pin Pad (#2103)
 - **Criticality:** Enhancement
 - **Affected Components:** TFT
