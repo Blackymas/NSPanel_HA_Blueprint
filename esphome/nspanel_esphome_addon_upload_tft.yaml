@@ -84,9 +84,9 @@ globals:
     initial_value: '0'
 
   - id: tft_upload_result
-    type: esphome::nextion::Nextion::TFTUploadResult
+    type: bool
     restore_value: false
-    initial_value: 'esphome::nextion::Nextion::TFTUploadResult::UNKNOWN'
+    initial_value: 'false'
 
 script:
   - id: !extend dump_config
@@ -125,7 +125,7 @@ script:
       - lambda: |-
           ESP_LOGD("addon_upload_tft.script.nextion_upload", "Starting TFT upload...");
           id(tft_upload_result) = disp1->upload_tft(baud_rate, !disp1->is_setup());
-          ESP_LOGD("addon_upload_tft.script.nextion_upload", "TFT upload: %s", esphome::nextion::Nextion::tft_upload_result_to_string(id(tft_upload_result)));
+          ESP_LOGD("addon_upload_tft.script.nextion_upload", "TFT upload: %s", YESNO(id(tft_upload_result)));
 
   - id: open_upload_dialog
     mode: restart
@@ -239,32 +239,36 @@ script:
           #ifdef USE_ESP32_BLE_CLIENT
           ble_tracker->dump_config();
           ESP_LOGD(TAG, "Disable BLE");
+          bool ble_proxy_active_mode = false;
           #ifdef USE_BLUETOOTH_PROXY
-          ESP_LOGD(TAG, "  Bluetooth proxy: %s", ble_proxy->has_active() ? "Active" : "Passive");
-          while (ble_proxy->has_active() and
-                 ble_proxy->get_bluetooth_connections_limit() != ble_proxy->get_bluetooth_connections_free()) {
-            ESP_LOGD(TAG, "    BT proxy connections: %i of %i",
-                     int(ble_proxy->get_bluetooth_connections_limit() - ble_proxy->get_bluetooth_connections_free()),
-                     int(ble_proxy->get_bluetooth_connections_limit()));
-            if (ble_proxy->has_active()) {
-              ESP_LOGD(TAG, "    BT proxy set passive mode...");
-              ble_proxy->set_active(false);
-            }
-            #ifdef ARDUINO
-            delay(1000);
-            #elif defined(USE_ESP_IDF)
-            vTaskDelay(pdMS_TO_TICKS(1000));
-            #endif
+          ble_proxy_active_mode = ble_proxy->has_active();
+          ESP_LOGD(TAG, "  Bluetooth proxy: %s", ble_proxy_active_mode ? "Active" : "Passive");
+          if (ble_proxy_active_mode) {
+            ESP_LOGD(TAG, "    BT proxy set passive mode...");
+            ble_proxy->set_active(false);
+            delay(250);
             App.feed_wdt();
           }
           #endif  // USE_BLUETOOTH_PROXY
           ESP_LOGD(TAG, "  Stopping BLE Tracker scan...");
           ble_tracker->stop_scan();
+          delay(250);
+          App.feed_wdt();
           ESP_LOGD(TAG, "  Disabling BLE Tracker scan...");
           ble_tracker->set_scan_active(false);
-          ESP_LOGD(TAG, "  Disabling BLE...");
-          ble_tracker->get_parent()->disable();
+          delay(250);
+          App.feed_wdt();
+          if (!ble_proxy_active_mode and ble_tracker->get_parent() != nullptr) {
+            ESP_LOGD(TAG, "  Disabling BLE...");
+            delay(250);
+            App.feed_wdt();
+            ble_component->disable();
+            delay(250);
+            App.feed_wdt();
+          }
           ble_tracker->dump_config();
+          delay(250);
+          App.feed_wdt();
           #endif  // USE_ESP32_BLE_CLIENT
 
       - lambda: if (id(tft_is_valid) and current_page->state != "confirm") disp1->goto_page("home");
@@ -350,7 +354,7 @@ script:
       - switch.turn_off: screen_power
       - delay: 2s
       # Restart ESPHome
-      - lambda: App.safe_reboot();
+      - lambda: arch_restart();
 
       ### This code should never run
       - delay: 2s
@@ -396,7 +400,7 @@ script:
       - lambda: |-
           char update_msg[128];
           sprintf(update_msg, "Attempt #%d at %" PRIu32 " bps", id(tft_upload_attempt), tf_uart->get_baud_rate());
-          id(tft_upload_result) = esphome::nextion::Nextion::TFTUploadResult::UNKNOWN;
+          id(tft_upload_result) = false;
           report_upload_progress->execute(update_msg);
       - script.wait: report_upload_progress
       - wait_until:
@@ -410,22 +414,17 @@ script:
       - lambda: |-
           char update_msg[128];
           sprintf(update_msg, "Attempt #%d at %" PRIu32 " bps returned: %s", id(tft_upload_attempt),
-                  tf_uart->get_baud_rate(), esphome::nextion::Nextion::tft_upload_result_to_string(id(tft_upload_result)));
+                  tf_uart->get_baud_rate(), YESNO(id(tft_upload_result)));
           report_upload_progress->execute(update_msg);
       - script.wait: report_upload_progress
       - if:
           condition:
-            - lambda: |-
-                return
-                  id(tft_upload_result) != esphome::nextion::Nextion::TFTUploadResult::UNKNOWN and
-                  id(tft_upload_result) != esphome::nextion::Nextion::TFTUploadResult::UPLOAD_IN_PROGRESS and
-                  id(tft_upload_result) != esphome::nextion::Nextion::TFTUploadResult::NEXTION_ERROR_PREPARATION_FAILED and
-                  id(tft_upload_result) != esphome::nextion::Nextion::TFTUploadResult::NEXTION_ERROR_INVALID_RESPONSE;
+            - lambda: return id(tft_upload_result);
           then:
             - delay: 5s
             - lambda: |-
                 ESP_LOGI("addon_upload_tft.script.upload_tft_attempt", "Restarting ESPHome");
-                App.safe_reboot();
+                arch_restart();
 
 select:
   - id: tft_file_model

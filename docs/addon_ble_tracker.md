@@ -53,6 +53,7 @@ It is crucial to use the `esp-idf` framework to avoid such issues.
           # - esphome/nspanel_esphome_addon_climate_cool.yaml
           # - esphome/nspanel_esphome_addon_climate_heat.yaml
           # - esphome/nspanel_esphome_addon_climate_dual.yaml
+          # - esphome/nspanel_esphome_addon_cover.yaml
     ```
 2. **Update Substitutions**: Customize `"YOUR_NSPANEL_NAME"` and `"Your Friendly Name"` to appropriate identifiers for your device and its Bluetooth functionality.
 3. **Save and Upload**: After making the necessary changes, save your configuration file and upload it to your NSPanel via the ESPHome dashboard.

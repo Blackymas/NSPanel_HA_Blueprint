@@ -22,6 +22,7 @@ Updates the visual state (on/off) of the left and right hardware button indicato
   - [QR Code Service (`qrcode`)](#qr-code-service-qrcode): Displays a QR code on the panel or updates the QR code information for local control.
   - [RTTTL Play Service (`rtttl_play`)](#rtttl-play-service-rtttl_play): Plays melodies encoded in the RTTTL format.
   - [Upload TFT Service (`upload_tft`)](#tft-file-update-service-upload_tft): Enables TFT file updates from a URL, requiring the "Upload TFT" add-on.
+  - [Utilities Group Refresh Service (`utilities_group_refresh`)](#utilities-group-refresh-service-utilities_group_refresh): Updates utility group display values and direction indicators.
   - [Value Service (`value`)](#value-service-value): Updates an entity to display specific values.
   - [Wake Up Service (`wake_up`)](#wake-up-service-wake_up): Activates the display from a screensaver or low-brightness state.
   - [Alarm Settings Page Service (`page_alarm`)](#alarm-settings-page-service-page_alarm): Updates the Alarm page with current state information.
@@ -70,6 +71,7 @@ If you send anything different, the conversion to the RGB565 used by Nextion wil
 | [`qrcode`](#qr-code-service-qrcode) | [QR Code Service](#qr-code-service-qrcode) | Displays a QR code on the panel or update the QR code information for local control. |
 | [`rtttl_play`](#rtttl-play-service-rtttl_play) | [RTTTL Play Service](#rtttl-play-service-rtttl_play) | Plays melodies encoded in the RTTTL format. |
 | [`upload_tft`](#tft-file-update-service-upload_tft) | [Upload TFT Service](#tft-file-update-service-upload_tft) | Enables TFT file updates from a URL, requiring the "Upload TFT" add-on. |
+| [`utilities_group_refresh`](#utilities-group-refresh-service-utilities_group_refresh) | [Utilities Group Refresh Service](#utilities-group-refresh-service-utilities_group_refresh) | Updates utility group display values and direction indicators. |
 | [`value`](#value-service-value) | [Value Service](#value-service-value) | Updates an entity to display specific values. |
 | [`wake_up`](#wake-up-service-wake_up) | [Wake Up Service](#wake-up-service-wake_up) | Activates the display from a screensaver or low-brightness state. |
 <!-- markdownlint-enable MD013 -->
@@ -727,6 +729,34 @@ data:
 > [!ATTENTION]
 > The "Upload TFT" add-on must be installed for this service to be available, enhancing the panel's flexibility for interface customization or troubleshooting.
 <!-- markdownlint-enable MD028 -->
+
+### Utilities Group Refresh Service: `utilities_group_refresh`
+Updates utility group display values and direction indicators on the panel. This service is used to refresh the displayed values for utility groups dynamically.
+
+**Usage:**
+This service is particularly useful for updating display elements associated with utility groups, such as values and directional indicators, based on specified parameters.
+
+**Parameters:**
+- `group_id` (string): The unique identifier for the utility group.
+- `value1` (string): The first value to be displayed for the group.
+- `value2` (string): The second value to be displayed for the group.
+- `direction` (int): The direction indicator value for the group.
+- `constructor` (bool): A flag to indicate if this is a constructor call, which forces updates regardless of current values.
+
+**Home Assistant Example:**
+```yaml
+service: esphome.<your_panel_name>_utilities_group_refresh
+data:
+  group_id: "home"
+  value1: "100 kWh"
+  value2: "26 °C"
+  direction: 1
+  constructor: false
+```
+> [!NOTE]
+> Replace `<your_panel_name>` with the specific name of your panel configured in Home Assistant to ensure correct service execution.
+
+This service updates utility group display elements with the specified values and direction indicators dynamically.
 
 ### Value Service: `value`
 Updates an entity to display specific values, allowing for dynamic updates of icons, names, and value colors within Home Assistant.
