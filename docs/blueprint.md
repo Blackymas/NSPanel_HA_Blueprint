@@ -66,25 +66,11 @@ If the value of the sensor needs to be corrected, this can be done via the tempe
 
 ## Home page - Entities States
 
-### Home page - Entity 01-04 (Optional)
-
-Up to four entities can be displayed on the home screen.
-Select the corresponding HA entity.
-
-## Home page - Chips
-
-### Chip 01-07 - Entity (Optional)
-
-Used to display HA entities on the home screen.
-For example to display the status of a specific switch on the NSPanel.
-
-## Home page - Custom buttons
-
-### Custom button 01-06 - Entity (Optional)
-
-Your panel will show 10 buttons on the Home page.
-4 of those are fixed for Notifications, QR Code, Entities pages and Alarm, but you have additional 6 custom buttons that can be assigned to different entities from your Home Assistant.
-The behavior of these buttons will depend on the entity's domain (light, media player, etc).
+| Entity | Description | Example |
+| ---    | ---         | ---     |
+| Home page - Entity State 01-04 (Optional) | Up to four HA entities can be displayed on the home screen. | ![PXL_20240509_183412876](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/5879533/49fba8fb-ad1e-44e7-9958-99dd47e2ad95) |
+| Home page - Chips 01-07 (optional) | Used to display icons of HA binary entities on the home screen. The icon is displayed then the entity is on/open/true/active. Otherwise, no icon is displayed. | ![chip](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/5879533/1c7e798f-bae8-4998-b35e-149689ced27f) |
+| Custom button 01-06 (Optional) | 7 custom buttons that can be assigned to different entities from your Home Assistant. The behavior of these buttons will depend on the entity's domain (light, media player, etc). | ![192351376](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/5879533/be2f21e0-02eb-4b32-999f-e303df74f6b6) |
 
 ## Alarm Control Panel
 

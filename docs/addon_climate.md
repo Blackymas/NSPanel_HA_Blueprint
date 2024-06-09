@@ -56,6 +56,7 @@ packages:
       # - esphome/nspanel_esphome_addon_climate_cool.yaml
       - esphome/nspanel_esphome_addon_climate_heat.yaml
       # - esphome/nspanel_esphome_addon_climate_dual.yaml
+      # - esphome/nspanel_esphome_addon_cover.yaml
 ```
 
 ## Configuration

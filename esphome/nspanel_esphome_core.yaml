@@ -17,7 +17,7 @@ substitutions:
   invalid_cooldown: "100ms"
   bytes_per_char: "1"
   ##### DON'T CHANGE THIS ######
-  version: "4.3.7"
+  version: "4.3.8"
   ##############################
 
 ##### External components #####
@@ -27,38 +27,25 @@ external_components:
       # path: packages/Blackymas/components
       type: git
       url: https://github.com/Blackymas/NSPanel_HA_Blueprint
-      ref: v4.3.7
+      ref: v4.3.8
     components:
       - nspanel_ha_blueprint
-    refresh: 300s
+    refresh: 30s
   - source:
       type: git
       url: https://github.com/edwardtfn/esphome
-      ref: nextion-v435
+      ref: nextion-40
     components:
-      - nextion  # Change this when that PR#6192 gets released (2024.5?)
-      - psram    # Change this when that PR#6526 gets released (2024.5?)
-    refresh: 300s
-  - source:
-      type: git
-      url: https://github.com/edwardtfn/esphome
-      ref: esp32ble-01
+      - nextion  # Change this when that PR#6758 gets released (2024.6?)
+  - source: github://pr#6330
     components:
-      - esp32_ble_tracker  # Change this when that PR#6585 gets released (2024.5?)
-    refresh: 300s
-  - source:
-      type: git
-      url: https://github.com/edwardtfn/esphome
-      ref: adc-sampling
-    components:
-      - adc  # Change this when PR#6330 is merged (2024.4?)
-    refresh: 300s
+      - adc  # Change this when PR#6330 is merged and released (2024.6)
 
 ##### ESPHOME CONFIGURATION #####
 esphome:
   name: ${name}
   friendly_name: ${friendly_name}
-  min_version: 2023.12.0
+  min_version: 2024.5.0
   platformio_options:
     build_flags:
       - -Wno-missing-field-initializers
@@ -869,25 +856,29 @@ api:
         value1: string
         value2: string
         direction: int
+        constructor: bool
       then:
         - lambda: |-
             if (!id(is_uploading_tft) and !group_id.empty()) {
               uint8_t id = findUtilitiesGroupIndex(group_id.c_str());
               if (id != UINT8_MAX) {
                 // Update Value 1
-                if (!value1.empty() and strcmp(value1.c_str(), UtilitiesGroups[id].value1) != 0) {
+                if (!value1.empty() and
+                    (constructor or strcmp(value1.c_str(), UtilitiesGroups[id].value1) != 0)) {
                   copyStringToCharArray(UtilitiesGroups[id].value1, value1);
                   disp1->set_component_text(group_id.c_str(), value1.c_str());
                 }
 
                 // Update Value 2
-                if (!value2.empty() and strcmp(value2.c_str(), UtilitiesGroups[id].value2) != 0) {
+                if (!value2.empty() and
+                    (constructor or strcmp(value2.c_str(), UtilitiesGroups[id].value2) != 0)) {
                   copyStringToCharArray(UtilitiesGroups[id].value2, value2);
                   disp1->set_component_text((group_id + "b").c_str(), value2.c_str());
                 }
 
                 // Update direction
-                if (group_id != "grid" and !isnan(direction) and direction != UtilitiesGroups[id].direction) {
+                if (group_id != "grid" and !isnan(direction) and
+                    (constructor or direction != UtilitiesGroups[id].direction)) {
                   UtilitiesGroups[id].direction = direction;
                   disp1->set_component_value((group_id + "_line_d").c_str(), direction);
                 }
@@ -984,7 +975,7 @@ display:
               switch (component_id) {
                 case 4:  // Reboot button
                   if (!touch_event) {  // Release
-                    App.safe_reboot();
+                    arch_restart();
                   }
                   break;
               }
@@ -993,7 +984,7 @@ display:
               switch (component_id) {
                 case 9:  // Reboot button
                   if (!touch_event) {  // Release
-                    App.safe_reboot();
+                    arch_restart();
                   }
                   break;
               }
@@ -1028,9 +1019,14 @@ display:
               break;
             case 22:  // fan
               switch (component_id) {
-                case 15:  // bt_oscillate
+                case 13:  // bt_oscillate
                   if (!touch_event) {  // Release
                     ha_call_service->execute("fan.oscillate", "oscillating", "toggle", detailed_entity->state.c_str());
+                  }
+                  break;
+                case 14:  // power_button
+                  if (!touch_event) {  // Release
+                    ha_call_service->execute("fan.toggle", "", "", detailed_entity->state.c_str());
                   }
                   break;
               }
@@ -1473,6 +1469,7 @@ number:
     unit_of_measurement: "s"
     on_value:
       - lambda: |-
+          if (x == 0 and current_page->state == "screensaver") goto_page->execute(wakeup_page_name->state.c_str());
           timer_dim->execute();
           timer_sleep->execute();
 
@@ -1567,7 +1564,7 @@ sensor:
   - id: ntc_source
     platform: adc
     pin: 38
-    attenuation: 11db
+    attenuation: 12db
     samples: 4
     update_interval: 10s
     filters:
