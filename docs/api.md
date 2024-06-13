@@ -853,7 +853,7 @@ automation:
 - **Description**: Icon representing the state of the main climate entity.
 - **Type**: Icon only with no touch commands.
 - **Availability**: Global (available even when page is not visible).
-- **Ids**: `home.chip_relay1` and `home.chip_relay2`.
+- **Ids**: `home.chip_climate`.
 
 ### Home Page - Custom buttons
 ![Image](pics/Nextion_Components_Home_Custom_Buttons_EU.png)
