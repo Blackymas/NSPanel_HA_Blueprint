@@ -11,6 +11,9 @@ along with the [ESPHome Bluetooth Proxy component](https://esphome.io/components
 - Ensure the `esp-idf` framework is utilized for the [ESP32 Platform](customization.md#framework-esp-idf) when enabling Bluetooth features.
 Avoid switching to the `arduino` framework as it significantly increases memory usage, potentially causing installation failures on your panel.
 
+> [!IMPORTANT]
+> This add-on includes the BLE Tracker add-on as well. Do not include that package in your configuration (or otherwise include `esp32_ble_tracker` in your configuration) otherwise  you may experience build errors.
+
 > [!WARNING]
 > The `arduino` framework, while compatible, should not be used for Bluetooth-intensive applications on the NSPanel due to its higher memory consumption.
 
