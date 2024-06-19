@@ -881,6 +881,23 @@ ensuring improved performance and user experience.
 These updates address critical issues and enhance the overall functionality and user experience of the NSPanel.
 We appreciate the community's feedback and contributions, which help us continually improve this project.
 
+## v4.3.9 - Ensuring Compatibility with ESPHome v2024.6.0
+This patch addresses a critical compatibility issue introduced by the release of ESPHome v2024.6.0.
+The OTA format has changed, necessitating updates to ensure seamless firmware updates and system stability for NSPanel users.
+
+> [!WARNING]
+> Home Assistant v2024.6.0 and ESPHome v2024.6.0 are required.
+> Please take a look at our [Version compatibility matrix](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/version_compatibility.md) for a full list.
+
+### OTA Format Compatibility Update
+- **Criticality:** Critical
+- **Affected Components:** ESPHome
+- **Description:** Updated the NSPanel firmware to be compatible with the new OTA format introduced in ESPHome v2024.6.0.
+  This change is essential for maintaining the ability to perform over-the-air updates, ensuring continuous system functionality and stability.
+
+Please ensure you are using Home Assistant v2024.6.0 or later, along with the latest ESPHome version,
+to benefit from these updates and maintain optimal performance.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
