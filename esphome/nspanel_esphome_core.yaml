@@ -9,15 +9,28 @@ substitutions:
   ##############################
   ## Change only in your      ##
   ## local yaml substitutions ##
-  device_name: NSPanel
+  device_name: nspanel
   name: ${device_name}
   friendly_name: ${device_name}
   ota_password: ${wifi_password}
   temp_units: "°C"
   invalid_cooldown: "100ms"
   bytes_per_char: "1"
+  ##############################
+
   ##### DON'T CHANGE THIS ######
-  version: "4.3.8"
+  version: "4.3.9"
+  NSPANEL_HA_BLUEPRINT_CORE: "true"
+  NSPANEL_HA_BLUEPRINT_ADVANCED: "false"
+  NSPANEL_HA_BLUEPRINT_ADDON_BLE_TRACKER: "false"
+  NSPANEL_HA_BLUEPRINT_ADDON_BLUETOOTH_PROXY: "false"
+  NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT: "false"
+  NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE: "false"
+  NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL: "false"
+  NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL: "false"
+  NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT: "false"
+  NSPANEL_HA_BLUEPRINT_PREBUILT: "false"
+  NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY: "false"
   ##############################
 
 ##### External components #####
@@ -27,29 +40,23 @@ external_components:
       # path: packages/Blackymas/components
       type: git
       url: https://github.com/Blackymas/NSPanel_HA_Blueprint
-      ref: v4.3.8
+      ref: v4.3.9
     components:
       - nspanel_ha_blueprint
     refresh: 30s
-  - source:
-      type: git
-      url: https://github.com/edwardtfn/esphome
-      ref: nextion-40
-    components:
-      - nextion  # Change this when that PR#6758 gets released (2024.6?)
-  - source: github://pr#6330
-    components:
-      - adc  # Change this when PR#6330 is merged and released (2024.6)
 
 ##### ESPHOME CONFIGURATION #####
 esphome:
   name: ${name}
   friendly_name: ${friendly_name}
-  min_version: 2024.5.0
-  platformio_options:
-    build_flags:
-      - -Wno-missing-field-initializers
-      - -D NSPANEL_HA_BLUEPRINT_CORE
+  min_version: 2024.6.0
+  project:
+    name: esphome.NSPanel_HA_Blueprint
+    version: "${version}"
+#  platformio_options:
+#    build_flags:
+#      - -Wno-missing-field-initializers
+#      - -D NSPANEL_HA_BLUEPRINT_CORE
 
   on_boot:
     - priority: 600.0  # This is where most sensors are set up.
@@ -118,11 +125,12 @@ wifi:
 
 ##### OTA PASSWORD #####
 ota:
-  id: ota_std
-  password: ${ota_password}
-  safe_mode: true
-  reboot_timeout: 3min
-  num_attempts: 3
+  - id: ota_std
+    platform: esphome
+    password: ${ota_password}
+    #safe_mode: true
+    #reboot_timeout: 3min
+    #num_attempts: 3
 
 ##### Adds custom library for NSPanel HA Blueprint project
 nspanel_ha_blueprint:
@@ -1779,22 +1787,23 @@ text_sensor:
       return {"${name}"};
     filters:
       - lambda: |-
-          #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT
-          std::string suffix = "00ERROR";  // Default suffix in case of an error
-          uint8_t mac[6] = {0,0,0,0,0,0};
-          if (esp_read_mac(mac, ESP_MAC_WIFI_STA) == ESP_OK) {
-            suffix.clear();  // Clear the default error suffix
-            for (int i = 3; i < 6; ++i) {  // Use last 3 bytes of MAC
-              char hex[3];
-              snprintf(hex, sizeof(hex), "%02X", mac[i]);
-              suffix += hex;
+          std::string raw_name;
+          if (${NSPANEL_HA_BLUEPRINT_PREBUILT}) {
+            std::string suffix = "00ERROR";  // Default suffix in case of an error
+            uint8_t mac[6] = {0,0,0,0,0,0};
+            if (esp_read_mac(mac, ESP_MAC_WIFI_STA) == ESP_OK) {
+              suffix.clear();  // Clear the default error suffix
+              for (int i = 3; i < 6; ++i) {  // Use last 3 bytes of MAC
+                char hex[3];
+                snprintf(hex, sizeof(hex), "%02X", mac[i]);
+                suffix += hex;
+              }
             }
+            // Proceed with suffix (either MAC-based or default error indicator)
+            raw_name = (x + "-" + suffix);
+          } else {
+            raw_name = x;
           }
-          // Proceed with suffix (either MAC-based or default error indicator)
-          const std::string raw_name = (x + "-" + suffix);
-          #else
-          const std::string raw_name = x;
-          #endif
 
           std::string result;
           bool last_was_underscore = false;
@@ -2269,36 +2278,16 @@ script:
             else
               ESP_LOGCONFIG(TAG, "  TFT:         %s", version_tft->state.c_str());
             ESP_LOGCONFIG(TAG, "Packages:");
-            #ifdef NSPANEL_HA_BLUEPRINT_CORE
-            ESP_LOGCONFIG(TAG, "  - Core");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADVANCED
-            ESP_LOGCONFIG(TAG, "  - Advanced");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_BLUETOOTH_PROXY
-            ESP_LOGCONFIG(TAG, "  - Bluetooth Proxy");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
-            ESP_LOGCONFIG(TAG, "  - Upload TFT");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE
-            ESP_LOGCONFIG(TAG, "  - Climate - Base");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL
-            ESP_LOGCONFIG(TAG, "  - Climate - Cool");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
-            ESP_LOGCONFIG(TAG, "  - Climate - Dual");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT
-            ESP_LOGCONFIG(TAG, "  - Climate - Heat");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT
-            ESP_LOGCONFIG(TAG, "  - Pre-built");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY
-            ESP_LOGCONFIG(TAG, "  - Pre-built (Wall Display)");
-            #endif
+            if (${NSPANEL_HA_BLUEPRINT_CORE}) ESP_LOGCONFIG(TAG, "  - Core");
+            if (${NSPANEL_HA_BLUEPRINT_ADVANCED}) ESP_LOGCONFIG(TAG, "  - Advanced");
+            if (${NSPANEL_HA_BLUEPRINT_ADDON_BLUETOOTH_PROXY}) ESP_LOGCONFIG(TAG, "  - Bluetooth Proxy");
+            if (${NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT}) ESP_LOGCONFIG(TAG, "  - Upload TFT");
+            if (${NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE}) ESP_LOGCONFIG(TAG, "  - Climate - Base");
+            if (${NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL}) ESP_LOGCONFIG(TAG, "  - Climate - Cool");
+            if (${NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL}) ESP_LOGCONFIG(TAG, "  - Climate - Dual");
+            if (${NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT}) ESP_LOGCONFIG(TAG, "  - Climate - Heat");
+            if (${NSPANEL_HA_BLUEPRINT_PREBUILT}) ESP_LOGCONFIG(TAG, "  - Pre-built");
+            if (${NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY}) ESP_LOGCONFIG(TAG, "  - Pre-built (Wall Display)");
             #if defined(USE_BLUETOOTH_PROXY) || defined(USE_WEBSERVER) || defined(USE_CAPTIVE_PORTAL)
             ESP_LOGCONFIG(TAG, "Components:");
             #ifdef USE_ESP32_BLE_SERVER
