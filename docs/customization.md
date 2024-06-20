@@ -150,7 +150,8 @@ captive_portal: !remove
 
 # Removes the OTA password
 ota:
-  password: !remove
+  - id: !extend ota_std
+    password: !remove
 ```
 
 > [!ATTENTION]
@@ -187,10 +188,10 @@ esphome:
     - priority: 601.0
       then:
         - lambda: |-
-            id(my_ota).set_auth_password("New password");
+            id(ota_std).set_auth_password("New password");
 ota:
-  password: !secret wifi_password
-  id: my_ota
+  - id: ota_std
+    password: !secret wifi_password
 ```
 
 After flashing the device, you must remove the code above and replace it with the code below to start using this customization.
@@ -198,7 +199,8 @@ After flashing the device, you must remove the code above and replace it with th
 ```yaml
 # Use my global OTA password
 ota:
-  password: !secret ota_password
+  - id: ota_std
+    password: !secret ota_password
 ```
 
 ### Web server credentials
