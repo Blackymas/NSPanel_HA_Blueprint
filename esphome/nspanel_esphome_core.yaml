@@ -55,19 +55,23 @@ esphome:
   project:
     name: esphome.NSPanel_HA_Blueprint
     version: "${version}"
-#  platformio_options:
-#    build_flags:
-#      - -Wno-missing-field-initializers
-#      - -D NSPANEL_HA_BLUEPRINT_CORE
+  # platformio_options:
+  #   build_flags:
+  #     - -D NSPANEL_HA_BLUEPRINT_CORE
 
   on_boot:
     - priority: 600.0  # This is where most sensors are set up.
       then:
         - lambda: |-
+            boot_log->execute("Set time zone");
             set_timezone->execute(id(mui_timezone).c_str());
+            boot_log->execute("Publish Blueprint progress (0)");
             if (isnan(blueprint_status->raw_state)) blueprint_status->publish_state(0);
+            boot_log->execute("Publish firmware version");
             version_esphome->publish_state("${version}");
+            boot_log->execute("Publish device name");
             device_name->publish_state("${name}");
+            boot_log->execute("Reset notification entities");
             notification_label->publish_state("");
             notification_text->publish_state("");
             notification_unread->turn_off();
@@ -75,7 +79,9 @@ esphome:
             condition:
               - lambda: return (not isnan(stoi(baud_rate->state)));
             timeout: 60s
-        - lambda: if (stoi(baud_rate->state) != tf_uart->get_baud_rate()) set_baud_rate->execute(stoi(baud_rate->state), true);
+        - lambda: |-
+            boot_log->execute("Set baud rate");
+            if (stoi(baud_rate->state) != tf_uart->get_baud_rate()) set_baud_rate->execute(stoi(baud_rate->state), true);
         - wait_until:
             condition:
               - lambda: return disp1->is_setup();
@@ -84,6 +90,7 @@ esphome:
             condition:
               - lambda: return (not disp1->is_detected());
             then:
+              - lambda: boot_log->execute("Restart Nextion");
               - switch.turn_off: screen_power
               - delay: 2s
               - switch.turn_on: screen_power
@@ -2008,7 +2015,7 @@ text_sensor:
   - id: version_tft
     name: Version TFT
     platform: nextion
-    component_name: boot.tft_version
+    component_name: boot.version
     entity_category: diagnostic
     icon: mdi:tag-text-outline
     internal: false
@@ -2019,6 +2026,19 @@ text_sensor:
 
 ### Scripts ######
 script:
+  - id: boot_log
+    mode: parallel
+    max_runs: 100
+    parameters:
+      log_message: string
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.boot_log";
+          ESP_LOGD(TAG, log_message.c_str());
+          if (current_page->state == "boot") {
+            disp1->send_command_printf("log_body.txt+=\"%s\\r\"", log_message.c_str());
+          }
+
   - id: boot_event
     mode: restart
     parameters:
@@ -2327,7 +2347,7 @@ script:
           if (!id(is_uploading_tft)) {
             // Blueprint version
             version_blueprint->publish_state(blueprint_version.c_str());
-            disp1->set_component_text("boot.bluep_version", blueprint_version.c_str());
+            disp1->set_component_text_printf("ver_blueprint", "Blueprint: %s", blueprint_version.c_str());
             check_versions->execute();
 
             // MUI strings
@@ -2426,7 +2446,7 @@ script:
     then:
       - lambda: |-
           ESP_LOGW("script.page_blank", "Construct blank page");
-          disp1->set_component_text("esp_version", "ESP: ${version}");  // ESPHome version
+          disp1->set_component_text("esp_version", "FW: ${version}");  // ESPHome version
           #ifdef ARDUINO
           disp1->set_component_text("framework", "Arduino");
           #elif defined(USE_ESP_IDF)
@@ -2439,18 +2459,22 @@ script:
     then:
       - logger.log: Page boot called
       - lambda: |-
+          boot_log->execute("Starting boot sequence");
           boot_progress->execute(0);
           set_brightness->execute(100);
           update_tft_info->execute();
-          disp1->set_component_text("boot.esph_version", "${version}");  // ESPHome version
+          boot_log->execute("ESPHome firmware v${version}");
+          disp1->set_component_text("ver_firmware", "Firmware: ${version}");  // ESPHome version
           boot_progress->execute(1);
           #ifdef ARDUINO
-          disp1->set_component_text("framework", "Arduino");
+          boot_log->execute("Framework: Arduino");
+          disp1->set_component_text("sys_framework", "Arduino");
           #elif defined(USE_ESP_IDF)
-          disp1->set_component_text("framework", "ESP-IDF");
+          boot_log->execute("Framework: ESP-IDF");
+          disp1->set_component_text("sys_framework", "ESP-IDF");
           #endif
           boot_progress->execute(2);
-      - logger.log: Wait for Wi-Fi
+          boot_log->execute("Waiting for Wi-Fi...");
       - wait_until:
           condition:
             - lambda: return (wifi_component->is_connected());
@@ -2459,8 +2483,8 @@ script:
           condition:
             - lambda: return (wifi_component->is_connected());
           then:  # Wi-Fi connected
-            - logger.log: Wi-Fi connected
             - lambda: |-
+                boot_log->execute("Wi-Fi connected");
                 boot_progress->execute(3);
                 if (current_page->state == "boot") {
                   #if ESPHOME_VERSION_CODE < VERSION_CODE(2024, 3, 0)  // Code for ESPHome earlier than v2024.3.0
@@ -2470,7 +2494,7 @@ script:
                   #endif  // ESPHome version based code
                   set_brightness->execute(100);
                 }
-            - logger.log: Wait for API
+                boot_log->execute("Waiting for API...");
             - wait_until:
                 condition:
                   - lambda: return (api_server->is_connected());
@@ -2479,16 +2503,19 @@ script:
                 condition:
                   - lambda: return (api_server->is_connected());
                 then:  # API connected
-                  - logger.log: API connected
                   - lambda: |-
+                      boot_log->execute("API connected");
                       boot_progress->execute(4);
                       if (blueprint_status->state <= 99) boot_event->execute(true);
+      - lambda: |-
+          boot_log->execute("Waiting for Blueprint...");
       - wait_until:
           condition:
             - lambda: return (wifi_component->is_connected() and api_server->is_connected() and blueprint_status->state > 99);
           timeout: 5s
       - lambda: |-
           boot_progress->execute(5);
+          boot_log->execute("Sending display settings");
           disp1->send_command_printf("brightness=%i", int(display_brightness->state));
           disp1->set_component_value("settings.brightslider", int(display_brightness->state));
           disp1->send_command_printf("brightness_dim=%i", int(display_dim_brightness->state));
@@ -2496,6 +2523,7 @@ script:
           disp1->send_command_printf("brightness_sleep=%i", int(display_sleep_brightness->state));
           disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
           boot_progress->execute(6);
+          boot_log->execute("Publish Nextion state");
           nextion_init->publish_state(disp1->is_setup());
           if (api_server->is_connected() and disp1->is_setup()) {
             esphome::api::CustomAPIDevice ha_event;
@@ -2508,6 +2536,7 @@ script:
               });
           }
           boot_progress->execute(7);
+          boot_log->execute("Set Home page elements");
           // Chips icon size
           for (int i = 1; i <= 7; ++i) {
             disp1->send_command_printf("home.chip%02d.font=%i", i, id(home_chip_font_id));
@@ -2526,6 +2555,7 @@ script:
           disp1->set_component_text("home.bt_icon", "\uE0AE");
           #endif
           boot_progress->execute(8);
+          boot_log->execute("Wait for boot to finish");
       - wait_until:
           condition:
             - lambda: return (wifi_component->is_connected() and api_server->is_connected() and blueprint_status->state > 99);
@@ -2535,8 +2565,12 @@ script:
       - lambda: boot_progress->execute(10);
       - delay: 1s
       - lambda: |-
-          if (notification_sound->state) buzzer->play("two short:d=4,o=5,b=100:16e6,16e6");
+          if (notification_sound->state) {
+            boot_log->execute("Play boot sound");
+            buzzer->play("two short:d=4,o=5,b=100:16e6,16e6");
+          }
           set_brightness->execute(display_brightness->state);
+          boot_log->execute("Jump to wake-up page");
           ESP_LOGD("script.page_boot", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
           goto_page->execute(wakeup_page_name->state.c_str());
 
