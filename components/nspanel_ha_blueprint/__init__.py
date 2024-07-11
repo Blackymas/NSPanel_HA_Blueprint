@@ -18,8 +18,6 @@ CONFIG_SCHEMA = cv.All(
 
 @coroutine_with_priority(1.0)
 async def to_code(config):
-    cg.add_build_flag("-Wno-missing-field-initializers")
-
     if CORE.using_arduino:
         cg.add_build_flag("-DCONFIG_D0WD_PSRAM_CLK_IO=5")
         cg.add_build_flag("-DCONFIG_D0WD_PSRAM_CS_IO=18")
