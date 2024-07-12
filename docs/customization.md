@@ -190,7 +190,7 @@ esphome:
         - lambda: |-
             id(ota_std).set_auth_password("New password");
 ota:
-  - id: ota_std
+  - id: !extend ota_std
     password: !secret wifi_password
 ```
 
@@ -199,7 +199,7 @@ After flashing the device, you must remove the code above and replace it with th
 ```yaml
 # Use my global OTA password
 ota:
-  - id: ota_std
+  - id: !extend ota_std
     password: !secret ota_password
 ```
 
