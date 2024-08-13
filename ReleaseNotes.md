@@ -898,6 +898,24 @@ The OTA format has changed, necessitating updates to ensure seamless firmware up
 Please ensure you are using Home Assistant v2024.6.0 or later, along with the latest ESPHome version,
 to benefit from these updates and maintain optimal performance.
 
+## v4.3.10 - Boot Stability Enhancements and Troubleshooting Support
+This patch introduces critical fixes and a new boot screen feature to improve system stability and assist in troubleshooting when BLE is in use.
+
+### BLE-Related Boot Issue Resolved
+- **Criticality:** Major
+- **Affected Components:** Blueprint, ESPHome, TFT
+- **Issue Numbers:** #2155, #2168, #2176 and #2218
+- **Description:** Fixed an issue that caused the NSPanel to fail during boot when BLE was enabled.
+This fix ensures that devices boot reliably even with BLE active, enhancing system stability.
+
+### New Boot Screen with Troubleshooting Log
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint, ESPHome, TFT
+- **Description:** Introduced a new boot screen that displays essential logs during the boot process.
+This feature aids in troubleshooting by providing real-time information on the panel's status during startup, making it easier to diagnose and resolve issues.
+
+This update is crucial for users leveraging BLE functionality, and the new boot screen is a valuable tool for ensuring smooth operation and efficient troubleshooting.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
@@ -915,6 +933,8 @@ Your contributions have made our guides more informative and accessible, enrichi
 -  **@AJediIAm**: For the valuable contributions in reviewing and improving the installation documentation (#2106 & #2107).
 
 ## Previous releases
+- [v4.3.9 - Ensuring Compatibility with ESPHome v2024.6.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.9)
+- [v4.3.8 - Enhancements and Bug Fix](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.8)
 - [v4.3.7 - Quick Fix for Captive Portal Compile Error](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.7)
 - [v4.3.6 - Critical Fixes for Custom Buttons](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.6)
 - [v4.3.5 - Experimenting with Bluetooth Capabilities](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.5)
