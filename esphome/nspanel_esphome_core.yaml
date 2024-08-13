@@ -19,7 +19,6 @@ substitutions:
   ##############################
 
   ##### DON'T CHANGE THIS ######
-  version: "4.3.9"
   NSPANEL_HA_BLUEPRINT_CORE: "true"
   NSPANEL_HA_BLUEPRINT_ADVANCED: "false"
   NSPANEL_HA_BLUEPRINT_ADDON_BLE_TRACKER: "false"
@@ -33,6 +32,9 @@ substitutions:
   NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY: "false"
   ##############################
 
+packages:
+  version: !include nspanel_esphome_version.yaml
+
 ##### External components #####
 external_components:
   - source:
@@ -40,7 +42,7 @@ external_components:
       # path: packages/Blackymas/components
       type: git
       url: https://github.com/Blackymas/NSPanel_HA_Blueprint
-      ref: v4.3.9
+      ref: v${version}
     components:
       - nspanel_ha_blueprint
     refresh: 30s
@@ -53,19 +55,24 @@ esphome:
   project:
     name: esphome.NSPanel_HA_Blueprint
     version: "${version}"
-#  platformio_options:
-#    build_flags:
-#      - -Wno-missing-field-initializers
-#      - -D NSPANEL_HA_BLUEPRINT_CORE
+  platformio_options:
+    build_flags:
+      - -Wno-missing-field-initializers
+      - -D NSPANEL_HA_BLUEPRINT_CORE
 
   on_boot:
     - priority: 600.0  # This is where most sensors are set up.
       then:
         - lambda: |-
+            boot_log->execute("on_boot", "Set time zone");
             set_timezone->execute(id(mui_timezone).c_str());
+            boot_log->execute("on_boot", "Publish Blueprint progress (0)");
             if (isnan(blueprint_status->raw_state)) blueprint_status->publish_state(0);
+            boot_log->execute("on_boot", "Publish firmware version");
             version_esphome->publish_state("${version}");
+            boot_log->execute("on_boot", "Publish device name");
             device_name->publish_state("${name}");
+            boot_log->execute("on_boot", "Reset notification entities");
             notification_label->publish_state("");
             notification_text->publish_state("");
             notification_unread->turn_off();
@@ -73,7 +80,9 @@ esphome:
             condition:
               - lambda: return (not isnan(stoi(baud_rate->state)));
             timeout: 60s
-        - lambda: if (stoi(baud_rate->state) != tf_uart->get_baud_rate()) set_baud_rate->execute(stoi(baud_rate->state), true);
+        - lambda: |-
+            boot_log->execute("on_boot", "Set baud rate");
+            if (stoi(baud_rate->state) != tf_uart->get_baud_rate()) set_baud_rate->execute(stoi(baud_rate->state), true);
         - wait_until:
             condition:
               - lambda: return disp1->is_setup();
@@ -82,6 +91,7 @@ esphome:
             condition:
               - lambda: return (not disp1->is_detected());
             then:
+              - lambda: boot_log->execute("on_boot", "Restart Nextion");
               - switch.turn_off: screen_power
               - delay: 2s
               - switch.turn_on: screen_power
@@ -128,9 +138,6 @@ ota:
   - id: ota_std
     platform: esphome
     password: ${ota_password}
-    #safe_mode: true
-    #reboot_timeout: 3min
-    #num_attempts: 3
 
 ##### Adds custom library for NSPanel HA Blueprint project
 nspanel_ha_blueprint:
@@ -213,6 +220,8 @@ api:
   reboot_timeout: 60min
   on_client_connected:
     then:
+      - lambda: |-
+          if (current_page->state == "boot") boot_log->execute("API", "Client connected");
       - script.execute: refresh_wifi_icon
       - script.execute: dump_config
   on_client_disconnected:
@@ -371,6 +380,7 @@ api:
         screensaver_time_color: int[]  # RGB color for the screensaver time display, e.g., [165, 42, 42] for reddish-brown.
         decimal_separator: string      # The char to be used as decimal separator.
       then:
+        - lambda: boot_log->execute("Service", "init_global");
         - if:
             condition:
               - lambda: return (!id(is_uploading_tft));
@@ -408,6 +418,7 @@ api:
         embedded_climate_friendly_name: string  # Friendly name for the climate control feature.
         embedded_indoor_temperature: bool       # Enables indoor temperature display.
       then:
+        - lambda: boot_log->execute("Service", "init_hardware");
         - if:
             condition:
               - lambda: return (!id(is_uploading_tft));
@@ -477,6 +488,7 @@ api:
         outdoor_temp_font: int                 # Font Id for outdoor temperature indication on the "Home" page.
       then:
         - lambda: |-
+            boot_log->execute("Service", "init_page_home");
             if (!id(is_uploading_tft)) {
               using namespace esphome::display;
               // Localization
@@ -540,6 +552,7 @@ api:
         dim: string         # Text label for the dim brightness level slider, signaling a lower light option for energy saving.
       then:
         - lambda: |-
+            boot_log->execute("Service", "init_page_settings");
             if (!id(is_uploading_tft)) {
               if (not reboot.empty()) disp1->set_component_text_printf("settings.lbl_reboot", " %s", reboot.c_str());
               disp1->set_component_text_printf("settings.lbl_brightness", " %s", brightness.c_str());
@@ -961,6 +974,7 @@ display:
     uart_id: tf_uart
     on_setup:
       lambda: |-
+        boot_log->execute("Nextion", "on_setup");
         if (!id(is_uploading_tft)) {
           nextion_init->publish_state(true);
           version_tft->update();
@@ -981,7 +995,7 @@ display:
           switch (page_id) {
             case 0:  // Boot
               switch (component_id) {
-                case 4:  // Reboot button
+                case 24:  // Reboot button
                   if (!touch_event) {  // Release
                     arch_restart();
                   }
@@ -1481,6 +1495,10 @@ number:
           timer_dim->execute();
           timer_sleep->execute();
 
+safe_mode:
+  reboot_timeout: 3min
+  num_attempts: 3
+
 ##### START - SELECT CONFIGURATION #####
 select:
   - id: baud_rate
@@ -1787,23 +1805,22 @@ text_sensor:
       return {"${name}"};
     filters:
       - lambda: |-
-          std::string raw_name;
-          if (${NSPANEL_HA_BLUEPRINT_PREBUILT}) {
-            std::string suffix = "00ERROR";  // Default suffix in case of an error
-            uint8_t mac[6] = {0,0,0,0,0,0};
-            if (esp_read_mac(mac, ESP_MAC_WIFI_STA) == ESP_OK) {
-              suffix.clear();  // Clear the default error suffix
-              for (int i = 3; i < 6; ++i) {  // Use last 3 bytes of MAC
-                char hex[3];
-                snprintf(hex, sizeof(hex), "%02X", mac[i]);
-                suffix += hex;
-              }
+          #ifdef ESP_MAC_WIFI_STA
+          std::string suffix = "00ERROR";  // Default suffix in case of an error
+          uint8_t mac[6] = {0,0,0,0,0,0};
+          if (esp_read_mac(mac, ESP_MAC_WIFI_STA) == ESP_OK) {
+            suffix.clear();  // Clear the default error suffix
+            for (int i = 3; i < 6; ++i) {  // Use last 3 bytes of MAC
+              char hex[3];
+              snprintf(hex, sizeof(hex), "%02X", mac[i]);
+              suffix += hex;
             }
-            // Proceed with suffix (either MAC-based or default error indicator)
-            raw_name = (x + "-" + suffix);
-          } else {
-            raw_name = x;
           }
+          // Proceed with suffix (either MAC-based or default error indicator)
+          const std::string raw_name = (x + "-" + suffix);
+          #else
+          const std::string raw_name = x;
+          #endif
 
           std::string result;
           bool last_was_underscore = false;
@@ -2008,7 +2025,7 @@ text_sensor:
   - id: version_tft
     name: Version TFT
     platform: nextion
-    component_name: boot.tft_version
+    component_name: boot.version
     entity_category: diagnostic
     icon: mdi:tag-text-outline
     internal: false
@@ -2019,6 +2036,20 @@ text_sensor:
 
 ### Scripts ######
 script:
+  - id: boot_log
+    mode: parallel
+    max_runs: 100
+    parameters:
+      category: string
+      log_message: string
+    then:
+      - lambda: |-
+          static const char *const TAG = "script.boot_log";
+          ESP_LOGD(TAG, log_message.c_str());
+          if (current_page->state == "boot") {
+            disp1->send_command_printf("log_body.txt+=\"%s: %s\\r\"", category.c_str(), log_message.c_str());
+          }
+
   - id: boot_event
     mode: restart
     parameters:
@@ -2098,8 +2129,8 @@ script:
       - lambda: |-
           if (!id(is_uploading_tft)) {
             ESP_LOGD("script.check_versions", "Versions:");
-            ESP_LOGD("script.check_versions", "  ESPHome:   ${version}");
             ESP_LOGD("script.check_versions", "  TFT:       %s", version_tft->state.c_str());
+            ESP_LOGD("script.check_versions", "  ESPHome:   ${version}");
             if (not compare_versions("${version}", version_tft->state.c_str()))
               ESP_LOGE("script.check_versions", "TFT version mismatch!");
             ESP_LOGD("script.check_versions", "  Blueprint: %s", version_blueprint->state.c_str());
@@ -2278,16 +2309,36 @@ script:
             else
               ESP_LOGCONFIG(TAG, "  TFT:         %s", version_tft->state.c_str());
             ESP_LOGCONFIG(TAG, "Packages:");
-            if (${NSPANEL_HA_BLUEPRINT_CORE}) ESP_LOGCONFIG(TAG, "  - Core");
-            if (${NSPANEL_HA_BLUEPRINT_ADVANCED}) ESP_LOGCONFIG(TAG, "  - Advanced");
-            if (${NSPANEL_HA_BLUEPRINT_ADDON_BLUETOOTH_PROXY}) ESP_LOGCONFIG(TAG, "  - Bluetooth Proxy");
-            if (${NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT}) ESP_LOGCONFIG(TAG, "  - Upload TFT");
-            if (${NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE}) ESP_LOGCONFIG(TAG, "  - Climate - Base");
-            if (${NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL}) ESP_LOGCONFIG(TAG, "  - Climate - Cool");
-            if (${NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL}) ESP_LOGCONFIG(TAG, "  - Climate - Dual");
-            if (${NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT}) ESP_LOGCONFIG(TAG, "  - Climate - Heat");
-            if (${NSPANEL_HA_BLUEPRINT_PREBUILT}) ESP_LOGCONFIG(TAG, "  - Pre-built");
-            if (${NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY}) ESP_LOGCONFIG(TAG, "  - Pre-built (Wall Display)");
+            #ifdef NSPANEL_HA_BLUEPRINT_CORE
+            ESP_LOGCONFIG(TAG, "  - Core");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADVANCED
+            ESP_LOGCONFIG(TAG, "  - Advanced");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_BLUETOOTH_PROXY
+            ESP_LOGCONFIG(TAG, "  - Bluetooth Proxy");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
+            ESP_LOGCONFIG(TAG, "  - Upload TFT");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE
+            ESP_LOGCONFIG(TAG, "  - Climate - Base");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL
+            ESP_LOGCONFIG(TAG, "  - Climate - Cool");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+            ESP_LOGCONFIG(TAG, "  - Climate - Dual");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT
+            ESP_LOGCONFIG(TAG, "  - Climate - Heat");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT
+            ESP_LOGCONFIG(TAG, "  - Pre-built");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY
+            ESP_LOGCONFIG(TAG, "  - Pre-built (Wall Display)");
+            #endif
             #if defined(USE_BLUETOOTH_PROXY) || defined(USE_WEBSERVER) || defined(USE_CAPTIVE_PORTAL)
             ESP_LOGCONFIG(TAG, "Components:");
             #ifdef USE_ESP32_BLE_SERVER
@@ -2326,8 +2377,9 @@ script:
       - lambda: |-
           if (!id(is_uploading_tft)) {
             // Blueprint version
+            boot_log->execute("Blueprint", "Global settings");
             version_blueprint->publish_state(blueprint_version.c_str());
-            disp1->set_component_text("boot.bluep_version", blueprint_version.c_str());
+            disp1->set_component_text_printf("ver_blueprint", "Blueprint: %s", blueprint_version.c_str());
             check_versions->execute();
 
             // MUI strings
@@ -2426,7 +2478,7 @@ script:
     then:
       - lambda: |-
           ESP_LOGW("script.page_blank", "Construct blank page");
-          disp1->set_component_text("esp_version", "ESP: ${version}");  // ESPHome version
+          disp1->set_component_text("esp_version", "FW: ${version}");  // ESPHome version
           #ifdef ARDUINO
           disp1->set_component_text("framework", "Arduino");
           #elif defined(USE_ESP_IDF)
@@ -2439,18 +2491,22 @@ script:
     then:
       - logger.log: Page boot called
       - lambda: |-
+          boot_log->execute("Boot", "Starting sequence");
           boot_progress->execute(0);
           set_brightness->execute(100);
           update_tft_info->execute();
-          disp1->set_component_text("boot.esph_version", "${version}");  // ESPHome version
+          boot_log->execute("Boot", "ESPHome FW v${version}");
+          disp1->set_component_text("ver_firmware", "Firmware: ${version}");  // ESPHome version
           boot_progress->execute(1);
           #ifdef ARDUINO
-          disp1->set_component_text("framework", "Arduino");
+          boot_log->execute("Boot", "Framework is Arduino");
+          disp1->set_component_text("sys_framework", "Framework: Arduino");
           #elif defined(USE_ESP_IDF)
-          disp1->set_component_text("framework", "ESP-IDF");
+          boot_log->execute("Boot", "Framework is ESP-IDF");
+          disp1->set_component_text("sys_framework", "Framework: ESP-IDF");
           #endif
           boot_progress->execute(2);
-      - logger.log: Wait for Wi-Fi
+          boot_log->execute("Boot", "Waiting for Wi-Fi...");
       - wait_until:
           condition:
             - lambda: return (wifi_component->is_connected());
@@ -2459,18 +2515,18 @@ script:
           condition:
             - lambda: return (wifi_component->is_connected());
           then:  # Wi-Fi connected
-            - logger.log: Wi-Fi connected
             - lambda: |-
+                boot_log->execute("Boot", "Wi-Fi connected");
                 boot_progress->execute(3);
                 if (current_page->state == "boot") {
                   #if ESPHOME_VERSION_CODE < VERSION_CODE(2024, 3, 0)  // Code for ESPHome earlier than v2024.3.0
-                  disp1->set_component_text("ip_addr", network::get_ip_address().str().c_str());
+                  disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_address().str().c_str());
                   #else  // Code for ESPHome v2024.3.0 or newer
-                  disp1->set_component_text("ip_addr", network::get_ip_addresses()[0].str().c_str());
+                  disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());
                   #endif  // ESPHome version based code
                   set_brightness->execute(100);
                 }
-            - logger.log: Wait for API
+                boot_log->execute("Boot", "Waiting for API...");
             - wait_until:
                 condition:
                   - lambda: return (api_server->is_connected());
@@ -2479,16 +2535,19 @@ script:
                 condition:
                   - lambda: return (api_server->is_connected());
                 then:  # API connected
-                  - logger.log: API connected
                   - lambda: |-
+                      boot_log->execute("Boot", "API connected");
                       boot_progress->execute(4);
                       if (blueprint_status->state <= 99) boot_event->execute(true);
+      - lambda: |-
+          boot_log->execute("Boot", "Waiting for Blueprint...");
       - wait_until:
           condition:
             - lambda: return (wifi_component->is_connected() and api_server->is_connected() and blueprint_status->state > 99);
           timeout: 5s
       - lambda: |-
           boot_progress->execute(5);
+          boot_log->execute("Boot", "Sending display settings");
           disp1->send_command_printf("brightness=%i", int(display_brightness->state));
           disp1->set_component_value("settings.brightslider", int(display_brightness->state));
           disp1->send_command_printf("brightness_dim=%i", int(display_dim_brightness->state));
@@ -2496,6 +2555,7 @@ script:
           disp1->send_command_printf("brightness_sleep=%i", int(display_sleep_brightness->state));
           disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
           boot_progress->execute(6);
+          boot_log->execute("Boot", "Publish Nextion state");
           nextion_init->publish_state(disp1->is_setup());
           if (api_server->is_connected() and disp1->is_setup()) {
             esphome::api::CustomAPIDevice ha_event;
@@ -2508,6 +2568,7 @@ script:
               });
           }
           boot_progress->execute(7);
+          boot_log->execute("Boot", "Set Home page elements");
           // Chips icon size
           for (int i = 1; i <= 7; ++i) {
             disp1->send_command_printf("home.chip%02d.font=%i", i, id(home_chip_font_id));
@@ -2526,6 +2587,7 @@ script:
           disp1->set_component_text("home.bt_icon", "\uE0AE");
           #endif
           boot_progress->execute(8);
+          boot_log->execute("Boot", "Wait to finish");
       - wait_until:
           condition:
             - lambda: return (wifi_component->is_connected() and api_server->is_connected() and blueprint_status->state > 99);
@@ -2535,8 +2597,12 @@ script:
       - lambda: boot_progress->execute(10);
       - delay: 1s
       - lambda: |-
-          if (notification_sound->state) buzzer->play("two short:d=4,o=5,b=100:16e6,16e6");
+          if (notification_sound->state) {
+            boot_log->execute("Boot", "Play boot sound");
+            buzzer->play("two short:d=4,o=5,b=100:16e6,16e6");
+          }
           set_brightness->execute(display_brightness->state);
+          boot_log->execute("Boot", "Jump to wake-up page");
           ESP_LOGD("script.page_boot", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
           goto_page->execute(wakeup_page_name->state.c_str());
 
