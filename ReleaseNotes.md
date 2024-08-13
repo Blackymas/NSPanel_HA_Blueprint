@@ -916,6 +916,19 @@ This feature aids in troubleshooting by providing real-time information on the p
 
 This update is crucial for users leveraging BLE functionality, and the new boot screen is a valuable tool for ensuring smooth operation and efficient troubleshooting.
 
+## v4.3.11 - Hotfix for TFT File Download Issue
+This hotfix addresses a critical issue introduced in v4.3.10 where the incorrect TFT file was used during the download process.
+The fix has been applied to the release flow, but updating your firmware (ESPHome) is required, and it is recommended to also update the Blueprint and TFT components.
+
+### Incorrect TFT File Download Issue Resolved (#2223)
+- **Criticality:** Major
+- **Affected Components:** Release Flow, ESPHome, Blueprint, TFT
+- **Issue Number:** #2223
+- **Description:** Resolved an issue where the incorrect TFT file was being downloaded during the update process.
+This fix ensures that the correct TFT file is used, preventing potential display issues and ensuring that the panel functions as expected.
+
+This update is critical for maintaining the proper functionality of your NSPanel. Please ensure that you update all components as recommended.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
@@ -933,6 +946,7 @@ Your contributions have made our guides more informative and accessible, enrichi
 -  **@AJediIAm**: For the valuable contributions in reviewing and improving the installation documentation (#2106 & #2107).
 
 ## Previous releases
+- [v4.3.10 - Boot Stability Enhancements and Troubleshooting Support](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.10)
 - [v4.3.9 - Ensuring Compatibility with ESPHome v2024.6.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.9)
 - [v4.3.8 - Enhancements and Bug Fix](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.8)
 - [v4.3.7 - Quick Fix for Captive Portal Compile Error](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.7)
