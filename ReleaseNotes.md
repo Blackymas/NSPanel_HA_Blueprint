@@ -929,6 +929,25 @@ This fix ensures that the correct TFT file is used, preventing potential display
 
 This update is critical for maintaining the proper functionality of your NSPanel. Please ensure that you update all components as recommended.
 
+## v4.3.12 - TFT Update Automatically
+
+This release introduces the option to automatically update the TFT when an older version is detected,
+simplifying the update process and ensuring your panel always runs the latest display firmware.
+
+### TFT Update Automatically (#2227)
+- **Criticality:** Enhancement
+- **Affected Components:** ESPHome
+- **Issue Number:** #2227
+- **Description:** Implemented an automatic TFT update mechanism that triggers whenever the system detects an outdated TFT version.
+This enhancement streamlines the process of keeping your NSPanel display firmware up to date,
+reducing the need for manual intervention and ensuring optimal performance with the latest features and fixes.
+
+### Versioning Engine Updated to Enforce Patch-Level Consistency
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint, ESPHome, TFT
+- **Description:** Updated the versioning engine to require all components (Blueprint, ESPHome, and TFT) to match at the patch level, rather than just the minor version.
+This change improves system reliability by ensuring all parts are fully synchronized, helping to prevent compatibility issues and supporting the new automatic TFT update feature.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
@@ -946,6 +965,7 @@ Your contributions have made our guides more informative and accessible, enrichi
 -  **@AJediIAm**: For the valuable contributions in reviewing and improving the installation documentation (#2106 & #2107).
 
 ## Previous releases
+- [v4.3.11 - Hotfix for TFT File Download Issue](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.11)
 - [v4.3.10 - Boot Stability Enhancements and Troubleshooting Support](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.10)
 - [v4.3.9 - Ensuring Compatibility with ESPHome v2024.6.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.9)
 - [v4.3.8 - Enhancements and Bug Fix](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.8)
