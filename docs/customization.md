@@ -164,7 +164,7 @@ ota:
 ### API encryption
 > [!IMPORTANT]
 > Changing the API encryption can break the connection to Home Assistant,
-> requiring the device to be removed from integrations (**Settings** > **Devices & services** > **ESPHome**) and then re-added.
+> requiring the device to be removed from integrations (**Settings** > **Devices & Services** > **ESPHome**) and then re-added.
 
 This is highly recommended when you are transfer sensitive information between your panel and Home Assistant,
 as when you use your panel to enter the PIN for an Alarm Control Panel.
@@ -385,7 +385,7 @@ button:
         - lambda: |-
             goto_page->execute("screensaver");
   
-  # Adds a button to wake-up the panel (similar to the existing action)
+  # Adds a button to wake-up the panel (similar to the existing service)
   - name: Wake-up
     id: force_wake_up
     platform: template
