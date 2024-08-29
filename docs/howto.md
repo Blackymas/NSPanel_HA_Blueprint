@@ -132,32 +132,32 @@ The new firmware will be built and then flashed to your panel, which will restar
 > [!IMPORTANT]
 > These instructions are for updating a panel where an older version of these files are already installed.
 
-1. Go to ***Settings --> Devices & Services --> Integrations***, select the display under the ESPHome integration.
+1. Go to ***Settings --> Devices & services --> Integrations***, select the display under the ESPHome integration.
 2. Select the "**Update TFT Display - Model**" accordingly, under **Configuration**. 
 3. Press the button "**Update TFT Display**".
 4. The display starts the update process and then restarts.
 
 ## Notification via HA
-To show a notification on the NSPanel, the following service call can be used:
+To show a notification on the NSPanel, the following action call can be used:
 
 ```yaml
-service: esphome.panelname_notification_show
+action: esphome.panelname_notification_show
 data:
   label: Example label text
   message: Example message text
 ```
 > [!NOTE]
-> For more details about this service call, please refer to our [API documentation](api.md#notification-show-service-notification_show).
+> For more details about this action call, please refer to our [API documentation](api.md#notification-show-action-notification_show).
 
-To clear any notifications, the following service call can be used:
+To clear any notifications, the following action call can be used:
 
 ```yaml
-service: esphome.panelname_notification_clear
+action: esphome.panelname_notification_clear
 ```
 > [!NOTE]
-> For more details about this service call, please refer to our [API documentation](api.md#notification-clear-service-notification_clear).
+> For more details about this action call, please refer to our [API documentation](api.md#notification-clear-action-notification_clear).
 
-To use the notifications in an automation, again simply use the service call as shown in the example below:
+To use the notifications in an automation, again simply use the action call as shown in the example below:
 
 ```yaml
 description: ""
@@ -169,7 +169,7 @@ trigger:
     to: "on"
     condition: []
     action:
-  - service: esphome.panelname_notification_show
+  - action: esphome.panelname_notification_show
     data:
       label: Motion Detected
       message: Example for a Notification on the Panel Screen
@@ -212,15 +212,15 @@ Afterwards, the climate.entity must be assigned accordingly in the panel configu
 ## Call a Page Directly
 
 In user-created automations within Home Assistant, there are scenarios where you might want to automatically display a specific page on your device's screen.
-The following services enable this functionality:
+The following action enable this functionality:
 
 ### Basic Pages
 
-To open a specific page, you can utilize the `esphome.xxxxxx_command` service.
+To open a specific page, you can utilize the `esphome.xxxxxx_command` action.
 Here's an example that demonstrates how to open the `home` page:
 
 ```yaml
-service: esphome.xxxxx_command
+action: esphome.xxxxx_command
 data:
   cmd: page home
 ```
@@ -243,26 +243,26 @@ Currently, the following pages can be accessed using this method:
 For instance, to directly navigate to button page 2, replace `home` in the command with `buttonpage02`:
 
 ```yaml
-service: esphome.xxxxx_command
+action: esphome.xxxxx_command
 data:
   cmd: page buttonpage02
 ```
 > [!NOTE]
-> For more details about this service call, please refer to our [API documentation](api.md#command-service-command).
+> For more details about this action call, please refer to our [API documentation](api.md#command-action-command).
 
 ### Entity-Specific Pages
 
 For entity-specific pages, a more detailed call is required as it involves specifying the entity.
-You can use the service `esphome.xxxxx_entity_details_show` as shown in the following example:
+You can use the action `esphome.xxxxx_entity_details_show` as shown in the following example:
 
 ```yaml
-service: esphome.xxxxx_entity_details_show
+action: esphome.xxxxx_entity_details_show
 data:
   entity_id: climate.my_thermostat
   back_page: buttonpage01
 ```
 > [!NOTE]
-> For more details about this service call, please refer to our [API documentation](api.md#entity-details-show-service-entity_details_show).
+> For more details about this action call, please refer to our [API documentation](api.md#entity-details-show-action-entity_details_show).
 
 ### Wake-up Page
 
@@ -271,10 +271,10 @@ This page is automatically displayed after the device boots up or wakes up from 
 To open this page, you have two options:
 
 1. Directly call the page if it is one of the [Basic pages](#basic-pages).
-2. Use the `esphome.xxxxx_wake_up` service as follows:
+2. Use the `esphome.xxxxx_wake_up` action as follows:
 
    ```yaml
-   service: esphome.xxxxx_wake_up
+   action: esphome.xxxxx_wake_up
    data:
      reset_timer: true
    ```
@@ -282,19 +282,19 @@ To open this page, you have two options:
     The `reset_timer` parameter allows you to control the **Timeout sleep timer**.
     Setting it to `true` resets the timer, while `false` continues counting down from the current value.
 
-The **Wake-up** service differs from a normal page call in that it only opens the wake-up page if the panel is in sleep mode.
+The **Wake-up** action differs from a normal page call in that it only opens the wake-up page if the panel is in sleep mode.
 If the panel is already active, the current page remains displayed.
 This feature is particularly useful in conjunction with a motion sensor to wake up your panel automatically.
-By repeatedly calling this service whenever motion is detected, the panel can be either woken up or have its sleep timeout timer reset (if `reset_timer` is set to `true`).
+By repeatedly calling this action whenever motion is detected, the panel can be either woken up or have its sleep timeout timer reset (if `reset_timer` is set to `true`).
 
 > [!NOTE]
-> For more details about this service call, please refer to our [API documentation](api.md#wake-up-service-wake_up).
+> For more details about this action call, please refer to our [API documentation](api.md#wake-up-action-wake_up).
 
 ## Play RTTTL Sound
 
 HA can send a RTTTL to the NSPanel, custom melodies are possible.
 
-The use this function, the following service is called: `rtttl_play`
+The use this function, the following action is called: `rtttl_play`
 
 You can find many RTTTL strings on the web, the important thing is that they must start with the name and then a colon.
 
@@ -304,20 +304,20 @@ Here is an example:
 The Simpsons:d=4,o=5,b=160:c.6,e6,f#6,8a6,g.6,e6,c6,8a,8f#,8f#,8f#,2g,8p,8p,8f#,8f#,8f#,8g,a#.,8c6,8c6,8c6,c6
 ```
 
-![HA - Developer Tools - Services - RTTTL Play](pics/ha_developer_tools_services_rtttl_play.png)
+![HA - Developer Tools - Action - RTTTL Play](pics/ha_developer_tools_action_rtttl_play.png)
 
 More information: https://esphome.io/components/rtttl.html#common-beeps
 
 More songs: https://codebender.cc/sketch:109888#RTTTL%20Songs.ino
 
 > [!NOTE]
-> For more details about this service call, please refer to our [API documentation](api.md#rtttl-play-service-rtttl_play).
+> For more details about this action call, please refer to our [API documentation](api.md#rtttl-play-action-rtttl_play).
 
 ## Start Automations via Input_Boolean
 
 Although the NSPanel can execute scripts directly over the buttons, there is also the possibility of starting automations directly by the means of Input_Boolean.
 
-For this, a helper must first be created under ***Settings --> Devices&Services --> Helpers***
+For this, a helper must first be created under ***Settings --> Devices & services --> Helpers***
 
 Now add the created Input_Boolean as a trigger in the desired automation under State.
 

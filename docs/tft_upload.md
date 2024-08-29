@@ -53,7 +53,7 @@ Although it's not a fully functional TFT file, it's sufficient to disable the Re
 If you encounter any issues, try installing the `nspanel_blank.tft` file first. This should make it easier to subsequently install larger, fully functional TFT files.
 
 ### Enabling TFT upload components
-If the components necessary for uploading a TFT file are not available in the device's page under **Settings** > **Devices & Services** > **ESPHome**,
+If the components necessary for uploading a TFT file are not available in the device's page under **Settings** > **Devices & services** > **ESPHome**,
 and you cannot simply enable the entity on it's settings, please try removing the device integration from there, restart your Home Assistant instance and then add the device again.
 It should be automatically detected as a new integration, but if this is not happening,
 click the **Add integration** button, select **ESPHome**, add the device hostname or IP address and follow the steps required.

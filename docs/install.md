@@ -264,7 +264,7 @@ If that isn't happnening, you can manually add it as a new intgration with the f
 > to go directly to the dialog to add a new ESPHome device,
 > then you can go directly to step 3.
 
-1. Go to your [ESPHome integration's page](https://my.home-assistant.io/redirect/integration/?domain=esphome) under **Settings** > **Devices & Services** > **ESPHome**.
+1. Go to your [ESPHome integration's page](https://my.home-assistant.io/redirect/integration/?domain=esphome) under **Settings** > **Devices & services** > **ESPHome**.
 2. If your panel is automatically discovered, just click **Configure**, otherwise, click on **Add device**.
 3. Enter your new panel's hostname or IP address and click **Next**.
 4. Follow the instructions from your Home Assistant to add your new panel.
@@ -434,7 +434,7 @@ For homes with multiple panels:
 
 1. Repeat the steps in the "Blueprint" section for each panel.
 
-2. Ensure each panel has a unique entry in the ESPHome Dashboard and in Home Assistant under **Settings** → **Devices & Services** → **ESPHome**.
+2. Ensure each panel has a unique entry in the ESPHome Dashboard and in Home Assistant under **Settings** → **Devices & services** → **ESPHome**.
 
 3. Create a separate automation for each panel in Home Assistant.
 
