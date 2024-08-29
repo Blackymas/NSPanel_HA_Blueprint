@@ -929,29 +929,35 @@ This fix ensures that the correct TFT file is used, preventing potential display
 
 This update is critical for maintaining the proper functionality of your NSPanel. Please ensure that you update all components as recommended.
 
-## v4.3.12 - TFT Update Automatically
+## v4.3.12 - Automatic TFT Update
 
-This release introduces the option to automatically update the TFT when an older version is detected,
-simplifying the update process and ensuring your panel always runs the latest display firmware.
+This release introduces the option to automatically update the TFT when an older version is detected, simplifying the update process and ensuring your panel always runs the latest display firmware.
 
 > [!WARNING]
-> Home Assistant v2024.8.0 and ESPHome v2024.8.0 are required.
-> Please take a look at our [Version compatibility matrix](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/version_compatibility.md) for a full list.
-
+> Home Assistant v2024.8.0 and ESPHome v2024.8.0 are required.  
+> Please refer to our [Version Compatibility Matrix](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/version_compatibility.md) for a full list.
 
 ### TFT Update Automatically (#2227)
 - **Criticality:** Enhancement
 - **Affected Components:** ESPHome
 - **Issue Number:** #2227
-- **Description:** Implemented an automatic TFT update mechanism that triggers whenever the system detects an outdated TFT version.
-This enhancement streamlines the process of keeping your NSPanel display firmware up to date,
-reducing the need for manual intervention and ensuring optimal performance with the latest features and fixes.
+- **Description:** Introduced an automatic TFT update mechanism that triggers whenever the system detects an outdated TFT version.
+This enhancement streamlines the process of keeping your NSPanel display firmware up to date, minimizing manual intervention, and ensuring optimal performance with the latest features and fixes.
 
 ### Versioning Engine Updated to Enforce Patch-Level Consistency
 - **Criticality:** Enhancement
 - **Affected Components:** Blueprint, ESPHome, TFT
 - **Description:** Updated the versioning engine to require all components (Blueprint, ESPHome, and TFT) to match at the patch level, rather than just the minor version.
-This change improves system reliability by ensuring all parts are fully synchronized, helping to prevent compatibility issues and supporting the new automatic TFT update feature.
+This change enhances system reliability by ensuring all parts are fully synchronized, reducing compatibility issues and supporting the new automatic TFT update feature.
+
+> [!WARNING]
+> Moving forward, you must update all three components (Blueprint, ESPHome, and TFT) together to ensure consistency.
+
+### Updated References from `service` to `action` for Compatibility with New Standards
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint, ESPHome
+- **Description:** Updated all references from `service` to `action` to comply with the new standards introduced in Home Assistant v2024.8.0 and ESPHome v2024.8.0.
+This update guarantees full compatibility with the latest versions, aligns with current best practices, and future-proofs the system for upcoming releases.
 
 ## Support
 For support or more information about this update,
