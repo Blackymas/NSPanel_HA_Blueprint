@@ -66,7 +66,7 @@ They're created for each new release, allowing easy access to different project 
 The instructions to upload TFT will vary depending on the version you are installing and the framework you are using.
 
 #### v4.2 or later (if you are using ESP-IDF) or v4.2.5 or later (if you are using Arduino)
-1. Go to your device's page under **Settings** > **Devices & Services** > **ESPHome**.
+1. Go to your device's page under **Settings** > **Devices & services** > **ESPHome**.
 2. On the **Configuration** group, press **Update TFT display** and wait for the upload to complete. The system will automatically find the right TFT file for the ESPHome version you are running.
 
 #### v4.1 or earlier (in either case) or v4.2.4 or earlier (if you are using Arduino)
@@ -78,7 +78,7 @@ The instructions to upload TFT will vary depending on the version you are instal
 4. Double check your `nextion_update_url` substitution is pointing to the right URL where the file you just downloaded is available.
 
     ![Image](pics/esphome_dashboard_yaml_nextion_update_url.png)
-5. Go to your device's page under **Settings** > **Devices & Services** > **ESPHome**.
+5. Go to your device's page under **Settings** > **Devices & services** > **ESPHome**.
 6. On the **Configuration** group, press **Update TFT display** and wait for the upload to complete.
 
 ### For Blueprint Component
