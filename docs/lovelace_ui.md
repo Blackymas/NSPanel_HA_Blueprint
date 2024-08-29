@@ -20,7 +20,7 @@ If you are coming from there, you have to chose one of the 3 options:
 
 After following the [**Common steps**](#common-steps), follow the additional steps:
 
-1. On Home Assistant, go to _**"Developer tools --> Actions"**_ and search there for the action (formerly 'service') named "**ESPHome: DEVICE_NAME_upload_tft**" or `esphome.<<device_name>>_upload_tft`.
+1. On Home Assistant, go to _**"Developer tools --> Actions"**_ and search there for the action named "**ESPHome: DEVICE_NAME_upload_tft**" or `esphome.<<device_name>>_upload_tft`.
 2. On the field `URL`, enter the url for your local `nspanel_blank.tft` file (typically `http://homeassistant.local:8123/local/nspanel_blank.tft`).
 3. Press the button **PERFORM ACTION**
 
