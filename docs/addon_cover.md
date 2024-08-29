@@ -71,7 +71,7 @@ packages:
 
 For this add-on, all the basic settings are accessible via the device's page in
 your Home Assistant. For most cases, no additional YAML settings are needed.
-You will find the following configuration entities under the device's page (**Settings** > **Devices & Services** > **ESPHome**):
+You will find the following configuration entities under the device's page (**Settings** > **Devices & services** > **ESPHome**):
 
 
 <!-- markdownlint-disable MD013 MD033 -->

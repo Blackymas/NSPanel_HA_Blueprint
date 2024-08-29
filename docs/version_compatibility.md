@@ -3,7 +3,8 @@
 <!-- markdownlint-disable MD013 MD033 -->
 | NSPanel_HA_Blueprint<br><sub><sup>Version</sup></sub> | Home Assistant<br><sub><sup>Min version</sup></sub> | ESPHome<br><sub><sup>Min version</sup></sub> |
 | :--: | :--: | :--: |
-| v4.3.9 | 2024.6.0 | 2024.6.0 |
+| v4.3.12 | 2024.8.0 | 2024.6.0 |
+| v4.3.11<br>v4.3.10<br>v4.3.9 | 2024.6.0 | 2024.6.0 |
 | v4.3.8 | 2024.6.0 | 2024.5.0 |
 | v4.3.7<br>v4.3.6<br>v4.3.5<br>v4.3.4<br>v4.3.3 | 2024.3.0 | 2023.12.0 |
 | v4.3.2<br>v4.3.1 | 2024.3.0 | 2024.3.0 |

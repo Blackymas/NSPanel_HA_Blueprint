@@ -18,7 +18,7 @@ please refeer to the [Troubleshooting TFT transfer](tft_upload.md) guide.
 
 ## How to install a different `tft` file?
 
-Just go to your devices's page (under **Settings** > **Devices and Services** > **ESPHome**),
+Just go to your devices's page (under **Settings** > **Devices & services** > **ESPHome**),
 select your **Upload TFT display - Model** and then press **Upload TFT display**.
 
 ## What to do after installing `nspanel_blank.tft`?
@@ -28,7 +28,7 @@ select your **Upload TFT display - Model** and then press **Upload TFT display**
 Once you have sucessfully installed any of the `tft` files from this project,
 the `nspanel_blank.tft` file shouldn't be necessary anymore and you should be able to always install the final `tft` file.
 
-Just go to your devices's page (under **Settings** > **Devices and Services** > **ESPHome**),
+Just go to your devices's page (under **Settings** > **Devices & services** > **ESPHome**),
 select your **Upload TFT display - Model** and then press **Upload TFT display**.
 
 ## Additional Tips and Resources
