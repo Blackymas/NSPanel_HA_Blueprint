@@ -920,10 +920,6 @@ This update is crucial for users leveraging BLE functionality, and the new boot 
 This hotfix addresses a critical issue introduced in v4.3.10 where the incorrect TFT file was used during the download process.
 The fix has been applied to the release flow, but updating your firmware (ESPHome) is required, and it is recommended to also update the Blueprint and TFT components.
 
-> [!WARNING]
-> Home Assistant v2024.8.0 is required.
-> Please take a look at our [Version compatibility matrix](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/version_compatibility.md) for a full list.
-
 ### Incorrect TFT File Download Issue Resolved (#2223)
 - **Criticality:** Major
 - **Affected Components:** Release Flow, ESPHome, Blueprint, TFT
@@ -937,6 +933,11 @@ This update is critical for maintaining the proper functionality of your NSPanel
 
 This release introduces the option to automatically update the TFT when an older version is detected,
 simplifying the update process and ensuring your panel always runs the latest display firmware.
+
+> [!WARNING]
+> Home Assistant v2024.8.0 and ESPHome v2024.8.0 are required.
+> Please take a look at our [Version compatibility matrix](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/version_compatibility.md) for a full list.
+
 
 ### TFT Update Automatically (#2227)
 - **Criticality:** Enhancement
