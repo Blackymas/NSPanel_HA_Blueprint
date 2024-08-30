@@ -937,6 +937,14 @@ This release introduces the option to automatically update the TFT when an older
 > Home Assistant v2024.8.0 and ESPHome v2024.8.0 are required.  
 > Please refer to our [Version Compatibility Matrix](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/version_compatibility.md) for a full list.
 
+### Swipe Functionality Improvement and Bug Fix (#2244)
+- **Criticality:** Medium
+- **Affected Components:** ESPHome and TFT
+- **Issue Number:** #2244
+- **Description:** Resolved an issue where swipe functionality would intermittently stop working under specific conditions.
+  The swipe timer is now properly stopped on touch release before checking API status, preventing the timer from running indefinitely.
+  Additionally, the swipe engine has been removed from pages where swipe is not available, enhancing system performance and reliability.
+
 ### TFT Update Automatically (#2227)
 - **Criticality:** Enhancement
 - **Affected Components:** ESPHome
