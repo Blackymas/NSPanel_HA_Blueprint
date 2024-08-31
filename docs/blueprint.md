@@ -84,13 +84,17 @@ When you assign the entity here, its icon will be shown as a button on the Home 
 Here you select the main climate entity controlled by your panel.
 Its temperature will be used on the Home page and by clicking on that value you will be able to control the climate settings.
 
+> [!NOTE]
+> As of today, it is not possible to control other climate entities on the climate page. Only the main climate entity can be controlled.
+> If you want to control other climate entities, you will need to use regular button pages and add your climate entities there.
+
 You can optionally use your panel to control a climate system locally, using its temperature sensor and relays.
 You will find more details about this on the Add-on Climate documentation.
 
 If you are using the climate add-on, it will create a climate entity in your panel's device page.
 You still have to select that entity on this field in the blueprint settings to have it used as your main climate.
 
-Additional climate entities can be assigned to buttons and will be explained later in this document.
+Additional climate entities can be assigned to [hardware buttons](https://github.com/Blackymas/NSPanel_HA_Blueprint/edit/main/docs/blueprint.md#hardware-buttons).
 
 On the blueprint settings, you will also find settings for sensors and custom buttons to be shown on all the climate pages.
 
