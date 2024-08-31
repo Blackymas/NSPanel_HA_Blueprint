@@ -87,6 +87,7 @@ Its temperature will be used on the Home page and by clicking on that value you 
 > [!NOTE]
 > As of today, it is not possible to control other climate entities on the climate page. Only the main climate entity can be controlled.
 > If you want to control other climate entities, you will need to use regular button pages and add your climate entities there.
+> An enhancement issue is open [here](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues/2257).
 
 You can optionally use your panel to control a climate system locally, using its temperature sensor and relays.
 You will find more details about this on the Add-on Climate documentation.
