@@ -967,6 +967,14 @@ This release introduces the option to automatically update the TFT when an older
 - **Description:** Implemented a fix that allows the display to remain off when the button is pressed while the panel is sleeping.
   Although this was not the primary request in the issue, it addresses a reported problem and enhances the overall behavior of the display during sleep mode.
 
+### Screen Wake-Up on Hardware Button Press Configurable (#2194)
+- **Criticality:** Enhancement
+- **Affected Components:** ESPHome
+- **Issue Number:** #2194
+- **Description:** Added a new switch to configure whether the panel should wake up when a hardware button is pressed.
+  This switch can be found on the device’s page in Home Assistant (under **Settings** > **Devices & services** > **ESPHome**), in the "**Configuration**" area.
+  This enhancement provides users the flexibility to control display wake-up behavior, addressing requests for more convenient screen activation via hardware buttons.
+
 ### TFT Update Automatically (#2227)
 - **Criticality:** Enhancement
 - **Affected Components:** ESPHome
