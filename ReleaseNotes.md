@@ -945,6 +945,14 @@ This release introduces the option to automatically update the TFT when an older
   The swipe timer is now properly stopped on touch release before checking API status, preventing the timer from running indefinitely.
   Additionally, the swipe engine has been removed from pages where swipe is not available, enhancing system performance and reliability.
 
+### Fix for Climate Page Access with Embedded Thermostat Without Blueprint (#2190)
+- **Criticality:** Minor
+- **Affected Components:** ESPHome and TFT
+- **Issue Number:** #2190
+- **Description:** Resolved an issue preventing access to the climate page from the home page when using the embedded thermostat without blueprint connection
+  (e.g., when Home Assistant or Wi-Fi is unavailable).
+  This fix ensures that the NSPanel can still navigate correctly to the climate page when the internal temperature sensor is displayed, even if the blueprint connection is lost.
+
 ### Fix for Missing Default Icon After Manual Deletion (#2200)
 - **Criticality:** Minor
 - **Affected Components:** Blueprint
