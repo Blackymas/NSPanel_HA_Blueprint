@@ -1000,6 +1000,14 @@ This change enhances system reliability by ensuring all parts are fully synchron
   This feature, previously available only through customizations, is now part of the core setup. Users who have manually added this customization must remove it from their panel’s YAML configuration.
   This enhancement simplifies display management and integrates panel control into broader home automation routines.
 
+### Updated CLIMATE_MODE_AUTO Icon on Climate Page (#2243)
+- **Criticality:** Enhancement
+- **Affected Components:** ESPHome
+- **Issue Number:** #2243
+- **Description:** Updated the icon for CLIMATE_MODE_AUTO on the Climate page from “mdi:calendar-sync” to a more appropriate “mdi:refresh-auto” icon.
+  This change enhances the visual representation of the automatic mode, providing a clearer and more intuitive display for users when their climate control is set to auto.
+  The adjustment reflects user feedback and aims to improve the overall user experience on the Climate page.
+
 ### Updated References from `service` to `action` for Compatibility with New Standards
 - **Criticality:** Enhancement
 - **Affected Components:** Blueprint, ESPHome
