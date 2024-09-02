@@ -960,6 +960,13 @@ This release introduces the option to automatically update the TFT when an older
 - **Description:** Fixed an issue where default icons were not displayed after manually deleting a previously set custom icon on the home page.
   This update ensures that once a custom icon is removed and the field is left blank, the system correctly reverts to displaying the default icon as expected.
 
+### Keep Display Off with Button Press While Sleeping (#2194)
+- **Criticality:** Minor
+- **Affected Components:** ESPHome
+- **Issue Number:** #2194
+- **Description:** Implemented a fix that allows the display to remain off when the button is pressed while the panel is sleeping.
+  Although this was not the primary request in the issue, it addresses a reported problem and enhances the overall behavior of the display during sleep mode.
+
 ### TFT Update Automatically (#2227)
 - **Criticality:** Enhancement
 - **Affected Components:** ESPHome
