@@ -945,6 +945,13 @@ This release introduces the option to automatically update the TFT when an older
   The swipe timer is now properly stopped on touch release before checking API status, preventing the timer from running indefinitely.
   Additionally, the swipe engine has been removed from pages where swipe is not available, enhancing system performance and reliability.
 
+### Fix for Missing Default Icon After Manual Deletion (#2200)
+- **Criticality:** Minor
+- **Affected Components:** Blueprint
+- **Issue Number:** #2200
+- **Description:** Fixed an issue where default icons were not displayed after manually deleting a previously set custom icon on the home page.
+  This update ensures that once a custom icon is removed and the field is left blank, the system correctly reverts to displaying the default icon as expected.
+
 ### TFT Update Automatically (#2227)
 - **Criticality:** Enhancement
 - **Affected Components:** ESPHome
