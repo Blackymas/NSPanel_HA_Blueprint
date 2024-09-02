@@ -19,7 +19,7 @@ Table of contents:
   - [Enforce time zone](#enforce-time-zone)
   - [Compiling ESPHome on lower powered machines](#compiling-esphome-on-lower-powered-machines)
   - [Sleep & Wake-up buttons](#sleep--wake-up-buttons)
-  - [Set display as a light](#set-display-as-a-light)
+  - [Set display as a light](#set-display-as-a-light) - DEPRECATED
   - [Scheduled actions](#scheduled-actions)
     - [Scheduled relay](#scheduled-relay)
     - [Scheduled climate](#scheduled-climate)
@@ -401,6 +401,11 @@ button:
 ```
 
 ### Set display as a light
+
+> [!WARNING]
+> This was incorporated to the core yaml and therefore is deprecated as a customization.
+> If you have this added as a customization, please remove it to avoid conflicts.
+
 You can set your display as a light in Home Assistant, so you can control the brightness and turn on/off just like any other light,
 and even use this in your automation to control when your panel is on with the same automation you use for your lights:
 

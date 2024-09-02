@@ -991,6 +991,15 @@ This change enhances system reliability by ensuring all parts are fully synchron
 > [!WARNING]
 > Moving forward, you must update all three components (Blueprint, ESPHome, and TFT) together to ensure consistency.
 
+### Panel Display Control via Light Entity (#2091)
+- **Criticality:** Enhancement
+- **Affected Components:** ESPHome
+- **Issue Number:** #2091
+- **Description:** Introduced a light entity to represent the NSPanel's display, allowing users to control the panel’s brightness, wake it up,
+  or put it to sleep seamlessly through third-party automations designed for lights.
+  This feature, previously available only through customizations, is now part of the core setup. Users who have manually added this customization must remove it from their panel’s YAML configuration.
+  This enhancement simplifies display management and integrates panel control into broader home automation routines.
+
 ### Updated References from `service` to `action` for Compatibility with New Standards
 - **Criticality:** Enhancement
 - **Affected Components:** Blueprint, ESPHome

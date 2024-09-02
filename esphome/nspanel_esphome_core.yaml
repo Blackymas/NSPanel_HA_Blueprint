@@ -153,14 +153,6 @@ rtttl:
   id: buzzer
   output: buzzer_out
 
-##### CONFIGURE INTERNAL BUZZER #####
-output:
-  ##### BUZZER FOR PLAYING RINGTONES #####
-  - id: buzzer_out
-    platform: ledc
-    pin:
-      number: 21
-
 ##### UART FOR NEXTION DISPLAY #####
 uart:
   - id: tf_uart
@@ -1256,9 +1248,7 @@ globals:
     restore_value: false
     initial_value: '1'  # Horizontal alignment:0-Left;1-Center;2-Right
 
-##### START - BINARY SENSOR CONFIGURATION #####
 binary_sensor:
-
   ###### LEFT BUTTON BELOW DISPLAY TO TOGGLE RELAY#####
   - name: Left Button
     platform: gpio
@@ -1363,7 +1353,6 @@ binary_sensor:
     lambda: |-
       return (!id(is_uploading_tft) and disp1->is_setup());
 
-##### START - BUTTON CONFIGURATION #####
 button:
   ###### Factory Reset button #####
   - name: Factory reset
@@ -1391,7 +1380,26 @@ button:
       - delay: 1s
       - switch.turn_on: screen_power
 
-##### START - NUMBER CONFIGURATION #####
+light:
+  # Add the display as a light in Home Assistant
+  - name: Display
+    id: display_light
+    icon: mdi:tablet-dashboard
+    platform: monochromatic
+    output: display_output
+    default_transition_length: 0s
+    on_turn_on:
+      then:
+        - lambda: |-
+            ESP_LOGD("light.display_light", "Turn-on");
+            if (current_page->state == "screensaver") disp1->goto_page(wakeup_page_name->state.c_str());
+            timer_reset_all->execute();
+    on_turn_off:
+      then:
+        - lambda: |-
+            ESP_LOGD("light.display_light", "Turn-off");
+            goto_page->execute("screensaver");
+
 number:
   ##### SCREEN BRIGHTNESS #####
   - id: display_brightness
@@ -1524,11 +1532,28 @@ number:
           timer_dim->execute();
           timer_sleep->execute();
 
+output:
+  # Buzzer output
+  - id: buzzer_out
+    platform: ledc
+    pin:
+      number: 21
+
+  # Output required by `display_light` to send the commands to Nextion
+  - id: display_output
+    platform: template
+    type: float
+    write_action:
+      - lambda: |-
+          ESP_LOGV("output.display_output", "state:              %f", state);
+          const uint8_t current_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
+          ESP_LOGV("output.display_output", "current_brightness: %i%%", current_brightness);
+          set_brightness->execute(current_brightness);
+
 safe_mode:
   reboot_timeout: 3min
   num_attempts: 3
 
-##### START - SELECT CONFIGURATION #####
 select:
   - id: baud_rate
     name: Baud rate
@@ -1583,7 +1608,6 @@ select:
       - lambda: |-
           page_screensaver->execute();
 
-##### START - SENSOR CONFIGURATION #####
 sensor:
   ##### Blueprint status #####
   # Bit # Settings step        #
@@ -1725,7 +1749,6 @@ sensor:
     icon: mdi:wifi
     entity_category: diagnostic
 
-##### START - SWITCH CONFIGURATION #####
 switch:
   - id: hw_button_wakeup
     name: Wake-up with hardware buttons
@@ -1828,7 +1851,6 @@ switch:
       - lambda: |-
           nextion_init->publish_state(false);
 
-##### START - TEXT SENSOR CONFIGURATION #####
 text_sensor:
   ##### Device name - Used by bluepring to find action's names #####
   - id: device_name
@@ -2063,7 +2085,6 @@ text_sensor:
       - lambda: |-
           check_versions->execute();
 
-### Scripts ######
 script:
   - id: boot_log
     mode: parallel
@@ -2715,6 +2736,17 @@ script:
               {"entity", detailed_entity->state.c_str()}
             });
 
+          // Update the display light entity
+          if (current_page->state == "screensaver" and display_light->current_values.is_on()) {
+            ESP_LOGV("script.page_changed(custom)", "Turning off light.");
+            auto call = display_light->turn_off();
+            call.perform();
+          } else if (current_page->state != "screensaver" and (not display_light->current_values.is_on())) {
+            ESP_LOGV("script.page_changed(custom)", "Turning on light.");
+            auto call = display_light->turn_on();
+            call.perform();
+          }
+
           // Call page constructor
           if (current_page->state == "alarm") page_alarm->execute();
           else if (current_page->state == "blank") page_blank->execute();
@@ -3081,6 +3113,21 @@ script:
           if (!id(is_uploading_tft)) {
             disp1->set_backlight_brightness(brightness / 100.0f);
             current_brightness->update();
+            uint8_t current_light_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
+            ESP_LOGV("script.set_brightness(custom)", "current_light_brightness: %i%%", current_light_brightness);
+            if (brightness != current_light_brightness) {
+              if (current_page->state != "screensaver" and brightness > 0) {
+                ESP_LOGV("script.set_brightness(custom)", "Adjusting light brightness to %.3f%%", brightness / 100.0f);
+                auto call = display_light->turn_on();
+                call.set_brightness(brightness / 100.0f);
+                call.perform();
+              } else if (display_light->current_values.is_on()) {
+                ESP_LOGV("script.set_brightness(custom)", "Turning off light.");
+                auto call = display_light->turn_off();
+                call.set_brightness(0);
+                call.perform();
+              }
+            }
           }
 
   - id: set_climate
