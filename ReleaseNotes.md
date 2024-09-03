@@ -967,6 +967,14 @@ This release introduces the option to automatically update the TFT when an older
 - **Description:** Implemented a fix that allows the display to remain off when the button is pressed while the panel is sleeping.
   Although this was not the primary request in the issue, it addresses a reported problem and enhances the overall behavior of the display during sleep mode.
 
+### Custom UART Compilation Issue Resolved (#2265)
+- **Criticality:** Minor
+- **Affected Components:** ESPHome
+- **Issue Number:** #2265
+- **Description:** Fixed a compilation issue that occurred when using a custom UART in conjunction with the advanced package.
+  The solution involves specifying the ID of the Nextion UART when writing commands, ensuring compatibility and preventing compilation errors.
+  This fix allows users to continue customizing their setups with advanced UART configurations without encountering build failures.
+
 ### Screen Wake-Up on Hardware Button Press Configurable (#2194)
 - **Criticality:** Enhancement
 - **Affected Components:** ESPHome
