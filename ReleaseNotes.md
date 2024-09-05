@@ -85,3 +85,12 @@ This is now part of the core system.
 - **Criticality:** Enhancement
 - **Affected Components:** Blueprint, ESPHome
 - **Description:** Updated all references from `service` to `action` to comply with Home Assistant v2024.8.0 and ESPHome v2024.8.0 standards, ensuring full compatibility with the latest versions.
+
+### Reduced Logging to Enhance Focus on Critical Information
+- **Criticality:** Enhancement, Breaking Change
+- **Affected Components:** ESPHome, Blueprint
+- **Description:** Logging has been streamlined to focus on the most critical information, reducing noise and improving the clarity of logs.
+  While this change enhances readability and allows users to quickly identify important messages, it may alter the behavior of existing troubleshooting processes that relied on more verbose logs.
+  
+> [!WARNING]
+> Users who depend on detailed logs for debugging may need to adjust their troubleshooting strategies or temporarily adjust log levels as needed.

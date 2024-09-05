@@ -52,7 +52,7 @@ esphome:
   name: ${name}
   friendly_name: ${friendly_name}
   comment: NSPanel HA Blueprint
-  min_version: 2024.6.0
+  min_version: 2024.8.0
   project:
     name: esphome.NSPanel_HA_Blueprint
     version: "${version}"
@@ -116,6 +116,9 @@ esp32:
   framework:
     type: esp-idf
 
+preferences:
+  flash_write_interval: 5min
+
 psram:
   id: ext_ram
 
@@ -147,6 +150,19 @@ nspanel_ha_blueprint:
 logger:
   id: logger_std
   baud_rate: 0
+  level: DEBUG
+  logs:
+    esp32.preferences: INFO
+    binary_sensor: INFO
+    light: INFO
+    ntc: INFO
+    output: INFO
+    resistance: INFO
+    script: INFO
+    sensor: INFO
+    switch: INFO
+    text_sensor: INFO
+    time: INFO
 
 ##### ENABLE RINGTONE MUSIC SUPPORT #####
 rtttl:
@@ -201,8 +217,8 @@ time:
     on_time_sync:
       then:
         - lambda: |-
-            ESP_LOGD("time.on_time_sync", "System clock synchronized");
-            ESP_LOGD("time.on_time_sync", "Timezone: %s", time_provider->get_timezone().c_str());
+            ESP_LOGI("time.on_time_sync", "System clock synchronized");
+            ESP_LOGI("time.on_time_sync", "Timezone: %s", time_provider->get_timezone().c_str());
             refresh_datetime->execute();
 
 json:  # Can be replaced by web_server
@@ -1391,13 +1407,13 @@ light:
     on_turn_on:
       then:
         - lambda: |-
-            ESP_LOGD("light.display_light", "Turn-on");
+            ESP_LOGD("light", "Display: On");
             if (current_page->state == "screensaver") disp1->goto_page(wakeup_page_name->state.c_str());
             timer_reset_all->execute();
     on_turn_off:
       then:
         - lambda: |-
-            ESP_LOGD("light.display_light", "Turn-off");
+            ESP_LOGD("light", "Display: Off");
             goto_page->execute("screensaver");
 
 number:
@@ -1545,9 +1561,9 @@ output:
     type: float
     write_action:
       - lambda: |-
-          ESP_LOGV("output.display_output", "state:              %f", state);
+          ESP_LOGD("output", "state:              %f", state);
           const uint8_t current_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
-          ESP_LOGV("output.display_output", "current_brightness: %i%%", current_brightness);
+          ESP_LOGD("output", "current_brightness: %i%%", current_brightness);
           set_brightness->execute(current_brightness);
 
 safe_mode:
@@ -1756,6 +1772,7 @@ switch:
     entity_category: config
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
+    disabled_by_default: false
 
   ##### Notification unread #####
   - name: Notification unread
@@ -2095,7 +2112,7 @@ script:
     then:
       - lambda: |-
           static const char *const TAG = "script.boot_log";
-          ESP_LOGD(TAG, log_message.c_str());
+          ESP_LOGI(TAG, log_message.c_str());
           if (current_page->state == "boot") {
             disp1->send_command_printf("log_body.txt+=\"%s: %s\\r\"", category.c_str(), log_message.c_str());
           }
@@ -2141,11 +2158,11 @@ script:
       - lambda: |-
           timer_reset_all->execute();
           if (step == 10) {
-            ESP_LOGD("script.boot_progress", "Progress: Completed");
+            ESP_LOGI("script.boot_progress", "Progress: Completed");
             disp1->set_component_value("boot.progress", 100);
           } else {
             step = std::min(100, int(round((blueprint_status->state + (step*10))/2)));
-            ESP_LOGD("script.boot_progress", "Progress: %i%%", step);
+            ESP_LOGI("script.boot_progress", "Progress: %i%%", step);
             disp1->set_component_value("boot.progress", step);
           }
           if (current_page->state == "boot" and !isnan(display_charset->state) and !isnan(display_mode->state) and !version_tft->state.empty())
@@ -3241,6 +3258,7 @@ script:
     then:
       - lambda: |-
           cleanupUtilitiesGroups();
+          action_call_alarm_control_panel->stop();
           boot_event->stop();
           boot_progress->stop();
           change_climate_state->stop();
@@ -3288,7 +3306,6 @@ script:
           refresh_datetime->stop();
           refresh_relays->stop();
           refresh_wifi_icon->stop();
-          action_call_alarm_control_panel->stop();
           set_baud_rate->stop();
           set_brightness->stop();
           set_climate->stop();

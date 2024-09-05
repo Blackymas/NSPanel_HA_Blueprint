@@ -34,6 +34,8 @@ Table of contents:
   - [Expose relay fallback switch](#expose-relay-fallback-switch)
   - [Relay Interlocking](#relay-interlocking)
   - [Remove non-essential components](#remove-non-essential-components)
+  - [Restart with 15s button press](#restart-with-15s-button-press)
+  - [Custom log level](#custom-log-level)
 
 &nbsp;
 &nbsp;
@@ -755,4 +757,22 @@ binary_sensor:
         invalid_cooldown: ${invalid_cooldown}
         then:  # Restart the panel
           - button.press: restart_nspanel
+
+```
+
+### Custom log level
+This project defines the overall ESPHome log level to `DEBUG`, but restrict many of it's components to `INFO` level.
+You can adjust the levels in your panel's customization like in the following examples:
+
+```yaml
+logger:
+  # Define the ESPHome log level to `VERBOSE` level
+  level: VERBOSE
+```
+
+```yaml
+logger:
+  logs:
+    # Define the log level for `text_sensor` componente to `DEBUG` level
+    text_sensor: DEBUG
 ```
