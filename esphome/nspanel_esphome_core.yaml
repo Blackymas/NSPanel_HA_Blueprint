@@ -389,7 +389,10 @@ api:
         screensaver_time_color: int[]  # RGB color for the screensaver time display, e.g., [165, 42, 42] for reddish-brown.
         decimal_separator: string      # The char to be used as decimal separator.
       then:
-        - lambda: boot_log->execute("Action", "init_global");
+        - script.execute:
+            id: boot_log
+            category: Action
+            log_message: init_global
         - if:
             condition:
               - lambda: return (!id(is_uploading_tft));
@@ -427,7 +430,10 @@ api:
         embedded_climate_friendly_name: string  # Friendly name for the climate control feature.
         embedded_indoor_temperature: bool       # Enables indoor temperature display.
       then:
-        - lambda: boot_log->execute("Action", "init_hardware");
+        - script.execute:
+            id: boot_log
+            category: Action
+            log_message: init_hardware
         - if:
             condition:
               - lambda: return (!id(is_uploading_tft));
@@ -496,61 +502,125 @@ api:
         utilities_icon_color: int[]            # RGB color array for utilities page button icon.
         outdoor_temp_font: int                 # Font Id for outdoor temperature indication on the "Home" page.
       then:
-        - lambda: |-
-            boot_log->execute("Action", "init_page_home");
-            if (!id(is_uploading_tft)) {
-              using namespace esphome::display;
-              // Localization
-              id(mui_time_format) = time_format;
-              if (meridiem.size() == 2) {
-                id(mui_meridiem)[0] = meridiem[0];
-                id(mui_meridiem)[1] = meridiem[1];
-              }
+        - script.execute:
+            id: boot_log
+            category: Action
+            log_message: init_page_home
+        - if:
+            condition:
+              - lambda: return (!id(is_uploading_tft));
+            then:
+              - lambda: |-
+                  // using namespace esphome::display;
+                  // Localization
+                  id(mui_time_format) = time_format;
+                  if (meridiem.size() == 2) {
+                    id(mui_meridiem)[0] = meridiem[0];
+                    id(mui_meridiem)[1] = meridiem[1];
+                  }
 
-              // Date/Time colors
-              id(home_date_color) = rgbTo565(date_color);
-              id(home_time_color) = rgbTo565(time_color);
-              disp1->set_component_font_color("home.date", id(home_date_color));
-              disp1->set_component_font_color("home.time", id(home_time_color));
+                  // Date/Time colors
+                  id(home_date_color) = rgbTo565(date_color);
+                  id(home_time_color) = rgbTo565(time_color);
+                  disp1->set_component_font_color("home.date", id(home_date_color));
+                  disp1->set_component_font_color("home.time", id(home_time_color));
+              - wait_until:
+                  condition:
+                    - lambda: return (disp1->queue_size() < 1);
+                    - lambda: return (tf_uart->available() < 1);
+                  timeout: 5s
+              - lambda: |-
+                  // Chips icon size
+                  disp1->set_component_font("home.chip_relay1", chip_font);
+                  disp1->set_component_font("home.chip_relay2", chip_font);
+                  disp1->set_component_font("home.chip_climate", chip_font);
+              - wait_until:
+                  condition:
+                    - lambda: return (disp1->queue_size() < 1);
+                    - lambda: return (tf_uart->available() < 1);
+                  timeout: 5s
+              - lambda: |-
+                  for (int i = 1; i <= 7; ++i) {
+                    disp1->send_command_printf("home.chip%02d.font=%" PRIi32, i, chip_font);
+                  }
+              - wait_until:
+                  condition:
+                    - lambda: return (disp1->queue_size() < 1);
+                    - lambda: return (tf_uart->available() < 1);
+                  timeout: 5s
+              - lambda: |-
+                  disp1->set_component_font("home.wifi_icon", chip_font);
+                  id(home_chip_font_id) = chip_font;
 
-              // Chips icon size
-              disp1->set_component_font("home.chip_relay1", chip_font);
-              disp1->set_component_font("home.chip_relay2", chip_font);
-              disp1->set_component_font("home.chip_climate", chip_font);
-              for (int i = 1; i <= 7; ++i) {
-                disp1->send_command_printf("home.chip%02d.font=%" PRIi32, i, chip_font);
-              }
-              disp1->set_component_font("home.wifi_icon", chip_font);
-              id(home_chip_font_id) = chip_font;
+              - wait_until:
+                  condition:
+                    - lambda: return (disp1->queue_size() < 1);
+                    - lambda: return (tf_uart->available() < 1);
+                  timeout: 5s
+              - lambda: |-
+                  // Custom buttons icon size
+                  id(home_custom_buttons_font_id) = custom_buttons_font;
+                  for (int i = 1; i <= 7; ++i) {
+                    disp1->send_command_printf("home.button%02d.font=%" PRIu8, i, id(home_custom_buttons_font_id));
+                  }
+              - wait_until:
+                  condition:
+                    - lambda: return (disp1->queue_size() < 1);
+                    - lambda: return (tf_uart->available() < 1);
+                  timeout: 5s
+              - lambda: |-
+                  disp1->set_component_font("home.bt_notific", id(home_custom_buttons_font_id));
+                  disp1->set_component_font("home.bt_qrcode", id(home_custom_buttons_font_id));
+                  disp1->set_component_font("home.bt_entities", id(home_custom_buttons_font_id));
 
-              // Custom buttons icon size
-              id(home_custom_buttons_font_id) = custom_buttons_font;
-              for (int i = 1; i <= 7; ++i) {
-                disp1->send_command_printf("home.button%02d.font=%" PRIu8, i, id(home_custom_buttons_font_id));
-              }
-              disp1->set_component_font("home.bt_notific", id(home_custom_buttons_font_id));
-              disp1->set_component_font("home.bt_qrcode", id(home_custom_buttons_font_id));
-              disp1->set_component_font("home.bt_entities", id(home_custom_buttons_font_id));
+              - wait_until:
+                  condition:
+                    - lambda: return (disp1->queue_size() < 1);
+                    - lambda: return (tf_uart->available() < 1);
+                  timeout: 5s
+              - lambda: |-
+                  // Outdoor temperature font size
+                  disp1->set_component_font("home.outdoor_temp", outdoor_temp_font);
 
-              // Outdoor temperature font size
-              disp1->set_component_font("home.outdoor_temp", outdoor_temp_font);
+              - wait_until:
+                  condition:
+                    - lambda: return (disp1->queue_size() < 1);
+                    - lambda: return (tf_uart->available() < 1);
+                  timeout: 5s
+              - lambda: |-
+                  // QRCode button
+                  set_component_visibility->execute("home.bt_qrcode", qrcode);
+                  disp1->set_component_text("home.bt_qrcode", qrcode_icon.c_str());
+                  disp1->set_component_font_color("home.bt_qrcode", rgbTo565(qrcode_icon_color));
 
-              // QRCode button
-              set_component_visibility->execute("home.bt_qrcode", qrcode);
-              disp1->set_component_text("home.bt_qrcode", qrcode_icon.c_str());
-              disp1->set_component_font_color("home.bt_qrcode", rgbTo565(qrcode_icon_color));
+              - wait_until:
+                  condition:
+                    - lambda: return (disp1->queue_size() < 1);
+                    - lambda: return (tf_uart->available() < 1);
+                  timeout: 5s
+              - lambda: |-
+                  // Entities pages button
+                  disp1->set_component_text("home.bt_entities", entities_pages_icon.c_str());
+                  disp1->set_component_font_color("home.bt_entities", rgbTo565(entities_pages_icon_color));
 
-              // Entities pages button
-              disp1->set_component_text("home.bt_entities", entities_pages_icon.c_str());
-              disp1->set_component_font_color("home.bt_entities", rgbTo565(entities_pages_icon_color));
+              - wait_until:
+                  condition:
+                    - lambda: return (disp1->queue_size() < 1);
+                    - lambda: return (tf_uart->available() < 1);
+                  timeout: 5s
+              - lambda: |-
+                  // Utilities button
+                  disp1->send_command_printf("is_utilities=%i", utilities ? 1 : 0);
+                  disp1->set_component_text("home.bt_utilities", utilities_icon.c_str());
+                  disp1->set_component_font_color("home.bt_utilities", rgbTo565(utilities_icon_color));
 
-              // Utilities button
-              disp1->send_command_printf("is_utilities=%i", utilities ? 1 : 0);
-              disp1->set_component_text("home.bt_utilities", utilities_icon.c_str());
-              disp1->set_component_font_color("home.bt_utilities", rgbTo565(utilities_icon_color));
-
-              blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 1));
-            }
+              - wait_until:
+                  condition:
+                    - lambda: return (disp1->queue_size() < 1);
+                    - lambda: return (tf_uart->available() < 1);
+                  timeout: 5s
+              - lambda: |-
+                  blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 1));
 
     # Populates the "Settings" page with user-configurable options, aligning with the project's blueprint for a cohesive and intuitive settings interface.
     - action: init_page_settings
@@ -560,15 +630,20 @@ api:
         bright: string      # Text label for the high brightness level slider, signaling a brighter screen option.
         dim: string         # Text label for the dim brightness level slider, signaling a lower light option for energy saving.
       then:
-        - lambda: |-
-            boot_log->execute("Action", "init_page_settings");
-            if (!id(is_uploading_tft)) {
-              if (not reboot.empty()) disp1->set_component_text_printf("settings.lbl_reboot", " %s", reboot.c_str());
-              disp1->set_component_text_printf("settings.lbl_brightness", " %s", brightness.c_str());
-              display_wrapped_text->execute("settings.lbl_bright", bright.c_str(), display_mode->state == 2 ? 25 : 10);
-              display_wrapped_text->execute("settings.lbl_dim", dim.c_str(), display_mode->state == 2 ? 25 : 10);
-              blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 3));
-            }
+        - script.execute:
+            id: boot_log
+            category: Action
+            log_message: init_page_settings
+        - if:
+            condition:
+              - lambda: return (!id(is_uploading_tft));
+            then:
+              - lambda: |-
+                  if (not reboot.empty()) disp1->set_component_text_printf("settings.lbl_reboot", " %s", reboot.c_str());
+                  disp1->set_component_text_printf("settings.lbl_brightness", " %s", brightness.c_str());
+                  display_wrapped_text->execute("settings.lbl_bright", bright.c_str(), display_mode->state == 2 ? 25 : 10);
+                  display_wrapped_text->execute("settings.lbl_dim", dim.c_str(), display_mode->state == 2 ? 25 : 10);
+                  blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 3));
 
     # This action removes any displayed notifications from the screen, helping to keep the user interface clean and focused on its primary functions.
     - action: notification_clear
@@ -2238,13 +2313,18 @@ script:
           }
 
   - id: display_wrapped_text
-    mode: parallel
-    max_runs: 5
+    mode: queued
+    max_runs: 50
     parameters:
       component: string
       text_to_display: string
       line_length_limit: uint
     then:
+      - wait_until:
+          condition:
+            - lambda: return (disp1->queue_size() < 1);
+            - lambda: return (tf_uart->available() < 1);
+          timeout: 250ms
       - lambda: |-
           int startPos = 0;
           int endPos = 0;
