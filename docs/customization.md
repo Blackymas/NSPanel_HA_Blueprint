@@ -150,7 +150,8 @@ captive_portal: !remove
 
 # Removes the OTA password
 ota:
-  password: !remove
+  - id: !extend ota_std
+    password: !remove
 ```
 
 > [!ATTENTION]
@@ -163,7 +164,7 @@ ota:
 ### API encryption
 > [!IMPORTANT]
 > Changing the API encryption can break the connection to Home Assistant,
-> requiring the device to be removed from integrations (**Settings** > **Devices & Services** > **ESPHome**) and then re-added.
+> requiring the device to be removed from integrations (**Settings** > **Devices & services** > **ESPHome**) and then re-added.
 
 This is highly recommended when you are transfer sensitive information between your panel and Home Assistant,
 as when you use your panel to enter the PIN for an Alarm Control Panel.
@@ -187,10 +188,10 @@ esphome:
     - priority: 601.0
       then:
         - lambda: |-
-            id(my_ota).set_auth_password("New password");
+            id(ota_std).set_auth_password("New password");
 ota:
-  password: !secret wifi_password
-  id: my_ota
+  - id: !extend ota_std
+    password: !secret wifi_password
 ```
 
 After flashing the device, you must remove the code above and replace it with the code below to start using this customization.
@@ -198,7 +199,8 @@ After flashing the device, you must remove the code above and replace it with th
 ```yaml
 # Use my global OTA password
 ota:
-  password: !secret ota_password
+  - id: !extend ota_std
+    password: !secret ota_password
 ```
 
 ### Web server credentials
@@ -383,7 +385,7 @@ button:
         - lambda: |-
             goto_page->execute("screensaver");
   
-  # Adds a button to wake-up the panel (similar to the existing service)
+  # Adds a button to wake-up the panel (similar to the existing action)
   - name: Wake-up
     id: force_wake_up
     platform: template

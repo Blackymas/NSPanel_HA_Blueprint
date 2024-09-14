@@ -898,6 +898,41 @@ The OTA format has changed, necessitating updates to ensure seamless firmware up
 Please ensure you are using Home Assistant v2024.6.0 or later, along with the latest ESPHome version,
 to benefit from these updates and maintain optimal performance.
 
+## v4.3.10 - Boot Stability Enhancements and Troubleshooting Support
+This patch introduces critical fixes and a new boot screen feature to improve system stability and assist in troubleshooting when BLE is in use.
+
+### BLE-Related Boot Issue Resolved
+- **Criticality:** Major
+- **Affected Components:** Blueprint, ESPHome, TFT
+- **Issue Numbers:** #2155, #2168, #2176 and #2218
+- **Description:** Fixed an issue that caused the NSPanel to fail during boot when BLE was enabled.
+This fix ensures that devices boot reliably even with BLE active, enhancing system stability.
+
+### New Boot Screen with Troubleshooting Log
+- **Criticality:** Enhancement
+- **Affected Components:** Blueprint, ESPHome, TFT
+- **Description:** Introduced a new boot screen that displays essential logs during the boot process.
+This feature aids in troubleshooting by providing real-time information on the panel's status during startup, making it easier to diagnose and resolve issues.
+
+This update is crucial for users leveraging BLE functionality, and the new boot screen is a valuable tool for ensuring smooth operation and efficient troubleshooting.
+
+## v4.3.11 - Hotfix for TFT File Download Issue
+This hotfix addresses a critical issue introduced in v4.3.10 where the incorrect TFT file was used during the download process.
+The fix has been applied to the release flow, but updating your firmware (ESPHome) is required, and it is recommended to also update the Blueprint and TFT components.
+
+> [!WARNING]
+> Home Assistant v2024.8.0 is required.
+> Please take a look at our [Version compatibility matrix](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/version_compatibility.md) for a full list.
+
+### Incorrect TFT File Download Issue Resolved (#2223)
+- **Criticality:** Major
+- **Affected Components:** Release Flow, ESPHome, Blueprint, TFT
+- **Issue Number:** #2223
+- **Description:** Resolved an issue where the incorrect TFT file was being downloaded during the update process.
+This fix ensures that the correct TFT file is used, preventing potential display issues and ensuring that the panel functions as expected.
+
+This update is critical for maintaining the proper functionality of your NSPanel. Please ensure that you update all components as recommended.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
@@ -913,8 +948,12 @@ Your efforts have significantly improved its functionality and reliability (#183
 - **@andythomas**: For the comprehensive enhancements made to our documentation.
 Your contributions have made our guides more informative and accessible, enriching the user experience for everyone (#1865).
 -  **@AJediIAm**: For the valuable contributions in reviewing and improving the installation documentation (#2106 & #2107).
+-  **@briangunderson**: For updating the docs to reflect to the new name for '**action**' (formelly '**service**') on Home Assistant v2024.8.0 (#2236)
 
 ## Previous releases
+- [v4.3.10 - Boot Stability Enhancements and Troubleshooting Support](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.10)
+- [v4.3.9 - Ensuring Compatibility with ESPHome v2024.6.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.9)
+- [v4.3.8 - Enhancements and Bug Fix](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.8)
 - [v4.3.7 - Quick Fix for Captive Portal Compile Error](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.7)
 - [v4.3.6 - Critical Fixes for Custom Buttons](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.6)
 - [v4.3.5 - Experimenting with Bluetooth Capabilities](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.5)

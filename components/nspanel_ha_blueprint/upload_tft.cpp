@@ -1,6 +1,6 @@
 // upload_tft.cpp
 
-// #ifdef NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
+#ifdef NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
 
 #include "upload_tft.h"
 
@@ -29,4 +29,4 @@ namespace nspanel_ha_blueprint {
 
 }  // namespace nspanel_ha_blueprint
 
-// #endif  // NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
+#endif  // NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT

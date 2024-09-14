@@ -4,13 +4,13 @@ You can control an Alarm Control Panel from your NSPanel, which allows you to se
 modes supported by Home Assistant (Home, Away, Night, Vacation, or Custom bypass) or disarm the alarm.
 
 Currently, the NSPanel supports alarms without a code or with a numeric code. For alarms using a text code, 
-the NSPanel will display it, but interactions (like button clicks) will send service calls to Home Assistant 
+the NSPanel will display it, but interactions (like button clicks) will send action calls to Home Assistant 
 without the code, leading to failed operations that require a code.
 
 > [!IMPORTANT]
 > **Security advisory**
 > The default communication between your NSPanel (ESPHome) and Home Assistant (HA) is not encrypted. This 
-> could allow someone with network access to monitor and replicate the service calls. This risk is 
+> could allow someone with network access to monitor and replicate the action calls. This risk is 
 > particularly relevant when controlling your alarm system.
 >
 > To enhance security, we strongly recommend enabling API encryption for NSPanel users managing an Alarm 
@@ -18,22 +18,22 @@ without the code, leading to failed operations that require a code.
 > to implement this security measure.
 ## Configuration
 
-### Allow the device to make Home Assistant service calls
+### Allow the device to perform Home Assistant actions
 
-First, you need to configure your Home Assistant to permit your NSPanel to make service calls. While 
-most services are handled via the Blueprint, ESPHome needs to send events with all necessary data in 
-plain text for these service calls. To mitigate any security risks, alarm-related calls are managed 
+First, you need to configure your Home Assistant to permit your NSPanel to perform actions. While 
+most actions are handled via the Blueprint, ESPHome needs to send events with all necessary data in 
+plain text for these action calls. To mitigate any security risks, alarm-related calls are managed 
 directly by the panel.
 
 To enable this:
-1. Go to your ESPHome integrations panel (Settings > Devices and Services > ESPHome).
+1. Go to your ESPHome integrations panel (Settings > Devices and services > ESPHome).
 2. Click "Configure" next to your panel's entry.
 
    ![Configure option in ESPHome integrations panel](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/37bfc622-c0cd-4941-a397-3eeb2ddbe6a2)
 
-3. Select the "Allow the device to make Home Assistant service calls" option.
+3. Select the "**Allow the device to perform Home Assistant actions**" option.
 
-   ![Allow service calls option in ESPHome configuration](https://github.com/Blackymas/NSPanel_HA_Blueprint/assets/94725493/9b20a1b6-94ad-4fff-aef2-eb3599db9bf1)
+   ![Allow the device to perform Home Assistant actions](pics/Allow_the_device_to_perform_Home_Assistant_actions.png)
 
 ### Blueprint settings
 
