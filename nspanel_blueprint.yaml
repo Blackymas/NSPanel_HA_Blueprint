@@ -1303,9 +1303,18 @@ blueprint:
           default: ""
           selector:
             text:
+        qrcode_entity:
+          name: QR Code content entity (Optional)
+          description: "Entity containing the value you want to display as QR code."
+          default: []
+          selector:
+            entity:
+              domain:
+                - input_text
+                - sensor
         qrcode_value:
-          name: QR Code content - VALUE (Optional)
-          description: "Value you want to display as QR code."
+          name: QR Code content - Fallback static value (Optional)
+          description: "Value you want to display as QR code when an entity is not selected or is unavailable."
           default: ""
           selector:
             text:
@@ -3824,6 +3833,8 @@ variables:
       else ("sensor." ~ device_name ~ "_detailed_entity")
     }}
 
+  qrcode_enabled: !input qrcode_enabled
+
 # yamllint disable rule:indentation rule:comments-indentation
 trigger:
   ##### Trigger - General #################################################################################################################
@@ -4554,6 +4565,12 @@ trigger:
       for:
         seconds: 1
 
+  ##### Trigger - Page QRcode - State change
+  #### QR Code changed ###
+  - platform: state
+    entity_id: !input "qrcode_entity"
+    id: qrcode_changed
+
   ##### Trigger - Time #################################################################################################################
 
     ##### Time - Trigger 'time_state' #####
@@ -4632,6 +4649,11 @@ condition:
     {{
       trigger.id != "indoortemp_state" or
       ((home_page_background_update or pages.current == pages.home ) and not embedded_indoor_temperature)
+    }}
+  - >  # Don't update qrcode if not enabled
+    {{
+      trigger.id != "qrcode_changed" or
+      qrcode_enabled
     }}
   - condition: or  # Do not update component if state haven't changed (ignore attributes changed) - event based triggers
     conditions:
@@ -8201,10 +8223,6 @@ action:
                           bt_utilities_icon: !input home_button08_icon
                           bt_entities_icon: !input home_button06_icon
                           bt_qrcode_icon: !input home_button05_icon
-                          qrcode:
-                            enabled: !input qrcode_enabled
-                            title: !input qrcode_label
-                            qrcode: !input qrcode_value
                           home_indoor_temp_icon: !input home_indoor_temp_icon
                           timezone: !input timezone
 
@@ -8373,13 +8391,38 @@ action:
                               txt: '{{ hardware.buttons.right.name }}'
                             continue_on_error: true
 
-                      - *delay_default
-                      - action: 'esphome.{{ nspanel_name }}_qrcode'
-                        data:
-                          title: '{{ qrcode.title if qrcode.enabled else "" }}'
-                          qrcode: '{{ qrcode.qrcode if qrcode.enabled else "" }}'
-                          show: false
-                        continue_on_error: true
+                      - &qrcode_update
+                        if: >
+                          {{
+                            qrcode_enabled or
+                            (
+                              nspanel_event is defined and
+                              nspanel_event.type is defined and
+                              nspanel_event.type == "boot"
+                            )
+                          }}
+                        then:
+                          - variables:
+                              qrcode_title: !input qrcode_label
+                              qrcode_entity: !input qrcode_entity
+                              qrcode_fallback_value: !input qrcode_value
+                              qrcode_value:
+                                {{
+                                  states(qrcode_entity, rounded=True, with_unit=True)
+                                  if
+                                    qrcode_entity is defined and
+                                    qrcode_entity is string and
+                                    has_value(qrcode_entity)
+                                  else
+                                    fallback_value
+                                }}
+                          - *delay_default
+                          - action: 'esphome.{{ nspanel_name }}_qrcode'
+                            data:
+                              title: '{{ qrcode_title if qrcode_enabled else "" }}'
+                              qrcode: '{{ qrcode_value if qrcode_enabled else "" }}'
+                              show: false
+                            continue_on_error: true
 
                       - *delay_default
                       - action: 'esphome.{{ nspanel_name }}_init_page_settings'
@@ -11173,6 +11216,14 @@ action:
           - repeat:
               for_each: '{{ pages_utilities.groups | selectattr("name", "in", groups) | list }}'
               sequence: *refresh_page_utilities_group
+
+      ##### QRCODE VALUES #####
+      - alias: Update QRCode
+        conditions:
+          - condition: trigger
+            id: qrcode_changed
+        sequence:
+          - *qrcode_update
 
       ########## TRIGGER - HOME PAGE ###########
 

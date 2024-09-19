@@ -33,7 +33,10 @@ substitutions:
   ##############################
 
 packages:
-  version: !include nspanel_esphome_version.yaml
+  buzzer:       !include nspanel_esphome_core_buzzer.yaml
+  media_player: !include nspanel_esphome_core_media_player.yaml
+  qrcode:       !include nspanel_esphome_core_qrcode.yaml
+  version:      !include nspanel_esphome_core_version.yaml
 
 ##### External components #####
 external_components:
@@ -55,7 +58,6 @@ esphome:
   min_version: 2024.8.0
   project:
     name: esphome.NSPanel_HA_Blueprint
-    version: "${version}"
   platformio_options:
     build_flags:
       - -Wno-missing-field-initializers
@@ -69,8 +71,6 @@ esphome:
             set_timezone->execute(id(mui_timezone).c_str());
             boot_log->execute("on_boot", "Publish Blueprint progress (0)");
             if (isnan(blueprint_status->raw_state)) blueprint_status->publish_state(0);
-            boot_log->execute("on_boot", "Publish firmware version");
-            version_esphome->publish_state("${version}");
             boot_log->execute("on_boot", "Publish device name");
             device_name->publish_state("${name}");
             boot_log->execute("on_boot", "Reset notification entities");
@@ -116,9 +116,6 @@ esp32:
   framework:
     type: esp-idf
 
-preferences:
-  flash_write_interval: 5min
-
 psram:
   id: ext_ram
 
@@ -153,6 +150,7 @@ logger:
   level: DEBUG
   logs:
     esp32.preferences: INFO
+    esp-idf: INFO
     binary_sensor: INFO
     light: INFO
     ntc: INFO
@@ -163,11 +161,6 @@ logger:
     switch: INFO
     text_sensor: INFO
     time: INFO
-
-##### ENABLE RINGTONE MUSIC SUPPORT #####
-rtttl:
-  id: buzzer
-  output: buzzer_out
 
 ##### UART FOR NEXTION DISPLAY #####
 uart:
@@ -249,25 +242,21 @@ api:
         bri: string        # Brightness level or other dynamic info to be displayed close to the icon.
         label: string      # Main text label for the button.
       then:
-        - lambda: |-
-            if (page == current_page->state and !id(is_uploading_tft)) {
-              disp1->set_component_picc((id + "pic").c_str(), state ? 47 : 46);
-              disp1->set_component_picc((id + "bri").c_str(), state ? 47 : 46);
-              disp1->set_component_picc((id + "text").c_str(), state ? 47 : 46);
-              disp1->set_component_picc((id + "icon").c_str(), state ? 47 : 46);
-              disp1->set_component_font((id + "icon").c_str(), icon_font);
-              disp1->set_component_foreground_color((id + "bri").c_str(), state ? 10597 : 65535);
-              disp1->set_component_foreground_color((id + "text").c_str(), state ? 10597 : 65535);
-              disp1->set_component_font_color((id + "icon").c_str(), rgbTo565(icon_color));
-              disp1->set_component_text((id + "icon").c_str(), icon.c_str());
-              display_wrapped_text->execute((id + "text").c_str(), label.c_str(), 10);
-              disp1->set_component_text((id + "bri").c_str(), (strcmp(bri.c_str(), "0") == 0) ? " " : bri.c_str());
-              set_component_visibility->execute((id + "pic").c_str(), true);
-              set_component_visibility->execute((id + "icon").c_str(), true);
-              set_component_visibility->execute((id + "text").c_str(), true);
-              set_component_visibility->execute((id + "bri").c_str(), true);
-              set_component_visibility->execute(id.c_str(), true);
-            }
+        - if:
+            condition:
+              - lambda: return (!id(is_uploading_tft));
+              - lambda: return (page == current_page->state);
+            then:
+              - script.execute:
+                  id: button_display
+                  page: !lambda return page;
+                  button_id: !lambda return id;
+                  state: !lambda return state;
+                  icon: !lambda return icon;
+                  icon_color: !lambda return icon_color;
+                  icon_font: !lambda return icon_font;
+                  bri: !lambda return bri;
+                  label: !lambda return label;
 
     # Sends custom commands directly to the display for dynamic interactions and updates.
     - action: command
@@ -318,6 +307,7 @@ api:
             if (!id(is_uploading_tft)) {
               for (const std::string& component_id : ids) {
                 if (!id(is_uploading_tft) and !component_id.empty()) {
+                  ESP_LOGD("action.components_visibility", "vis %s,%i", component_id.c_str(), (visible ? 1 : 0));
                   set_component_visibility->execute(component_id.c_str(), visible);
                 }
               }
@@ -641,8 +631,8 @@ api:
               - lambda: |-
                   if (not reboot.empty()) disp1->set_component_text_printf("settings.lbl_reboot", " %s", reboot.c_str());
                   disp1->set_component_text_printf("settings.lbl_brightness", " %s", brightness.c_str());
-                  display_wrapped_text->execute("settings.lbl_bright", bright.c_str(), display_mode->state == 2 ? 25 : 10);
-                  display_wrapped_text->execute("settings.lbl_dim", dim.c_str(), display_mode->state == 2 ? 25 : 10);
+                  display_wrapped_text->execute("settings", "lbl_bright", bright.c_str(), display_mode->state == 2 ? 25 : 10);
+                  display_wrapped_text->execute("settings", "lbl_dim", dim.c_str(), display_mode->state == 2 ? 25 : 10);
                   blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 3));
 
     # This action removes any displayed notifications from the screen, helping to keep the user interface clean and focused on its primary functions.
@@ -669,7 +659,7 @@ api:
               goto_page->execute("notification");
               timer_reset_all->execute();
               disp1->set_component_text("notification.notifi_label", label.c_str());
-              display_wrapped_text->execute("notification.notifi_text01", message.c_str(), display_mode->state == 2 ? 23 : 32);
+              display_wrapped_text->execute("notification", "notifi_text01", message.c_str(), display_mode->state == 2 ? 23 : 32);
               notification_label->publish_state(label.c_str());
               notification_text->publish_state(message.c_str());
               notification_unread->turn_on();
@@ -703,12 +693,12 @@ api:
                   disp1->set_component_text("code_arm_req", code_arm_required ? "1" : "0");
 
                   // Alarm page - Button's text
-                  display_wrapped_text->execute("bt_home_text", mui_alarm[0].c_str(), 10);
-                  display_wrapped_text->execute("bt_away_text", mui_alarm[1].c_str(), 10);
-                  display_wrapped_text->execute("bt_night_text", mui_alarm[2].c_str(), 10);
-                  display_wrapped_text->execute("bt_vacat_text", mui_alarm[3].c_str(), 10);
-                  display_wrapped_text->execute("bt_bypass_text", mui_alarm[4].c_str(), 10);
-                  display_wrapped_text->execute("bt_disarm_text", mui_alarm[5].c_str(), 10);
+                  display_wrapped_text->execute("alarm", "bt_home_text", mui_alarm[0].c_str(), 10);
+                  display_wrapped_text->execute("alarm", "bt_away_text", mui_alarm[1].c_str(), 10);
+                  display_wrapped_text->execute("alarm", "bt_night_text", mui_alarm[2].c_str(), 10);
+                  display_wrapped_text->execute("alarm", "bt_vacat_text", mui_alarm[3].c_str(), 10);
+                  display_wrapped_text->execute("alarm", "bt_bypass_text", mui_alarm[4].c_str(), 10);
+                  display_wrapped_text->execute("alarm", "bt_disarm_text", mui_alarm[5].c_str(), 10);
 
                   // Alarm page - Buttons
                   if (supported_features & 1 or state == "armed_home") // Alarm - Button - Home
@@ -800,127 +790,6 @@ api:
                   temp_offset: !lambda return temp_offset;
                   climate_icon: !lambda return climate_icon;
                   embedded_climate: !lambda return embedded_climate;
-
-    # Dynamically updates the media player page with current state and media information.
-    - action: page_media_player
-      variables:
-        entity: string               # Entity ID of the media player, used for state updates and control.
-        state: string                # Current playback state of the media player (e.g., "playing", "paused", "stopped").
-        is_volume_muted: bool        # Indicates if the media volume is currently muted.
-        friendly_name: string        # Display name of the media player, shown as the page title.
-        volume_level: int            # Current volume level, typically expressed as a percentage.
-        media_title: string          # Title of the currently playing media.
-        media_artist: string         # Artist of the currently playing media.
-        media_duration: float        # Total duration of the current media in seconds.
-        media_position: float        # Current playback position in the media in seconds.
-        media_position_delta: float  # Time elapsed since the last media position update in seconds.
-        supported_features: int      # Bitmask indicating the media player's supported features (e.g., play, pause, volume control).
-      then:
-        - lambda: |-
-            if (current_page->state == "media_player" and !id(is_uploading_tft)) {
-              detailed_entity->publish_state(entity);
-              disp1->set_component_text("page_label", friendly_name.c_str());
-              display_wrapped_text->execute("track", media_title.c_str(), display_mode->state == 2 ? 16 : 27);
-              display_wrapped_text->execute("artist", media_artist.c_str(), display_mode->state == 2 ? 26 : 40);
-
-              // on/off button
-              if (supported_features & 128 and state == "off") {  //TURN_ON
-                disp1->set_component_foreground_color("bt_on_off", 65535);
-                set_component_visibility->execute("bt_on_off", true);
-              } else if (supported_features & 256 and state != "off") {  //TURN_OFF
-                disp1->set_component_foreground_color("bt_on_off", 10597);
-                set_component_visibility->execute("bt_on_off", true);
-              } else
-                set_component_visibility->execute("bt_on_off", false);
-
-              // play/pause button
-              if ((supported_features & 512 or supported_features & 16384) and state != "playing" and state != "off") {  //PLAY_MEDIA+PLAY
-                disp1->set_component_text("bt_play_pause", "\uE409"); // mdi:play
-                set_component_visibility->execute("bt_play_pause", true);
-              } else if (supported_features & 1 and state == "playing" ) {  //PAUSE
-                disp1->set_component_text("bt_play_pause", "\uE3E3"); // mdi:pause
-                set_component_visibility->execute("bt_play_pause", true);
-              } else
-                set_component_visibility->execute("bt_play_pause", false);
-
-              // bt_prev button - PREVIOUS_TRACK
-              set_component_visibility->execute("bt_prev", (supported_features & 16 and state != "off"));
-              // bt_next button - NEXT_TRACK
-              set_component_visibility->execute("bt_next", (supported_features & 32 and state != "off"));
-
-              // Stop button - STOP
-              //set_component_visibility->execute("bt_stop", (supported_features & 4096 and (state == "playing" or state == "paused")));
-
-              // mute/unmute button - VOLUME_MUTE
-              disp1->set_component_value("is_muted", is_volume_muted ? 1 : 0);
-              if (supported_features & 8 and is_volume_muted) {  // unmute
-                disp1->set_component_text("bt_mute", "\uEE07"); // mdi:volume-variant-off
-                set_component_visibility->execute("bt_mute", true);
-              } else if (supported_features & 8) {  // mute
-                disp1->set_component_text("bt_mute", "\uE57E"); // mdi:volume-low
-                set_component_visibility->execute("bt_mute", true);
-              } else
-                set_component_visibility->execute("bt_mute", false);
-
-              // VOLUME_SET
-              if (supported_features & 4) {
-                if (volume_level != id(last_volume_level)) {
-                  id(last_volume_level) = volume_level;
-                  disp1->set_component_text_printf("vol_text", "%" PRIu32 "%%", volume_level);
-                  disp1->set_component_value("vol_slider", volume_level);
-                }
-                set_component_visibility->execute("vol_slider", true);
-                set_component_visibility->execute("bt_vol_down", true);
-                set_component_visibility->execute("bt_vol_up", true);
-                set_component_visibility->execute("vol_text", true);
-              } else {
-                set_component_visibility->execute("vol_slider", false);
-                set_component_visibility->execute("bt_vol_down", false);
-                set_component_visibility->execute("bt_vol_up", false);
-                set_component_visibility->execute("vol_text", false);
-              }
-
-              if (media_duration > 0) {
-                if (media_duration != id(last_media_duration) or media_position != id(last_media_position)) {
-                  id(last_media_duration) = media_duration;
-                  id(last_media_position) = media_position;
-                  disp1->set_component_value("prg_current", int(round(min(media_position + media_position_delta, media_duration))));
-                }
-                disp1->set_component_value("prg_total", int(round(media_duration)));
-                disp1->send_command_printf("prg_timer.en=%i", (state == "playing") ? 1 : 0);
-                set_component_visibility->execute("time_current", true);
-                set_component_visibility->execute("time_total", true);
-                set_component_visibility->execute("time_progress", true);
-              } else {
-                disp1->send_command("prg_timer.en=0");
-                set_component_visibility->execute("time_current", false);
-                set_component_visibility->execute("time_total", false);
-                set_component_visibility->execute("time_progress", false);
-              }
-            }
-
-    # Dynamically displays QR codes on the ESPHome UI for sharing information such as WiFi passwords or website links.
-    - action: qrcode
-      variables:
-        title: string   # Heading or title for the QR code, offering context or instructions.
-        qrcode: string  # Data or URL to be encoded into the QR code.
-        show: bool      # Flag to immediately display the QR code page upon action invocation.
-      then:
-        - lambda: |-
-            if (!id(is_uploading_tft)) {
-              set_component_visibility->execute("home.bt_qrcode", !(qrcode.empty()));
-              disp1->set_component_text("qrcode.qrcode_label", title.c_str());
-              disp1->set_component_text("qrcode.qrcode_value", qrcode.c_str());
-              if (show) goto_page->execute("qrcode");
-              blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 2));
-            }
-
-    # Plays melodies encoded in RTTTL format, suitable for audio feedback, notifications, or simple tunes.
-    - action: rtttl_play
-      variables:
-        tone: string  # The RTTTL string for the melody to be played. It should follow the RTTTL format, including the melody's name, default settings, and a sequence of notes.
-      then:
-        - lambda: if (!id(is_uploading_tft)) buzzer->play(tone);
 
     - action: set_bool
       variables:
@@ -1065,7 +934,6 @@ display:
           condition:
             - lambda: return (!id(is_uploading_tft));
           then:
-            - lambda: version_tft->update();
             - delay: 1s
             - lambda: nextion_init->publish_state(true);
 
@@ -1164,7 +1032,6 @@ display:
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
-
   - id: is_climate
     type: bool
     restore_value: true
@@ -1249,23 +1116,6 @@ globals:
     type: bool
     restore_value: false
     initial_value: 'false'
-
-  ##### Media Player #####
-  ###### Last volume level from Home Assistant ######
-  - id: last_volume_level
-    type: uint8_t
-    restore_value: false
-    initial_value: '0'
-  ###### Last duration from Home Assistant ######
-  - id: last_media_duration
-    type: uint
-    restore_value: false
-    initial_value: '0'
-  ###### Last duration from Home Assistant ######
-  - id: last_media_position
-    type: uint
-    restore_value: false
-    initial_value: '0'
 
   ##### Add-on Climate #####
   ##### Is embedded thermostat set as main climate entity? #####
@@ -1629,12 +1479,6 @@ number:
           timer_sleep->execute();
 
 output:
-  # Buzzer output
-  - id: buzzer_out
-    platform: ledc
-    pin:
-      number: 21
-
   # Output required by `display_light` to send the commands to Nextion
   - id: display_output
     platform: template
@@ -2148,40 +1992,6 @@ text_sensor:
               }
             }
 
-  ##### Versioning #####
-  - id: version_blueprint
-    name: Version Blueprint
-    platform: template
-    entity_category: diagnostic
-    icon: mdi:tag-text-outline
-    internal: false
-    update_interval: never
-    on_value:
-      - lambda: |-
-          check_versions->execute();
-
-  - id: version_esphome
-    name: Version ESPHome
-    platform: template
-    entity_category: diagnostic
-    icon: mdi:tag-text-outline
-    internal: false
-    update_interval: never
-    lambda: |-
-      return {"${version}"};
-
-  - id: version_tft
-    name: Version TFT
-    platform: nextion
-    component_name: boot.version
-    entity_category: diagnostic
-    icon: mdi:tag-text-outline
-    internal: false
-    update_interval: never
-    on_value:
-      - lambda: |-
-          check_versions->execute();
-
 script:
   - id: boot_log
     mode: parallel
@@ -2248,6 +2058,59 @@ script:
           if (current_page->state == "boot" and !isnan(display_charset->state) and !isnan(display_mode->state) and !version_tft->state.empty())
             disp1->send_command("tm_esphome.en=0");
 
+  - id: button_display
+    mode: queued
+    max_runs: 16
+    parameters:
+      page: string       # Identifier of the page where the button is located.
+      button_id: string  # Unique identifier for the button.
+      state: bool        # Determines the button's state, influencing background and other visual aspects.
+      icon: string       # Icon codepoint from HASwitchPlate Material Design Icons. Example: "\uE6E8" for mdi:lightbulb-on-outline.
+      icon_color: int[]  # RGB color array for the icon.
+      icon_font: int     # Nextion font identifier for the icon, default is 8.
+      bri: string        # Brightness level or other dynamic info to be displayed close to the icon.
+      label: string      # Main text label for the button.
+    then:
+      - wait_until:
+          condition:
+            or:
+              - lambda: return (id(is_uploading_tft));
+              - lambda: return (page != current_page->state);
+              - and:
+                  - lambda: return (disp1->queue_size() < 1);
+                  - lambda: return (tf_uart->available() < 1);
+          timeout: 250ms
+      - if:
+          condition:
+            - lambda: return (!id(is_uploading_tft));
+            - lambda: return (page == current_page->state);
+          then:
+            - wait_until:
+                condition:
+                  - lambda: return (disp1->queue_size() < 1);
+                  - lambda: return (tf_uart->available() < 1);
+                timeout: 250ms
+            - lambda: |-
+                disp1->set_component_picc((button_id + "pic").c_str(), state ? 47 : 46);
+                disp1->set_component_picc((button_id + "bri").c_str(), state ? 47 : 46);
+                disp1->set_component_picc((button_id + "text").c_str(), state ? 47 : 46);
+                disp1->set_component_picc((button_id + "icon").c_str(), state ? 47 : 46);
+                delay(50);
+                disp1->set_component_font((button_id + "icon").c_str(), icon_font);
+                disp1->set_component_foreground_color((button_id + "bri").c_str(), state ? 10597 : 65535);
+                disp1->set_component_foreground_color((button_id + "text").c_str(), state ? 10597 : 65535);
+                disp1->set_component_font_color((button_id + "icon").c_str(), rgbTo565(icon_color));
+                delay(50);
+                disp1->set_component_text((button_id + "icon").c_str(), icon.c_str());
+                display_wrapped_text->execute(page.c_str(), (button_id + "text").c_str(), label.c_str(), 10);
+                disp1->set_component_text((button_id + "bri").c_str(), (strcmp(bri.c_str(), "0") == 0) ? " " : bri.c_str());
+                delay(50);
+                set_component_visibility->execute((button_id + "pic").c_str(), true);
+                set_component_visibility->execute((button_id + "icon").c_str(), true);
+                set_component_visibility->execute((button_id + "text").c_str(), true);
+                set_component_visibility->execute((button_id + "bri").c_str(), true);
+                set_component_visibility->execute(button_id.c_str(), true);
+
   - id: change_climate_state
     mode: restart
     parameters:
@@ -2265,40 +2128,14 @@ script:
             }
           }
 
-  - id: check_versions
+  - id: display_embedded_temp
     mode: restart
     then:
       - wait_until:
           condition:
-            - lambda: |-
-                return (compare_versions("${version}", version_tft->state.c_str()) and compare_versions("${version}", version_blueprint->state.c_str()));
-          timeout: 60s
-      - lambda: |-
-          if (!id(is_uploading_tft)) {
-            ESP_LOGD("script.check_versions", "Versions:");
-            ESP_LOGD("script.check_versions", "  TFT:       %s", version_tft->state.c_str());
-            ESP_LOGD("script.check_versions", "  ESPHome:   ${version}");
-            if (not compare_versions("${version}", version_tft->state.c_str()))
-              ESP_LOGE("script.check_versions", "TFT version mismatch!");
-            ESP_LOGD("script.check_versions", "  Blueprint: %s", version_blueprint->state.c_str());
-            if (not compare_versions("${version}", version_blueprint->state.c_str()))
-              ESP_LOGE("script.check_versions", "Blueprint version mismatch!");
-
-            esphome::api::CustomAPIDevice ha_event;
-            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-              {
-                {"device_name", device_name->state.c_str()},
-                {"esphome_version", "${version}"},
-                {"type", "version"},
-                {"tft", version_tft->state.c_str()},
-                {"esphome", "${version}"},
-                {"blueprint", version_blueprint->state.c_str()}
-              });
-          }
-
-  - id: display_embedded_temp
-    mode: restart
-    then:
+            - lambda: return (disp1->queue_size() < 1);
+            - lambda: return (tf_uart->available() < 1);
+          timeout: 250ms
       - lambda: |-
           if (id(embedded_indoor_temp) or !wifi_component->is_connected() or !api_server->is_connected()) {
             const std::string temp_units = "${temp_units}";
@@ -2314,8 +2151,9 @@ script:
 
   - id: display_wrapped_text
     mode: queued
-    max_runs: 50
+    max_runs: 15
     parameters:
+      page: string
       component: string
       text_to_display: string
       line_length_limit: uint
@@ -2351,7 +2189,8 @@ script:
               while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
             }
           }
-          disp1->set_component_text(component.c_str(), wrappedText.c_str());
+          ESP_LOGD("script.display_wrapped_text", "%s=%s", (std::string(page) + "." + component).c_str(), wrappedText.c_str());
+          disp1->set_component_text((std::string(page) + "." + component).c_str(), wrappedText.c_str());
 
   - id: dump_config
     mode: restart
@@ -2750,10 +2589,6 @@ script:
       - lambda: boot_progress->execute(10);
       - delay: 1s
       - lambda: |-
-          if (notification_sound->state) {
-            boot_log->execute("Boot", "Play boot sound");
-            buzzer->play("two short:d=4,o=5,b=100:16e6,16e6");
-          }
           set_brightness->execute(display_brightness->state);
           boot_log->execute("Boot", "Jump to wake-up page");
           ESP_LOGD("script.page_boot", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
@@ -2812,11 +2647,6 @@ script:
               detailed_entity->publish_state("");
               disp1->send_command("back_page_id=1");
           }
-          if (current_page->state != "media_player") {
-            id(last_volume_level) = 0;
-            id(last_media_duration) = 0;
-            id(last_media_position) = 0;
-          }
 
           if (!detailed_entity->state.empty())
             ESP_LOGD("script.page_changed", "Entity shown: %s", detailed_entity->state.c_str());
@@ -2868,7 +2698,6 @@ script:
           else if (current_page->state == "home") page_home->execute();
           else if (current_page->state == "keyb_num") page_keyb_num->execute();
           else if (current_page->state == "light") page_light->execute();
-          else if (current_page->state == "media_player") page_media_player->execute();
           else if (current_page->state == "notification") page_notification->execute();
           else if (current_page->state == "qrcode") page_qrcode->execute();
           else if (current_page->state == "screensaver") page_screensaver->execute();
@@ -2890,7 +2719,7 @@ script:
     mode: restart
     then:
       - lambda: |-
-          if (!id(is_uploading_tft)) display_wrapped_text->execute("confirm.title", id(mui_please_confirm_global).c_str(), 15);
+          if (!id(is_uploading_tft)) display_wrapped_text->execute("confirm", "title", id(mui_please_confirm_global).c_str(), 15);
 
   - id: page_cover
     mode: restart
@@ -2955,20 +2784,12 @@ script:
     mode: restart
     then:  # There's nothing here so far
 
-  - id: page_media_player
-    mode: restart
-    then:  # There's nothing here so far
-
   - id: page_notification
     mode: restart
     then:
       - lambda: |-
           disp1->set_component_text("notification.notifi_label", notification_label->state.c_str());
-          display_wrapped_text->execute("notification.notifi_text01", notification_text->state.c_str(), display_mode->state == 2 ? 23 : 32);
-
-  - id: page_qrcode
-    mode: restart
-    then:  # There's nothing here so far
+          display_wrapped_text->execute("notification", "notifi_text01", notification_text->state.c_str(), display_mode->state == 2 ? 23 : 32);
 
   - id: page_screensaver
     mode: restart
@@ -3320,8 +3141,14 @@ script:
       component_id: string
       show: bool
     then:
+      - wait_until:
+          condition:
+            - lambda: return (disp1->queue_size() < 1);
+            - lambda: return (tf_uart->available() < 1);
+          timeout: 250ms
       - lambda: |-
           NextionComponent component = extractNextionComponent(component_id, current_page->state);
+          ESP_LOGD("script.set_component_visibility", "vis %s,%i", component.component_id, show ? 1 : 0);
           if (component.is_current_page) disp1->send_command_printf("vis %s,%i", component.component_id, show ? 1 : 0);
 
   - id: set_timezone
@@ -3376,9 +3203,7 @@ script:
           page_home->stop();
           page_keyb_num->stop();
           page_light->stop();
-          page_media_player->stop();
           page_notification->stop();
-          page_qrcode->stop();
           page_screensaver->stop();
           page_settings->stop();
           page_utilities->stop();

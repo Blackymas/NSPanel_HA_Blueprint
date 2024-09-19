@@ -1,0 +1,93 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - VERSION                                                                    #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+---
+substitutions:
+  ##### DON'T CHANGE THIS ######
+  version: "4.4.0.dev1"
+  ##############################
+
+display:
+  - id: !extend disp1
+    on_setup:
+      - lambda: if (!id(is_uploading_tft)) version_tft->update();
+
+esphome:
+  project:
+    version: "${version}"
+
+  on_boot:
+    - priority: 600.01
+        - lambda: |-
+            boot_log->execute("on_boot", "Publish firmware version");
+            version_esphome->publish_state("${version}");
+
+script:
+  - id: check_versions
+    mode: restart
+    then:
+      - wait_until:
+          condition:
+            - lambda: |-
+                return (compare_versions("${version}", version_tft->state.c_str()) and compare_versions("${version}", version_blueprint->state.c_str()));
+          timeout: 60s
+      - lambda: |-
+          if (!id(is_uploading_tft)) {
+            ESP_LOGD("script.check_versions", "Versions:");
+            ESP_LOGD("script.check_versions", "  TFT:       %s", version_tft->state.c_str());
+            ESP_LOGD("script.check_versions", "  ESPHome:   ${version}");
+            if (not compare_versions("${version}", version_tft->state.c_str()))
+              ESP_LOGE("script.check_versions", "TFT version mismatch!");
+            ESP_LOGD("script.check_versions", "  Blueprint: %s", version_blueprint->state.c_str());
+            if (not compare_versions("${version}", version_blueprint->state.c_str()))
+              ESP_LOGE("script.check_versions", "Blueprint version mismatch!");
+
+            esphome::api::CustomAPIDevice ha_event;
+            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+              {
+                {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
+                {"type", "version"},
+                {"tft", version_tft->state.c_str()},
+                {"esphome", "${version}"},
+                {"blueprint", version_blueprint->state.c_str()}
+              });
+          }
+
+text_sensor:
+  - id: version_blueprint
+    name: Version Blueprint
+    platform: template
+    entity_category: diagnostic
+    icon: mdi:tag-text-outline
+    internal: false
+    update_interval: never
+    on_value:
+      - lambda: |-
+          check_versions->execute();
+
+  - id: version_esphome
+    name: Version ESPHome
+    platform: template
+    entity_category: diagnostic
+    icon: mdi:tag-text-outline
+    internal: false
+    update_interval: never
+    lambda: |-
+      return {"${version}"};
+
+  - id: version_tft
+    name: Version TFT
+    platform: nextion
+    component_name: boot.version
+    entity_category: diagnostic
+    icon: mdi:tag-text-outline
+    internal: false
+    update_interval: never
+    on_value:
+      - lambda: |-
+          check_versions->execute();
+...
