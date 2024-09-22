@@ -1,7 +1,7 @@
 // utilities.cpp
 
 #include "utilities.h"
-#include "../text/text.h"
+#include "libraries/text/text.h"
 #include <cstdlib> // For malloc/free
 #ifdef USE_ESP_IDF
 #include "esp_heap_caps.h"
