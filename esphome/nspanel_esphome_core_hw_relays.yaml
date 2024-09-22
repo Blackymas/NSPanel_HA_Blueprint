@@ -1,0 +1,117 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - HARDWARE - RELAYS                                                          #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+globals:
+  ####### Relay settings #######
+  # Bit # Settings             #
+  #  0  # Relay 1 - Local      #
+  #  1  # Relay 1 - Fallback   #
+  #  2  # reserved             #
+  #  3  # reserved             #
+  #  4  # Relay 2 - Local      #
+  #  5  # Relay 2 - Fallback   #
+  #  6  # reserved             #
+  #  7  # reserved             #
+  ##############################
+  - id: relay_settings
+    type: uint8_t
+    restore_value: true
+    initial_value: '0'
+
+  ##### Relay icons #####
+  - id: home_relay1_icon
+    type: char[4]
+    restore_value: true
+    initial_value: ''
+  - id: home_relay1_icon_color
+    type: uint16_t
+    restore_value: true
+    initial_value: '65535'
+  - id: home_relay2_icon
+    type: char[4]
+    restore_value: true
+    initial_value: ''
+  - id: home_relay2_icon_color
+    type: uint16_t
+    restore_value: true
+    initial_value: '65535'
+
+script:
+  - id: !extend page_home
+    then:
+      - &refresh_relay_3
+        script.execute:
+          id: refresh_relays
+          relay_mask: 3
+
+  - id: refresh_relays
+    mode: restart
+    parameters:
+      relay_mask: uint8_t
+    then:
+      - lambda: |-
+          // Chips - Relays
+          if (!id(is_uploading_tft) and relay_mask & 1) disp1->set_component_text("home.chip_relay1", (relay_1->state) ? id(home_relay1_icon) : "\uFFFF");
+          if (!id(is_uploading_tft) and relay_mask & 2) disp1->set_component_text("home.chip_relay2", (relay_2->state) ? id(home_relay2_icon) : "\uFFFF");
+
+  - id: !extend stop_all
+    then:
+      - script.stop: refresh_relays
+
+switch:
+  ##### PHYSICAL SWITCH 1 #####
+  - name: Relay 1
+    platform: gpio
+    id: relay_1
+    pin:
+      number: 22
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      then:
+        - lambda: |-
+            if (id(relay_settings) & RelaySettings::Relay1_Local)
+              update_bitwise_setting(id(buttons_settings), true, ButtonSettings::ButtonLeft_State);
+            refresh_relays->execute(1);
+            refresh_hardware_buttons_bars->execute(1);
+    on_turn_off:
+      then:
+        - lambda: |-
+            if (id(relay_settings) & RelaySettings::Relay1_Local)
+              update_bitwise_setting(id(buttons_settings), false, ButtonSettings::ButtonLeft_State);
+            refresh_relays->execute(1);
+            refresh_hardware_buttons_bars->execute(1);
+
+  ##### PHYSICAL SWITCH 2 ######
+  - name: Relay 2
+    platform: gpio
+    id: relay_2
+    pin:
+      number: 19
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      then:
+        - lambda: |-
+            if (id(relay_settings) & RelaySettings::Relay2_Local)
+              update_bitwise_setting(id(buttons_settings), true, ButtonSettings::ButtonRight_State);
+            refresh_relays->execute(2);
+            refresh_hardware_buttons_bars->execute(2);
+    on_turn_off:
+      then:
+        - lambda: |-
+            if (id(relay_settings) & RelaySettings::Relay2_Local)
+              update_bitwise_setting(id(buttons_settings), false, ButtonSettings::ButtonRight_State);
+            refresh_relays->execute(2);
+            refresh_hardware_buttons_bars->execute(2);
+
+time:
+  - id: !extend time_provider
+    on_time:
+      - seconds: 0
+        then:
+          - *refresh_relay_3
+...

@@ -68,7 +68,7 @@ This document provides step-by-step instructions for releasing a new version of 
 
 1. **Create a GitHub Release and Tag**:
    - Use GitHub’s UI to draft a new release:
-     - Go to the [Releases](https://github.com/your-repo/releases) page.
+     - Go to the [Releases](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases) page.
      - Click on "Draft a new release".
      - Select "Choose a tag" and create a new tag with the version number (e.g., `vX.X.X`).
      - Set the release title to the version number (e.g., `vX.X.X`).
