@@ -41,6 +41,7 @@ packages:
   hw_relays:          !include nspanel_esphome_core_hw_relays.yaml
   page_alarm:         !include nspanel_esphome_core_page_alarm.yaml
   page_buttons:       !include nspanel_esphome_core_page_buttons.yaml
+  page_climate:       !include nspanel_esphome_core_page_climate.yaml
   page_media_player:  !include nspanel_esphome_core_page_media_player.yaml
   page_notification:  !include nspanel_esphome_core_page_notification.yaml
   page_qrcode:        !include nspanel_esphome_core_page_qrcode.yaml
@@ -249,39 +250,6 @@ api:
                 disp1->set_component_font_color(id.c_str(), rgbTo565(icon_color));
               set_component_visibility->execute(id.c_str(), visible);
             }
-
-    # Dynamically updates the climate page with the latest climate control settings and status.
-    - action: page_climate
-      variables:
-        current_temp: float      # Current temperature reading.
-        supported_features: int  # Bitmask indicating the supported features of the climate device, such as temperature control (1) and fan mode (4).
-        target_temp: float       # Desired target temperature setting.
-        target_temp_high: float  # Upper limit of the target temperature range for devices supporting ranges.
-        target_temp_low: float   # Lower limit of the target temperature range.
-        temp_step: int           # Temperature adjustment step size, indicating the granularity of changes (multiplied by 10 for precision).
-        total_steps: int         # Total adjustment steps available, derived from the device's temperature range and step size.
-        temp_offset: int         # Calibration offset applied to the temperature reading (multiplied by 10 for precision).
-        climate_icon: string     # Icon codepoint representing the current climate status, chosen from HASwitchPlate Material Design Icons.
-        embedded_climate: bool   # Indicates if climate control is integrated into the interface.
-        entity: string           # Entity ID of the climate device, allowing for direct control and status updates.
-      then:
-        - if:
-            condition:
-              lambda: return !id(is_uploading_tft);
-            then:
-              - lambda: if (current_page->state == "climate") detailed_entity->publish_state(entity);
-              - script.execute:
-                  id: set_climate
-                  current_temp: !lambda return current_temp;
-                  supported_features: !lambda return supported_features;
-                  target_temp: !lambda return target_temp;
-                  target_temp_high: !lambda return target_temp_high;
-                  target_temp_low: !lambda return target_temp_low;
-                  temp_step: !lambda return temp_step;
-                  total_steps: !lambda return total_steps;
-                  temp_offset: !lambda return temp_offset;
-                  climate_icon: !lambda return climate_icon;
-                  embedded_climate: !lambda return embedded_climate;
 
     - action: set_bool
       variables:
@@ -1106,23 +1074,6 @@ text_sensor:
             }
 
 script:
-  - id: change_climate_state
-    mode: restart
-    parameters:
-      embedded: bool
-      key: string
-      value: string
-    then:
-      - lambda: |-
-          if (!id(is_uploading_tft)) {
-            if (not embedded) {
-              if (key == "temperature" or key == "target_temp_high" or key == "target_temp_low")
-                ha_call_action->execute("climate.set_temperature", key.c_str(), to_string(stof(value) / 10), detailed_entity->state.c_str());
-              else if (key == "hvac_mode")
-                ha_call_action->execute("climate.set_hvac_mode", key.c_str(), value.c_str(), detailed_entity->state.c_str());
-            }
-          }
-
   - id: display_embedded_temp
     mode: restart
     then:
@@ -1476,7 +1427,6 @@ script:
 
           // Call page constructor
           if (current_page->state == "blank") page_blank->execute();
-          else if (current_page->state == "climate") page_climate->execute();
           else if (current_page->state == "confirm") page_confirm->execute();
           else if (current_page->state == "cover") page_cover->execute();
           else if (current_page->state == "entitypage01") page_entitypage01->execute();
@@ -1496,10 +1446,6 @@ script:
           else if (current_page->state == "weather03") page_weather03->execute();
           else if (current_page->state == "weather04") page_weather04->execute();
           else if (current_page->state == "weather05") page_weather05->execute();
-
-  - id: page_climate
-    mode: restart
-    then:  # There's nothing here so far
 
   - id: page_confirm
     mode: restart
@@ -1709,87 +1655,6 @@ script:
             }
           }
 
-  - id: set_climate
-    mode: restart
-    parameters:
-      current_temp: float
-      supported_features: int
-      target_temp: float
-      target_temp_high: float
-      target_temp_low: float
-      temp_step: uint
-      total_steps: uint
-      temp_offset: int
-      climate_icon: string
-      embedded_climate: bool
-    then:
-      - lambda: |-
-          if (!id(is_uploading_tft) and current_page->state == "climate") {
-            bool useDecimal = (temp_step % 10 != 0);
-            char buffer[15];
-            disp1->send_command_printf("climateslider.maxval=%i", total_steps);
-            disp1->send_command_printf("slider_high.maxval=%i", total_steps);
-            disp1->send_command_printf("slider_low.maxval=%i", total_steps);
-            disp1->set_component_value("temp_offset", temp_offset);
-            disp1->set_component_value("temp_step", temp_step);
-            char dec_separator_str[2] = {id(mui_decimal_separator), '\0'};
-            disp1->set_component_text("dec_separator", dec_separator_str);
-            set_component_visibility->execute("current_temp", true);
-            if (current_temp > -999) {
-              snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", current_temp);
-              disp1->set_component_text("current_temp", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-            }
-            else
-              disp1->set_component_text("current_temp", id(mui_unavailable_global).c_str());
-
-            if (target_temp > -999) {  // Target temp enabled
-              disp1->set_component_value("active_slider", 0);
-              snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", target_temp);
-              disp1->set_component_text("target_high", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-              disp1->set_component_value("climateslider", round(((10*target_temp) - temp_offset) / temp_step));
-              set_component_visibility->execute("slider_high", false);
-              set_component_visibility->execute("slider_low", false);
-              set_component_visibility->execute("target_low", false);
-              set_component_visibility->execute("target_high", true);
-              set_component_visibility->execute("climateslider", true);
-            } else {
-              set_component_visibility->execute("climate.slider_high", false);
-              if (target_temp_low > -999) {  // Target temp low enabled
-                disp1->set_component_value("active_slider", 2);
-                snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", target_temp_low);
-                disp1->set_component_text("target_low", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-                disp1->set_component_value("slider_low", round(((10*target_temp_low) - temp_offset) / temp_step));
-                set_component_visibility->execute("target_low", true);
-                set_component_visibility->execute("slider_low", true);
-              } else {
-                set_component_visibility->execute("target_low", false);
-                set_component_visibility->execute("slider_low", false);
-              }
-              if (target_temp_high > -999) {  // Target temp high enabled
-                disp1->set_component_value("active_slider", 1);
-                snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", target_temp_high);
-                disp1->set_component_text("target_high", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-                disp1->set_component_value("slider_high", round(((10*target_temp_high) - temp_offset) / temp_step));
-                set_component_visibility->execute("target_high", true);
-                set_component_visibility->execute("slider_high", true);
-              } else {
-                set_component_visibility->execute("target_high", false);
-                set_component_visibility->execute("slider_high", false);
-              }
-            }
-            if (target_temp > -999 or target_temp_high > -999 or target_temp_low > -999) {
-              disp1->set_component_text("target_icon", climate_icon.c_str());
-              set_component_visibility->execute("target_icon", true);
-              set_component_visibility->execute("decrease_temp", true);
-              set_component_visibility->execute("increase_temp", true);
-            } else {
-              set_component_visibility->execute("target_icon", false);
-              set_component_visibility->execute("decrease_temp", false);
-              set_component_visibility->execute("increase_temp", false);
-            }
-            disp1->set_component_value("embedded", (embedded_climate) ? 1 : 0);
-          }
-
   - id: set_component_visibility
     mode: queued
     max_runs: 15
@@ -1812,7 +1677,6 @@ script:
     then:
       - lambda: |-
           cleanupUtilitiesGroups();
-          change_climate_state->stop();
           check_versions->stop();
           display_embedded_temp->stop();
           display_wrapped_text->stop();
@@ -1821,7 +1685,6 @@ script:
           ha_call_action->stop();
           init_hardware_climate->stop();
           page_blank->stop();
-          page_climate->stop();
           page_changed->stop();
           page_confirm->stop();
           page_cover->stop();
@@ -1846,7 +1709,6 @@ script:
           refresh_wifi_icon->stop();
           set_baud_rate->stop();
           set_brightness->stop();
-          set_climate->stop();
           timer_dim->stop();
           timer_page->stop();
           timer_reset_all->stop();
@@ -1928,71 +1790,6 @@ script:
                   goto_page->execute("screensaver");
                   set_brightness->execute(display_sleep_brightness->state);
                 }
-
-  - id: update_climate_icon
-    mode: restart
-    parameters:
-      component: string
-      action: uint
-      mode: uint
-    then:
-      - lambda: |-
-          switch (action) // CLIMATE_ACTION_OFF = 0, CLIMATE_ACTION_COOLING = 2, CLIMATE_ACTION_HEATING = 3, CLIMATE_ACTION_IDLE = 4, CLIMATE_ACTION_DRYING = 5, CLIMATE_ACTION_FAN = 6
-            {
-              case 0: //CLIMATE_ACTION_OFF
-                switch (mode) // CLIMATE_MODE_OFF = 0, CLIMATE_MODE_HEAT_COOL = 1, CLIMATE_MODE_COOL = 2, CLIMATE_MODE_HEAT = 3, CLIMATE_MODE_FAN_ONLY = 4, CLIMATE_MODE_DRY = 5, CLIMATE_MODE_AUTO = 6
-                  {
-                    case 0: //CLIMATE_MODE_OFF
-                      disp1->set_component_text(component.c_str(), "\uFFFF"); // (E424) Don't show icon when off
-                      disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
-                      break;
-                    case 1: //CLIMATE_MODE_HEAT_COOL
-                      disp1->set_component_text(component.c_str(), "\uE069"); // mdi:autorenew
-                      disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
-                      break;
-                    case 2: //CLIMATE_MODE_COOL
-                      disp1->set_component_text(component.c_str(), "\uE716"); // mdi:snowflake
-                      disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
-                      break;
-                    case 3: //CLIMATE_MODE_HEAT
-                      disp1->set_component_text(component.c_str(), "\uE237"); // mdi:fire
-                      disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
-                      break;
-                    case 4: //CLIMATE_MODE_FAN_ONLY
-                      disp1->set_component_text(component.c_str(), "\uE20F"); // mdi:fan
-                      disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
-                      break;
-                    case 5: //CLIMATE_MODE_DRY
-                      disp1->set_component_text(component.c_str(), "\uE58D"); // mdi:water-percent
-                      disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
-                      break;
-                    case 6: //CLIMATE_MODE_AUTO
-                      disp1->set_component_text(component.c_str(), "\uF8F1"); // mdi:refresh-auto
-                      disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
-                      break;
-                  }
-                  break;
-              case 2: //CLIMATE_ACTION_COOLING
-                disp1->set_component_text(component.c_str(), "\uE716"); // mdi:snowflake
-                disp1->set_component_font_color(component.c_str(), 1055); // blue
-                break;
-              case 3: //CLIMATE_ACTION_HEATING
-                disp1->set_component_text(component.c_str(), "\uE237"); // mdi:fire
-                disp1->set_component_font_color(component.c_str(), 64164); // deep-orange
-                break;
-              case 4: //CLIMATE_ACTION_IDLE
-                disp1->set_component_text(component.c_str(), "\uE50E"); // mdi:thermometer
-                disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
-                break;
-              case 5: //CLIMATE_ACTION_DRYING
-                disp1->set_component_text(component.c_str(), "\uE58D"); // mdi:water-percent
-                disp1->set_component_font_color(component.c_str(), 64704); // orange
-                break;
-              case 6: //CLIMATE_ACTION_FAN
-                disp1->set_component_text(component.c_str(), "\uE20F"); // mdi:fan
-                disp1->set_component_font_color(component.c_str(), 1530); // cyan
-                break;
-            }
 
   - id: update_tft_info
     mode: restart
