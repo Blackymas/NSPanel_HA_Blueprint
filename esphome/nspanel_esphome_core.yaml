@@ -257,24 +257,30 @@ api:
         component: string
         val: bool
       then:
-        - lambda: |-
-            if (component == "is_climate") id(is_climate) = val;
+        - script.execute:
+            id: set_var_bool
+            component: !lambda return component;
+            val: !lambda return val;
 
     - action: set_int
       variables:
         component: string
         val: int
       then:
-        - lambda: |-
-            if (component == "bytes_per_char") id(mui_bytes_per_char) = val;
+        - script.execute:
+            id: set_var_int
+            component: !lambda return component;
+            val: !lambda return val;
 
     - action: set_string
       variables:
         component: string
         val: string
       then:
-        - lambda: |-
-            if (component == "timezone") set_timezone->execute(val.c_str());
+        - script.execute:
+            id: set_var_string
+            component: !lambda return component;
+            val: !lambda return val;
 
     # Updates an entity to display specific values with dynamic icons, names, and color codes.
     - action: value
@@ -410,11 +416,6 @@ display:
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
-  - id: is_climate
-    type: bool
-    restore_value: true
-    initial_value: 'true'
-
   - id: mui_bytes_per_char
     type: uint8_t
     restore_value: true
@@ -432,12 +433,6 @@ globals:
     type: bool
     restore_value: true
     initial_value: 'false'
-
-  ##### Is embedded sensor used for indoor temperature? #####
-  - id: embedded_indoor_temp
-    type: bool
-    restore_value: true
-    initial_value: 'true'
 
   #### Localization (MUI) ####
   - id: mui_please_confirm_global
@@ -595,25 +590,6 @@ number:
             disp1->send_command_printf("brightness_sleep=%i", int(x));
             page_screensaver->execute();
 
-  ##### Temperature Correction #####
-  - id: temperature_correction
-    name: Temperature Correction
-    platform: template
-    entity_category: config
-    unit_of_measurement: °C
-    min_value: -10
-    max_value: 10
-    initial_value: 0
-    step: 0.1
-    mode: box
-    restore_value: true
-    internal: false
-    optimistic: true
-    on_value:
-      - logger.log: Temperature correction changed.
-      - delay: 1s
-      - lambda: temp_nspanel->publish_state(temp_nspanel->raw_state);
-
   ##### Timers settings #####
   - name: Timeout Page
     platform: template
@@ -732,44 +708,6 @@ select:
           page_screensaver->execute();
 
 sensor:
-  ##### INTERNAL TEMPERATURE SENSOR, ADC VALUE #####
-  - id: ntc_source
-    platform: adc
-    pin: 38
-    attenuation: 12db
-    samples: 4
-    update_interval: 10s
-    filters:
-      - sliding_window_moving_average:
-          window_size: 6
-          send_every: 1
-
-  ##### INTERNAL TEMPERATURE SENSOR, adc reading converted to resistance (calculation)#####
-  - id: resistance_sensor
-    platform: resistance
-    sensor: ntc_source
-    configuration: DOWNSTREAM
-    resistor: 11.2kOhm
-
-  ##### INTERNAL TEMPERATURE SENSOR, resistance to temperature (calculation) #####
-  - id: temp_nspanel
-    name: Temperature
-    platform: ntc
-    sensor: resistance_sensor
-    unit_of_measurement: °C
-    internal: false
-    calibration:
-      b_constant: 3950
-      reference_temperature: 25°C
-      reference_resistance: 10kOhm
-    filters:
-      - lambda: |-
-          return x + temperature_correction->state;
-    on_value:
-      then:
-        # Show panel's temperature if API or Wi-Fi are out
-        - lambda: display_embedded_temp->execute();
-
   ###### Display Brightness GET VALUE FROM NSPanel SLIDER #####
   - id: brightslider
     name: brightness Slider
@@ -1039,27 +977,6 @@ text_sensor:
             }
 
 script:
-  - id: display_embedded_temp
-    mode: restart
-    then:
-      - wait_until:
-          condition:
-            - lambda: return (disp1->queue_size() < 1);
-            - lambda: return (tf_uart->available() < 1);
-          timeout: 250ms
-      - lambda: |-
-          if (id(embedded_indoor_temp) or !wifi_component->is_connected() or !api_server->is_connected()) {
-            const std::string temp_units = "${temp_units}";
-            const bool temp_unit_fahrenheit = (temp_units == "°F" || temp_units == "F" || temp_units == "°f" || temp_units == "f");
-            char buffer[15]; // Buffer for formatted temperature string
-            if (temp_unit_fahrenheit) {
-              snprintf(buffer, sizeof(buffer), "%.0f${temp_units}", (id(temp_nspanel).state * 9.0 / 5.0) + 32); // Fahrenheit with no decimal
-            } else {
-              snprintf(buffer, sizeof(buffer), "%.1f${temp_units}", id(temp_nspanel).state); // Celsius with one decimal
-            }
-            id(disp1)->set_component_text("home.indr_temp", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-          }
-
   - id: display_wrapped_text
     mode: queued
     max_runs: 15
@@ -1314,21 +1231,6 @@ script:
                 {"entity", entity}
               });
           }
-
-  - id: init_hardware_climate
-    mode: restart
-    parameters:
-      embedded_climate: bool                  # Indicates if climate control is integrated.
-      embedded_climate_friendly_name: string  # Friendly name for the climate control feature.
-      embedded_indoor_temperature: bool       # Enables indoor temperature display.
-    then:
-      - lambda: |-
-          // Embedded thermostat
-          id(is_embedded_thermostat) = embedded_climate;
-
-          // Indoor temperature
-          id(embedded_indoor_temp) = embedded_indoor_temperature;
-          display_embedded_temp->execute();
 
   - id: page_blank
     mode: restart
@@ -1631,17 +1533,38 @@ script:
           ESP_LOGD("script.set_component_visibility", "vis %s,%i", component.component_id, show ? 1 : 0);
           if (component.is_current_page) disp1->send_command_printf("vis %s,%i", component.component_id, show ? 1 : 0);
 
+  - id: set_var_bool
+    mode: queued
+    parameters:
+      component: string
+      val: bool
+    then:  # There's nothing here so far
+
+  - id: set_var_int
+    mode: queued
+    parameters:
+      component: string
+      val: int
+    then:
+      - lambda: |-
+          if (component == "bytes_per_char") id(mui_bytes_per_char) = val;
+
+  - id: set_var_string
+    mode: queued
+    parameters:
+      component: string
+      val: string
+    then:  # There's nothing here so far
+
   - id: stop_all
     mode: restart
     then:
       - lambda: |-
           check_versions->stop();
-          display_embedded_temp->stop();
           display_wrapped_text->stop();
           dump_config->stop();
           ha_button->stop();
           ha_call_action->stop();
-          init_hardware_climate->stop();
           page_blank->stop();
           page_changed->stop();
           page_confirm->stop();
