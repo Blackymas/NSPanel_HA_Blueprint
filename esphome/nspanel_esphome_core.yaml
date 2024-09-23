@@ -16,6 +16,7 @@ substitutions:
   temp_units: "°C"
   invalid_cooldown: "100ms"
   bytes_per_char: "1"
+  project_tag: "nspanel_ha_blueprint"
   ##############################
 
   ##### DON'T CHANGE THIS ######
@@ -41,9 +42,11 @@ packages:
   hw_display:         !include nspanel_esphome_core_hw_display.yaml
   hw_relays:          !include nspanel_esphome_core_hw_relays.yaml
   hw_temperature:     !include nspanel_esphome_core_hw_temperature.yaml
+  hw_wifi:            !include nspanel_esphome_core_hw_wifi.yaml
   page_alarm:         !include nspanel_esphome_core_page_alarm.yaml
   page_buttons:       !include nspanel_esphome_core_page_buttons.yaml
   page_climate:       !include nspanel_esphome_core_page_climate.yaml
+  page_home:          !include nspanel_esphome_core_page_home.yaml
   page_media_player:  !include nspanel_esphome_core_page_media_player.yaml
   page_notification:  !include nspanel_esphome_core_page_notification.yaml
   page_qrcode:        !include nspanel_esphome_core_page_qrcode.yaml
@@ -76,20 +79,6 @@ esphome:
       - -Wno-missing-field-initializers
       - -D NSPANEL_HA_BLUEPRINT_CORE
 
-  on_shutdown:
-    - priority: 0
-      then:
-        - lambda: |-
-            // Make it unavailable to blueprint calls
-            nextion_init->publish_state(false);
-            // Update Wi-Fi icon
-            disp1->set_component_text("home.wifi_icon", "\uE708");
-            // Update Wi-Fi icon color
-            disp1->set_component_font_color("home.wifi_icon", 63488);
-    - priority: 600.0
-      then:
-        - switch.turn_off: screen_power
-
 esp32:
   board: esp32dev
   flash_size: 4MB
@@ -98,21 +87,6 @@ esp32:
 
 psram:
   id: ext_ram
-
-##### WIFI SETUP #####
-wifi:
-  id: wifi_component
-  power_save_mode: LIGHT
-  networks:
-    - id: wifi_default
-      ssid: ${wifi_ssid}
-      password: ${wifi_password}
-  on_connect:
-    then:
-      - script.execute: refresh_wifi_icon
-  on_disconnect:
-    then:
-      - script.execute: refresh_wifi_icon
 
 ##### OTA PASSWORD #####
 ota:
@@ -157,11 +131,7 @@ api:
   reboot_timeout: 60min
   on_client_connected:
     then:
-      - script.execute: refresh_wifi_icon
       - script.execute: dump_config
-  on_client_disconnected:
-    then:
-      - script.execute: refresh_wifi_icon
   actions:
     # Sends custom commands directly to the display for dynamic interactions and updates.
     - action: command
@@ -437,10 +407,6 @@ globals:
     initial_value: 'false'
 
   #### Localization (MUI) ####
-  - id: mui_please_confirm_global
-    type: std::string
-    restore_value: true
-    initial_value: '"Please confirm"'
   - id: mui_unavailable_global
     type: std::string
     restore_value: true
@@ -450,34 +416,10 @@ globals:
     restore_value: true
     initial_value: "'.'"
 
-  ##### Chips #####
-  - id: home_chip_font_id
-    type: uint8_t
-    restore_value: true
-    initial_value: '7'
-
-  #### Custom buttons ####
-  - id: home_custom_buttons_font_id
-    type: uint8_t
-    restore_value: true
-    initial_value: '8'
-
   - id: page_entity_value_horizontal_alignment
     type: uint8_t
     restore_value: false
     initial_value: '1'  # Horizontal alignment:0-Left;1-Center;2-Right
-
-binary_sensor:
-  ## Delays initial info from HA to the display #####
-  - name: Nextion display
-    id: nextion_init
-    platform: template
-    device_class: connectivity
-    publish_initial_state: true
-    entity_category: diagnostic
-    icon: mdi:tablet-dashboard
-    lambda: |-
-      return (!id(is_uploading_tft) and disp1->is_setup());
 
 button:
   ###### Factory Reset button #####
@@ -493,120 +435,11 @@ button:
     platform: restart
     id: restart_nspanel
 
-  ###### Power cycle Nextion Display ######
-  - name: Nextion display - Power cycle
-    id: screen_power_cycle
-    platform: template
-    internal: false
-    disabled_by_default: true
-    icon: mdi:power-cycle
-    entity_category: diagnostic
-    on_press:
-      - switch.turn_off: screen_power
-      - delay: 1s
-      - switch.turn_on: screen_power
-
-light:
-  # Add the display as a light in Home Assistant
-  - name: Display
-    id: display_light
-    icon: mdi:tablet-dashboard
-    platform: monochromatic
-    output: display_output
-    default_transition_length: 0s
-    on_turn_on:
-      then:
-        - lambda: |-
-            ESP_LOGD("light", "Display: On");
-            if (current_page->state == "screensaver") disp1->goto_page(wakeup_page_name->state.c_str());
-            timer_reset_all->execute();
-    on_turn_off:
-      then:
-        - lambda: |-
-            ESP_LOGD("light", "Display: Off");
-            goto_page->execute("screensaver");
-
 safe_mode:
   reboot_timeout: 3min
   num_attempts: 3
 
-sensor:
-  ##### Wi-Fi Signal stregth
-  - name: RSSI
-    id: wifi_rssi
-    platform: wifi_signal
-    internal: false
-    disabled_by_default: false
-    icon: mdi:wifi
-    entity_category: diagnostic
-
-switch:
-  - id: hw_button_wakeup
-    name: Wake-up with hardware buttons
-    platform: template
-    entity_category: config
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
-    disabled_by_default: false
-
-  ##### DISPLAY ALWAYS ON #####
-  - name: Nextion display - Power
-    platform: gpio
-    id: screen_power
-    entity_category: diagnostic
-    pin:
-      number: 4
-      inverted: true
-    restore_mode: ALWAYS_ON
-    internal: true
-    disabled_by_default: false
-    on_turn_off:
-      - lambda: |-
-          nextion_init->publish_state(false);
-
 text_sensor:
-  ##### Device name - Used by bluepring to find action's names #####
-  - id: device_name
-    name: Device Name
-    platform: template
-    icon: mdi:identifier
-    entity_category: diagnostic
-    internal: false
-    disabled_by_default: false
-    lambda: |-
-      return {"${name}"};
-    filters:
-      - lambda: |-
-          #ifdef ESP_MAC_WIFI_STA
-          std::string suffix = "00ERROR";  // Default suffix in case of an error
-          uint8_t mac[6] = {0,0,0,0,0,0};
-          if (esp_read_mac(mac, ESP_MAC_WIFI_STA) == ESP_OK) {
-            suffix.clear();  // Clear the default error suffix
-            for (int i = 3; i < 6; ++i) {  // Use last 3 bytes of MAC
-              char hex[3];
-              snprintf(hex, sizeof(hex), "%02X", mac[i]);
-              suffix += hex;
-            }
-          }
-          // Proceed with suffix (either MAC-based or default error indicator)
-          const std::string raw_name = (x + "-" + suffix);
-          #else
-          const std::string raw_name = x;
-          #endif
-
-          std::string result;
-          bool last_was_underscore = false;
-          for (const char& c : raw_name) {
-            if (isalnum(c)) {
-              result += tolower(c);  // Add alphanumeric characters as lowercase
-              last_was_underscore = false;
-            } else if (!last_was_underscore) {  // Replace non-alphanumeric with '_' but avoid consecutive '_'
-              result += '_';
-              last_was_underscore = true;
-            }
-          }
-          return result;
-
   ##### Entity Id of the entity displayed on the detailed pages
   - id: detailed_entity
     name: Detailed Entity
@@ -614,25 +447,6 @@ text_sensor:
     icon: mdi:tablet-dashboard
     internal: false
     disabled_by_default: false
-
-  ##### Current page name #####
-  - id: current_page
-    name: Current Page
-    platform: nextion
-    component_name: current_page
-    icon: mdi:tablet-dashboard
-    internal: false
-    disabled_by_default: false
-    filters:
-      - lambda: |-
-          x = x.c_str();
-          x.shrink_to_fit();
-          return x;
-    on_value:
-      lambda: |-
-        if (!id(is_uploading_tft)) {
-          page_changed->execute();
-        }
 
   ##### NSPanel event - Execute actions from ESPHome - NO push to HA #####
   - id: disp1_local_event
@@ -783,7 +597,17 @@ script:
   - id: dump_config
     mode: restart
     then:
-      - delay: 10s
+      - wait_until:
+          condition:
+            - lambda: return (id(is_uploading_tft));
+          timeout: 10s
+      - if:
+          condition:
+            - lambda: return (id(is_uploading_tft));
+          then:
+            - lambda: |-
+                ESP_LOGW("${project_tag}", "TFT upload in progress");
+            - script.stop: dump_config
       - lambda: |-
           #include <esp_heap_caps.h>
           static const char *const TAG = "nspanel_ha_blueprint";
@@ -1061,7 +885,6 @@ script:
           else if (current_page->state == "entitypage03") page_entitypage03->execute();
           else if (current_page->state == "entitypage04") page_entitypage04->execute();
           else if (current_page->state == "fan") page_fan->execute();
-          else if (current_page->state == "home") page_home->execute();
           else if (current_page->state == "keyb_num") page_keyb_num->execute();
           else if (current_page->state == "light") page_light->execute();
           else if (current_page->state == "qrcode") page_qrcode->execute();
@@ -1125,12 +948,6 @@ script:
   - id: page_fan
     mode: restart
     then:  # There's nothing here so far
-
-  - id: page_home
-    mode: restart
-    then:
-      - lambda:
-          refresh_wifi_icon->execute();
 
   - id: page_keyb_num
     mode: restart
@@ -1197,27 +1014,6 @@ script:
       - script.execute:
           id: page_weather
           page_number: 5
-
-  - id: refresh_wifi_icon
-    mode: restart
-    then:
-      - lambda: |-
-          if (!id(is_uploading_tft)) {
-            disp1->send_command_printf("api=%i", (wifi_component->is_connected() and api_server->is_connected() and blueprint_status->state > 99) ? 1 : 0);
-            // Update Wi-Fi icon color
-            disp1->set_component_font_color("home.wifi_icon",
-                                            (wifi_component->is_connected() and api_server->is_connected() and blueprint_status->state > 99) ?
-                                            (wifi_rssi->state > -70 ? 33808 : 64992) :
-                                            63488);
-            // Update Wi-Fi icon
-            disp1->set_component_text("home.wifi_icon",
-                                      wifi_component->is_connected() ?
-                                        (api_server->is_connected() ?
-                                          ((blueprint_status->state > 99) ? "\uE5A8" :  // mdi:wifi - All right!
-                                          "\uE7CF") :                                   // mdi:home-assistant - Blueprint is out
-                                        "\uF256") :                                     // mdi:api-off
-                                      "\uE5A9");                                        // mdi:wifi-off
-          }
 
   - id: set_component_visibility
     mode: queued
@@ -1289,12 +1085,6 @@ script:
           page_weather04->stop();
           page_weather05->stop();
           page_weather->stop();
-          refresh_wifi_icon->stop();
-          timer_dim->stop();
-          timer_page->stop();
-          timer_reset_all->stop();
-          timer_sleep->stop();
-          update_climate_icon->stop();
           update_tft_info->stop();
 
   - id: update_tft_info

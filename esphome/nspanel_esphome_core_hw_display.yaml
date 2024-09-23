@@ -9,6 +9,63 @@
 ###############################
 
 ---
+binary_sensor:
+  ## Delays initial info from HA to the display #####
+  - name: Nextion display
+    id: nextion_init
+    platform: template
+    device_class: connectivity
+    publish_initial_state: true
+    entity_category: diagnostic
+    icon: mdi:tablet-dashboard
+    lambda: |-
+      return (!id(is_uploading_tft) and disp1->is_setup());
+
+button:
+  ###### Power cycle Nextion Display ######
+  - name: Nextion display - Power cycle
+    id: screen_power_cycle
+    platform: template
+    internal: false
+    disabled_by_default: true
+    icon: mdi:power-cycle
+    entity_category: diagnostic
+    on_press:
+      - switch.turn_off: screen_power
+      - delay: 1s
+      - switch.turn_on: screen_power
+
+esphome:
+  on_shutdown:
+    - priority: 0.2
+      then:
+        - lambda: |-
+            // Make it unavailable to blueprint calls
+            nextion_init->publish_state(false);
+    - priority: 600.2
+      then:
+        - switch.turn_off: screen_power
+
+light:
+  # Add the display as a light in Home Assistant
+  - name: Display
+    id: display_light
+    icon: mdi:tablet-dashboard
+    platform: monochromatic
+    output: display_output
+    default_transition_length: 0s
+    on_turn_on:
+      then:
+        - lambda: |-
+            ESP_LOGD("light", "Display: On");
+            if (current_page->state == "screensaver") disp1->goto_page(wakeup_page_name->state.c_str());
+            timer_reset_all->execute();
+    on_turn_off:
+      then:
+        - lambda: |-
+            ESP_LOGD("light", "Display: Off");
+            goto_page->execute("screensaver");
+
 number:
   ##### SCREEN BRIGHTNESS #####
   - id: display_brightness
@@ -394,5 +451,47 @@ sensor:
     icon: mdi:phone-rotate-portrait
     entity_category: diagnostic
 
+switch:
+  - id: hw_button_wakeup
+    name: Wake-up with hardware buttons
+    platform: template
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    disabled_by_default: false
 
+  ##### DISPLAY ALWAYS ON #####
+  - name: Nextion display - Power
+    platform: gpio
+    id: screen_power
+    entity_category: diagnostic
+    pin:
+      number: 4
+      inverted: true
+    restore_mode: ALWAYS_ON
+    internal: true
+    disabled_by_default: false
+    on_turn_off:
+      - lambda: |-
+          nextion_init->publish_state(false);
+
+text_sensor:
+  ##### Current page name #####
+  - id: current_page
+    name: Current Page
+    platform: nextion
+    component_name: current_page
+    icon: mdi:tablet-dashboard
+    internal: false
+    disabled_by_default: false
+    filters:
+      - lambda: |-
+          x = x.c_str();
+          x.shrink_to_fit();
+          return x;
+    on_value:
+      lambda: |-
+        if (!id(is_uploading_tft)) {
+          page_changed->execute();
+        }
 ...
