@@ -173,20 +173,17 @@ api:
               disp1->set_component_value(id.c_str(), val);
 
     # Hides or shows a specified component on the display.
-    - action: components_visibility
+    - action: component_visibility
       variables:
-        ids: string[]  # Identifier of the component to be hidden/shown. Ensure this matches the component's ID in your display layout.
-        visible: bool  # Set to true to show the component, or false to hide it.
+        page: string          # Page where the component is located
+        component_id: string  # Identifier of the component to be hidden/shown. Ensure this matches the component's ID in your display layout.
+        show: bool            # Set to true to show the component, or false to hide it.
       then:
-        - lambda: |-
-            if (!id(is_uploading_tft)) {
-              for (const std::string& component_id : ids) {
-                if (!id(is_uploading_tft) and !component_id.empty()) {
-                  ESP_LOGD("action.components_visibility", "vis %s,%i", component_id.c_str(), (visible ? 1 : 0));
-                  set_component_visibility->execute(component_id.c_str(), visible);
-                }
-              }
-            }
+        - script.execute:
+            id: set_component_visibility
+            page: !lambda return page;
+            component_id: !lambda return component_id;
+            show: !lambda return show;
 
     # Displays detailed information for a specific entity.
     - action: entity_details_show
@@ -211,6 +208,7 @@ api:
     # Icon action
     - action: icon
       variables:
+        page: string       # Page name
         id: string         # Identifier of the component. See "Screen components" in the documentation.
         icon: string       # Icon codepoint, e.g., "/uE6E8" for `mdi:lightbulb-on-outline`.
         icon_color: int[]  # RGB color array for the icon, e.g., [0, 255, 0] for green.
@@ -221,7 +219,7 @@ api:
               disp1->set_component_text(id.c_str(), visible ? icon.c_str() : "");
               if (icon_color.size() == 3)
                 disp1->set_component_font_color(id.c_str(), rgbTo565(icon_color));
-              set_component_visibility->execute(id.c_str(), visible);
+              set_component_visibility->execute(page.c_str(), id.c_str(), visible);
             }
 
     - action: set_bool
@@ -966,7 +964,7 @@ script:
             if (id(screensaver_display_time)) {
               disp1->set_component_font("screensaver.text", id(screensaver_display_time_font));
               disp1->set_component_font_color("screensaver.text", id(screensaver_display_time_color));
-              set_component_visibility->execute("screensaver.text", true);
+              set_component_visibility->execute("screensaver", "text", true);
               refresh_datetime->execute();
             }
             set_brightness->execute(display_sleep_brightness->state);
@@ -976,8 +974,8 @@ script:
     mode: restart
     then:
       - lambda: |-
-          set_component_visibility->execute("page_settings.lbl_sleep", false);
-          set_component_visibility->execute("page_settings.bt_sleep", false);
+          set_component_visibility->execute("settings", "lbl_sleep", false);
+          set_component_visibility->execute("settings", "bt_sleep", false);
 
   - id: page_weather
     mode: restart
@@ -1019,6 +1017,7 @@ script:
     mode: queued
     max_runs: 15
     parameters:
+      page: string
       component_id: string
       show: bool
     then:
@@ -1026,11 +1025,10 @@ script:
           condition:
             - lambda: return (disp1->queue_size() < 1);
             - lambda: return (tf_uart->available() < 1);
+            - lambda: return (page == current_page->state);
           timeout: 250ms
       - lambda: |-
-          NextionComponent component = extractNextionComponent(component_id, current_page->state);
-          ESP_LOGD("script.set_component_visibility", "vis %s,%i", component.component_id, show ? 1 : 0);
-          if (component.is_current_page) disp1->send_command_printf("vis %s,%i", component.component_id, show ? 1 : 0);
+          if (page == current_page->state) disp1->send_command_printf("vis %s,%i", component_id.c_str(), show ? 1 : 0);
 
   - id: set_var_bool
     mode: queued

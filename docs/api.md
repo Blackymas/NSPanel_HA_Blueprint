@@ -8,7 +8,7 @@ This document provides details on custom actions designed for integration with H
   - [Component Color Action (`component_color`)](#component-color-action-component_color): Changes the foreground color of a specified component on the display.
   - [Component Text Action (`component_text`)](#component-text-action-component_text): Updates the text of a specified component on the display.
   - [Component Value Action (`component_val`)](#component-value-action-component_val): Updates the value of a specified component on the display.
-  - [Components Visibility Action (`components_visibility`)](#components-visibility-action-components_visibility): Hides or shows a specified component on the display.
+  - [Component Visibility Action (`component_visibility`)](#components-visibility-action-component_visibility): Hides or shows a specified component on the display.
   - [Entity Details Show Action (`entity_details_show`)](#entity-details-show-action-entity_details_show): Displays detailed information for a specific entity.
   - [Hardware Button State Indication Action (`hw_button_state`)](#hardware-button-state-indication-action-hw_button_state):
 Updates the visual state (on/off) of the left and right hardware button indicators on the panel.
@@ -55,7 +55,7 @@ If you send anything different, the conversion to the RGB565 used by Nextion wil
 | [`component_color`](#component-color-action-component_color) | [Component Color Action](#component-color-action-component_color) | Changes the foreground color of a specified component on the display. |
 | [`component_text`](#component-text-action-component_text) | [Component Text Action](#component-text-action-component_text) | Updates the text of a specified component on the display. |
 | [`component_val`](#component-value-action-component_val) | [Component Value Action](#component-value-action-component_val) | Updates the value of a specified component on the display. |
-| [`components_visibility`](#components-visibility-action-components_visibility) | [Components Visibility Action](#components-visibility-action-components_visibility) | Hides or shows a specified component on the display. |
+| [`component_visibility`](#components-visibility-action-component_visibility) | [Component Visibility Action](#components-visibility-action-component_visibility) | Hides or shows a specified component on the display. |
 | [`entity_details_show`](#entity-details-show-action-entity_details_show) | [Entity Details Show Action](#entity-details-show-action-entity_details_show) | Displays detailed information for a specific entity. |
 | [`hw_button_state`](#hardware-button-state-indication-action-hw_button_state) | [Hardware Button State Indication Action](#hardware-button-state-indication-action-hw_button_state) | Updates the visual state (on/off) of the left and right hardware button indicators on the panel. |
 | [`icon`](#icon-action-icon) | [Icon Action](#icon-action-icon) | Updates a chip or custom button's icon, color, and visibility. |
@@ -199,22 +199,24 @@ data:
 >
 > Ensure the `id` accurately matches the component on your display to successfully update its value.
 
-### Components Visibility Action: `components_visibility`
-Hides or shows a list of component on the display, allowing for dynamic interface changes.
+### Component Visibility Action: `component_visibility`
+Hides or shows a component on the display, allowing for dynamic interface changes.
 
 **Usage:**
 This action is ideal for creating interactive user interfaces that adapt by hiding or showing certain elements based on user actions, conditions, or events.
 
 **Parameters:**
-- `ids` (string[]): Array of identifiers of the components to be hidden/shown. It is crucial that this matches the component's ID in your display layout to ensure the correct element is hidden/shown.
-- `visible` (bool): Set to true to show the component, or false to hide it.
+- `page` (string): Identifies the page where the component belongs to.
+- `component_id` (string): Identifiers of the components to be hidden/shown. It is crucial that this matches the component's ID in your display layout to ensure the correct element is hidden/shown.
+- `show` (bool): Set to true to show the component, or false to hide it.
 
 **Home Assistant Example:**
 ```yaml
 action: esphome.<your_panel_name>_component_hide
 data:
-  ids: [ "date", "time" ]  # Hides the date and time display on Home page
-  visible: false
+  page: home
+  component_id: "date" # Hides the date display on Home page
+  show: false
 ```
 <!-- markdownlint-disable MD028 -->
 > [!NOTE]
@@ -285,6 +287,7 @@ Updates a chip or custom button's icon, color, and visibility within Home Assist
 This action is ideal for dynamically updating icons on your Panel, allowing for a customizable and interactive user interface.
 
 **Parameters:**
+- `page` (string): Identifies the page where the component belongs to.
 - `id` (string): Identifier of the chip or button component. Refer to "[Screen components](#screen-components)" for more details.
 - `icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html).
 Example: "\uE6E8" for `mdi:lightbulb-on-outline`.
@@ -295,7 +298,8 @@ Example: "\uE6E8" for `mdi:lightbulb-on-outline`.
 ```yaml
 action: esphome.<your_panel_name>_icon
 data:
-  id: "home.chip03"
+  page: home
+  id: "chip03"
   icon: "\uE6E8"           # Example for mdi:lightbulb-on-outline
   icon_color: [0, 255, 0]  # Green
   visible: true
