@@ -8,7 +8,7 @@ This document provides details on custom actions designed for integration with H
   - [Component Color Action (`component_color`)](#component-color-action-component_color): Changes the foreground color of a specified component on the display.
   - [Component Text Action (`component_text`)](#component-text-action-component_text): Updates the text of a specified component on the display.
   - [Component Value Action (`component_val`)](#component-value-action-component_val): Updates the value of a specified component on the display.
-  - [Component Visibility Action (`component_visibility`)](#components-visibility-action-component_visibility): Hides or shows a specified component on the display.
+  - [Component Visibility Action (`component_visibility`)](#component-visibility-action-component_visibility): Hides or shows a specified component on the display.
   - [Entity Details Show Action (`entity_details_show`)](#entity-details-show-action-entity_details_show): Displays detailed information for a specific entity.
   - [Hardware Button State Indication Action (`hw_button_state`)](#hardware-button-state-indication-action-hw_button_state):
 Updates the visual state (on/off) of the left and right hardware button indicators on the panel.
@@ -55,7 +55,7 @@ If you send anything different, the conversion to the RGB565 used by Nextion wil
 | [`component_color`](#component-color-action-component_color) | [Component Color Action](#component-color-action-component_color) | Changes the foreground color of a specified component on the display. |
 | [`component_text`](#component-text-action-component_text) | [Component Text Action](#component-text-action-component_text) | Updates the text of a specified component on the display. |
 | [`component_val`](#component-value-action-component_val) | [Component Value Action](#component-value-action-component_val) | Updates the value of a specified component on the display. |
-| [`component_visibility`](#components-visibility-action-component_visibility) | [Component Visibility Action](#components-visibility-action-component_visibility) | Hides or shows a specified component on the display. |
+| [`component_visibility`](#component-visibility-action-component_visibility) | [Component Visibility Action](#component-visibility-action-component_visibility) | Hides or shows a specified component on the display. |
 | [`entity_details_show`](#entity-details-show-action-entity_details_show) | [Entity Details Show Action](#entity-details-show-action-entity_details_show) | Displays detailed information for a specific entity. |
 | [`hw_button_state`](#hardware-button-state-indication-action-hw_button_state) | [Hardware Button State Indication Action](#hardware-button-state-indication-action-hw_button_state) | Updates the visual state (on/off) of the left and right hardware button indicators on the panel. |
 | [`icon`](#icon-action-icon) | [Icon Action](#icon-action-icon) | Updates a chip or custom button's icon, color, and visibility. |
