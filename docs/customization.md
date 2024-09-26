@@ -746,8 +746,6 @@ binary_sensor:
           - switch.turn_on: screen_power
           - delay: 2s
           - lambda: disp1->soft_reset();
-          - delay: 2s
-          - script.execute: setup_sequence
 
   # Restarts ESPHome after pressing and holding the right button for 15s
   - id: !extend right_button
