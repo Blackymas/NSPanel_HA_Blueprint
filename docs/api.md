@@ -316,7 +316,6 @@ This action is crucial during the initialization phase or when global settings n
 It configures ESPHome with settings that affect overall functionality and user interface aspects.
 
 **Parameters:**
-- `blueprint_version` (string): Specifies the version of the blueprint being used.
 - `screensaver_time` (bool): Enables or disables the screensaver time display.
 - `screensaver_time_font` (int): Specifies the font id for the screensaver time display.
 - `screensaver_time_color` (int[]): Specifies the RGB color array for the screensaver time display.
@@ -326,7 +325,6 @@ It configures ESPHome with settings that affect overall functionality and user i
 ```yaml
 action: esphome.<your_panel_name>_init_global
 data:
-  blueprint_version: "4.2.5"
   screensaver_time: true
   screensaver_time_font: 11
   screensaver_time_color: [165, 42, 42]  # Reddish-brown
