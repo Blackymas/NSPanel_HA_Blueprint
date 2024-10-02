@@ -1,0 +1,81 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - Page Blank                                                                 #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+api:
+  id: !extend api_server
+  actions:
+    # Populates the "Settings" page with user-configurable options, aligning with the project's blueprint for a cohesive and intuitive settings interface.
+    - action: init_page_settings
+      variables:
+        reboot: string      # Label for the reboot button, directing users on restarting the device.
+        brightness: string  # Caption for brightness adjustment controls.
+        bright: string      # Text label for the high brightness level slider, signaling a brighter screen option.
+        dim: string         # Text label for the dim brightness level slider, signaling a lower light option for energy saving.
+      then:
+        - script.execute:
+            id: boot_log
+            category: Action
+            log_message: init_page_settings
+        - if:
+            condition:
+              - lambda: return (!id(is_uploading_tft));
+            then:
+              - lambda: |-
+                  if (not reboot.empty()) disp1->set_component_text_printf("settings.lbl_reboot", " %s", reboot.c_str());
+                  disp1->set_component_text_printf("settings.lbl_brightness", " %s", brightness.c_str());
+                  display_wrapped_text->execute("settings", "lbl_bright", bright.c_str(), display_mode->state == 2 ? 25 : 10);
+                  display_wrapped_text->execute("settings", "lbl_dim", dim.c_str(), display_mode->state == 2 ? 25 : 10);
+                  blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 3));
+
+display:
+  - id: !extend disp1
+    on_touch:
+      then:
+        - lambda: |-
+            if (page_id == 8) {  // Page Settings
+              switch (component_id) {
+                case 9:  // Reboot button
+                  if (!touch_event) {  // Release
+                    arch_restart();
+                  }
+                  break;
+              }
+            }
+
+number:
+  - id: !extend display_brightness
+    on_value:
+      then:
+        - lambda: |-
+            disp1->set_component_value("settings.brightslider", int(x));
+            if (current_page->state == "settings") disp1->set_component_text_printf("bright_text", "%i%%", int(x));
+
+  - id: !extend display_dim_brightness
+    on_value:
+      then:
+        - lambda: |-
+            disp1->set_component_value("settings.dimslider", int(x));
+            if (current_page->state == "settings") disp1->set_component_text_printf("dim_text", "%i%%", int(x));
+
+script:
+  - id: !extend page_changed
+    then:
+      - lambda: |-
+          if (current_page->state == "settings") page_settings->execute();
+
+  - id: page_settings
+    mode: restart
+    then:
+      - lambda: |-
+          set_component_visibility->execute("settings", "lbl_sleep", false);
+          set_component_visibility->execute("settings", "bt_sleep", false);
+
+  - id: !extend stop_all
+    then:
+      - script.stop: page_settings
+...

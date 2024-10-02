@@ -4728,7 +4728,7 @@ action:
             sun_entity_input.split("sun.") | count == 2
           else ((states.sun | map(attribute="entity_id") | list | first) if states.sun | selectattr("entity_id", "defined") | list | count > 0 else None)
         }}
-      sun_is_up: '{{ is_state(sun_entity, "above_horizon") if sun_entity is string and sun_entity.split("sun.") | count == 2 else true }}'
+      sun_is_up: '{{ is_state(sun_entity, "above_horizon") if sun_entity is string and sun_entity.split("sun.") | count == 2 and has_value(sun_entity) else true }}'
 
       # yamllint disable rule:line-length rule:braces
       device_class_icons:
@@ -8279,6 +8279,21 @@ action:
                           outdoor_temp_font: !input home_outdoor_temp_font
                         continue_on_error: true
 
+                      ##### Home page - Weather Icon #####
+                      - *delay_default
+                      - &refresh_page_home_weather_pic
+                        action: 'esphome.{{ nspanel_name }}_set_int'
+                        data:
+                          component: "weather_pic"
+                          val: >
+                            {% set weather_state = states(weather_entity) | default("unavailable") if weather_entity is string and has_value(weather_entity) else "unavailable" %}
+                            {{
+                              nextion.pic.weather[weather_state] | default(1)
+                              if weather_state in nextion.pic.weather
+                              else 1
+                            }}
+                        continue_on_error: true
+
                       ##### Home page - outdoor_temp
                       - *delay_default
                       - action: 'esphome.{{ nspanel_name }}_component_color'
@@ -8517,9 +8532,6 @@ action:
                       - action: 'esphome.{{ nspanel_name }}_init_global'
                         data:
                           blueprint_version: '{{ blueprint_version }}'
-                          ent_value_xcen: '{{ int(entitypages_value_alignment) if is_number(entitypages_value_alignment) else 0 }}'
-                          mui_please_confirm: '{{ mui[language].please_confirm }}'
-                          mui_unavailable: '{{ mui[language].unavailable }}'
                           screensaver_time: !input screensaver_display_time
                           screensaver_time_font: !input screensaver_display_time_font_size
                           screensaver_time_color: !input screensaver_display_time_font_color
@@ -8527,7 +8539,31 @@ action:
                           # bytes_per_char: '{{ mui[language].bytes_per_char }}'  # To do: Enable this on new protocol
                         continue_on_error: true
 
-                      # Disable empty buttons pages
+                        # Set entities pages value horizontal alignment
+                      - *delay_default
+                      - action: 'esphome.{{ nspanel_name }}_set_int'
+                        data:
+                          component: page_entity_value_horizontal_alignment
+                          val: '{{ int(entitypages_value_alignment) if is_number(entitypages_value_alignment) else 0 }}'
+                        continue_on_error: true
+
+                        # Set the confirmation string
+                      - *delay_default
+                      - action: 'esphome.{{ nspanel_name }}_set_string'
+                        data:
+                          component: mui_please_confirm
+                          val: '{{ mui[language].please_confirm }}'
+                        continue_on_error: true
+
+                        # Set the "unavailable" string
+                      - *delay_default
+                      - action: 'esphome.{{ nspanel_name }}_set_string'
+                        data:
+                          component: mui_unavailable
+                          val: '{{ mui[language].unavailable }}'
+                        continue_on_error: true
+
+                        # Disable empty buttons pages
                       - repeat:
                           for_each: '{{ pages.buttonpages }}'
                           sequence:
@@ -8692,19 +8728,8 @@ action:
                         sequence: &refresh_page_home
                           - variables:
                               page_constructor: true
-                          ##### Weather Icon Home Page #####
-                          - *delay_default
-                          - &refresh-page_home-weather_pic
-                            action: 'esphome.{{ nspanel_name }}_command'
-                            data:
-                              cmd: home.weather.pic={{ nextion.pic.weather[
-                                                        states(weather_entity) | default("unavailable")
-                                                        if weather_entity is string and has_value(weather_entity)
-                                                        else "unavailable"] | default(1) }}
-                            continue_on_error: true
-
                           ##### NSPanel Outdoor Temp #####
-                          - &refresh-page_home-outdoor_temp
+                          - &refresh_page_home_outdoor_temp
                             if: '{{ true }}'
                             then:
                               - variables:
@@ -11411,7 +11436,7 @@ action:
             id: outdoortemp_state
           - '{{ is_number(trigger.event.data.new_state.state) }}'
         sequence:
-          - *refresh-page_home-outdoor_temp
+          - *refresh_page_home_outdoor_temp
 
       ##### INDOOR TEMP #####
       - alias: Indoor temp - Entity
@@ -11433,8 +11458,8 @@ action:
               (trigger.id == "sun_state_change" and trigger.to_state.state not in enum.states.unknown)
             }}
         sequence:
-          - *refresh-page_home-outdoor_temp
-          - *refresh-page_home-weather_pic
+          - *refresh_page_home_outdoor_temp
+          - *refresh_page_home_weather_pic
 
       #### TFT Upload Automation #####
       - alias: TFT auto-upload

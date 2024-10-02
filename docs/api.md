@@ -317,9 +317,6 @@ It configures ESPHome with settings that affect overall functionality and user i
 
 **Parameters:**
 - `blueprint_version` (string): Specifies the version of the blueprint being used.
-- `ent_value_xcen` (int): Alignment of values on entities pages (0 for right (default), 1 for center or 2 for left).
-- `mui_please_confirm` (string): Localized (language based) message used for asking for confirmation in the UI.
-- `mui_unavailable` (string): Localized (language based) message used for  indicating unavailability in the UI.
 - `screensaver_time` (bool): Enables or disables the screensaver time display.
 - `screensaver_time_font` (int): Specifies the font id for the screensaver time display.
 - `screensaver_time_color` (int[]): Specifies the RGB color array for the screensaver time display.
@@ -330,9 +327,6 @@ It configures ESPHome with settings that affect overall functionality and user i
 action: esphome.<your_panel_name>_init_global
 data:
   blueprint_version: "4.2.5"
-  ent_value_xcen: 0
-  mui_please_confirm: "Confirme, por favor."
-  mui_unavailable: "Indisponível"
   screensaver_time: true
   screensaver_time_font: 11
   screensaver_time_color: [165, 42, 42]  # Reddish-brown

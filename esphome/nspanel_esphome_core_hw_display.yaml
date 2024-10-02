@@ -9,6 +9,145 @@
 ###############################
 
 ---
+substitutions:
+  ##############################
+  ## Change only in your      ##
+  ## local yaml substitutions ##
+  bytes_per_char: "1"
+  ##############################
+
+api:
+  id: !extend api_server
+  actions:
+    # Sends custom commands directly to the display for dynamic interactions and updates.
+    - action: command
+      variables:
+        cmd: string  # Command string to be sent. Refer to the Nextion Instruction Set for supported commands: https://nextion.tech/instruction-set/
+      then:
+        - lambda: |-
+            if (!id(is_uploading_tft))
+              disp1->send_command(cmd.c_str());
+
+    # Changes the foreground color of a specified component on the display.
+    - action: component_color
+      variables:
+        id: string    # Identifier of the component to change color. Ensure this matches the component's ID in your display layout.
+        color: int[]  # New color for the component, specified as an RGB array (e.g., [255, 0, 0] for red).
+      then:
+        - lambda: |-
+            if (!id(is_uploading_tft))
+              disp1->set_component_font_color(id.c_str(), rgbTo565(color));
+
+    # Updates the text of a specified component on the display.
+    - action: component_text
+      variables:
+        id: string   # Identifier of the component. Ensure it matches the component's ID in your display layout.
+        txt: string  # New text content to be displayed. Supports both static and dynamic content.
+      then:
+        - lambda: |-
+            if (!id(is_uploading_tft))
+              disp1->set_component_text(id.c_str(), txt.c_str());
+
+    # Updates the value of a specified component on the display.
+    - action: component_val
+      variables:
+        id: string  # Identifier of the component to update. Must match the component's ID in the display layout.
+        val: int    # New integer value to set for the component. Adjust based on the data type you're displaying.
+      then:
+        - lambda: |-
+            if (!id(is_uploading_tft))
+              disp1->set_component_value(id.c_str(), val);
+
+    # Hides or shows a specified component on the display.
+    - action: component_visibility
+      variables:
+        page: string          # Page where the component is located
+        component_id: string  # Identifier of the component to be hidden/shown. Ensure this matches the component's ID in your display layout.
+        show: bool            # Set to true to show the component, or false to hide it.
+      then:
+        - script.execute:
+            id: set_component_visibility
+            page: !lambda return page;
+            component_id: !lambda return component_id;
+            show: !lambda return show;
+
+    # Displays detailed information for a specific entity.
+    - action: entity_details_show
+      variables:
+        entity: string     # The ID of the entity for which details are shown. Supports "embedded_climate" for built-in climate control.
+        back_page: string  # Specifies the page to return to. Accepts "home" or "buttonpage01" to "buttonpage04".
+      then:
+        - lambda: |-
+            if (!id(is_uploading_tft)) {
+              HomeAssistantEntity entity_id = extractHomeAssistantEntity(entity);
+              if (entity == "embedded_climate") entity_id.domain = "climate";
+              else if (entity_id.domain == "alarm_control_panel") entity_id.domain = "alarm";
+              if (entity_id.domain != "invalid" or entity == "embedded_climate") {
+                detailed_entity->publish_state(entity);
+                goto_page->execute(entity_id.domain.c_str());
+                disp1->send_command_printf("back_page_id=%" PRIu8, get_page_id(back_page.c_str()));
+                if (entity_id.domain == "climate")
+                  disp1->set_component_value("climate.embedded", (entity == "embedded_climate") ? 1 : 0);
+              }
+            }
+
+    # Icon action
+    - action: icon
+      variables:
+        page: string       # Page name
+        id: string         # Identifier of the component. See "Screen components" in the documentation.
+        icon: string       # Icon codepoint, e.g., "/uE6E8" for `mdi:lightbulb-on-outline`.
+        icon_color: int[]  # RGB color array for the icon, e.g., [0, 255, 0] for green.
+        visible: bool      # Set to `true` for visible or `false` for hidden.
+      then:
+        - lambda: |-
+            if (!id(is_uploading_tft) and !id.empty()) {
+              disp1->set_component_text(id.c_str(), visible ? icon.c_str() : "");
+              if (icon_color.size() == 3)
+                disp1->set_component_font_color(id.c_str(), rgbTo565(icon_color));
+              set_component_visibility->execute(page.c_str(), id.c_str(), visible);
+            }
+
+    # Updates an entity to display specific values with dynamic icons, names, and color codes.
+    - action: value
+      variables:
+        id: string          # Identifier of the entity. See "Screen components" for entity IDs.
+        icon: string        # Icon codepoint (e.g., "/uE6E8" for mdi:thermometer) from HASwitchPlate Material Design Icons.
+        icon_color: int[]   # RGB color array for the icon (e.g., [255, 0, 0] for red).
+        name: string        # Display name for the entity (e.g., "Temperature").
+        value: string       # Actual value to display (e.g., "75°F").
+        value_color: int[]  # RGB color array for the value text (e.g., [255, 255, 0] for yellow).
+      then:
+        - if:
+            condition:
+              - lambda: return not id(is_uploading_tft);
+              - lambda: return not id.empty();
+            then:
+              - script.execute:
+                  id: set_value
+                  component_id: !lambda return id;
+                  icon: !lambda return icon;
+                  icon_color: !lambda return icon_color;
+                  name: !lambda return name;
+                  value: !lambda return value;
+                  value_color: !lambda return value_color;
+
+    # Wake Up action
+    - action: wake_up
+      variables:
+        reset_timer: bool  # Determines whether to reset the sleep and dimming timers upon waking the display.
+      then:
+        - lambda: |-
+            if (!id(is_uploading_tft)) {
+              if (current_page->state == "screensaver") goto_page->execute(wakeup_page_name->state.c_str());
+              if (reset_timer)
+                timer_reset_all->execute();
+              else {
+                timer_sleep->execute();
+                timer_dim->execute();
+              }
+            }
+
 binary_sensor:
   ## Delays initial info from HA to the display #####
   - name: Nextion display
@@ -35,6 +174,20 @@ button:
       - delay: 1s
       - switch.turn_on: screen_power
 
+display:
+  - id: disp1
+    platform: nextion
+    uart_id: tf_uart
+
+    on_page:
+      - lambda: |-
+          if (!id(is_uploading_tft) and current_page->state != page_names[x]) {
+            current_page->publish_state(page_names[x]);
+          }
+
+    on_touch:
+      - script.execute: timer_reset_all
+
 esphome:
   on_shutdown:
     - priority: 0.2
@@ -45,6 +198,19 @@ esphome:
     - priority: 600.2
       then:
         - switch.turn_off: screen_power
+
+globals:
+  - id: mui_bytes_per_char
+    type: uint8_t
+    restore_value: true
+    initial_value: ${bytes_per_char}
+
+  - id: mui_decimal_separator
+    type: char
+    restore_value: true
+    initial_value: "'.'"
+
+json:  # Can be replaced by web_server
 
 light:
   # Add the display as a light in Home Assistant
@@ -66,6 +232,10 @@ light:
             ESP_LOGD("light", "Display: Off");
             goto_page->execute("screensaver");
 
+logger:
+  logs:
+    light: INFO
+
 number:
   ##### SCREEN BRIGHTNESS #####
   - id: display_brightness
@@ -83,12 +253,10 @@ number:
       then:
         - lambda: |-
             disp1->send_command_printf("brightness=%i", int(x));
-            disp1->set_component_value("settings.brightslider", int(x));
             if (current_page->state != "screensaver") {
               set_brightness->execute(x);
               timer_dim->execute();
               timer_sleep->execute();
-              if (current_page->state == "settings") disp1->set_component_text_printf("bright_text", "%i%%", int(x));
             }
 
   ##### SCREEN BRIGHTNESS DIMMED DOWN #####
@@ -107,11 +275,9 @@ number:
       then:
         - lambda: |-
             disp1->send_command_printf("brightness_dim=%i", int(x));
-            disp1->set_component_value("settings.dimslider", int(x));
             if (current_page->state != "screensaver" and current_brightness->state != x) {
               set_brightness->execute(x);
               timer_sleep->execute();
-              if (current_page->state == "settings") disp1->set_component_text_printf("dim_text", "%i%%", int(x));
             }
 
   ##### SCREEN BRIGHTNESS SLEEP #####
@@ -132,7 +298,7 @@ number:
             disp1->send_command_printf("brightness_sleep=%i", int(x));
             page_screensaver->execute();
 
-  ##### Timers settings #####
+  ##### Timers #####
   - name: Timeout Page
     platform: template
     id: timeout_page
@@ -192,6 +358,185 @@ output:
           set_brightness->execute(current_brightness);
 
 script:
+  - id: display_wrapped_text
+    mode: queued
+    max_runs: 15
+    parameters:
+      page: string
+      component: string
+      text_to_display: string
+      line_length_limit: uint
+    then:
+      - wait_until:
+          condition:
+            - lambda: return (disp1->queue_size() < 1);
+            - lambda: return (tf_uart->available() < 1);
+          timeout: 250ms
+      - lambda: |-
+          int startPos = 0;
+          int endPos = 0;
+          std::string wrappedText = "";
+          if (text_to_display.find("\\r") != std::string::npos) {
+            wrappedText = text_to_display;
+          } else {
+            while (startPos < text_to_display.length()) {
+              while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
+              int endPos = startPos + (line_length_limit * id(mui_bytes_per_char));
+              if (endPos >= text_to_display.length()) endPos = text_to_display.length();
+              else
+                {
+                  while (endPos > startPos && text_to_display[endPos] != ' ') { endPos--; }
+                  if (endPos == startPos) endPos = startPos + (line_length_limit * id(mui_bytes_per_char)); // Handle case of long word
+                }
+              wrappedText += text_to_display.substr(startPos, endPos-startPos);
+              if (endPos < text_to_display.length())
+                {
+                  while (text_to_display[endPos] == ' ') { endPos--; }
+                  if (endPos >= startPos) wrappedText += "\\r";
+                }
+              startPos = endPos + 1; // Skip the space
+              while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
+            }
+          }
+          // ESP_LOGD("script.display_wrapped_text", "%s=%s", (std::string(page) + "." + component).c_str(), wrappedText.c_str());
+          disp1->set_component_text((std::string(page) + "." + component).c_str(), wrappedText.c_str());
+
+  - id: !extend dump_config_report
+    then:
+      - lambda: |-
+          // Report UART
+          ESP_LOGCONFIG("${project_tag}", "UART:");
+          ESP_LOGCONFIG("${project_tag}", "  Baud rate:   %" PRIu32 " bps", tf_uart->get_baud_rate());
+          ESP_LOGCONFIG("${project_tag}", "  Queue size:  %d", tf_uart->available());
+
+          // Report Nextion status
+          nextion_init->publish_state(!id(is_uploading_tft) and nextion_init->state and disp1->is_setup());
+          ESP_LOGCONFIG("${project_tag}", "Nextion:");
+          ESP_LOGCONFIG("${project_tag}", "  Queue size:  %d", disp1->queue_size());
+          if (disp1->is_setup())
+            ESP_LOGCONFIG("${project_tag}", "  Is setup:    True");
+          else {
+            ESP_LOGW("${project_tag}", "  Is setup:    False");
+            ESP_LOGW("${project_tag}", "  Is detected: %s", YESNO(disp1->is_detected()));
+            //exit_reparse->execute();
+          }
+          if (nextion_init->state) {
+            ESP_LOGCONFIG("${project_tag}", "  Init:        True");
+          } else
+            ESP_LOGW("${project_tag}", "  Init:        False");
+          if (version_tft->state.empty())
+            ESP_LOGW("${project_tag}", "  TFT:         UNKNOWN");
+          else
+            ESP_LOGCONFIG("${project_tag}", "  TFT:         %s", version_tft->state.c_str());
+
+  - id: event_from_display
+    mode: queued
+    parameters:
+      json: DynamicJsonDocument
+      page: string
+      event: string
+      component: string
+      key: string
+      value: string
+    then:
+      - lambda: |-
+          // Send event to Home Assistant
+          esphome::api::CustomAPIDevice ha_event;
+          if (event == "short_click" or event == "long_click") {
+            ha_button->execute(page.c_str(), component.c_str(), event.c_str());
+          } else {  // Generic event
+            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
+              {"device_name", device_name->state.c_str()},
+              {"esphome_version", "${version}"},
+              {"type", "generic"},
+              {"page", page.c_str()},
+              {"component", component.c_str()},
+              {"event", event.c_str()},
+              {"value", value.c_str()},
+              {"entity", detailed_entity->state.c_str()}
+            });
+          }
+      # Extended by:
+      #   - nspanel_esphome_core_page_alarm.yaml
+      #   - nspanel_esphome_core_page_climate.yaml
+      #   - nspanel_esphome_core_page_cover.yaml
+      #   - nspanel_esphome_core_page_fan.yaml
+      #   - nspanel_esphome_core_page_keyb_num.yaml
+      #   - nspanel_esphome_core_page_light.yaml
+      #   - nspanel_esphome_core_page_media_player.yaml
+
+  - id: !extend global_settings  # Defined by nspanel_esphome_core_boot.yaml
+    then:
+      - script.execute:
+          id: boot_log
+          category: Global settings
+          log_message: Display
+      - lambda: |-
+          // Decimal separator
+          if (not decimal_separator.empty()) id(mui_decimal_separator) = decimal_separator[0];
+
+  - id: goto_page
+    mode: restart
+    parameters:
+      page: string
+    then:
+      - lambda: if (current_page->state != page) disp1->goto_page(page.c_str());
+
+  - id: !extend ha_button
+    then:
+      - &reset_timer_if_not_screensaver
+        if:
+          condition:
+            - lambda: return (current_page->state != "screensaver");
+          then:
+            - script.execute: timer_reset_all
+
+  - id: page_changed
+    mode: restart
+    then:
+      - *reset_timer_if_not_screensaver
+      - lambda: |-
+          // Update the display light entity
+          if (current_page->state == "screensaver" and display_light->current_values.is_on()) {
+            ESP_LOGV("script.page_changed(custom)", "Turning off light.");
+            auto call = display_light->turn_off();
+            call.perform();
+          } else if (current_page->state != "screensaver" and (not display_light->current_values.is_on())) {
+            ESP_LOGV("script.page_changed(custom)", "Turning on light.");
+            auto call = display_light->turn_on();
+            call.perform();
+          }
+
+          // Report new page to logs
+          ESP_LOGD("script.page_changed", "New page: %s", current_page->state.c_str());
+          // Reset globals
+          if (current_page->state != "alarm" &&
+              current_page->state != "climate" &&
+              current_page->state != "cover" &&
+              current_page->state != "fan" &&
+              current_page->state != "light" &&
+              current_page->state != "media_player" &&
+              current_page->state != "confirm" &&
+              current_page->state != "keyb_num") {
+              detailed_entity->publish_state("");
+              disp1->send_command("back_page_id=1");
+          }
+
+          if (!detailed_entity->state.empty())
+            ESP_LOGD("script.page_changed", "Entity shown: %s", detailed_entity->state.c_str());
+
+          // Report new page to Home Assistant
+          esphome::api::CustomAPIDevice ha_event;
+          ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+            {
+              {"device_name", device_name->state.c_str()},
+              {"esphome_version", "${version}"},
+              {"type", "page_changed"},
+              {"page", current_page->state.c_str()},
+              {"entity", detailed_entity->state.c_str()}
+            });
+
+
   - id: set_baud_rate
     mode: restart
     parameters:
@@ -249,10 +594,59 @@ script:
             }
           }
 
+  - id: set_component_visibility
+    mode: queued
+    max_runs: 15
+    parameters:
+      page: string
+      component_id: string
+      show: bool
+    then:
+      - wait_until:
+          condition:
+            - lambda: return (disp1->queue_size() < 1);
+            - lambda: return (tf_uart->available() < 1);
+            - lambda: return (page == current_page->state);
+          timeout: 50ms
+      - lambda: |-
+          if (page == current_page->state) disp1->send_command_printf("vis %s,%i", component_id.c_str(), show ? 1 : 0);
+
+  - id: set_value
+    mode: queued
+    parameters:
+      component_id: string
+      icon: string
+      icon_color: int32_t[]
+      name: string
+      value: string
+      value_color: int32_t[]
+    then:
+      - lambda: |-
+          // using namespace esphome::display;
+          if (!(icon.empty())) disp1->set_component_text((component_id + "_icon").c_str(), icon.c_str());
+          if (icon_color.size() == 3)
+            disp1->set_component_font_color((component_id + "_icon").c_str(), rgbTo565(icon_color));
+
+          if (!(name.empty())) disp1->set_component_text((component_id + "_label").c_str(), name.c_str());
+          if (!(value.empty())) disp1->set_component_text(component_id.c_str(), adjustDecimalSeparator(value, id(mui_decimal_separator)).c_str());
+          if (value_color.size() == 3)
+            disp1->set_component_font_color(component_id.c_str(), rgbTo565(value_color));
+
+  - id: !extend set_var_int
+    then:
+      - lambda: |-
+          if (component == "bytes_per_char") id(mui_bytes_per_char) = val;
+
   - id: !extend stop_all
     then:
+      - script.stop: display_wrapped_text
+      - script.stop: event_from_display
+      - script.stop: goto_page
+      - script.stop: page_changed
       - script.stop: set_baud_rate
       - script.stop: set_brightness
+      - script.stop: set_component_visibility
+      - script.stop: set_value
       - script.stop: timer_reset_all
       - script.stop: timer_page
       - script.stop: timer_dim
@@ -476,8 +870,7 @@ switch:
           nextion_init->publish_state(false);
 
 text_sensor:
-  ##### Current page name #####
-  - id: current_page
+  - id: current_page  # Current page name
     name: Current Page
     platform: nextion
     component_name: current_page
@@ -494,4 +887,33 @@ text_sensor:
         if (!id(is_uploading_tft)) {
           page_changed->execute();
         }
+
+  - id: disp1_local_event  # NSPanel event - Execute actions from ESPHome - NO directly push to HA
+    name: NSPanel local event
+    platform: nextion
+    nextion_id: disp1
+    component_name: localevent
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            DynamicJsonDocument json(1024);
+            DeserializationError error = deserializeJson(json, x.c_str());
+            if (error) {
+                ESP_LOGE("text_sensor.disp1_local_event", "Error parsing json: %s", x.c_str());
+                ESP_LOGE("text_sensor.disp1_local_event", "Error: %s", error.c_str());
+            } else {
+              const std::string page = json["page"];
+              const std::string event = json["event"];
+              const std::string component = json["component"];
+              const std::string key = json["key"];
+              const std::string value = json["value"];
+              event_from_display->execute(json, page, event, component, key, value);
+            }
+
+uart:  ## UART for Nextion display
+  - id: tf_uart
+    tx_pin: 16
+    rx_pin: 17
+    baud_rate: 115200
 ...

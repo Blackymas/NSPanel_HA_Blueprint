@@ -1,0 +1,55 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - Page Screensaver                                                           #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+script:
+  - id: !extend global_settings
+    then:
+      - script.execute:
+          id: boot_log
+          category: Global settings
+          log_message: Page Screensaver
+      - lambda: |-
+          // Screen saver page (sleep)
+          id(screensaver_display_time) = screensaver_time;
+          id(screensaver_display_time_font) = screensaver_time_font;
+          ESP_LOGE("script.global_settings", "screensaver_time_color.size(): %i", screensaver_time_color.size());
+          if (screensaver_time_color.size() == 3) {
+            ESP_LOGD("script.global_settings", "screensaver_time_color[0]: %" PRIi32, screensaver_time_color[0]);
+            ESP_LOGD("script.global_settings", "screensaver_time_color[1]: %" PRIi32, screensaver_time_color[1]);
+            ESP_LOGD("script.global_settings", "screensaver_time_color[2]: %" PRIi32, screensaver_time_color[2]);
+            id(screensaver_display_time_color) = rgbTo565(screensaver_time_color);
+            ESP_LOGE("script.global_settings", "screensaver_display_time_color: %i", id(screensaver_display_time_color));
+          }
+      - delay: 2s
+      - lambda: |-
+          page_screensaver->execute();
+
+  - id: !extend page_changed
+    then:
+      - lambda: |-
+          if (current_page->state == "screensaver") page_screensaver->execute();
+
+  - id: page_screensaver
+    mode: restart
+    then:
+      - lambda: |-
+          if (current_page->state == "screensaver" and !id(is_uploading_tft)) {
+            disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
+            if (id(screensaver_display_time)) {
+              disp1->set_component_font("screensaver.text", id(screensaver_display_time_font));
+              disp1->set_component_font_color("screensaver.text", id(screensaver_display_time_color));
+              set_component_visibility->execute("screensaver", "text", true);
+              refresh_datetime->execute();
+            }
+            set_brightness->execute(display_sleep_brightness->state);
+          }
+
+  - id: !extend stop_all
+    then:
+      - script.stop: page_screensaver
+...

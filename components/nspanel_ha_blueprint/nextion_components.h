@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include <array>
+#include <cstdint>
 #include <string>
 #include <vector>
-#include <cstdint>
 
 namespace nspanel_ha_blueprint {
 
@@ -21,12 +22,35 @@ namespace nspanel_ha_blueprint {
      * @return The color encoded in 16-bit 5-6-5 format, or UINT16_MAX if the input vector
      * does not contain at least three elements.
      */
-    template <typename Container>
-    inline uint16_t rgbTo565(const Container& rgb) {
-        if (rgb.size() != 3) {
-            return UINT16_MAX; // Use UINT16_MAX as an error indicator
-        }
-        return ((rgb[0] & 0xF8) << 8) | ((rgb[1] & 0xFC) << 3) | (rgb[2] >> 3);
+    inline uint16_t rgbTo565(const int8_t rgb[3]) {
+        return ((rgb[0] & 0xF8) << 8) |
+               ((rgb[1] & 0xFC) << 3) |
+                (rgb[2] >> 3);
+    }
+    inline uint16_t rgbTo565(const int16_t rgb[3]) {
+        return ((rgb[0] & 0xF8) << 8) |
+               ((rgb[1] & 0xFC) << 3) |
+                (rgb[2] >> 3);
+    }
+    inline uint16_t rgbTo565(const int32_t rgb[3]) {
+        return ((rgb[0] & 0xF8) << 8) |
+               ((rgb[1] & 0xFC) << 3) |
+                (rgb[2] >> 3);
+    }
+    inline uint16_t rgbTo565(const std::vector<int8_t>& rgb) {
+        return ((static_cast<uint8_t>(rgb[0]) & 0xF8) << 8) |
+               ((static_cast<uint8_t>(rgb[1]) & 0xFC) << 3) |
+               (static_cast<uint8_t>(rgb[2]) >> 3);
+    }
+    inline uint16_t rgbTo565(const std::vector<int16_t>& rgb) {
+        return ((static_cast<uint8_t>(rgb[0]) & 0xF8) << 8) |
+               ((static_cast<uint8_t>(rgb[1]) & 0xFC) << 3) |
+               (static_cast<uint8_t>(rgb[2]) >> 3);
+    }
+    inline uint16_t rgbTo565(const std::vector<int32_t>& rgb) {
+        return ((static_cast<uint8_t>(rgb[0]) & 0xF8) << 8) |
+               ((static_cast<uint8_t>(rgb[1]) & 0xFC) << 3) |
+               (static_cast<uint8_t>(rgb[2]) >> 3);
     }
 
 }  // namespace nspanel_ha_blueprint
