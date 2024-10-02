@@ -328,7 +328,6 @@ Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.gi
 - `button_right` (bool): Enable/disable right button status visualization.
 - `button_bar_color_on` (int[]): RGB color array for the hardware button bar when the status is `On`.
 - `button_bar_color_off` (int[]): RGB color array for the hardware button bar when the status is `Off`.
-- `embedded_climate` (bool): Indicates whether climate control is embedded in the panel.
 
 **Home Assistant Example:**
 ```yaml
@@ -346,7 +345,6 @@ data:
   button_right: true
   button_bar_color_on: [31, 169, 255]  # Blueish
   button_bar_color_off: [44, 44, 44]   # Dark gray
-  embedded_climate: true
 ```
 > [!NOTE]
 > Replace `<your_panel_name>` with the specific name of your panel configured in Home Assistant.
