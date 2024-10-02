@@ -324,8 +324,6 @@ Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.gi
 Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) for Relay 2.
 - `relay2_icon_color` (int[]): The RGB color array for Relay 2's icon.
 - `relay2_fallback` (bool): Determines the fallback state for Relay 2 in case of communication loss.
-- `button_left` (bool): Enable/disable left button status visualization.
-- `button_right` (bool): Enable/disable right button status visualization.
 
 **Home Assistant Example:**
 ```yaml
@@ -339,8 +337,6 @@ data:
   relay2_icon: "\uE3A8"           # Example for mdi:numeric-2-box-outline
   relay2_icon_color: [0, 252, 0]  # Green
   relay2_fallback: true
-  button_left: true
-  button_right: true
 ```
 > [!NOTE]
 > Replace `<your_panel_name>` with the specific name of your panel configured in Home Assistant.
