@@ -6,29 +6,22 @@
 #####################################################################################################
 
 ---
-script:
-  - id: !extend global_settings
-    then:
-      - script.execute:
-          id: boot_log
-          category: Global settings
-          log_message: Page Screensaver
-      - lambda: |-
-          // Screen saver page (sleep)
-          id(screensaver_display_time) = screensaver_time;
-          id(screensaver_display_time_font) = screensaver_time_font;
-          ESP_LOGE("script.global_settings", "screensaver_time_color.size(): %i", screensaver_time_color.size());
-          if (screensaver_time_color.size() == 3) {
-            ESP_LOGD("script.global_settings", "screensaver_time_color[0]: %" PRIi32, screensaver_time_color[0]);
-            ESP_LOGD("script.global_settings", "screensaver_time_color[1]: %" PRIi32, screensaver_time_color[1]);
-            ESP_LOGD("script.global_settings", "screensaver_time_color[2]: %" PRIi32, screensaver_time_color[2]);
-            id(screensaver_display_time_color) = rgbTo565(screensaver_time_color);
-            ESP_LOGE("script.global_settings", "screensaver_display_time_color: %i", id(screensaver_display_time_color));
-          }
-      - delay: 2s
-      - lambda: |-
-          page_screensaver->execute();
+globals:
+  ##### Screensaver #####
+  - id: screensaver_display_time
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  - id: screensaver_display_time_font
+    type: uint8_t
+    restore_value: true
+    initial_value: '6'
+  - id: screensaver_display_time_color
+    type: uint16_t
+    restore_value: true
+    initial_value: '16904'
 
+script:
   - id: !extend page_changed
     then:
       - lambda: |-
@@ -41,12 +34,33 @@ script:
           if (current_page->state == "screensaver" and !id(is_uploading_tft)) {
             disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
             if (id(screensaver_display_time)) {
-              disp1->set_component_font("screensaver.text", id(screensaver_display_time_font));
-              disp1->set_component_font_color("screensaver.text", id(screensaver_display_time_color));
-              set_component_visibility->execute("screensaver", "text", true);
+              disp1->set_component_font("text", id(screensaver_display_time_font));
+              disp1->set_component_font_color("text", id(screensaver_display_time_color));
               refresh_datetime->execute();
             }
+            set_component_visibility->execute("screensaver", "text", id(screensaver_display_time));
             set_brightness->execute(display_sleep_brightness->state);
+          }
+
+  - id: !extend set_component_font_color  # Defined by nspanel_esphome_core_hw_display.yaml
+    then:
+      - lambda: |-
+          if (component == "screensaver.text") id(screensaver_display_time_color) = color;
+
+  - id: !extend set_var_bool
+    then:
+      - lambda: |-
+          if (component == "screensaver_display_time") {
+            id(screensaver_display_time) = val;
+            page_screensaver->execute();
+          }
+
+  - id: !extend set_var_int
+    then:
+      - lambda: |-
+          if (component == "screensaver_display_time_font" and val >= 0 and val <= 255) {
+            id(screensaver_display_time_font) = val;
+            page_screensaver->execute();
           }
 
   - id: !extend stop_all
