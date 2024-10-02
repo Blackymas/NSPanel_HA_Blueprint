@@ -326,8 +326,6 @@ Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.gi
 - `relay2_fallback` (bool): Determines the fallback state for Relay 2 in case of communication loss.
 - `button_left` (bool): Enable/disable left button status visualization.
 - `button_right` (bool): Enable/disable right button status visualization.
-- `button_bar_color_on` (int[]): RGB color array for the hardware button bar when the status is `On`.
-- `button_bar_color_off` (int[]): RGB color array for the hardware button bar when the status is `Off`.
 
 **Home Assistant Example:**
 ```yaml
@@ -343,8 +341,6 @@ data:
   relay2_fallback: true
   button_left: true
   button_right: true
-  button_bar_color_on: [31, 169, 255]  # Blueish
-  button_bar_color_off: [44, 44, 44]   # Dark gray
 ```
 > [!NOTE]
 > Replace `<your_panel_name>` with the specific name of your panel configured in Home Assistant.
