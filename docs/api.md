@@ -13,7 +13,6 @@ This document provides details on custom actions designed for integration with H
   - [Hardware Button State Indication Action (`hw_button_state`)](#hardware-button-state-indication-action-hw_button_state):
 Updates the visual state (on/off) of the left and right hardware button indicators on the panel.
   - [Icon Action (`icon`)](#icon-action-icon): Updates a chip or custom button's icon, color, and visibility.
-  - [Initialization Action: Home Page (`init_page_home`)](#initialization-action-init_page_home): Transfers settings for the "Home" page on initialization.
   - [Initialization Action: Settings Page (`init_page_settings`)](#initialization-action-init_page_settings): Transfers settings for the "Settings" page on initialization.
   - [Notification Clear Action (`notification_clear`)](#notification-clear-action-notification_clear): Clears the current notification from the screen.
   - [Notification Show Action (`notification_show`)](#notification-show-action-notification_show): Displays a notification-message on the screen.
@@ -57,7 +56,6 @@ If you send anything different, the conversion to the RGB565 used by Nextion wil
 | [`entity_details_show`](#entity-details-show-action-entity_details_show) | [Entity Details Show Action](#entity-details-show-action-entity_details_show) | Displays detailed information for a specific entity. |
 | [`hw_button_state`](#hardware-button-state-indication-action-hw_button_state) | [Hardware Button State Indication Action](#hardware-button-state-indication-action-hw_button_state) | Updates the visual state (on/off) of the left and right hardware button indicators on the panel. |
 | [`icon`](#icon-action-icon) | [Icon Action](#icon-action-icon) | Updates a chip or custom button's icon, color, and visibility. |
-| [`init_page_home`](#initialization-action-init_page_home) | [Initialization Action](#initialization-action-init_page_home) | Transfers settings for the "Home" page on initialization. |
 | [`init_page_settings`](#initialization-action-init_page_settings) | [Initialization Action](#initialization-action-init_page_settings) | Transfers settings for the "Settings" page on initialization. |
 | [`notification_clear`](#notification-clear-action-notification_clear) | [Notification Clear Action](#notification-clear-action-notification_clear) | Clears the current notification from the screen. |
 | [`notification_show`](#notification-show-action-notification_show) | [Notification Show Action](#notification-show-action-notification_show) | Displays a notification-message on the screen. |
@@ -302,63 +300,6 @@ data:
 ```
 > [!NOTE]
 > Ensure the placeholder `<your_panel_name>` is replaced with the specific panel name you will need to reference in your Home Assistant configuration.
-
-### Initialization Action: `init_page_home`
-Configures the "Home" page settings and user interface elements in ESPHome,
-aligning with the blueprint specifications to create a personalized and functional home screen.
-
-**Usage:**
-This action plays a crucial role in the initial setup and ongoing updates of the "Home" page,
-facilitating dynamic adjustments to layout, appearance, and interactive elements.
-It accommodates extensive customizations, impacting both visual appeal and functionality of UI components.
-
-**Parameters:**
-- `date_color` (int[]): RGB color array for the date display.
-- `time_format` (string): Format string for displaying time, supporting standard time formatting symbols.
-- `time_color` (int[]): RGB color array for the time display.
-- `meridiem` (string[]): Array of strings for AM/PM labels, applicable if the time format includes meridiem.
-- `chip_font` (int): Font Id for icons or chips displayed on the "Home" page.
-- `custom_buttons_font` (int): Font Id for custom button icons on the "Home" page.
-- `qrcode` (bool): Flag indicating whether the QR code button is enabled.
-- `qrcode_icon` (string):
-Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
-for the QR code button.
-- `qrcode_icon_color` (int[]): RGB color array for the QR code button icon.
-- `entities_pages_icon` (string):
-Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
-for the entities page button.
-- `entities_pages_icon_color` (int[]): RGB color array for the entities page button icon.
-- `utilities` (bool): Flag indicating whether the utilities page button is enabled.
-- `utilities_icon` (string):
-Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html)
-for the utilities page button.
-- `utilities_icon_color` (int[]): RGB color array for utilities page button icon.
-- `outdoor_temp_font` (int): Font Id for outdoor temperature indication on the "Home" page.
-
-**Home Assistant Example:**
-```yaml
-action: esphome.<your_panel_name>_init_page_home
-data:
-  date_color: [255, 255, 255]                      # White
-  time_format: "HH:mm"
-  time_color: [255, 255, 255]                      # White
-  meridiem: ["AM", "PM"]
-  chip_font: 8
-  custom_buttons_font: 9
-  qrcode: true
-  qrcode_icon: "\uE432"                            # Example for mdi:qrcode-scan
-  qrcode_icon_color: [0, 255, 0]                   # Green
-  entities_pages_icon: "\uEDCF"                    # Example for mdi:format-list-bulleted-square
-  entities_pages_icon_color: [0, 0, 255]           # Blue
-  utilities: true
-  utilities_icon: "\uE299"                         # Example for mdi:gauge
-  utilities_icon_color: [255, 255, 255]            # White
-
-  outdoor_temp_font: 5
-```
-> [!NOTE]
-> Ensure to replace `<your_panel_name>` with the actual name of your panel configured in Home Assistant.
-> This action customizes the "Home" page with specified settings, enhancing the panel's interface based on the project's blueprint.
 
 ### Initialization Action: `init_page_settings`
 Populates the "Settings" page with configurable options in the panel,

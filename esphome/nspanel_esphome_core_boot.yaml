@@ -24,8 +24,10 @@ display:
           condition:
             - lambda: return (!id(is_uploading_tft));
           then:
-            - delay: 1s
+            - script.execute: boot_sequence
+            - script.wait: boot_sequence
             - lambda: nextion_init->publish_state(true);
+
     on_touch:
       then:
         - lambda: |-
@@ -75,19 +77,6 @@ esphome:
               - switch.turn_on: screen_power
 
 script:
-  - id: boot_log
-    mode: queued
-    # max_runs: 15
-    parameters:
-      category: string
-      log_message: string
-    then:
-      - lambda: |-
-          ESP_LOGI("script.boot_log", "%s: %s", category.c_str(), log_message.c_str());
-          if (current_page->state == "boot") {
-            disp1->send_command_printf("log_body.txt+=\"%s: %s\\r\"", category.c_str(), log_message.c_str());
-          }
-
   - id: boot_event
     mode: restart
     parameters:
@@ -121,6 +110,19 @@ script:
                     });
                 }
 
+  - id: boot_log
+    mode: queued
+    # max_runs: 15
+    parameters:
+      category: string
+      log_message: string
+    then:
+      - lambda: |-
+          ESP_LOGI("script.boot_log", "%s: %s", category.c_str(), log_message.c_str());
+          if (current_page->state == "boot") {
+            disp1->send_command_printf("log_body.txt+=\"%s: %s\\r\"", category.c_str(), log_message.c_str());
+          }
+
   - id: boot_progress
     mode: restart
     parameters:
@@ -138,6 +140,12 @@ script:
           }
           if (current_page->state == "boot" and !isnan(display_charset->state) and !isnan(display_mode->state) and !version_tft->state.empty())
             disp1->send_command("tm_esphome.en=0");
+
+  - id: boot_sequence
+    mode: restart
+    then:
+      # Extended by:
+      # nspanel_esphome_core_page_home.yaml
 
   - id: page_boot
     mode: single
@@ -225,19 +233,8 @@ script:
           boot_progress->execute(7);
           App.feed_wdt();
           yield();
-          boot_log->execute("Boot", "Set Home page elements");
-          // Chips icon size
-          for (int i = 1; i <= 7; ++i) {
-            disp1->send_command_printf("home.chip%02d.font=%i", i, id(home_chip_font_id));
-          }
           // Custom buttons icon size
-          for (int i = 1; i <= 7; ++i) {
-            disp1->send_command_printf("home.button%02d.font=%i", i, id(home_custom_buttons_font_id));
-          }
-          disp1->set_component_font("home.bt_notific", id(home_custom_buttons_font_id));
-          disp1->set_component_font("home.bt_qrcode", id(home_custom_buttons_font_id));
-          disp1->set_component_font("home.bt_entities", id(home_custom_buttons_font_id));
-          disp1->set_component_font("home.wifi_icon", id(home_chip_font_id));
+          custom_buttons_font->execute(id(home_custom_buttons_font_id), true);
           disp1->set_component_font_color("home.chip_relay1", id(home_relay1_icon_color));
           disp1->set_component_font_color("home.chip_relay2", id(home_relay2_icon_color));
           #if defined(USE_ESP32_BLE_SERVER) || defined(USE_ESP32_BLE_CLIENT) || defined(USE_BLUETOOTH_PROXY) || defined(USE_IMPROV)
