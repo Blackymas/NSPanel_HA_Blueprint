@@ -60,34 +60,27 @@ namespace nspanel_ha_blueprint {
     // Function to get the number of unique boot steps that have been completed.
     // Returns:
     //   The count of completed boot steps as an integer.
-    inline uint8_t get_boot_steps_completed();
+    uint8_t get_boot_steps_completed();
 
     // Function to calculate the boot progress percentage with rounding.
     // Returns:
     //   The boot progress percentage as a uint8_t between 0 and 100.
-    inline uint8_t get_boot_progress_percentage() {
-        // Calculate the percentage with rounding
-        return static_cast<uint8_t>((get_boot_steps_completed() * 100 + TOTAL_BOOT_STEPS / 2) / TOTAL_BOOT_STEPS);
-    }
+    uint8_t get_boot_progress_percentage();
 
     // Function to check if all boot steps have been completed.
     // Returns:
     //   true if all boot steps are completed, false otherwise.
-    inline bool is_boot_complete() {
-        return get_boot_steps_completed() == TOTAL_BOOT_STEPS;
-    }
+    bool is_boot_complete();
 
     // Function to reset the completed boot steps to zero.
     // This clears all tracked boot steps.
-    inline void reset_boot_steps();
+    void reset_boot_steps();
 
     // Function to check if a specific boot step has been completed.
     // Parameters:
     //   step - The boot step constant representing the step to check.
     // Returns:
     //   true if the boot step has been completed; false otherwise.
-    inline bool is_boot_step_completed(BootStepType step) {
-        return (completed_boot_steps & step) != 0;
-    }
+    bool is_boot_step_completed(BootStepType step);
 
 }  // namespace nspanel_ha_blueprint
