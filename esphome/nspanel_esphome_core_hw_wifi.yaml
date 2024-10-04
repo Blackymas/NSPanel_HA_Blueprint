@@ -1,0 +1,160 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - HARDWARE - BUZZER                                                          #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+##### External references #####
+# nspanel_esphome_core.yaml:
+#   api.actions.notification_show
+###############################
+
+---
+api:
+  id: !extend api_server
+  on_client_connected:
+    then:
+      - script.execute: refresh_wifi_icon
+  on_client_disconnected:
+    then:
+      - script.execute: refresh_wifi_icon
+
+esphome:
+  on_shutdown:
+    - priority: 0.1
+      then:
+        - lambda: |-
+            // Update Wi-Fi icon
+            disp1->set_component_text("home.wifi_icon", "\uE708");
+            // Update Wi-Fi icon color
+            disp1->set_component_font_color("home.wifi_icon", 63488);
+
+script:
+  - id: !extend boot_progress_dump
+    then:
+      - lambda: |-
+          ESP_LOGCONFIG("script.boot_progress_dump", " - HW Wi-Fi:             %s", is_boot_step_completed(BOOT_STEP_HW_WIFI) ? "Completed" : "PENDING");
+
+  - id: !extend boot_sequence
+    then:
+      - lambda: |-
+          boot_progress->execute(BOOT_STEP_HW_WIFI);
+
+  - id: !extend dump_config_report
+    then:
+      - lambda: |-
+          // report Wi-Fi status
+          if (wifi_component->is_connected()) {
+            float rssi = wifi_rssi->state;
+            const char *rssi_status = "Unknown"; // Use const char* to avoid dynamic memory allocation
+            if (rssi > -50) rssi_status = "Excellent";
+            else if (rssi > -60) rssi_status = "Good";
+            else if (rssi > -70) rssi_status = "Fair";
+            else if (rssi > -80) rssi_status = "Weak";
+            else rssi_status = "Poor";
+            if (rssi > -70) ESP_LOGCONFIG("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
+            else if (rssi > -80) ESP_LOGW("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
+            else ESP_LOGE("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
+          } else {
+            ESP_LOGW("${project_tag}", "Wi-Fi:         DISCONNECTED");
+          }
+
+  - id: !extend page_home
+    then:
+      - script.execute: refresh_wifi_icon
+
+  - id: refresh_wifi_icon
+    mode: restart
+    then:
+      - lambda: |-
+          if (!id(is_uploading_tft)) {
+            disp1->send_command_printf("api=%i", (wifi_component->is_connected() and api_server->is_connected() and is_boot_complete()) ? 1 : 0);
+            // Update Wi-Fi icon color
+            disp1->set_component_font_color("home.wifi_icon",
+                                            (wifi_component->is_connected() and api_server->is_connected() and is_boot_complete()) ?
+                                            (wifi_rssi->state > -70 ? 33808 : 64992) :
+                                            63488);
+            // Update Wi-Fi icon
+            disp1->set_component_text("home.wifi_icon",
+                                      wifi_component->is_connected() ?
+                                        (api_server->is_connected() ?
+                                          ((is_boot_complete()) ? "\uE5A8" :  // mdi:wifi - All right!
+                                          "\uE7CF") :                         // mdi:home-assistant - Boot incomplete
+                                        "\uF256") :                           // mdi:api-off
+                                      "\uE5A9");                              // mdi:wifi-off
+          }
+
+  - id: !extend stop_all
+    then:
+      - script.stop: refresh_wifi_icon
+
+sensor:
+  ##### Wi-Fi Signal stregth
+  - name: RSSI
+    id: wifi_rssi
+    platform: wifi_signal
+    internal: false
+    disabled_by_default: false
+    icon: mdi:wifi
+    entity_category: diagnostic
+
+text_sensor:
+  ##### Device name - Used by bluepring to find action's names #####
+  - id: device_name
+    name: Device Name
+    platform: template
+    icon: mdi:identifier
+    entity_category: diagnostic
+    internal: false
+    disabled_by_default: false
+    lambda: |-
+      return {"${name}"};
+    filters:
+      - lambda: |-
+          #ifdef ESP_MAC_WIFI_STA
+          std::string suffix = "00ERROR";  // Default suffix in case of an error
+          uint8_t mac[6] = {0,0,0,0,0,0};
+          if (esp_read_mac(mac, ESP_MAC_WIFI_STA) == ESP_OK) {
+            suffix.clear();  // Clear the default error suffix
+            for (int i = 3; i < 6; ++i) {  // Use last 3 bytes of MAC
+              char hex[3];
+              snprintf(hex, sizeof(hex), "%02X", mac[i]);
+              suffix += hex;
+            }
+          }
+          // Proceed with suffix (either MAC-based or default error indicator)
+          const std::string raw_name = (x + "-" + suffix);
+          #else
+          const std::string raw_name = x;
+          #endif
+
+          std::string result;
+          bool last_was_underscore = false;
+          for (const char& c : raw_name) {
+            if (isalnum(c)) {
+              result += tolower(c);  // Add alphanumeric characters as lowercase
+              last_was_underscore = false;
+            } else if (!last_was_underscore) {  // Replace non-alphanumeric with '_' but avoid consecutive '_'
+              result += '_';
+              last_was_underscore = true;
+            }
+          }
+          return result;
+
+##### WIFI SETUP #####
+wifi:
+  id: wifi_component
+  power_save_mode: LIGHT
+  networks:
+    - id: wifi_default
+      ssid: ${wifi_ssid}
+      password: ${wifi_password}
+  on_connect:
+    then:
+      - script.execute: refresh_wifi_icon
+  on_disconnect:
+    then:
+      - script.execute: refresh_wifi_icon
+
+...

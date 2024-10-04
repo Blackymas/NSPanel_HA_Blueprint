@@ -1,0 +1,76 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - Page Screensaver                                                           #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+globals:
+  ##### Screensaver #####
+  - id: screensaver_display_time
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  - id: screensaver_display_time_font
+    type: uint8_t
+    restore_value: true
+    initial_value: '6'
+  - id: screensaver_display_time_color
+    type: uint16_t
+    restore_value: true
+    initial_value: '16904'
+
+script:
+  - id: !extend boot_progress_dump
+    then:
+      - lambda: |-
+          ESP_LOGCONFIG("script.boot_progress_dump", " - Page Screensaver:     %s", is_boot_step_completed(BOOT_STEP_PAGE_SCREENSAVER) ? "Completed" : "PENDING");
+
+  - id: !extend page_changed
+    then:
+      - lambda: |-
+          if (current_page->state == "screensaver") page_screensaver->execute();
+
+  - id: page_screensaver
+    mode: restart
+    then:
+      - lambda: |-
+          if (current_page->state == "screensaver" and !id(is_uploading_tft)) {
+            disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
+            if (id(screensaver_display_time)) {
+              disp1->set_component_font("text", id(screensaver_display_time_font));
+              disp1->set_component_font_color("text", id(screensaver_display_time_color));
+              refresh_datetime->execute();
+            }
+            set_component_visibility->execute("screensaver", "text", id(screensaver_display_time));
+            set_brightness->execute(display_sleep_brightness->state);
+          }
+
+  - id: !extend set_component_font_color  # Defined by nspanel_esphome_core_hw_display.yaml
+    then:
+      - lambda: |-
+          if (component == "screensaver.text") id(screensaver_display_time_color) = color;
+
+  - id: !extend set_var_bool
+    then:
+      - lambda: |-
+          if (component == "screensaver_display_time") {
+            id(screensaver_display_time) = val;
+            boot_progress->execute(BOOT_STEP_PAGE_SCREENSAVER);
+            page_screensaver->execute();
+          }
+
+  - id: !extend set_var_int
+    then:
+      - lambda: |-
+          if (component == "screensaver_display_time_font" and val >= 0 and val <= 255) {
+            id(screensaver_display_time_font) = val;
+            boot_progress->execute(BOOT_STEP_PAGE_SCREENSAVER);
+            page_screensaver->execute();
+          }
+
+  - id: !extend stop_all
+    then:
+      - script.stop: page_screensaver
+...

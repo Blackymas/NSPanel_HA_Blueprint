@@ -14,6 +14,18 @@ Moving forward, update all three components (Blueprint, ESPHome, and TFT) togeth
 ### Users using the "Display as a light" customization must remove it
 This is now part of the core system.
 
+### Action `components_visibility` is deprecated
+It was replaced by [`component_visibility` action](docs/api.md#component-visibility-action-component_visibility).
+
+### Action `icon` now requires page name as a parameter
+More info at [API doc - Icon action](docs/api.md#icon-action-icon).
+
+### Actions `init_global`, `init_hardware` and `init_page_home` are deprecated
+It was replaced by a few `set_` var actions during the boot or automation reloaded.
+
+### Sensor `blueprint_status` was removed
+The boot process was totally rebuilt.
+
 ## Noteworthy Changes
 
 ### Swipe Functionality Improvement and Bug Fix (#2244)

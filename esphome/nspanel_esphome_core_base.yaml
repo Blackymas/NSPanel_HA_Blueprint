@@ -1,0 +1,326 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - Base                                                                       #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+substitutions:
+  ##############################
+  ## Change only in your      ##
+  ## local yaml substitutions ##
+  device_name: nspanel
+  name: ${device_name}
+  friendly_name: ${device_name}
+  ota_password: ${wifi_password}
+  project_tag: "nspanel_ha_blueprint"
+  ##############################
+
+api:
+  id: !extend api_server
+  on_client_connected:
+    then:
+      - script.execute: dump_config
+  actions:
+    - action: set_bool
+      variables:
+        component: string
+        val: bool
+      then:
+        - script.execute:
+            id: set_var_bool
+            component: !lambda return component;
+            val: !lambda return val;
+
+    - action: set_int
+      variables:
+        component: string
+        val: int
+      then:
+        - script.execute:
+            id: set_var_int
+            component: !lambda return component;
+            val: !lambda return val;
+
+    - action: set_string
+      variables:
+        component: string
+        val: string
+      then:
+        - script.execute:
+            id: set_var_string
+            component: !lambda return component;
+            val: !lambda return val;
+
+button:
+  - id: nspanel_factory_reset  # Factory Reset button - Used to clean values from flash
+    name: Factory reset
+    platform: factory_reset
+    internal: false
+    disabled_by_default: true
+    icon: mdi:restart-alert
+
+  - id: restart_nspanel  # Reboot ESP32
+    name: Restart
+    platform: restart
+
+esp32:
+  board: esp32dev
+  flash_size: 4MB
+  framework:
+    type: esp-idf
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  comment: NSPanel HA Blueprint
+  min_version: 2024.8.0
+  project:
+    name: esphome.NSPanel_HA_Blueprint
+  platformio_options:
+    build_flags:
+      - -Wno-missing-field-initializers
+      - -D NSPANEL_HA_BLUEPRINT_CORE
+
+external_components:
+  - source:
+      # type: local
+      # path: packages/Blackymas/components
+      type: git
+      url: https://github.com/Blackymas/NSPanel_HA_Blueprint
+      ref: v${version}
+    components:
+      - nspanel_ha_blueprint
+    refresh: 30s
+
+globals:
+  # Add-on Upload TFT
+  - id: is_uploading_tft  # Is TFT uploading currently running?
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+
+  ##### Add-on Climate #####
+  - id: is_embedded_thermostat  # Is embedded thermostat set as main climate entity?
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+
+logger:
+  id: logger_std
+  baud_rate: 0
+  level: DEBUG
+  logs:
+    esp32.preferences: INFO
+    esp-idf: INFO
+    binary_sensor: INFO
+    output: INFO
+    # script: INFO
+    sensor: INFO
+    switch: INFO
+    text_sensor: INFO
+    time: INFO
+
+nspanel_ha_blueprint:  # Adds custom library for NSPanel HA Blueprint project
+
+ota:
+  - id: ota_std
+    platform: esphome
+    password: ${ota_password}
+
+safe_mode:
+  reboot_timeout: 3min
+  num_attempts: 3
+
+script:
+  - id: !extend boot_progress_dump
+    then:
+      - lambda: |-
+          ESP_LOGCONFIG("script.boot_progress_dump", " - Base:                 %s", is_boot_step_completed(BOOT_STEP_BASE) ? "Completed" : "PENDING");
+
+  - id: !extend boot_sequence
+    then:
+      - lambda: |-
+          boot_progress->execute(BOOT_STEP_BASE);
+
+  - id: dump_config
+    mode: restart
+    then:
+      - wait_until:
+          condition:
+            - lambda: return (id(is_uploading_tft));
+          timeout: 15s
+      - if:
+          condition:
+            - lambda: return (id(is_uploading_tft));
+          then:
+            - lambda: |-
+                ESP_LOGW("${project_tag}", "TFT upload in progress");
+            - script.stop: dump_config_report
+            - script.stop: dump_config
+          else:
+            - script.execute: dump_config_report
+
+  - id: dump_config_report
+    mode: restart
+    then:
+      - lambda: |-
+          if (id(is_uploading_tft)) {
+            ESP_LOGW("${project_tag}", "TFT upload in progress");
+          } else {
+            // report API status
+            bool api_connected = api_server->is_connected();
+            if (api_connected) {
+              ESP_LOGCONFIG("${project_tag}", "API:           Connected");
+            } else {
+              ESP_LOGW("${project_tag}", "API:           DISCONNECTED");
+            }
+
+            if (!(wifi_component->is_connected()) or !api_connected) reset_boot_steps();
+
+            // Report ESPHome
+            ESP_LOGCONFIG("${project_tag}", "ESPHome:");
+            ESP_LOGCONFIG("${project_tag}", "  Version:     ${version}");
+            ESP_LOGCONFIG("${project_tag}", "  Compiler:    %s", ESPHOME_VERSION);
+            // Report framework
+            #ifdef ARDUINO
+            ESP_LOGCONFIG("${project_tag}", "  Framework:   Arduino");
+            #elif defined(USE_ESP_IDF)
+            ESP_LOGCONFIG("${project_tag}", "  Framework:   ESP-IDF");
+            #endif
+
+            ESP_LOGCONFIG("${project_tag}", "Packages:");
+            #ifdef NSPANEL_HA_BLUEPRINT_CORE
+            ESP_LOGCONFIG("${project_tag}", "  - Core");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADVANCED
+            ESP_LOGCONFIG("${project_tag}", "  - Advanced");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_BLUETOOTH_PROXY
+            ESP_LOGCONFIG("${project_tag}", "  - Bluetooth Proxy");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
+            ESP_LOGCONFIG("${project_tag}", "  - Upload TFT");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE
+            ESP_LOGCONFIG("${project_tag}", "  - Climate - Base");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL
+            ESP_LOGCONFIG("${project_tag}", "  - Climate - Cool");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+            ESP_LOGCONFIG("${project_tag}", "  - Climate - Dual");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT
+            ESP_LOGCONFIG("${project_tag}", "  - Climate - Heat");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT
+            ESP_LOGCONFIG("${project_tag}", "  - Pre-built");
+            #endif
+            #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY
+            ESP_LOGCONFIG("${project_tag}", "  - Pre-built (Wall Display)");
+            #endif
+            #if defined(USE_BLUETOOTH_PROXY) || defined(USE_WEBSERVER) || defined(USE_CAPTIVE_PORTAL)
+            ESP_LOGCONFIG("${project_tag}", "Components:");
+            #ifdef USE_ESP32_BLE_SERVER
+            ESP_LOGCONFIG("${project_tag}", "  - BLE server");
+            #endif
+            #ifdef USE_ESP32_BLE_CLIENT
+            ESP_LOGCONFIG("${project_tag}", "  - BLE tracker");
+            #endif
+            #ifdef USE_BLUETOOTH_PROXY
+            ESP_LOGCONFIG("${project_tag}", "  - Bluetooth proxy");
+            #endif
+            #ifdef USE_CAPTIVE_PORTAL
+            ESP_LOGCONFIG("${project_tag}", "  - Captive portal");
+            #endif
+            #ifdef USE_IMPROV
+            ESP_LOGCONFIG("${project_tag}", "  - Improv (BLE)");
+            #endif
+            #ifdef USE_WEBSERVER
+            ESP_LOGCONFIG("${project_tag}", "  - Web server");
+            #endif
+            #endif
+          }
+
+  - id: ha_button
+    mode: parallel
+    parameters:
+      page: string
+      component: string
+      command: string
+    then:
+      - lambda: |-
+          esphome::api::CustomAPIDevice ha_event;
+          ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+            {
+              {"device_name", device_name->state.c_str()},
+              {"esphome_version", "${version}"},
+              {"type", "button_click"},
+              {"page", page},
+              {"component", component},
+              {"command", command}
+            });
+
+  - id: ha_call_action
+    mode: restart
+    parameters:
+      action: string
+      key: string
+      value: string
+      entity: string
+    then:
+      - lambda: |-
+          if (!id(is_uploading_tft) and !action.empty()) {
+            esphome::api::CustomAPIDevice ha_event;
+            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+              {
+                {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
+                {"type", "action_call"},
+                {"action", action},
+                {"key", key},
+                {"value", value},
+                {"entity", entity}
+              });
+          }
+
+  - id: set_var_bool
+    mode: queued
+    parameters:
+      component: string
+      val: bool
+    then:  # There's nothing here so far
+
+  - id: set_var_int
+    mode: queued
+    parameters:
+      component: string
+      val: int
+    then:  # There's nothing here so far
+
+  - id: set_var_string
+    mode: queued
+    parameters:
+      component: string
+      val: string
+    then:  # There's nothing here so far
+
+  - id: stop_all
+    mode: restart
+    then:
+      - lambda: |-
+          dump_config->stop();
+          dump_config_report->stop();
+          ha_button->stop();
+          ha_call_action->stop();
+
+text_sensor:
+  - id: detailed_entity  # Entity Id of the entity displayed on the detailed pages
+    name: Detailed Entity
+    platform: template
+    icon: mdi:tablet-dashboard
+    internal: false
+    disabled_by_default: false
+...

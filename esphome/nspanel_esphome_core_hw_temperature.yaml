@@ -1,0 +1,125 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - HARDWARE - BUZZER                                                          #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+##### External references #####
+###############################
+
+---
+substitutions:
+  ##############################
+  ## Change only in your      ##
+  ## local yaml substitutions ##
+  temp_units: "°C"
+  ##############################
+
+globals:
+  ##### Is embedded sensor used for indoor temperature? #####
+  - id: embedded_indoor_temp
+    type: bool
+    restore_value: true
+    initial_value: 'true'
+
+logger:
+  logs:
+    ntc: INFO
+    resistance: INFO
+
+number:
+  ##### Temperature Correction #####
+  - id: temperature_correction
+    name: Temperature Correction
+    platform: template
+    entity_category: config
+    unit_of_measurement: °C
+    min_value: -10
+    max_value: 10
+    initial_value: 0
+    step: 0.1
+    mode: box
+    restore_value: true
+    internal: false
+    optimistic: true
+    on_value:
+      - logger.log: Temperature correction changed.
+      - delay: 1s
+      - lambda: temp_nspanel->publish_state(temp_nspanel->raw_state);
+
+script:
+  - id: !extend boot_progress_dump
+    then:
+      - lambda: |-
+          ESP_LOGCONFIG("script.boot_progress_dump", " - HW Temperature:       %s", is_boot_step_completed(BOOT_STEP_HW_TEMPERATURE) ? "Completed" : "PENDING");
+
+  - id: display_embedded_temp
+    mode: restart
+    then:
+      - lambda: |-
+          if (id(embedded_indoor_temp) or !wifi_component->is_connected() or !api_server->is_connected()) {
+            const std::string temp_units = "${temp_units}";
+            const bool temp_unit_fahrenheit = (temp_units == "°F" || temp_units == "F" || temp_units == "°f" || temp_units == "f");
+            char buffer[15]; // Buffer for formatted temperature string
+            if (temp_unit_fahrenheit) {
+              snprintf(buffer, sizeof(buffer), "%.0f${temp_units}", (id(temp_nspanel).state * 9.0 / 5.0) + 32); // Fahrenheit with no decimal
+            } else {
+              snprintf(buffer, sizeof(buffer), "%.1f${temp_units}", id(temp_nspanel).state); // Celsius with one decimal
+            }
+            id(disp1)->set_component_text("home.indr_temp", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
+          }
+
+  - id: !extend set_var_bool
+    then:
+      - lambda: |-
+          if (component == "embedded_indoor_temperature")
+            id(embedded_indoor_temp) = val;
+          else if (component == "is_embedded_thermostat") {
+            id(is_embedded_thermostat) = val;
+            boot_progress->execute(BOOT_STEP_HW_TEMPERATURE);
+          }
+
+  - id: !extend stop_all
+    then:
+      - script.stop: display_embedded_temp
+
+sensor:
+  ##### INTERNAL TEMPERATURE SENSOR, ADC VALUE #####
+  - id: ntc_source
+    platform: adc
+    pin: 38
+    attenuation: 12db
+    samples: 4
+    update_interval: 10s
+    filters:
+      - sliding_window_moving_average:
+          window_size: 6
+          send_every: 1
+
+  ##### INTERNAL TEMPERATURE SENSOR, adc reading converted to resistance (calculation)#####
+  - id: resistance_sensor
+    platform: resistance
+    sensor: ntc_source
+    configuration: DOWNSTREAM
+    resistor: 11.2kOhm
+
+  ##### INTERNAL TEMPERATURE SENSOR, resistance to temperature (calculation) #####
+  - id: temp_nspanel
+    name: Temperature
+    platform: ntc
+    sensor: resistance_sensor
+    unit_of_measurement: °C
+    internal: false
+    calibration:
+      b_constant: 3950
+      reference_temperature: 25°C
+      reference_resistance: 10kOhm
+    filters:
+      - lambda: |-
+          return x + temperature_correction->state;
+    on_value:
+      then:
+        # Show panel's temperature if API or Wi-Fi are out
+        - lambda: display_embedded_temp->execute();
+...

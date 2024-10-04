@@ -6,6 +6,15 @@
 #####################################################################################################
 
 ---
+substitutions:
+  ##############################
+  ## Change only in your      ##
+  ## local yaml substitutions ##
+  invalid_cooldown: "100ms"
+  buttons_color_on: "7519"
+  buttons_color_off: "10597"
+  ##############################
+
 api:
   id: !extend api_server
   actions:
@@ -141,12 +150,12 @@ globals:
   - id: buttons_color_on
     type: uint16_t
     restore_value: true
-    initial_value: '7519'
+    initial_value: '${buttons_color_on}'
 
   - id: buttons_color_off
     type: uint16_t
     restore_value: true
-    initial_value: '10597'
+    initial_value: '${buttons_color_off}'
 
   - id: buttons_bars_pages
     type: uint32_t
@@ -154,6 +163,11 @@ globals:
     initial_value: '1'
 
 script:
+  - id: !extend boot_progress_dump
+    then:
+      - lambda: |-
+          ESP_LOGCONFIG("script.boot_progress_dump", " - HW Buttons:           %s", is_boot_step_completed(BOOT_STEP_HW_BUTTONS) ? "Completed" : "PENDING");
+
   - id: !extend page_changed
     then:
       - &refresh_hardware_buttons_bars_3
@@ -209,6 +223,28 @@ script:
                 }
                 break;
             }
+          }
+
+  - id: !extend set_component_font_color  # Defined by nspanel_esphome_core_hw_display.yaml
+    then:
+      - lambda: |-
+          if (component == "button_bar_color_on") id(buttons_color_on) = color;
+          else if (component == "button_bar_color_off") id(buttons_color_off) = color;
+
+  - id: !extend set_var_bool
+    then:
+      - lambda: |-
+          if (component == "button_left")
+            update_bitwise_setting(id(buttons_settings), val, ButtonSettings::ButtonLeft_Enabled);
+          else if (component == "button_right")
+            update_bitwise_setting(id(buttons_settings), val, ButtonSettings::ButtonRight_Enabled);
+
+  - id: !extend set_var_int
+    then:
+      - lambda: |-
+          if (component == "buttons_bars_pages" and val >= 0) {
+            id(buttons_bars_pages) = val;
+            boot_progress->execute(BOOT_STEP_HW_BUTTONS);
           }
 
   - id: !extend stop_all

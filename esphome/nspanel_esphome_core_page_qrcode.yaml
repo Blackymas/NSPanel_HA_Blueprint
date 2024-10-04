@@ -19,23 +19,39 @@ api:
         - lambda: |-
             id(qrcode_string) = qrcode;
             if (!id(is_uploading_tft)) {
-              set_component_visibility->execute("home.bt_qrcode", !(id(qrcode_string).empty()));
+              set_component_visibility->execute("home", "bt_qrcode", !(id(qrcode_string).empty()));
               disp1->set_component_text("qrcode.qrcode_label", title.c_str());
               if (show) goto_page->execute("qrcode");
             }
-            blueprint_status->publish_state(int(blueprint_status->raw_state) | (1 << 2));
+            boot_progress->execute(BOOT_STEP_PAGE_QRCODE);
 
 globals:
+  - id: qrcode_enabled
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+
   - id: qrcode_string
     type: std::string
-    restore_value: true
+    restore_value: false
     max_restore_data_length: 254
-    initial_value: ''
+    initial_value: '""'
 
 script:
+  - id: !extend boot_progress_dump
+    then:
+      - lambda: |-
+          ESP_LOGCONFIG("script.boot_progress_dump", " - Page QR Code:         %s", is_boot_step_completed(BOOT_STEP_PAGE_QRCODE) ? "Completed" : "PENDING");
+
   - id: !extend page_changed
     then:
-      - lambda: if (current_page->state == "qrcode") page_qrcode->execute();
+      - lambda: |-
+          if (current_page->state == "qrcode") page_qrcode->execute();
+
+  - id: !extend page_boot
+    then:
+      - lambda: |-
+          set_component_visibility->execute("home", "bt_qrcode", id(qrcode_enabled));
 
   # Load the QRCode page
   - id: page_qrcode
@@ -44,6 +60,21 @@ script:
       - lambda: |-
           if (!id(is_uploading_tft) and not id(qrcode_string).empty()) {
             disp1->qrcode(25, 25, id(qrcode_string).c_str());
+          }
+
+  - id: set_qrcode_visibility
+    mode: restart
+    then:
+      - lambda: |-
+          
+
+  - id: !extend set_var_bool
+    then:
+      - lambda: |-
+          if (component == "qrcode_enabled") {
+            id(qrcode_enabled) = val;
+            set_component_visibility->execute("home", "bt_qrcode", id(qrcode_enabled));
+            if (!val) boot_progress->execute(BOOT_STEP_PAGE_QRCODE);
           }
 
   - id: !extend stop_all

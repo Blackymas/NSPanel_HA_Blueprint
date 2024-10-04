@@ -13,6 +13,7 @@ api:
       variables:
         timezone: string
       then:
+        - script.stop: set_timezone
         - script.execute:
             id: set_timezone
             timezone: !lambda return timezone;
@@ -37,27 +38,21 @@ globals:
     type: uint16_t
     restore_value: true
     initial_value: '65535'
-  - id: mui_meridiem
-    type: std::array<std::string, 2>
-    restore_value: false
-    initial_value: '{"AM", "PM"}'
-
-  ##### Screensaver #####
-  - id: screensaver_display_time
-    type: bool
+  - id: mui_meridiem_am
+    type: std::string
     restore_value: true
-    initial_value: 'false'
-  - id: screensaver_display_time_font
-    type: uint8_t
+    initial_value: '"AM"'
+  - id: mui_meridiem_pm
+    type: std::string
     restore_value: true
-    initial_value: '6'
-  - id: screensaver_display_time_color
-    type: uint16_t
-    restore_value: true
-    initial_value: '16904'
-
+    initial_value: '"PM"'
 
 script:
+  - id: !extend boot_progress_dump
+    then:
+      - lambda: |-
+          ESP_LOGCONFIG("script.boot_progress_dump", " - Date/Time:            %s", is_boot_step_completed(BOOT_STEP_DATETIME) ? "Completed" : "PENDING");
+
   - id: refresh_datetime
     mode: restart
     then:
@@ -78,7 +73,7 @@ script:
                                                         to_string((int)(id(time_provider).now().hour)));
             }
           }
-          std::string meridiem_text = (id(time_provider).now().hour<12) ? id(mui_meridiem)[0] : id(mui_meridiem)[1];
+          std::string meridiem_text = (id(time_provider).now().hour<12) ? id(mui_meridiem_am) : id(mui_meridiem_pm);
           if (current_page->state == "screensaver" and id(screensaver_display_time)) {
               std::string time_format_str_sleep = time_format_str;
               if (time_format_str_sleep.find("%p") != std::string::npos)
@@ -88,18 +83,38 @@ script:
           disp1->set_component_text("home.meridiem", (time_format_str.find("%p") != std::string::npos) ? meridiem_text.c_str() : " ");
           disp1->set_component_text("home.time", id(time_provider).now().strftime(time_format_str).c_str());
 
+  - id: !extend set_component_font_color  # Defined by nspanel_esphome_core_hw_display.yaml
+    then:
+      - lambda: |-
+          if (component == "home.date") id(home_date_color) =  color;
+          else if (component == "home.time") id(home_time_color) = color;
+
   - id: set_timezone
     mode: restart
     parameters:
       timezone: string
     then:
       - lambda: |-
-          id(mui_timezone) = timezone;
-          if (!timezone.empty()) {
-            ESP_LOGD("script.set_timezone", "Setting timezone: %s", timezone.c_str());
-            time_provider->set_timezone(timezone.c_str());
-            time_provider->call_setup();
-            time_provider->dump_config();
+          ESP_LOGD("script.set_timezone", "Setting timezone: %s", timezone.c_str());
+          if (timezone != id(mui_timezone)) {
+            id(mui_timezone) = timezone;
+            if (!timezone.empty()) {
+              time_provider->set_timezone(timezone.c_str());
+              time_provider->call_setup();
+              time_provider->dump_config();
+            } else arch_restart();  // Restart when timezone isset to blank so it uses the one from ESPHome compiller
+            refresh_datetime->execute();
+          }
+
+  - id: !extend set_var_string
+    then:
+      - lambda: |-
+          if (component == "timezone") set_timezone->execute(val.c_str());
+          else if (component == "mui_meridiem_am") id(mui_meridiem_am) = val;
+          else if (component == "mui_meridiem_pm") id(mui_meridiem_pm) = val;
+          else if (component == "time_format") {
+            id(mui_time_format) = val;
+            boot_progress->execute(BOOT_STEP_DATETIME);
           }
 
   - id: !extend stop_all
@@ -134,7 +149,7 @@ time:
                   current_page->state != "settings") {
                 ESP_LOGW("watchdog", "API disconnected. Falling back to Home page.");
                 goto_page->execute("home");
-                blueprint_status->publish_state(0);
+                reset_boot_steps();
               }
               refresh_wifi_icon->execute();
 

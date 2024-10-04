@@ -27,36 +27,69 @@ esphome:
             version_esphome->publish_state("${version}");
 
 script:
+  - id: !extend boot_progress_dump
+    then:
+      - lambda: |-
+          ESP_LOGCONFIG("script.boot_progress_dump", " - Version:              %s", is_boot_step_completed(BOOT_STEP_VERSION) ? "Completed" : "PENDING");
+
   - id: check_versions
     mode: restart
     then:
+      - script.execute:
+          id: boot_log
+          category: Check versions
+          log_message: Waiting
       - wait_until:
           condition:
             - lambda: |-
                 return (compare_versions("${version}", version_tft->state.c_str()) and compare_versions("${version}", version_blueprint->state.c_str()));
-          timeout: 60s
+          timeout: 90s
+      - script.execute:
+          id: boot_log
+          category: Check versions
+          log_message: Reporting
       - lambda: |-
-          if (!id(is_uploading_tft)) {
-            ESP_LOGD("script.check_versions", "Versions:");
-            ESP_LOGD("script.check_versions", "  TFT:       %s", version_tft->state.c_str());
-            ESP_LOGD("script.check_versions", "  ESPHome:   ${version}");
-            if (not compare_versions("${version}", version_tft->state.c_str()))
-              ESP_LOGE("script.check_versions", "TFT version mismatch!");
-            ESP_LOGD("script.check_versions", "  Blueprint: %s", version_blueprint->state.c_str());
-            if (not compare_versions("${version}", version_blueprint->state.c_str()))
-              ESP_LOGE("script.check_versions", "Blueprint version mismatch!");
+          if (compare_versions("${version}", version_tft->state.c_str()) and compare_versions("${version}", version_blueprint->state.c_str()))
+            boot_progress->execute(BOOT_STEP_VERSION);
+          ESP_LOGD("script.check_versions", "Versions:");
+          ESP_LOGD("script.check_versions", "  TFT:       %s", version_tft->state.c_str());
+          ESP_LOGD("script.check_versions", "  ESPHome:   ${version}");
+          if (not compare_versions("${version}", version_tft->state.c_str()))
+            ESP_LOGE("script.check_versions", "TFT version mismatch!");
+          ESP_LOGD("script.check_versions", "  Blueprint: %s", version_blueprint->state.c_str());
+          if (not compare_versions("${version}", version_blueprint->state.c_str()))
+            ESP_LOGE("script.check_versions", "Blueprint version mismatch!");
 
-            esphome::api::CustomAPIDevice ha_event;
-            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-              {
-                {"device_name", device_name->state.c_str()},
-                {"esphome_version", "${version}"},
-                {"type", "version"},
-                {"tft", version_tft->state.c_str()},
-                {"esphome", "${version}"},
-                {"blueprint", version_blueprint->state.c_str()}
-              });
-          }
+          esphome::api::CustomAPIDevice ha_event;
+          ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+            {
+              {"device_name", device_name->state.c_str()},
+              {"esphome_version", "${version}"},
+              {"type", "version"},
+              {"tft", version_tft->state.c_str()},
+              {"esphome", "${version}"},
+              {"blueprint", version_blueprint->state.c_str()}
+            });
+  
+  - id: !extend dump_config_report
+    then:
+      - lambda: |-
+          // Report blueprint version
+          ESP_LOGCONFIG("${project_tag}", "Blueprint:");
+          if (!version_blueprint->state.empty())
+            ESP_LOGCONFIG("${project_tag}", "  Version:     %s", version_blueprint->state.c_str());
+          else
+            ESP_LOGW("${project_tag}", "  Version:     UNKNOWN");
+
+  - id: !extend set_var_string
+    then:
+      - lambda: |-
+          if (component == "version_blueprint" and !(val.empty()))
+            version_blueprint->publish_state(val.c_str());
+
+  - id: !extend stop_all
+    then:
+      - script.stop: check_versions
 
 text_sensor:
   - id: version_blueprint
@@ -68,6 +101,8 @@ text_sensor:
     update_interval: never
     on_value:
       - lambda: |-
+          if (current_page->state == "boot")
+            disp1->set_component_text_printf("ver_blueprint", "Blueprint: %s", x.c_str());
           check_versions->execute();
 
   - id: version_esphome
