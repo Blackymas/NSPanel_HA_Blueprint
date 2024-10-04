@@ -26,7 +26,11 @@ display:
           then:
             - script.execute: boot_sequence
             - script.wait: boot_sequence
-            - lambda: nextion_init->publish_state(true);
+            - lambda: |-
+                ESP_LOGI("display.on_setup", "Boot sequence completed.");
+            - delay: 2s
+            - lambda: |-
+                nextion_init->publish_state(true);
 
     on_touch:
       then:
@@ -134,11 +138,12 @@ script:
     then:
       - script.execute: boot_progress_dump
       - lambda: |-
+          complete_boot_step(step);
           timer_reset_all->execute();
           if (is_boot_complete())
             ESP_LOGI("script.boot_progress", "Progress: Completed");
           else
-            ESP_LOGI("script.boot_progress", "Progress: %i%%", get_boot_progress_percentage());
+            ESP_LOGI("script.boot_progress", "Progress: %" PRIu8 "/%" PRIu32 " (%" PRIu8 "%%)", get_boot_steps_completed(), TOTAL_BOOT_STEPS, get_boot_progress_percentage());
           if (current_page->state == "boot") {
             disp1->set_component_value("progress", get_boot_progress_percentage());
             if (!isnan(display_charset->state) and !isnan(display_mode->state) and !version_tft->state.empty())
@@ -157,6 +162,7 @@ script:
     mode: restart
     then:
       - lambda: |-
+          ESP_LOGI("script.boot_sequence", "Starting boot sequence...");
           boot_progress->execute(BOOT_STEP_BOOT );
       # Extended by:
       # nspanel_esphome_core_page_home.yaml
@@ -166,9 +172,9 @@ script:
       - lambda: |-
           // Report boot progress
           if (is_boot_complete()) {
-            ESP_LOGCONFIG("${project_tag}", "  Boot steps:  %" PRIu8 " (100%%)", get_boot_steps_completed());
+            ESP_LOGCONFIG("${project_tag}", "  Boot steps:  %" PRIu8 "/%" PRIu32 " (100%%)", get_boot_steps_completed(), TOTAL_BOOT_STEPS);
           } else {
-            ESP_LOGW("${project_tag}", "  Boot steps:  %" PRIu8 " (%" PRIu8 "%%)", get_boot_steps_completed(), get_boot_progress_percentage());
+            ESP_LOGW("${project_tag}", "  Boot steps:  %" PRIu8 "/%" PRIu32 " (%" PRIu8 "%%)", get_boot_steps_completed(), TOTAL_BOOT_STEPS, get_boot_progress_percentage());
             ESP_LOGW("${project_tag}", "  State:       %s", ((wifi_component->is_connected()) and api_server->is_connected()) ? "Pending" : "DISCONNECTED");
             ESP_LOGCONFIG("${project_tag}", "Requesting new boot parameters from Blueprint");
             boot_event->execute(false);
