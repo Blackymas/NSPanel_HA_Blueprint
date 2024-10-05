@@ -200,15 +200,38 @@ display:
     # - nspanel_esphome_core_version.yaml
 
 esphome:
+  on_boot:
+    - priority: 600.5
+      then:
+        - wait_until:
+            condition:
+              - lambda: return (not isnan(stoi(baud_rate->state)));
+            timeout: 60s
+        - lambda: |-
+            boot_log->execute("on_boot", "Set baud rate");
+            if (stoi(baud_rate->state) != tf_uart->get_baud_rate()) set_baud_rate->execute(stoi(baud_rate->state), true);
+        - wait_until:
+            condition:
+              - lambda: return disp1->is_setup();
+            timeout: 60s
+        - if:
+            condition:
+              - lambda: return (not disp1->is_detected());
+            then:
+              - lambda: boot_log->execute("on_boot", "Restart Nextion");
+              - switch.turn_off: screen_power
+              - delay: 2s
+              - switch.turn_on: screen_power
+
   on_shutdown:
-    - priority: 0.2
+    - priority: 600.5
+      then:
+        - switch.turn_off: screen_power
+    - priority: 0.5
       then:
         - lambda: |-
             // Make it unavailable to blueprint calls
             nextion_init->publish_state(false);
-    - priority: 600.2
-      then:
-        - switch.turn_off: screen_power
 
 globals:
   - id: last_page
@@ -378,6 +401,33 @@ script:
     then:
       - lambda: |-
           ESP_LOGCONFIG("script.boot_progress_dump", " - HW Display:           %s", is_boot_step_completed(BOOT_STEP_HW_DISPLAY) ? "Completed" : "PENDING");
+
+  - id: !extend boot_sequence
+    then:
+      - while:
+          condition:
+            - lambda: return isnan(display_mode->state);
+          then:
+            - lambda: |-
+                ESP_LOGD("script.update_tft_info", "Updating TFT mode");
+                display_mode->update();
+            - wait_until:
+                condition:
+                  - lambda: return !isnan(display_mode->state);
+                timeout: 10s
+      - while:
+          condition:
+            - lambda: return isnan(display_charset->state);
+          then:
+            - lambda: |-
+                ESP_LOGD("script.update_tft_info", "Updating TFT charset");
+                display_charset->update();
+            - wait_until:
+                condition:
+                  - lambda: return !isnan(display_charset->state);
+                timeout: 10s
+      - lambda: |-
+          boot_progress->execute(BOOT_STEP_HW_DISPLAY, "HW Display - Boot sequence");
 
   - id: display_wrapped_text
     mode: queued
@@ -663,7 +713,7 @@ script:
       - lambda: |-
           if (component == "decimal_separator" and !(val.empty())) {
             id(mui_decimal_separator) = val[0];
-            boot_progress->execute(BOOT_STEP_HW_DISPLAY);
+            boot_progress->execute(BOOT_STEP_HW_DISPLAY, "HW Display - Decimal separator");
           }
 
   - id: !extend stop_all

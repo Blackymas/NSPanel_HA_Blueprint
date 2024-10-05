@@ -21,6 +21,12 @@ api:
       - script.execute: refresh_wifi_icon
 
 esphome:
+  on_boot:
+    - priority: 600.4  # This is where most sensors are set up.
+      then:
+        - lambda: |-
+            device_name->publish_state("${name}");
+
   on_shutdown:
     - priority: 0.1
       then:
@@ -39,7 +45,7 @@ script:
   - id: !extend boot_sequence
     then:
       - lambda: |-
-          boot_progress->execute(BOOT_STEP_HW_WIFI);
+          boot_progress->execute(BOOT_STEP_HW_WIFI, "HW Wi-Fi");
 
   - id: !extend dump_config_report
     then:
@@ -59,6 +65,24 @@ script:
           } else {
             ESP_LOGW("${project_tag}", "Wi-Fi:         DISCONNECTED");
           }
+
+  - id: !extend page_boot
+    then:
+      - script.execute: page_boot_wifi
+
+  - id: page_boot_wifi
+    mode: restart
+    then:
+      - lambda: |-
+          if (!wifi_component->is_connected())
+            boot_log->execute("Boot", "Waiting for Wi-Fi");
+      - wait_until:
+          condition:
+            - lambda: return wifi_component->is_connected();
+          timeout: 20s
+      - lambda: |-
+          if (current_page->state == "boot")
+            disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());
 
   - id: !extend page_home
     then:
@@ -87,6 +111,7 @@ script:
 
   - id: !extend stop_all
     then:
+      - script.stop: page_boot_wifi
       - script.stop: refresh_wifi_icon
 
 sensor:
@@ -153,6 +178,9 @@ wifi:
   on_connect:
     then:
       - script.execute: refresh_wifi_icon
+      - lambda: |-
+          boot_log->execute("Wi-Fi", network::get_ip_addresses()[0].str().c_str());
+
   on_disconnect:
     then:
       - script.execute: refresh_wifi_icon
