@@ -22,6 +22,9 @@ api:
   on_client_connected:
     then:
       - script.execute: dump_config
+      - lambda: |-
+          boot_log->execute("API", (client_info + " connected (" + client_address + ")").c_str());
+
   actions:
     - action: set_bool
       variables:
@@ -128,6 +131,16 @@ ota:
   - id: ota_std
     platform: esphome
     password: ${ota_password}
+    on_state_change:
+      then:
+        - lambda: |-
+            goto_page->execute("boot");
+            std::string ota_state;
+            if (state == ota::OTA_STARTED) ota_state = "Started";
+            else if (state == ota::OTA_IN_PROGRESS) ota_state = "In progress";
+            else if (state == ota::OTA_COMPLETED) ota_state = "Completed";
+            else if (state == ota::OTA_ERROR) ota_state = "Error";
+            boot_log->execute("OTA", ota_state.c_str());
 
 safe_mode:
   reboot_timeout: 3min
@@ -138,11 +151,6 @@ script:
     then:
       - lambda: |-
           ESP_LOGCONFIG("script.boot_progress_dump", " - Base:                 %s", is_boot_step_completed(BOOT_STEP_BASE) ? "Completed" : "PENDING");
-
-  - id: !extend boot_sequence
-    then:
-      - lambda: |-
-          boot_progress->execute(BOOT_STEP_BASE);
 
   - id: dump_config
     mode: restart
@@ -251,17 +259,15 @@ script:
       component: string
       command: string
     then:
-      - lambda: |-
-          esphome::api::CustomAPIDevice ha_event;
-          ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-            {
-              {"device_name", device_name->state.c_str()},
-              {"esphome_version", "${version}"},
-              {"type", "button_click"},
-              {"page", page},
-              {"component", component},
-              {"command", command}
-            });
+      - homeassistant.event:
+          event: esphome.nspanel_ha_blueprint
+          data:
+            device_name: !lambda return device_name->state.c_str();
+            esphome_version: ${version}
+            type: button_click"
+            page: !lambda return page.c_str();
+            component: !lambda return component.c_str();
+            command: !lambda return command.c_str();
 
   - id: ha_call_action
     mode: restart
@@ -271,27 +277,33 @@ script:
       value: string
       entity: string
     then:
-      - lambda: |-
-          if (!id(is_uploading_tft) and !action.empty()) {
-            esphome::api::CustomAPIDevice ha_event;
-            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-              {
-                {"device_name", device_name->state.c_str()},
-                {"esphome_version", "${version}"},
-                {"type", "action_call"},
-                {"action", action},
-                {"key", key},
-                {"value", value},
-                {"entity", entity}
-              });
-          }
+      - if:
+          condition:
+            - lambda: return !id(is_uploading_tft);
+            - lambda: return !action.empty();
+          then:
+            - homeassistant.event:
+                event: esphome.nspanel_ha_blueprint
+                data:
+                  device_name: !lambda return device_name->state.c_str();
+                  esphome_version: ${version}
+                  type: action_call
+                  action: !lambda return action.c_str();
+                  key: !lambda return key.c_str();
+                  value: !lambda return value.c_str();
+                  entity: !lambda return entity.c_str();
 
   - id: set_var_bool
     mode: queued
     parameters:
       component: string
       val: bool
-    then:  # There's nothing here so far
+    then:
+      - lambda: |-
+          if (component == "is_embedded_thermostat") {
+            id(is_embedded_thermostat) = val;
+            boot_progress->execute(BOOT_STEP_BASE, "Base");
+          }
 
   - id: set_var_int
     mode: queued
