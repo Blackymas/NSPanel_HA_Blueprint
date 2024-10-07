@@ -20,7 +20,7 @@ It was replaced by [`component_visibility` action](docs/api.md#component-visibil
 ### Action `icon` now requires page name as a parameter
 More info at [API doc - Icon action](docs/api.md#icon-action-icon).
 
-### Actions `init_global`, `init_hardware` and `init_page_home` are deprecated
+### Actions `init_global`, `init_hardware`, `init_page_home` and `hw_button_state` are deprecated
 It was replaced by a few `set_` var actions during the boot or automation reloaded.
 
 ### Sensor `blueprint_status` was removed

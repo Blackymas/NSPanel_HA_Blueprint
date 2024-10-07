@@ -10,8 +10,6 @@ This document provides details on custom actions designed for integration with H
   - [Component Value Action (`component_val`)](#component-value-action-component_val): Updates the value of a specified component on the display.
   - [Component Visibility Action (`component_visibility`)](#component-visibility-action-component_visibility): Hides or shows a specified component on the display.
   - [Entity Details Show Action (`entity_details_show`)](#entity-details-show-action-entity_details_show): Displays detailed information for a specific entity.
-  - [Hardware Button State Indication Action (`hw_button_state`)](#hardware-button-state-indication-action-hw_button_state):
-Updates the visual state (on/off) of the left and right hardware button indicators on the panel.
   - [Icon Action (`icon`)](#icon-action-icon): Updates a chip or custom button's icon, color, and visibility.
   - [Initialization Action: Settings Page (`init_page_settings`)](#initialization-action-init_page_settings): Transfers settings for the "Settings" page on initialization.
   - [Notification Clear Action (`notification_clear`)](#notification-clear-action-notification_clear): Clears the current notification from the screen.
@@ -54,7 +52,6 @@ If you send anything different, the conversion to the RGB565 used by Nextion wil
 | [`component_val`](#component-value-action-component_val) | [Component Value Action](#component-value-action-component_val) | Updates the value of a specified component on the display. |
 | [`component_visibility`](#component-visibility-action-component_visibility) | [Component Visibility Action](#component-visibility-action-component_visibility) | Hides or shows a specified component on the display. |
 | [`entity_details_show`](#entity-details-show-action-entity_details_show) | [Entity Details Show Action](#entity-details-show-action-entity_details_show) | Displays detailed information for a specific entity. |
-| [`hw_button_state`](#hardware-button-state-indication-action-hw_button_state) | [Hardware Button State Indication Action](#hardware-button-state-indication-action-hw_button_state) | Updates the visual state (on/off) of the left and right hardware button indicators on the panel. |
 | [`icon`](#icon-action-icon) | [Icon Action](#icon-action-icon) | Updates a chip or custom button's icon, color, and visibility. |
 | [`init_page_settings`](#initialization-action-init_page_settings) | [Initialization Action](#initialization-action-init_page_settings) | Transfers settings for the "Settings" page on initialization. |
 | [`notification_clear`](#notification-clear-action-notification_clear) | [Notification Clear Action](#notification-clear-action-notification_clear) | Clears the current notification from the screen. |
@@ -250,29 +247,6 @@ data:
 > [!NOTE]
 > Ensure to replace <your_panel_name> with the specific name of your panel configured in Home Assistant.
 > This setup provides a direct and user-friendly way to access and return from detailed entity information, enhancing the interface's usability.
-
-### Hardware Button State Indication Action: `hw_button_state`
-This action dynamically updates the on-screen indication bars for the hardware buttons, reflecting the current state of the entities they control.
-It's designed to provide immediate visual feedback, enhancing the user interface by showing the active/inactive state of the left and right hardware button indicators on the panel.
-
-**Usage:**  
-Utilize this action to modify the visual state (on/off) of hardware button indicators on the panel, corresponding to the state of entities controlled by these buttons.
-This allows for visual feedback that matches the operational state of the buttons.
-
-**Parameters:**  
-- `button_mask` (int): A bitwise identifier for buttons. Use `1` for the left button, `2` for the right button, and `3` for both buttons.
-- `state` (bool): The state to apply to the button(s) indicated by `button_mask`. True for on (active), false for off (inactive).
-
-**Home Assistant Example:**
-```yaml
-action: esphome.<your_panel_name>_hw_button_state
-data:
-  button_mask: 3  # Targets both the left (1) and right (2) buttons
-  state: true     # Turns the indication bars on for both buttons
-```
-> [!NOTE]
-> Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant.
-> This action leverages a bitmask (`button_mask`) for flexible control over multiple hardware buttons simultaneously, offering a streamlined method for updating their visual states.
 
 ### Icon Action: `icon`
 Updates a chip or custom button's icon, color, and visibility within Home Assistant.
