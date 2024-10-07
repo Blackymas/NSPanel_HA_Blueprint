@@ -32,31 +32,6 @@ namespace nspanel_ha_blueprint {
     };
 
     /**
-     * @enum RelaySettings
-     * Represents the settings for relays using individual bits within a uint8_t value.
-     * This approach allows for the efficient storage and manipulation of settings for multiple
-     * relays in a single byte, enabling compact representation and ease of setting manipulation.
-     * 
-     * The bit allocations are as follows:
-     * - Bit 0: Relay 1 local control enabled.
-     * - Bit 1: Relay 1 fallback mode enabled.
-     * - Bits 2-3: Reserved for future use.
-     * - Bit 4: Relay 2 local control enabled.
-     * - Bit 5: Relay 2 fallback mode enabled.
-     * - Bits 6-7: Reserved for future use.
-     * 
-     * These settings support flexible relay configuration and state management through bitwise operations.
-     */
-    enum RelaySettings {
-        Relay1_Local = 1 << 0,     ///< Enables local control for Relay 1.
-        Relay1_Fallback = 1 << 1,  ///< Enables fallback mode for Relay 1.
-        // Bits 2 and 3 are reserved for future expansion.
-        Relay2_Local = 1 << 4,     ///< Enables local control for Relay 2.
-        Relay2_Fallback = 1 << 5,  ///< Enables fallback mode for Relay 2.
-        // Bits 6 and 7 are reserved for future expansion.
-    };
-
-    /**
      * Updates a settings byte according to a specified condition and flag.
      * 
      * This function template applies a bitwise operation to modify the settings byte based on

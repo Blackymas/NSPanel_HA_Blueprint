@@ -19,12 +19,7 @@ display:
       - lambda: |-
           disp1->send_command("esphome=0");
           set_brightness->execute(100);
-          boot_log->execute("Boot", "Publish Nextion state");
           nextion_init->publish_state(disp1->is_setup());
-      - script.execute:
-          id: boot_log
-          category: Nextion
-          log_message: on_setup
 
     on_touch:
       then:
@@ -46,17 +41,15 @@ esphome:
         - script.execute: boot_sequence
         - script.wait: boot_sequence
         - lambda: |-
-            ESP_LOGI("esphome.on_boot", "Boot sequence completed.");
             boot_log->execute("Boot", "Jump to wake-up page");
-            ESP_LOGD("script.page_boot", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
-            disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
+        - wait_until:
+            condition:
+              - lambda: return (disp1->queue_size() < 1);
+              - lambda: return (tf_uart->available() < 1);
+        - lambda: |-
+            ESP_LOGD("esphome.on_boot", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
             goto_page->execute(wakeup_page_name->state.c_str());
-
-globals:
-  - id: boot_progress_count
-    type: uint8_t
-    restore_value: false
-    initial_value: '0'
+            disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
 
 script:
   - id: boot_event
@@ -118,26 +111,23 @@ script:
     mode: single
     then:
       - lambda: |-
-          boot_log->execute("Boot", "Starting sequence");
           if (!disp1->is_setup()) boot_log->execute("Boot", "Waiting for Nextion");
       - wait_until:
           condition:
             - lambda: return disp1->is_setup();
           timeout: 10s
       - lambda: |-
-          if (!wifi_component->is_connected()) boot_log->execute("Boot", "Waiting for Wi-Fi...");
+          if (!wifi_component->is_connected()) boot_log->execute("Boot", "Waiting for Wi-Fi");
       - wait_until:
           condition:
             - lambda: return wifi_component->is_connected();
           timeout: 10s
       - lambda: |-
-          if (!api_server->is_connected()) boot_log->execute("Boot", "Waiting for API...");
+          if (!api_server->is_connected()) boot_log->execute("Boot", "Waiting for API");
       - wait_until:
           condition:
             - lambda: return api_server->is_connected();
           timeout: 10s
-      - lambda: |-
-          boot_log->execute("Boot", "Report to Blueprint");
       - delay: 2s
       - lambda: |-
           boot_log->execute("Boot", "Report to Blueprint");
@@ -154,7 +144,6 @@ script:
           disp1->set_component_value("settings.dimslider", int(display_dim_brightness->state));
       - delay: 100ms
       - lambda: |-
-          boot_log->execute("Display settings", "Sleep rightness");
           disp1->send_command_printf("brightness_sleep=%i", int(display_sleep_brightness->state));
       - delay: 100ms
       - lambda: |-
@@ -184,17 +173,9 @@ script:
       - lambda: |-
           disp1->send_command("tm_esphome.en=0");
           disp1->send_command("esphome=0");
-      - script.execute: page_boot_framework
-
-  - id: page_boot_framework
-    mode: single
-    then:
-      - lambda: |-
           #ifdef ARDUINO
-          boot_log->execute("Boot", "Framework is Arduino");
           disp1->set_component_text("sys_framework", "Framework: Arduino");
           #elif defined(USE_ESP_IDF)
-          boot_log->execute("Boot", "Framework is ESP-IDF");
           disp1->set_component_text("sys_framework", "Framework: ESP-IDF");
           #endif
 
@@ -209,5 +190,4 @@ script:
       - script.stop: boot_event
       - script.stop: boot_progress
       - script.stop: page_boot
-      - script.stop: page_boot_framework
 ...
