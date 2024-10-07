@@ -510,23 +510,33 @@ script:
       key: string
       value: string
     then:
-      - lambda: |-
-          // Send event to Home Assistant
-          esphome::api::CustomAPIDevice ha_event;
-          if (event == "short_click" or event == "long_click") {
-            ha_button->execute(page.c_str(), component.c_str(), event.c_str());
-          } else {  // Generic event
-            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
-              {"device_name", device_name->state.c_str()},
-              {"esphome_version", "${version}"},
-              {"type", "generic"},
-              {"page", page.c_str()},
-              {"component", component.c_str()},
-              {"event", event.c_str()},
-              {"value", value.c_str()},
-              {"entity", detailed_entity->state.c_str()}
-            });
-          }
+      # Send event to Home Assistant
+      - if:
+          condition:
+            - lambda: |-
+                return (event == "short_click" or event == "long_click");
+          then:
+            - homeassistant.event:
+                event: esphome.nspanel_ha_blueprint
+                data:
+                  device_name: !lambda return device_name->state.c_str();
+                  esphome_version: ${version}
+                  type: button_click"
+                  page: !lambda return page.c_str();
+                  component: !lambda return component.c_str();
+                  command: !lambda return event.c_str();
+          else:
+            - homeassistant.event:  # Generic event
+                event: esphome.nspanel_ha_blueprint
+                data:
+                  device_name: !lambda return device_name->state.c_str();
+                  esphome_version: ${version}
+                  type: button_click"
+                  page: !lambda return page.c_str();
+                  component: !lambda return component.c_str();
+                  event: !lambda return event.c_str();
+                  value: !lambda return value.c_str();
+                  entity: !lambda return detailed_entity->state.c_str();
       # Extended by:
       #   - nspanel_esphome_core_page_alarm.yaml
       #   - nspanel_esphome_core_page_climate.yaml
@@ -556,48 +566,53 @@ script:
     mode: restart
     then:
       - *reset_timer_if_not_screensaver
-      - lambda: |-
-          // Update the display light entity
-          if (current_page->state == "screensaver" and display_light->current_values.is_on()) {
-            ESP_LOGV("script.page_changed(custom)", "Turning off light.");
-            auto call = display_light->turn_off();
-            call.perform();
-          } else if (current_page->state != "screensaver" and (not display_light->current_values.is_on())) {
-            ESP_LOGV("script.page_changed(custom)", "Turning on light.");
-            auto call = display_light->turn_on();
-            call.perform();
-          }
+      - if:  # Update the display light entity
+          condition:
+            - light.is_on: display_light
+            - lambda: |-
+                return current_page->state == "screensaver";
+          then:
+            light.turn_off: display_light
+          else:
+            - if:
+                condition:
+                  - light.is_off: display_light
+                  - lambda: |-
+                      return current_page->state != "screensaver";
+                then:
+                  - light.turn_on: display_light
 
+      - lambda: |-
           // Report new page to logs
-          ESP_LOGD("script.page_changed", "New page: %s", current_page->state.c_str());
+          ESP_LOGI("script.page_changed", "New page: %s", current_page->state.c_str());
+
           // Reset globals
-          if (current_page->state != "alarm" &&
+          if
+            (
+              current_page->state != "alarm" &&
               current_page->state != "climate" &&
               current_page->state != "cover" &&
               current_page->state != "fan" &&
               current_page->state != "light" &&
               current_page->state != "media_player" &&
               current_page->state != "confirm" &&
-              current_page->state != "keyb_num") {
+              current_page->state != "keyb_num"
+            ) {
               detailed_entity->publish_state("");
               disp1->send_command("back_page_id=1");
           }
 
-          if (!detailed_entity->state.empty())
-            ESP_LOGD("script.page_changed", "Entity shown: %s", detailed_entity->state.c_str());
+      - homeassistant.event:
+          event: esphome.nspanel_ha_blueprint
+          data:
+            device_name: !lambda return device_name->state.c_str();
+            esphome_version: ${version}
+            type: page_changed
+            page: !lambda return current_page->state.c_str();
+            last_page: !lambda return id(last_page).c_str();
+            entity: !lambda return detailed_entity->state.c_str();
 
-          // Report new page to Home Assistant
-          esphome::api::CustomAPIDevice ha_event;
-          ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-            {
-              {"device_name", device_name->state.c_str()},
-              {"esphome_version", "${version}"},
-              {"type", "page_changed"},
-              {"page", current_page->state.c_str()},
-              {"entity", detailed_entity->state.c_str()}
-            });
-
-          id(last_page) = current_page->state;
+      - lambda: id(last_page) = current_page->state;
 
   - id: set_baud_rate
     mode: restart

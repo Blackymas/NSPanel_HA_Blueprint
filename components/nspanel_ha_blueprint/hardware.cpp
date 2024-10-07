@@ -16,6 +16,5 @@ namespace nspanel_ha_blueprint {
     // Explicit template instantiation
     // Note: You need to explicitly instantiate templates for all enums used as SettingsEnum
     template void update_bitwise_setting<ButtonSettings>(uint8_t& settings, bool condition, ButtonSettings flag);
-    template void update_bitwise_setting<RelaySettings>(uint8_t& settings, bool condition, RelaySettings flag);
 
 }  // namespace nspanel_ha_blueprint

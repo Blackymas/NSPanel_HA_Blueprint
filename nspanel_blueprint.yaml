@@ -8280,7 +8280,7 @@ action:
                                     hold_select: !input 'right_button_hold_select'
                                     bar_always_visible: !input hw_button_bar_right_always_show
 
-                          ##### NSPanel Left Button Name #####
+                          # Left button label
                           - if: '{{ hardware.buttons.left.name | length > 0 }}'
                             then:
                               ### LABEL Font Color ###
@@ -8298,7 +8298,7 @@ action:
                                   txt: '{{ hardware.buttons.left.name }}'
                                 continue_on_error: true
 
-                          ##### NSPanel Right Button Name #####
+                          # Right button label
                           - if: '{{ hardware.buttons.right.name | length > 0 }}'
                             then:
                               ### LABEL Font Color ###
@@ -8316,40 +8316,13 @@ action:
                                   txt: '{{ hardware.buttons.right.name }}'
                                 continue_on_error: true
 
-                          # HW Buttons bars - Visibility
-                          - *delay_default
-                          - action: 'esphome.{{ nspanel_name }}_set_bool'
-                            data:
-                              component: button_left
-                              val: >
-                                {{
-                                  hardware.buttons.left.bar_always_visible or
-                                  hardware.buttons.left.state_entity_is_valid or
-                                  hardware.buttons.left.entity_is_valid
-                                }}
-                            continue_on_error: true
-
-                          - *delay_default
-                          - action: 'esphome.{{ nspanel_name }}_set_bool'
-                            data:
-                              component: button_right
-                              val: >
-                                {{
-                                  hardware.buttons.right.bar_always_visible or
-                                  hardware.buttons.right.state_entity_is_valid or
-                                  hardware.buttons.right.entity_is_valid
-                                }}
-                            continue_on_error: true
-
-                            # HW Buttons bars - Colors
-
+                          # HW Buttons bars - Colors
                           - *delay_default
                           - action: 'esphome.{{ nspanel_name }}_component_color'
                             data:
                               id: button_bar_color_on
                               color: !input hw_buttons_bar_color_on
                             continue_on_error: true
-
                           - *delay_default
                           - action: 'esphome.{{ nspanel_name }}_component_color'
                             data:
@@ -8367,47 +8340,67 @@ action:
                               val: '{{ hw_buttons_bars_pages | map("int") | sum }}'
                             continue_on_error: true
 
-                            # Update Hardware buttons bars states
+                          # Update Hardware buttons bars states
                           - &update_hardware_buttons_bars_states
                             sequence:
                               - variables:
+                                  hw_btn_left_enabled: >
+                                    {{
+                                      hardware.buttons.left.bar_always_visible or
+                                      hardware.buttons.left.state_entity_is_valid or
+                                      hardware.buttons.left.entity_is_valid
+                                    }}
                                   hw_btn_left_state: >
                                     {{ (states(hardware.buttons.left.state_entity) | default("unavailable")
                                       if hardware.buttons.left.state_entity_is_valid
                                       else (states(hardware.buttons.left.entity) | default("unavailable")
                                         if hardware.buttons.left.entity_is_valid else "unavailable")) in enum.states.on }}
+                                  hw_btn_left_flags: >
+                                    {% if hw_btn_left_enabled is defined and hw_btn_left_enabled == False %}
+                                        3
+                                    {% elif hw_btn_left_enabled %}
+                                        {% if hw_btn_left_state %}
+                                            1
+                                        {% else %}
+                                            2
+                                        {% endif %}
+                                    {% else %}
+                                        0
+                                    {% endif %}
+                                  hw_btn_right_enabled: >
+                                    {{
+                                      hardware.buttons.right.bar_always_visible or
+                                      hardware.buttons.right.state_entity_is_valid or
+                                      hardware.buttons.right.entity_is_valid
+                                    }}
                                   hw_btn_right_state: >
                                     {{ (states(hardware.buttons.right.state_entity) | default("unavailable")
                                       if hardware.buttons.right.state_entity_is_valid
                                       else (states(hardware.buttons.right.entity) | default("unavailable")
                                         if hardware.buttons.right.entity_is_valid else "unavailable")) in enum.states.on }}
-                              - if: '{{ hw_btn_left_state == hw_btn_right_state }}'
-                                then:  # Save one action call if both buttons have the same state
-                                  - *delay_default
-                                  - action: 'esphome.{{ nspanel_name }}_hw_button_state'
-                                    data:
-                                      button_mask: 3  # Both buttons
-                                      state: '{{ hw_btn_left_state }}'
-                                    continue_on_error: true
-                                else:  # Send individual calls if the buttons have different states
-                                  - *delay_default
-                                  - action: 'esphome.{{ nspanel_name }}_hw_button_state'
-                                    data:
-                                      button_mask: 1  # Left button
-                                      state: '{{ hw_btn_left_state }}'
-                                    continue_on_error: true
-                                  - *delay_default
-                                  - action: 'esphome.{{ nspanel_name }}_hw_button_state'
-                                    data:
-                                      button_mask: 2  # Right button
-                                      state: '{{ hw_btn_right_state }}'
-                                    continue_on_error: true
+                                  hw_btn_right_flags: >
+                                    {% if hw_btn_right_enabled is defined and hw_btn_right_enabled == False %}
+                                        3
+                                    {% elif hw_btn_right_enabled %}
+                                        {% if hw_btn_right_state %}
+                                            1
+                                        {% else %}
+                                            2
+                                        {% endif %}
+                                    {% else %}
+                                        0
+                                    {% endif %}
+                                  hw_btn_combined_flags: '{{ (hw_btn_left_flags | int(0)) + ((hw_btn_right_flags | int(0)) * 4) }}'
+                              - *delay_default
+                              - action: 'esphome.{{ nspanel_name }}_set_int'
+                                data:
+                                  component: hw_button_state
+                                  val: '{{ hw_btn_combined_flags | int(0) }}'
+                                continue_on_error: true
 
                       - alias: BOOT_STEP_HW_BUZZER
                         sequence:
                           # There's nothing to do so far
-
-                      - condition: '{{ false }}'  # DEBUG - Stop execution
 
                       - alias: BOOT_STEP_HW_DISPLAY
                         sequence:
@@ -8432,6 +8425,8 @@ action:
                       - alias: BOOT_STEP_HW_MEMORY
                         sequence:
                           # There's nothing to do so far
+
+                      - condition: '{{ false }}'  # DEBUG - Stop execution
 
                       - alias: BOOT_STEP_HW_RELAYS
                         sequence:
@@ -11761,10 +11756,10 @@ action:
                   ) in enum.states.on
                 }}
           - *delay_default
-          - action: 'esphome.{{ nspanel_name }}_hw_button_state'
+          - action: 'esphome.{{ nspanel_name }}_set_int'
             data:
-              button_mask: '{{ 1 if trigger.id in ["left_button_state", "left_button_alt_state"] else 2 }}'
-              state: '{{ button_state }}'
+              component: hw_button_state
+              val: '{{ (1 if button_state else 2) * (1 if trigger.id in ["left_button_state", "left_button_alt_state"] else 4) }}'
             continue_on_error: true
           - delay:
               milliseconds: 250
@@ -11773,10 +11768,10 @@ action:
           - if: '{{ button_state_new != button_state }}'
             then:
               - *delay_default
-              - action: 'esphome.{{ nspanel_name }}_hw_button_state'
+              - action: 'esphome.{{ nspanel_name }}_set_int'
                 data:
-                  button_mask: '{{ 1 if trigger.id in ["left_button_state", "left_button_alt_state"] else 2 }}'
-                  state: '{{ button_state_new }}'
+                  component: hw_button_state
+                  val: '{{ (1 if button_state_new else 2) * (1 if trigger.id in ["left_button_state", "left_button_alt_state"] else 4) }}'
                 continue_on_error: true
 
       ##### OUTDOOR TEMP - entity #####
