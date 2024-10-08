@@ -48,7 +48,9 @@ esphome:
               - lambda: return (tf_uart->available() < 1);
         - lambda: |-
             ESP_LOGD("esphome.on_boot", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
+            delay(10*disp1->queue_size()+tf_uart->available());
             goto_page->execute(wakeup_page_name->state.c_str());
+            delay(10*disp1->queue_size()+tf_uart->available());
             disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
 
 script:
@@ -140,15 +142,21 @@ script:
             step: start
       - lambda: |-
           boot_log->execute("Boot", "Display settings");
+          delay(10*disp1->queue_size()+tf_uart->available());
           disp1->send_command_printf("brightness_dim=%i", int(display_dim_brightness->state));
+          delay(10*disp1->queue_size()+tf_uart->available());
           disp1->set_component_value("settings.dimslider", int(display_dim_brightness->state));
       - delay: 100ms
       - lambda: |-
+          delay(10*disp1->queue_size()+tf_uart->available());
           disp1->send_command_printf("brightness_sleep=%i", int(display_sleep_brightness->state));
       - delay: 100ms
       - lambda: |-
+          delay(10*disp1->queue_size()+tf_uart->available());
           disp1->send_command_printf("brightness=%i", int(display_brightness->state));
+          delay(10*disp1->queue_size()+tf_uart->available());
           disp1->set_component_value("settings.brightslider", int(display_brightness->state));
+          delay(10*disp1->queue_size()+tf_uart->available());
           set_brightness->execute(display_brightness->state);
           boot_progress->execute(BOOT_STEP_BOOT, "Boot");
           boot_event->execute();
@@ -170,14 +178,43 @@ script:
     mode: single
     then:
       - logger.log: Page boot called
+      - script.execute: page_boot_exit
       - lambda: |-
           disp1->send_command("tm_esphome.en=0");
+          delay(10*disp1->queue_size()+tf_uart->available());
           disp1->send_command("esphome=0");
+          delay(10*disp1->queue_size()+tf_uart->available());
           #ifdef ARDUINO
           disp1->set_component_text("sys_framework", "Framework: Arduino");
           #elif defined(USE_ESP_IDF)
           disp1->set_component_text("sys_framework", "Framework: ESP-IDF");
           #endif
+
+  - id: page_boot_exit
+    mode: restart
+    then:
+      - wait_until:
+          condition:
+            - lambda: return (current_page->state != "boot");
+          timeout: 180s
+      - if:
+          condition:
+            - lambda: return (current_page->state == "boot");
+          then:
+            - wait_until:
+                condition:
+                  - lambda: return (disp1->queue_size() < 1);
+                  - lambda: return (tf_uart->available() < 1);
+            - if:
+                condition:
+                  - lambda: return (current_page->state == "boot");
+                then:
+                  - lambda: |-
+                      ESP_LOGD("script.page_boot_exit", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
+                      delay(10*disp1->queue_size()+tf_uart->available());
+                      goto_page->execute(wakeup_page_name->state.c_str());
+                      delay(10*disp1->queue_size()+tf_uart->available());
+                      disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
 
   - id: !extend page_changed
     then:
@@ -190,4 +227,5 @@ script:
       - script.stop: boot_event
       - script.stop: boot_progress
       - script.stop: page_boot
+      - script.stop: page_boot_exit
 ...
