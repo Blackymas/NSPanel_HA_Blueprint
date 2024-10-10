@@ -17,7 +17,6 @@ substitutions:
   ##############################
 
 api:
-  id: !extend api_server
   actions:
     # Sends custom commands directly to the display for dynamic interactions and updates.
     - action: command
@@ -52,7 +51,7 @@ api:
         - script.execute:
             id: set_component_text
             component_id: !lambda return component_id;
-            val: !lambda return txt;
+            text: !lambda return txt;
 
     # Updates the value of a specified component on the display.
     - action: component_val
@@ -101,7 +100,7 @@ api:
                     if (entity == "embedded_climate")
                       return "climate";
                     else if (extractHomeAssistantEntity(entity).domain == "alarm_control_panel")
-                      return "alarm"
+                      return "alarm";
                     else
                       return extractHomeAssistantEntity(entity).domain.c_str();
               - script.execute:
@@ -118,7 +117,7 @@ api:
                   then:
                     - script.execute:
                         id: set_component_value
-                        component: climate.embedded
+                        component_id: climate.embedded
                         val: !lambda if (entity == "embedded_climate") return 1; else return 0;
 
     # Icon action
@@ -132,13 +131,13 @@ api:
       then:
         - if:
             condition:
-              - lambda: return not id(is_uploading_tft);
               - lambda: return not component_id.empty();
             then:
               - script.execute:
                   id: set_component_text
                   component_id: !lambda return component_id;
-                  text: !lambda return if (visible) return icon.c_str(); else return "";
+                  text: !lambda |-
+                    return visible ? icon.c_str() : "";
               - if:
                   condition:
                     - lambda: return icon_color.size() == 3;
@@ -165,7 +164,6 @@ api:
       then:
         - if:
             condition:
-              - lambda: return not id(is_uploading_tft);
               - lambda: return not component_id.empty();
             then:
               - script.execute:
@@ -484,9 +482,8 @@ script:
           condition:
             - lambda: return isnan(display_mode->state);
           then:
-            - lambda: |-
-                ESP_LOGD("script.update_tft_info", "Updating TFT mode");
-                display_mode->update();
+            - logger.log: Updating TFT mode
+            - lambda: display_mode->update();
             - wait_until:
                 condition:
                   - lambda: return not isnan(display_mode->state);
@@ -495,9 +492,8 @@ script:
           condition:
             - lambda: return isnan(display_charset->state);
           then:
-            - lambda: |-
-                ESP_LOGD("script.update_tft_info", "Updating TFT charset");
-                display_charset->update();
+            - logger.log: Updating TFT charset
+            - lambda: display_charset->update();
             - wait_until:
                 condition:
                   - lambda: return not isnan(display_charset->state);
@@ -554,7 +550,7 @@ script:
           ESP_LOGCONFIG("${project_tag}", "  Queue size:  %d", tf_uart->available());
 
           // Report Nextion status
-          nextion_init->publish_state(!id(is_uploading_tft) and nextion_init->state and disp1->is_setup());
+          nextion_init->publish_state(nextion_init->state and disp1->is_setup());
           ESP_LOGCONFIG("${project_tag}", "Nextion:");
           ESP_LOGCONFIG("${project_tag}", "  Queue size:  %d", disp1->queue_size());
           if (disp1->is_setup())
@@ -688,7 +684,7 @@ script:
                 state: ''
             - script.execute:
                 id: send_command
-                text: back_page_id=1
+                cmd: back_page_id=1
 
       - lambda: |-
           // Report new page to logs
@@ -709,7 +705,7 @@ script:
 
   - id: send_command
     mode: queued
-    paramenters:
+    parameters:
       cmd: string
     then:
       - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
@@ -751,32 +747,37 @@ script:
     parameters:
       brightness: uint8_t
     then:
+      - lambda: |-
+          disp1->set_backlight_brightness(brightness / 100.0f);
+          current_brightness->update();
       - if:
           condition:
-            - lambda: return (!id(is_uploading_tft));
-          then:
             - lambda: |-
-                disp1->set_backlight_brightness(brightness / 100.0f);
-                current_brightness->update();
+                return (brightness != int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0)));
+          then:
             - if:
                 condition:
                   - lambda: |-
-                      return (brightness != int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0)));
+                      return (current_page->state != "screensaver" and brightness > 0);
                 then:
+                  - light.turn_on:
+                      id: display_light
+                      brightness: !lambda return (brightness / 100.0f);
+                else:
                   - if:
                       condition:
-                        - lambda: |-
-                            return (current_page->state != "screensaver" and brightness > 0);
+                        - light.is_on: display_light
                       then:
-                        - light.turn_on:
-                            id: display_light
-                            brightness: !lambda return (brightness / 100.0f);
-                      else:
-                        - if:
-                            condition:
-                              - light.is_on: display_light
-                            then:
-                              - light.turn_off: display_light
+                        - light.turn_off: display_light
+
+  - id: set_component_font
+    mode: queued
+    parameters:
+      component_id: string
+      font: uint8_t
+    then:
+      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - lambda: disp1->set_component_font(component_id.c_str(), font);
 
   - id: set_component_font_color
     mode: queued

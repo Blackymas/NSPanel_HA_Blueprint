@@ -14,11 +14,13 @@ substitutions:
   name: ${device_name}
   friendly_name: ${device_name}
   ota_password: ${wifi_password}
-  project_tag: "nspanel_ha_blueprint"
+  project_tag: nspanel_ha_blueprint
   ##############################
 
 api:
-  id: !extend api_server
+  id: api_server
+  reboot_timeout: 60min
+
   on_client_connected:
     then:
       - script.execute: dump_config
@@ -95,12 +97,6 @@ external_components:
     refresh: 30s
 
 globals:
-#  # Add-on Upload TFT
-#  - id: is_uploading_tft  # Is TFT uploading currently running?
-#    type: bool
-#    restore_value: false
-#    initial_value: 'false'
-
   ##### Add-on Climate #####
   - id: is_embedded_thermostat  # Is embedded thermostat set as main climate entity?
     type: bool
@@ -133,19 +129,48 @@ ota:
         - script.execute:
             id: goto_page
             page: boot
-        - lambda: |-
-            std::string ota_state;
-            if (state == ota::OTA_STARTED) {
-              ota_state = "Started";
-              disp1->send_command("progress.val=0");
-            } else if (state == ota::OTA_IN_PROGRESS) {
-              ota_state = "In progress";
-              disp1->send_command("progress.val+=10");
-            } else if (state == ota::OTA_COMPLETED) {
-              ota_state = "Completed";
-              disp1->send_command("progress.val=100");
-            } else if (state == ota::OTA_ERROR) ota_state = "Error";
-            boot_log->execute("OTA", ota_state.c_str());
+        - if:
+            condition:
+              - lambda: return state == ota::OTA_STARTED;
+            then:
+              - script.execute:
+                  id: set_component_value
+                  component_id: progress
+                  val: 0
+              - script.execute:
+                  id: boot_log
+                  category: OTA
+                  log_message: Started
+        - if:
+            condition:
+              - lambda: return state == ota::OTA_IN_PROGRESS;
+            then:
+              - lambda: |-
+                  disp1->send_command("progress.val+=10");
+              - script.execute:
+                  id: boot_log
+                  category: OTA
+                  log_message: In progress
+        - if:
+            condition:
+              - lambda: return state == ota::OTA_COMPLETED;
+            then:
+              - script.execute:
+                  id: set_component_value
+                  component_id: progress
+                  val: 100
+              - script.execute:
+                  id: boot_log
+                  category: OTA
+                  log_message: Completed
+        - if:
+            condition:
+              - lambda: return state == ota::OTA_ERROR;
+            then:
+              - script.execute:
+                  id: boot_log
+                  category: OTA
+                  log_message: Error
 
 safe_mode:
   reboot_timeout: 3min
@@ -255,7 +280,7 @@ script:
             command: !lambda return command.c_str();
 
   - id: ha_call_action
-    mode: restart
+    mode: parallel
     parameters:
       action: string
       key: string
@@ -319,6 +344,8 @@ text_sensor:
             condition:
               - lambda: return not x.empty();
             then:
-              - lambda: |-
-                  ESP_LOGI("text_sensor.detailed_entity", "Entity shown: %s", x.c_str());
+              - logger.log:
+                  format: "Entity shown: %s"
+                  args: ['x.c_str()']
+                  level: INFO
 ...
