@@ -76,7 +76,7 @@ It's particularly useful for reflecting changes in device states or user interac
 
 **Parameters:**
 - `page` (string): The page identifier where the button is located.
-- `id` (string): The button's unique identifier.
+- `component_id` (string): The button's unique identifier.
 - `state` (bool): The state of the button, which can affect its background picture and other visual elements.
 - `icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html).
 Example: "\uE6E8" for `mdi:lightbulb-on-outline`.
@@ -90,7 +90,7 @@ Example: "\uE6E8" for `mdi:lightbulb-on-outline`.
 action: esphome.<your_panel_name>_button
 data:
   page: "buttonpage01"
-  id: "button08"
+  component_id: "button08"
   state: true
   icon: "\uE6E8"           # Example for mdi:lightbulb-on-outline
   icon_color: [255, 0, 0]  # Red
@@ -131,20 +131,20 @@ This action is ideal for creating visually dynamic interfaces, allowing elements
 events, or user actions, such as indicating status changes or highlighting specific UI components.
 
 **Parameters:**
-- `id` (string): Identifier of the component whose color will be updated. It is essential that this matches the component's ID in your display layout to ensure the correct element is targeted.
+- `component_id` (string): Identifier of the component whose color will be updated. It is essential that this matches the component's ID in your display layout to ensure the correct element is targeted.
 - `color` (int[]): The new color for the component, specified as an RGB array (e.g., `[255, 0, 0]` for red).
 
 **Home Assistant Example:**
 ```yaml
 action: esphome.<your_panel_name>_component_color
 data:
-  id: "home.time"
+  component_id: "home.time"
   color: [255, 0, 0]  # Changes the component's color to red
 ```
 > [!NOTE]
 > Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant to ensure correct action execution.
 >
-> Ensure the `id` and color parameters accurately target and define the new color for the component.
+> Ensure the `component_id` and color parameters accurately target and define the new color for the component.
 
 ### Component Text Action: `component_text`
 Updates the text of a specified component on the display, enabling dynamic text content updates.
@@ -153,20 +153,20 @@ Updates the text of a specified component on the display, enabling dynamic text 
 Ideal for user interfaces that require real-time text updates, such as status messages, labels, or any text-based information display.
 
 **Parameters:**
-- `id` (string): Identifier of the component whose text will be updated. Ensure this matches the component's ID in your display layout.
+- `component_id` (string): Identifier of the component whose text will be updated. Ensure this matches the component's ID in your display layout.
 - `txt` (string): The new text content to display. This can include static text or dynamic information passed at runtime.
 
 **Home Assistant Example:**
 ```yaml
 action: esphome.<your_panel_name>_component_text
 data:
-  id: "home.time"
+  component_id: "home.time"
   txt: "12:34"
 ```
 > [!NOTE]
 > Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant to ensure correct action execution.
 >
-> Make sure the `id` corresponds to the correct component on your display for the text update to work as intended.
+> Make sure the `component_id` corresponds to the correct component on your display for the text update to work as intended.
 
 ### Component Value Action: `component_val`
 Updates the value of a specified component on the display, enabling dynamic value updates.
@@ -175,20 +175,20 @@ Updates the value of a specified component on the display, enabling dynamic valu
 Ideal for interfaces requiring real-time updates of numerical values, such as counters, temperature readings, or any numeric indicators.
 
 **Parameters:**
-- `id` (string): Identifier of the component whose value will be updated. It's crucial this matches the component's ID in your display layout accurately.
+- `component_id` (string): Identifier of the component whose value will be updated. It's crucial this matches the component's ID in your display layout accurately.
 - `val` (int): The new integer value to be set for the component. This can represent various data types, depending on the component's purpose (e.g., temperature, humidity levels).
 
 **Home Assistant Example:**
 ```yaml
 action: esphome.<your_panel_name>_component_val
 data:
-  id: "cover.coverslider"
+  component_id: "cover.coverslider"
   val: 25
 ```
 > [!NOTE]
 > Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant to ensure correct action execution.
 >
-> Ensure the `id` accurately matches the component on your display to successfully update its value.
+> Ensure the `component_id` accurately matches the component on your display to successfully update its value.
 
 ### Component Visibility Action: `component_visibility`
 Hides or shows a component on the display, allowing for dynamic interface changes.
@@ -256,7 +256,7 @@ This action is ideal for dynamically updating icons on your Panel, allowing for 
 
 **Parameters:**
 - `page` (string): Identifies the page where the component belongs to.
-- `id` (string): Identifier of the chip or button component. Refer to "[Screen components](#screen-components)" for more details.
+- `component_id` (string): Identifier of the chip or button component. Refer to "[Screen components](#screen-components)" for more details.
 - `icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html).
 Example: "\uE6E8" for `mdi:lightbulb-on-outline`.
 - `icon_color` (int[]): RGB color array for the icon. Example: `[0, 255, 0]` for green.
@@ -267,7 +267,7 @@ Example: "\uE6E8" for `mdi:lightbulb-on-outline`.
 action: esphome.<your_panel_name>_icon
 data:
   page: home
-  id: "chip03"
+  component_id: "chip03"
   icon: "\uE6E8"           # Example for mdi:lightbulb-on-outline
   icon_color: [0, 255, 0]  # Green
   visible: true
@@ -593,7 +593,7 @@ Updates an entity to display specific values, allowing for dynamic updates of ic
 This action is intended for entities that need to display information dynamically, such as sensor readings or state values, with customized icons, names, and color coding for both icon and value.
 
 **Parameters:**
-- `id` (string): Identifier of the entity being updated. For details on entity identifiers, refer to "[Screen components](#screen-components)".
+- `component_id` (string): Identifier of the entity being updated. For details on entity identifiers, refer to "[Screen components](#screen-components)".
 - `icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html).
 Indicates the icon displayed next to the value.
 - `icon_color` (int[]): RGB color array for the icon, allowing for custom icon colors.
@@ -605,7 +605,7 @@ Indicates the icon displayed next to the value.
 ```yaml
 action: esphome.<your_panel_name>_value
 data:
-  id: "sensor.temperature"
+  component_id: "sensor.temperature"
   icon: "\uE6E8"           # Example for mdi:thermometer
   icon_color: [255, 0, 0]  # Red
   name: "Temperature"

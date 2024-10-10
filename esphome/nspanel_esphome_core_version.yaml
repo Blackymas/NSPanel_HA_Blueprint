@@ -13,7 +13,8 @@ substitutions:
 display:
   - id: !extend disp1
     on_setup:
-      - lambda: if (!id(is_uploading_tft)) version_tft->update();
+      then:
+        - lambda: version_tft->update();
 
 esphome:
   project:
@@ -88,7 +89,7 @@ script:
                     {"blueprint", version_blueprint->state.c_str()}
                   });
 
-  - id: !extend dump_config_report
+  - id: !extend dump_config
     then:
       - lambda: |-
           // Report blueprint version
@@ -105,14 +106,25 @@ script:
   - id: page_boot_versions
     mode: restart
     then:
-      - lambda: |-
-          boot_log->execute("Boot", "ESPHome FW v${version}");
-          delay(10*disp1->queue_size()+tf_uart->available());
-          disp1->set_component_text("ver_firmware", "Firmware: ${version}");  // ESPHome version
-          if (version_blueprint->state.empty()) boot_log->execute("Boot", "Waiting for Blueprint version");
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: "ESPHome FW v${version}"
+      - script.execute:
+          id: set_component_text
+          component: ver_firmware
+          text: "Firmware: ${version}"
+      - if:
+          condition:
+            - lambda: return version_blueprint->state.empty();
+          then:
+            - script.execute:
+                id: boot_log
+                category: Boot
+                log_message: Waiting for Blueprint version
       - wait_until:
           condition:
-            - lambda: return !(version_blueprint->state.empty());
+            - lambda: return not (version_blueprint->state.empty());
           timeout: 20s
 
   - id: !extend set_var_string
@@ -135,11 +147,18 @@ text_sensor:
     internal: false
     update_interval: never
     on_value:
-      - script.execute: check_versions
-      - lambda: |-
-          ESP_LOGI("text_sensor.version_blueprint", "Blueprint version: %s", x.c_str());
-          if (current_page->state == "boot")
-            disp1->set_component_text_printf("ver_blueprint", "Blueprint: %s", x.c_str());
+      then:
+        - script.execute: check_versions
+        - if:
+            condition:
+              - text_sensor.state:
+                  id: current_page
+                  state: boot
+            then:
+              - lambda: |-
+                  disp1->set_component_text_printf("ver_blueprint", "Blueprint: %s", x.c_str());
+        - lambda: |-
+            ESP_LOGI("text_sensor.version_blueprint", "Blueprint version: %s", x.c_str());
 
   - id: version_esphome
     name: Version ESPHome
@@ -160,6 +179,6 @@ text_sensor:
     internal: false
     update_interval: never
     on_value:
-      - lambda: |-
-          check_versions->execute();
+      then:
+        - script.execute: check_versions
 ...
