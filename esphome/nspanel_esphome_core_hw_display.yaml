@@ -245,9 +245,18 @@ esphome:
             condition:
               - lambda: return (not isnan(stoi(baud_rate->state)));
             timeout: 60s
-        - lambda: |-
-            boot_log->execute("on_boot", "Set baud rate");
-            if (stoi(baud_rate->state) != tf_uart->get_baud_rate()) set_baud_rate->execute(stoi(baud_rate->state), true);
+        - script.execute:
+            id: boot_log
+            category: on_boot
+            log_message: Set baud rate
+        - if:
+            condition:
+              - lambda: return stoi(baud_rate->state) != tf_uart->get_baud_rate();
+            then:
+              - script.execute:
+                  id: set_baud_rate
+                  baud_rate: !lambda return stoi(baud_rate->state);
+                  definitive: true
         - wait_until:
             condition:
               - lambda: return disp1->is_setup();
@@ -256,7 +265,10 @@ esphome:
             condition:
               - lambda: return (not disp1->is_detected());
             then:
-              - lambda: boot_log->execute("on_boot", "Restart Nextion");
+              - script.execute:
+                  id: boot_log
+                  category: on_boot
+                  log_message: Restart Nextion
               - switch.turn_off: screen_power
               - delay: 2s
               - switch.turn_on: screen_power
@@ -306,7 +318,9 @@ light:
                   id: current_page
                   state: screensaver
             then:
-              - lambda: disp1->goto_page(wakeup_page_name->state.c_str());
+              - script.execute:
+                  id: goto_page
+                  page: !lambda return wakeup_page_name->state.c_str();
               - script.execute: timer_reset_all
     on_turn_off:
       then:
@@ -619,7 +633,10 @@ script:
     then:
       - if:
           condition:
-            - lambda: return (current_page->state != page);
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: !lambda return page.c_str();
           then:
             - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
             - lambda: disp1->goto_page(page.c_str());
@@ -680,8 +697,9 @@ script:
                 id: detailed_entity
                 state: ''
             - script.execute:
-                id: send_command
-                cmd: back_page_id=1
+                id: set_variable_value
+                variable: back_page_id
+                val: 1
 
       - lambda: |-
           // Report new page to logs
@@ -697,8 +715,7 @@ script:
             last_page: !lambda return id(last_page).c_str();
             entity: !lambda return detailed_entity->state.c_str();
 
-      - lambda: |-
-          id(last_page) = current_page->state;
+      - lambda: id(last_page) = current_page->state;
 
   - id: send_command
     mode: queued
@@ -754,8 +771,11 @@ script:
           then:
             - if:
                 condition:
-                  - lambda: |-
-                      return (current_page->state != "screensaver" and brightness > 0);
+                  - not:
+                      - text_sensor.state:
+                          id: current_page
+                          state: screensaver
+                  - lambda: return brightness > 0;
                 then:
                   - light.turn_on:
                       id: display_light
