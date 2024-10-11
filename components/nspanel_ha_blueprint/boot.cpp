@@ -7,12 +7,12 @@ namespace nspanel_ha_blueprint {
 
     // Definition of the global variable to track completed boot steps.
     // Each bit in this variable represents whether a boot step has been completed.
-    BootStepType completed_boot_steps = 0;
+    uint32_t completed_boot_steps = 0;
 
     // Function to mark a boot step as completed.
     // Parameters:
     //   step - The boot step constant representing the step to be marked as completed.
-    void complete_boot_step(BootStepType step) {
+    void complete_boot_step(uint32_t step) {
         // Validate that the step is a power of two (i.e., only one bit is set).
         // This ensures that only valid boot step constants are accepted.
         if (step == 0 || (step & (step - 1)) != 0) {
@@ -26,12 +26,12 @@ namespace nspanel_ha_blueprint {
         completed_boot_steps |= step;
     }
 
-    // Helper function to count the number of bits set to '1' in a BootStepType value.
+    // Helper function to count the number of bits set to '1' in a uint32_t value.
     // Parameters:
-    //   value - The BootStepType value whose bits are to be counted.
+    //   value - The uint32_t value whose bits are to be counted.
     // Returns:
     //   The number of bits set to '1' as an integer.
-    uint8_t count_bits_set(BootStepType value) {
+    uint8_t count_bits_set(uint32_t value) {
         uint8_t count = 0;
         while (value) {
             // Increment count if the least significant bit is '1'.
@@ -78,7 +78,7 @@ namespace nspanel_ha_blueprint {
     //   step - The boot step constant representing the step to check.
     // Returns:
     //   true if the boot step has been completed; false otherwise.
-    bool is_boot_step_completed(BootStepType step) {
+    bool is_boot_step_completed(uint32_t step) {
         return (completed_boot_steps & step) != 0;
     }
 

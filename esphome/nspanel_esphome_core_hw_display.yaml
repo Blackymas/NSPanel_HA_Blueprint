@@ -9,6 +9,9 @@
 ###############################
 
 ---
+substitutions:
+  BOOT_STEP_HW_DISPLAY: '1UL << 5'
+
 api:
   actions:
     # Sends custom commands directly to the display for dynamic interactions and updates.
@@ -33,7 +36,7 @@ api:
               - script.execute:
                   id: set_component_font_color
                   component_id: !lambda return component_id;
-                  color: !lambda return rgbTo565(color[0], color[1], color[2]);
+                  color: !lambda return (((color[0] & 0xF8) << 8) | ((color[1] & 0xFC) << 3) | (color[2] >> 3));
 
     # Updates the text of a specified component on the display.
     - action: component_text
@@ -142,7 +145,7 @@ api:
                     - script.execute:
                         id: set_component_font_color
                         component_id: !lambda return component_id;
-                        color: !lambda return rgbTo565(icon_color[0], icon_color[1], icon_color[2]);
+                        color: !lambda return (((icon_color[0] & 0xF8) << 8) | ((icon_color[1] & 0xFC) << 3) | (icon_color[2] >> 3));
               - script.execute:
                   id: set_component_visibility
                   page: !lambda return page;
@@ -163,14 +166,46 @@ api:
             condition:
               - lambda: return not component_id.empty();
             then:
-              - script.execute:
-                  id: set_value
-                  component_id: !lambda return component_id;
-                  icon: !lambda return icon;
-                  icon_color: !lambda return icon_color;
-                  name: !lambda return name;
-                  value: !lambda return value;
-                  value_color: !lambda return value_color;
+              - if:
+                  condition:
+                    - lambda: return not icon.empty();
+                  then:
+                    - script.execute:
+                        id: set_component_text
+                        component_id: !lambda return (component_id + "_icon").c_str();
+                        text: !lambda return icon.c_str();
+              - if:
+                  condition:
+                    - lambda: return icon_color.size() == 3;
+                  then:
+                    - script.execute:
+                        id: set_component_font_color
+                        component_id: !lambda return (component_id + "_icon").c_str();
+                        color: !lambda return (((icon_color[0] & 0xF8) << 8) | ((icon_color[1] & 0xFC) << 3) | (icon_color[2] >> 3));
+              - if:
+                  condition:
+                    - lambda: return not name.empty();
+                  then:
+                    - script.execute:
+                        id: set_component_text
+                        component_id: !lambda return (component_id + "_label").c_str();
+                        text: !lambda return name.c_str();
+              - if:
+                  condition:
+                    - lambda: return not value.empty();
+                  then:
+                    - script.execute:
+                        id: set_component_text
+                        component_id: !lambda return component_id.c_str();
+                        text: !lambda return adjustDecimalSeparator(value, id(mui_decimal_separator)).c_str();
+              - if:
+                  condition:
+                    - lambda: return value_color.size() == 3;
+                  then:
+                    - script.execute:
+                        id: set_component_font_color
+                        component_id: !lambda return component_id.c_str();
+                        color: !lambda return (((value_color[0] & 0xF8) << 8) | ((value_color[1] & 0xFC) << 3) | (value_color[2] >> 3));
 
     # Wake Up action
     - action: wake_up
@@ -227,7 +262,6 @@ display:
     on_touch:
       then:
         - script.execute: timer_reset_all
-
     # Extended by
     # - nspanel_esphome_core_page_climate.yaml
     # - nspanel_esphome_core_page_fan.yaml
@@ -348,8 +382,10 @@ number:
     optimistic: true
     on_value:
       then:
-        - lambda: |-
-            disp1->send_command_printf("brightness=%i", int(x));
+        - script.execute:
+            id: set_variable_value
+            variable: brightness
+            val: !lambda return int(x);
         - if:
             condition:
               - not:
@@ -377,8 +413,10 @@ number:
     optimistic: true
     on_value:
       then:
-        - lambda: |-
-            disp1->send_command_printf("brightness_dim=%i", int(x));
+        - script.execute:
+            id: set_variable_value
+            variable: brightness_dim
+            val: !lambda return int(x);
         - if:
             condition:
               - not:
@@ -406,8 +444,10 @@ number:
     optimistic: true
     on_value:
       then:
-        - lambda: |-
-            disp1->send_command_printf("brightness_sleep=%i", int(x));
+        - script.execute:
+            id: set_variable_value
+            variable: brightness_sleep
+            val: !lambda return int(x);
         - script.execute: page_screensaver
 
   ##### Timers #####
@@ -477,14 +517,16 @@ output:
       then:
         - script.execute:
             id: set_brightness
-            brightness: !lambda 'return int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));'
+            brightness: !lambda |-
+              return int(round(display_light->current_values.is_on() ?
+                        (display_light->current_values.get_brightness() * 100.0f) : 0.0));
 
 script:
   - id: !extend boot_progress_dump
     then:
       - script.execute:
           id: boot_progress_dump_item
-          step: !lambda return BOOT_STEP_HW_DISPLAY;
+          step: ${BOOT_STEP_HW_DISPLAY}
           step_name: HW Display
 
   - id: !extend boot_sequence
@@ -511,7 +553,7 @@ script:
                 timeout: 10s
       - script.execute:
           id: boot_progress
-          step: !lambda return BOOT_STEP_HW_DISPLAY;
+          step: ${BOOT_STEP_HW_DISPLAY}
           step_name: HW Display - Boot sequence
 
   - id: display_wrapped_text
@@ -842,27 +884,6 @@ script:
             - lambda: |-
                 disp1->send_command_printf("vis %s,%i", component_id.c_str(), show ? 1 : 0);
 
-  - id: set_value
-    mode: queued
-    parameters:
-      component_id: string
-      icon: string
-      icon_color: int32_t[]
-      name: string
-      value: string
-      value_color: int32_t[]
-    then:
-      - lambda: |-
-          // using namespace esphome::display;
-          if (!(icon.empty())) set_component_text->execute((component_id + "_icon").c_str(), icon.c_str());
-          if (icon_color.size() == 3)
-            set_component_font_color->execute((component_id + "_icon").c_str(), rgbTo565(icon_color[0], icon_color[1], icon_color[2]));
-
-          if (!(name.empty())) set_component_text->execute((component_id + "_label").c_str(), name.c_str());
-          if (!(value.empty())) set_component_text->execute(component_id.c_str(), adjustDecimalSeparator(value, id(mui_decimal_separator)).c_str());
-          if (value_color.size() == 3)
-            set_component_font_color->execute(component_id.c_str(), rgbTo565(value_color[0], value_color[1], value_color[2]));
-
   - id: !extend set_var_int
     then:
       - lambda: |-
@@ -873,7 +894,7 @@ script:
       - lambda: |-
           if (component == "decimal_separator" and !(val.empty())) {
             id(mui_decimal_separator) = val[0];
-            boot_progress->execute(BOOT_STEP_HW_DISPLAY, "HW Display - Decimal separator");
+            boot_progress->execute(${BOOT_STEP_HW_DISPLAY}, "HW Display - Decimal separator");
           }
 
   - id: set_variable_value
@@ -898,7 +919,6 @@ script:
       - script.stop: set_component_font_color
       - script.stop: set_component_text
       - script.stop: set_component_visibility
-      - script.stop: set_value
       - script.stop: timer_reset_all
       - script.stop: timer_page
       - script.stop: timer_dim

@@ -6,6 +6,9 @@
 #####################################################################################################
 
 ---
+substitutions:
+  BOOT_STEP_PAGE_FAN: '1UL << 16'
+
 display:
   - id: !extend disp1
     on_touch:
@@ -29,21 +32,43 @@ display:
 script:
   - id: !extend boot_progress_dump
     then:
-      - lambda: |-
-          ESP_LOGCONFIG("script.boot_progress_dump", " - Page Fan:             %s", is_boot_step_completed(BOOT_STEP_PAGE_FAN) ? "Completed" : "PENDING");
+      - script.execute:
+          id: boot_progress_dump_item
+          step: ${BOOT_STEP_PAGE_FAN}
+          step_name: Page Fan
 
   - id: !extend boot_sequence
     then:
-      - lambda: |-
-          boot_progress->execute(BOOT_STEP_PAGE_FAN, "Page Fan");
+      - script.execute:
+          id: boot_progress
+          step: ${BOOT_STEP_PAGE_FAN}
+          step_name: Page Fan
 
   - id: !extend event_from_display
     then:
-      - lambda: |-
-          if (page == "fan") {
-            if (key == "stop" or value == "0") ha_call_action->execute("fan.turn_off", "", "", detailed_entity->state.c_str());
-            else ha_call_action->execute("fan.turn_on", key.c_str(), value.c_str(), detailed_entity->state.c_str());
-          }
+      - if:
+          condition:
+            - lambda: return page == "fan";
+          then:
+            - if:
+                condition:
+                  - or:
+                      - lambda: return key == "stop";
+                      - lambda: return value == "0";
+                then:
+                  - script.execute:
+                      id: ha_call_action
+                      action: fan.turn_off
+                      key: ''
+                      value: ''
+                      entity: !lambda return detailed_entity->state.c_str();
+                else:
+                  - script.execute:
+                      id: ha_call_action
+                      action: fan.turn_on
+                      key: !lambda return key.c_str();
+                      value: !lambda return value.c_str();
+                      entity: !lambda return detailed_entity->state.c_str();
 
 #   - id: !extend page_changed
 #     then:
