@@ -11,15 +11,35 @@
 ###############################
 
 ---
+substitutions:
+  tone_touch_enable: 'true'
+  tone_touch_press: "Touch:d=16,o=5,b=180:g"
+  tone_touch_release: "Release:d=32,o=5,b=180:g,g"
+
 api:
-  id: !extend api_server
   actions:
     - action: rtttl_play
       variables:
         tone: string  # The RTTTL string for the melody to be played. It should follow the RTTTL format, including the melody's name, default settings, and a sequence of notes.
       then:
-        - lambda: |-
-            if (!id(is_uploading_tft)) buzzer->play(tone);
+        - rtttl.stop
+        - rtttl.play: !lambda return tone;
+
+display:
+  - id: !extend disp1
+    on_touch:
+      then:
+        - if:
+            condition:
+              - lambda: return (${tone_touch_enable});
+            then:
+              - if:
+                  condition:
+                    - lambda: return touch_event;
+                  then:
+                    - rtttl.play: ${tone_touch_press}
+                  else:
+                    - rtttl.play: ${tone_touch_release}
 
 output:
   # Buzzer output
@@ -36,19 +56,27 @@ rtttl:
 script:
   - id: !extend boot_progress_dump
     then:
-      - lambda: |-
-          ESP_LOGCONFIG("script.boot_progress_dump", " - HW Buzzer:            %s", is_boot_step_completed(BOOT_STEP_HW_BUZZER) ? "Completed" : "PENDING");
+      - script.execute:
+          id: boot_progress_dump_item
+          step: !lambda return BOOT_STEP_HW_BUZZER;
+          step_name: HW Buzzer
 
   - id: !extend boot_sequence
     then:
-      - lambda: |-
-          boot_progress->execute(BOOT_STEP_HW_BUZZER, "HW Buzzer");
+      - script.execute:
+          id: boot_progress
+          step: !lambda return BOOT_STEP_HW_BUZZER;
+          step_name: HW Buzzer
 
   - id: !extend page_boot
     then:
-      - lambda: |-
-          if (notification_sound->state) {
-            boot_log->execute("Boot", "Play boot sound");
-            buzzer->play("two short:d=4,o=5,b=100:16e6,16e6");
-          }
+      - if:
+          condition:
+            - switch.is_on: notification_sound
+          then:
+            - script.execute:
+                id: boot_log
+                category: Boot
+                log_message: Play boot sound
+            - rtttl.play: "two short:d=4,o=5,b=100:16e6,16e6"
 ...

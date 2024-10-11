@@ -12,7 +12,6 @@
 
 ---
 api:
-  id: !extend api_server
   on_client_connected:
     then:
       - script.execute: refresh_wifi_icon
@@ -24,47 +23,57 @@ esphome:
   on_boot:
     - priority: 600.4  # This is where most sensors are set up.
       then:
-        - lambda: |-
-            device_name->publish_state("${name}");
+        - text_sensor.template.publish:
+            id: device_name
+            state: ${name}
 
   on_shutdown:
     - priority: 0.1
       then:
-        - lambda: |-
-            // Update Wi-Fi icon
-            disp1->set_component_text("home.wifi_icon", "\uE708");
-            // Update Wi-Fi icon color
-            disp1->set_component_font_color("home.wifi_icon", 63488);
+        - script.execute:  # Update Wi-Fi icon
+            id: set_component_text
+            component_id: home.wifi_icon
+            text: "\uE708"
+        - script.execute:  # Update Wi-Fi color
+            id: set_component_font_color
+            component_id: home.wifi_icon
+            color: 63488
 
 script:
   - id: !extend boot_progress_dump
     then:
-      - lambda: |-
-          ESP_LOGCONFIG("script.boot_progress_dump", " - HW Wi-Fi:             %s", is_boot_step_completed(BOOT_STEP_HW_WIFI) ? "Completed" : "PENDING");
+      - script.execute:
+          id: boot_progress_dump_item
+          step: !lambda return BOOT_STEP_HW_WIFI;
+          step_name: HW Wi-Fi
 
   - id: !extend boot_sequence
     then:
-      - lambda: |-
-          boot_progress->execute(BOOT_STEP_HW_WIFI, "HW Wi-Fi");
+      - script.execute:
+          id: boot_progress
+          step: !lambda return BOOT_STEP_HW_WIFI;
+          step_name: HW Wi-Fi
 
-  - id: !extend dump_config_report
+  - id: !extend dump_config
     then:
-      - lambda: |-
-          // report Wi-Fi status
-          if (wifi_component->is_connected()) {
-            float rssi = wifi_rssi->state;
-            const char *rssi_status = "Unknown"; // Use const char* to avoid dynamic memory allocation
-            if (rssi > -50) rssi_status = "Excellent";
-            else if (rssi > -60) rssi_status = "Good";
-            else if (rssi > -70) rssi_status = "Fair";
-            else if (rssi > -80) rssi_status = "Weak";
-            else rssi_status = "Poor";
-            if (rssi > -70) ESP_LOGCONFIG("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
-            else if (rssi > -80) ESP_LOGW("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
-            else ESP_LOGE("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
-          } else {
-            ESP_LOGW("${project_tag}", "Wi-Fi:         DISCONNECTED");
-          }
+      - if:
+          condition:
+            - wifi.connected:
+          then:
+            - lambda: |-
+                float rssi = wifi_rssi->state;
+                const char *rssi_status = "Unknown"; // Use const char* to avoid dynamic memory allocation
+                if (rssi > -50) rssi_status = "Excellent";
+                else if (rssi > -60) rssi_status = "Good";
+                else if (rssi > -70) rssi_status = "Fair";
+                else if (rssi > -80) rssi_status = "Weak";
+                else rssi_status = "Poor";
+                if (rssi > -70) ESP_LOGCONFIG("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
+                else if (rssi > -80) ESP_LOGW("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
+                else ESP_LOGE("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
+          else:
+            - lambda: |-
+                ESP_LOGW("${project_tag}", "Wi-Fi:         DISCONNECTED");
 
   - id: !extend page_boot
     then:
@@ -93,22 +102,20 @@ script:
     mode: restart
     then:
       - lambda: |-
-          if (!id(is_uploading_tft)) {
-            disp1->send_command_printf("api=%i", (wifi_component->is_connected() and api_server->is_connected() and is_boot_complete()) ? 1 : 0);
-            // Update Wi-Fi icon color
-            disp1->set_component_font_color("home.wifi_icon",
-                                            (wifi_component->is_connected() and api_server->is_connected() and is_boot_complete()) ?
-                                            (wifi_rssi->state > -70 ? 33808 : 64992) :
-                                            63488);
-            // Update Wi-Fi icon
-            disp1->set_component_text("home.wifi_icon",
-                                      wifi_component->is_connected() ?
-                                        (api_server->is_connected() ?
-                                          ((is_boot_complete()) ? "\uE5A8" :  // mdi:wifi - All right!
-                                          "\uE7CF") :                         // mdi:home-assistant - Boot incomplete
-                                        "\uF256") :                           // mdi:api-off
-                                      "\uE5A9");                              // mdi:wifi-off
-          }
+          disp1->send_command_printf("api=%i", (wifi_component->is_connected() and api_server->is_connected() and is_boot_complete()) ? 1 : 0);
+          // Update Wi-Fi icon color
+          disp1->set_component_font_color("home.wifi_icon",
+                                          (wifi_component->is_connected() and api_server->is_connected() and is_boot_complete()) ?
+                                          (wifi_rssi->state > -70 ? 33808 : 64992) :
+                                          63488);
+          // Update Wi-Fi icon
+          disp1->set_component_text("home.wifi_icon",
+                                    wifi_component->is_connected() ?
+                                      (api_server->is_connected() ?
+                                        ((is_boot_complete()) ? "\uE5A8" :  // mdi:wifi - All right!
+                                        "\uE7CF") :                         // mdi:home-assistant - Boot incomplete
+                                      "\uF256") :                           // mdi:api-off
+                                    "\uE5A9");                              // mdi:wifi-off
 
   - id: !extend stop_all
     then:
@@ -179,11 +186,12 @@ wifi:
   on_connect:
     then:
       - script.execute: refresh_wifi_icon
-      - lambda: |-
-          boot_log->execute("Wi-Fi", network::get_ip_addresses()[0].str().c_str());
+      - script.execute:
+          id: boot_log
+          category: Wi-Fi
+          log_message: !lambda return network::get_ip_addresses()[0].str().c_str();
 
   on_disconnect:
     then:
       - script.execute: refresh_wifi_icon
-
 ...

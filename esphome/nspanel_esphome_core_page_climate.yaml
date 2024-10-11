@@ -10,7 +10,6 @@
 
 ---
 api:
-  id: !extend api_server
   actions:
     # Dynamically updates the climate page with the latest climate control settings and status.
     - action: page_climate
@@ -30,21 +29,25 @@ api:
         - script.stop: set_climate
         - if:
             condition:
-              lambda: return !id(is_uploading_tft);
+              - text_sensor.state:
+                  id: current_page
+                  state: climate
             then:
-              - lambda: if (current_page->state == "climate") detailed_entity->publish_state(entity);
-              - script.execute:
-                  id: set_climate
-                  current_temp: !lambda return current_temp;
-                  supported_features: !lambda return supported_features;
-                  target_temp: !lambda return target_temp;
-                  target_temp_high: !lambda return target_temp_high;
-                  target_temp_low: !lambda return target_temp_low;
-                  temp_step: !lambda return temp_step;
-                  total_steps: !lambda return total_steps;
-                  temp_offset: !lambda return temp_offset;
-                  climate_icon: !lambda return climate_icon;
-                  embedded_climate: !lambda return embedded_climate;
+              - text_sensor.template.publish:
+                  id: detailed_entity
+                  state: !lambda return entity;
+        - script.execute:
+            id: set_climate
+            current_temp: !lambda return current_temp;
+            supported_features: !lambda return supported_features;
+            target_temp: !lambda return target_temp;
+            target_temp_high: !lambda return target_temp_high;
+            target_temp_low: !lambda return target_temp_low;
+            temp_step: !lambda return temp_step;
+            total_steps: !lambda return total_steps;
+            temp_offset: !lambda return temp_offset;
+            climate_icon: !lambda return climate_icon;
+            embedded_climate: !lambda return embedded_climate;
 
 display:
   - id: !extend disp1
@@ -90,13 +93,11 @@ script:
       value: string
     then:
       - lambda: |-
-          if (!id(is_uploading_tft)) {
-            if (not embedded) {
-              if (key == "temperature" or key == "target_temp_high" or key == "target_temp_low")
-                ha_call_action->execute("climate.set_temperature", key.c_str(), to_string(stof(value) / 10), detailed_entity->state.c_str());
-              else if (key == "hvac_mode")
-                ha_call_action->execute("climate.set_hvac_mode", key.c_str(), value.c_str(), detailed_entity->state.c_str());
-            }
+          if (not embedded) {
+            if (key == "temperature" or key == "target_temp_high" or key == "target_temp_low")
+              ha_call_action->execute("climate.set_temperature", key.c_str(), to_string(stof(value) / 10), detailed_entity->state.c_str());
+            else if (key == "hvac_mode")
+              ha_call_action->execute("climate.set_hvac_mode", key.c_str(), value.c_str(), detailed_entity->state.c_str());
           }
 
   - id: !extend event_from_display
@@ -113,8 +114,13 @@ script:
 
   - id: !extend page_changed
     then:
-      - lambda: |-
-          if (current_page->state == "climate") page_climate->execute();
+      - if:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: climate
+          then:
+            - script.execute: page_climate
 
   - id: set_climate
     mode: restart
@@ -131,7 +137,7 @@ script:
       embedded_climate: bool
     then:
       - lambda: |-
-          if (!id(is_uploading_tft) and current_page->state == "climate") {
+          if (current_page->state == "climate") {
             bool useDecimal = (temp_step % 10 != 0);
             char buffer[15];
             disp1->send_command_printf("climateslider.maxval=%i", total_steps);

@@ -7,19 +7,26 @@
 
 ---
 api:
-  id: !extend api_server
   on_client_connected:
     then:
-      - lambda: |-
-          if (current_page->state == "boot") boot_log->execute("API", "Client connected");
+      - script.execute:
+          id: boot_log
+          category: API
+          log_message: Client connected
 
 display:
   - id: !extend disp1
     on_setup:
-      - lambda: |-
-          disp1->send_command("esphome=0");
-          set_brightness->execute(100);
-          nextion_init->publish_state(disp1->is_setup());
+      then:
+        - script.execute:
+            id: send_command
+            cmd: esphome=0
+        - script.execute:
+            id: set_brightness
+            brightness: 100
+        - binary_sensor.template.publish:
+            id: nextion_init
+            state: !lambda return disp1->is_setup();
 
     on_touch:
       then:
@@ -40,18 +47,18 @@ esphome:
       then:
         - script.execute: boot_sequence
         - script.wait: boot_sequence
-        - lambda: |-
-            boot_log->execute("Boot", "Jump to wake-up page");
-        - wait_until:
-            condition:
-              - lambda: return (disp1->queue_size() < 1);
-              - lambda: return (tf_uart->available() < 1);
-        - lambda: |-
-            ESP_LOGD("esphome.on_boot", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
-            delay(10*disp1->queue_size()+tf_uart->available());
-            goto_page->execute(wakeup_page_name->state.c_str());
-            delay(10*disp1->queue_size()+tf_uart->available());
-            disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
+        - script.execute:
+            id: boot_log
+            category: Boot
+            log_message: Jump to wake-up page
+        - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+        - script.execute:
+            id: goto_page
+            page: !lambda return wakeup_page_name->state;
+        - script.execute:
+            id: set_variable_value
+            variable: wakeup_page_id
+            val: !lambda return get_page_id(wakeup_page_name->state.c_str());
 
 script:
   - id: boot_event
@@ -60,7 +67,7 @@ script:
       - delay: 120s
       - while:
           condition:
-            - lambda: return !is_boot_complete();
+            - lambda: return not is_boot_complete();
           then:
             - homeassistant.event:
                 event: esphome.nspanel_ha_blueprint
@@ -69,7 +76,7 @@ script:
                   esphome_version: ${version}
                   type: boot
                   step: timeout
-            - delay: 20s
+            - delay: 120s
 
   - id: boot_log
     mode: queued
@@ -78,11 +85,19 @@ script:
       category: string
       log_message: string
     then:
-      - lambda: |-
-          ESP_LOGI("script.boot_log", "%s: %s", category.c_str(), log_message.c_str());
-          if (current_page->state == "boot") {
-            disp1->send_command_printf("log_body.txt+=\"%s: %s\\r\"", category.c_str(), log_message.c_str());
-          }
+      - logger.log:
+          format: "%s: %s"
+          args: ['category.c_str()', 'log_message.c_str()']
+          level: INFO
+      - if:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: boot
+          then:
+            - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+            - lambda: |-
+                disp1->send_command_printf("log_body.txt+=\"%s: %s\\r\"", category.c_str(), log_message.c_str());
 
   - id: boot_progress
     mode: restart
@@ -92,47 +107,102 @@ script:
     then:
       - script.execute: boot_progress_dump
       - lambda: |-
-          complete_boot_step(step);
-          ESP_LOGI("script.boot_progress", "Boot step completed: %s (step %" PRIu8 " of %" PRIu8 " - %" PRIu8 "%%)",
-                    step_name.c_str(), get_boot_steps_completed(), TOTAL_BOOT_STEPS, get_boot_progress_percentage());
-          if (is_boot_complete())
-            ESP_LOGI("script.boot_progress", "Progress: Boot sequence completed");
-          if (current_page->state == "boot") {
-            disp1->set_component_value("progress", get_boot_progress_percentage());
-          }
+          ESP_LOGI("script.boot_progress", "Boot step completed: %s (step %i of %i - %i%%)", step_name.c_str(),
+                    get_boot_steps_completed(), TOTAL_BOOT_STEPS, get_boot_progress_percentage());
+      # - logger.log:
+      #     format: "Boot step completed: %s (step %i of %i - %i%%)"
+      #     args: ['step_name.c_str()', 'get_boot_steps_completed()', 'TOTAL_BOOT_STEPS', 'get_boot_progress_percentage()']
+      #     level: INFO
+      - if:
+          condition:
+            - lambda: return is_boot_complete();
+          then:
+            - logger.log:
+                format: "Progress: Boot sequence completed"
+                level: INFO
+      - if:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: boot
+          then:
+            - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+            - script.execute:
+                id: set_component_value
+                component_id: progress
+                val: !lambda return get_boot_progress_percentage();
 
   - id: boot_progress_dump
     mode: restart
     then:
-      - delay: 10s
+      - wait_until:
+          condition:
+            - lambda: return get_boot_progress_percentage() == 100;
+          timeout: 60s
       - lambda: |-
           ESP_LOGCONFIG("script.boot_progress_dump", "Boot progress: %d%%", get_boot_progress_percentage());
-          ESP_LOGCONFIG("script.boot_progress_dump", " - Boot:                 %s", is_boot_step_completed(BOOT_STEP_BOOT) ? "Completed" : "PENDING");
+      - script.execute:
+          id: boot_progress_dump_item
+          step: !lambda return BOOT_STEP_BOOT;
+          step_name: Boot
+
+  - id: boot_progress_dump_item
+    mode: queued
+    parameters:
+      step: BootStepType
+      step_name: string
+    then:
+      - lambda: |-
+          int8_t padding = std::max(0, 21 - static_cast<int>(step_name.length())); // Calculate dynamic padding
+          ESP_LOGCONFIG("script.boot_progress_dump", " - %s:%*s%s", step_name.c_str(), padding, "",
+                        is_boot_step_completed(step) ? "Completed" : "PENDING");
 
   - id: boot_sequence
     mode: single
     then:
-      - lambda: |-
-          if (!disp1->is_setup()) boot_log->execute("Boot", "Waiting for Nextion");
+      - if:
+          condition:
+            - lambda: return not disp1->is_setup();
+          then:
+            - script.execute:
+                id: boot_log
+                category: Boot
+                log_message: Waiting for Nextion
       - wait_until:
           condition:
             - lambda: return disp1->is_setup();
           timeout: 10s
-      - lambda: |-
-          if (!wifi_component->is_connected()) boot_log->execute("Boot", "Waiting for Wi-Fi");
+      - if:
+          condition:
+            - not:
+                - wifi.connected:
+          then:
+            - script.execute:
+                id: boot_log
+                category: Boot
+                log_message: Waiting for Wi-Fi
       - wait_until:
           condition:
-            - lambda: return wifi_component->is_connected();
+            - wifi.connected:
           timeout: 10s
-      - lambda: |-
-          if (!api_server->is_connected()) boot_log->execute("Boot", "Waiting for API");
+      - if:
+          condition:
+            - not:
+                - api.connected:
+          then:
+            - script.execute:
+                id: boot_log
+                category: Boot
+                log_message: Waiting for API
       - wait_until:
           condition:
-            - lambda: return api_server->is_connected();
+            - api.connected:
           timeout: 10s
       - delay: 2s
-      - lambda: |-
-          boot_log->execute("Boot", "Report to Blueprint");
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: Report to Blueprint
       - homeassistant.event:
           event: esphome.nspanel_ha_blueprint
           data:
@@ -140,66 +210,102 @@ script:
             esphome_version: ${version}
             type: boot
             step: start
-      - lambda: |-
-          boot_log->execute("Boot", "Display settings");
-          delay(10*disp1->queue_size()+tf_uart->available());
-          disp1->send_command_printf("brightness_dim=%i", int(display_dim_brightness->state));
-          delay(10*disp1->queue_size()+tf_uart->available());
-          disp1->set_component_value("settings.dimslider", int(display_dim_brightness->state));
-      - delay: 100ms
-      - lambda: |-
-          delay(10*disp1->queue_size()+tf_uart->available());
-          disp1->send_command_printf("brightness_sleep=%i", int(display_sleep_brightness->state));
-      - delay: 100ms
-      - lambda: |-
-          delay(10*disp1->queue_size()+tf_uart->available());
-          disp1->send_command_printf("brightness=%i", int(display_brightness->state));
-          delay(10*disp1->queue_size()+tf_uart->available());
-          disp1->set_component_value("settings.brightslider", int(display_brightness->state));
-          delay(10*disp1->queue_size()+tf_uart->available());
-          set_brightness->execute(display_brightness->state);
-          boot_progress->execute(BOOT_STEP_BOOT, "Boot");
-          boot_event->execute();
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: Display settings
+      - script.execute:
+          id: set_variable_value
+          variable: brightness_dim
+          val: !lambda return int(display_dim_brightness->state);
+      - script.execute:
+          id: set_component_value
+          component_id: settings.dimslider
+          val: !lambda return int(display_dim_brightness->state);
+      - script.execute:
+          id: set_variable_value
+          variable: brightness_sleep
+          val: !lambda return int(display_sleep_brightness->state);
+      - script.execute:
+          id: set_variable_value
+          variable: brightness
+          val: !lambda return int(display_brightness->state);
+      - script.execute:
+          id: set_component_value
+          component_id: settings.brightslider
+          val: !lambda return int(display_brightness->state);
+      - script.execute:
+          id: set_brightness
+          brightness: !lambda return display_brightness->state;
+      - script.execute:
+          id: boot_progress
+          step: !lambda return BOOT_STEP_BOOT;
+          step_name: Boot
+      - script.execute: boot_event
 
-  - id: !extend dump_config_report
+  - id: !extend dump_config
     then:
-      - lambda: |-
-          // Report boot progress
-          if (is_boot_complete()) {
-            ESP_LOGCONFIG("${project_tag}", "  Boot steps:  %" PRIu8 "/%" PRIu8 " (100%%)", get_boot_steps_completed(), TOTAL_BOOT_STEPS);
-          } else {
-            ESP_LOGW("${project_tag}", "  Boot steps:  %" PRIu8 "/%" PRIu8 " (%" PRIu8 "%%)", get_boot_steps_completed(), TOTAL_BOOT_STEPS, get_boot_progress_percentage());
-            ESP_LOGW("${project_tag}", "  State:       %s", ((wifi_component->is_connected()) and api_server->is_connected()) ? "Pending" : "DISCONNECTED");
-            ESP_LOGCONFIG("${project_tag}", "Requesting new boot parameters from Blueprint");
-            boot_event->execute();
-          }
+      - if:
+          condition:
+            - lambda: return is_boot_complete();
+          then:
+            - lambda: |-
+                ESP_LOGCONFIG("${project_tag}", "  Boot steps:  %" PRIu8 "/%" PRIu8 " (100%%)", get_boot_steps_completed(),
+                              TOTAL_BOOT_STEPS);
+          else:
+            - lambda: |-
+                ESP_LOGW("${project_tag}", "  Boot steps:  %" PRIu8 "/%" PRIu8 " (%" PRIu8 "%%)", get_boot_steps_completed(),
+                          TOTAL_BOOT_STEPS, get_boot_progress_percentage());
+                ESP_LOGW("${project_tag}", "  State:       %s",
+                          ((wifi_component->is_connected()) and api_server->is_connected()) ? "Pending" : "DISCONNECTED");
+                ESP_LOGCONFIG("${project_tag}", "Requesting new boot parameters from Blueprint");
+            - script.execute: boot_event
 
   - id: page_boot
     mode: single
     then:
       - logger.log: Page boot called
       - script.execute: page_boot_exit
-      - lambda: |-
-          disp1->send_command("tm_esphome.en=0");
-          delay(10*disp1->queue_size()+tf_uart->available());
-          disp1->send_command("esphome=0");
-          delay(10*disp1->queue_size()+tf_uart->available());
-          #ifdef ARDUINO
-          disp1->set_component_text("sys_framework", "Framework: Arduino");
-          #elif defined(USE_ESP_IDF)
-          disp1->set_component_text("sys_framework", "Framework: ESP-IDF");
-          #endif
+      - script.execute:
+          id: send_command
+          cmd: 'tm_esphome.en=0'
+      - script.execute:
+          id: send_command
+          cmd: 'esphome=0'
+      - if:
+          condition:
+            - lambda: |-
+                #ifdef ARDUINO
+                return true;
+                #else
+                return false;
+                #endif
+          then:
+            - script.execute:
+                id: set_component_text
+                component_id: sys_framework
+                text: 'Framework: Arduino'
+          else:
+            - script.execute:
+                id: set_component_text
+                component_id: sys_framework
+                text: 'Framework: ESP-IDF'
 
   - id: page_boot_exit
     mode: restart
     then:
       - wait_until:
           condition:
-            - lambda: return (current_page->state != "boot");
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: boot
           timeout: 180s
       - if:
           condition:
-            - lambda: return (current_page->state == "boot");
+            - text_sensor.state:
+                id: current_page
+                state: boot
           then:
             - wait_until:
                 condition:
@@ -207,19 +313,31 @@ script:
                   - lambda: return (tf_uart->available() < 1);
             - if:
                 condition:
-                  - lambda: return (current_page->state == "boot");
+                  - text_sensor.state:
+                      id: current_page
+                      state: boot
                 then:
-                  - lambda: |-
-                      ESP_LOGD("script.page_boot_exit", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
-                      delay(10*disp1->queue_size()+tf_uart->available());
-                      goto_page->execute(wakeup_page_name->state.c_str());
-                      delay(10*disp1->queue_size()+tf_uart->available());
-                      disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
+                  - logger.log:
+                      format: "Jump to wake-up page: %s"
+                      args: ['wakeup_page_name->state.c_str()']
+                  - script.execute:
+                      id: goto_page
+                      page: !lambda return wakeup_page_name->state.c_str();
+                  - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+                  - script.execute:
+                      id: set_variable_value
+                      variable: wakeup_page_id
+                      val: !lambda return get_page_id(wakeup_page_name->state.c_str());
 
   - id: !extend page_changed
     then:
-      - lambda: |-
-          if (current_page->state == "boot") page_boot->execute();
+      - if:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: boot
+          then:
+            - script.execute: page_boot
 
   - id: !extend stop_all
     then:

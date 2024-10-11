@@ -14,11 +14,13 @@ substitutions:
   name: ${device_name}
   friendly_name: ${device_name}
   ota_password: ${wifi_password}
-  project_tag: "nspanel_ha_blueprint"
+  project_tag: nspanel_ha_blueprint
   ##############################
 
 api:
-  id: !extend api_server
+  id: api_server
+  reboot_timeout: 60min
+
   on_client_connected:
     then:
       - script.execute: dump_config
@@ -70,7 +72,6 @@ button:
 
 esp32:
   board: esp32dev
-  flash_size: 4MB
   framework:
     type: esp-idf
 
@@ -88,8 +89,6 @@ esphome:
 
 external_components:
   - source:
-      # type: local
-      # path: packages/Blackymas/components
       type: git
       url: https://github.com/Blackymas/NSPanel_HA_Blueprint
       ref: v${version}
@@ -98,12 +97,6 @@ external_components:
     refresh: 30s
 
 globals:
-  # Add-on Upload TFT
-  - id: is_uploading_tft  # Is TFT uploading currently running?
-    type: bool
-    restore_value: false
-    initial_value: 'false'
-
   ##### Add-on Climate #####
   - id: is_embedded_thermostat  # Is embedded thermostat set as main climate entity?
     type: bool
@@ -133,20 +126,51 @@ ota:
     password: ${ota_password}
     on_state_change:
       then:
-        - lambda: |-
-            goto_page->execute("boot");
-            std::string ota_state;
-            if (state == ota::OTA_STARTED) {
-              ota_state = "Started";
-              disp1->send_command("progress.val=0");
-            } else if (state == ota::OTA_IN_PROGRESS) {
-              ota_state = "In progress";
-              disp1->send_command("progress.val+=10");
-            } else if (state == ota::OTA_COMPLETED) {
-              ota_state = "Completed";
-              disp1->send_command("progress.val=100");
-            } else if (state == ota::OTA_ERROR) ota_state = "Error";
-            boot_log->execute("OTA", ota_state.c_str());
+        - script.execute:
+            id: goto_page
+            page: boot
+        - if:
+            condition:
+              - lambda: return state == ota::OTA_STARTED;
+            then:
+              - script.execute:
+                  id: set_component_value
+                  component_id: progress
+                  val: 0
+              - script.execute:
+                  id: boot_log
+                  category: OTA
+                  log_message: Started
+        - if:
+            condition:
+              - lambda: return state == ota::OTA_IN_PROGRESS;
+            then:
+              - lambda: |-
+                  disp1->send_command("progress.val+=10");
+              - script.execute:
+                  id: boot_log
+                  category: OTA
+                  log_message: In progress
+        - if:
+            condition:
+              - lambda: return state == ota::OTA_COMPLETED;
+            then:
+              - script.execute:
+                  id: set_component_value
+                  component_id: progress
+                  val: 100
+              - script.execute:
+                  id: boot_log
+                  category: OTA
+                  log_message: Completed
+        - if:
+            condition:
+              - lambda: return state == ota::OTA_ERROR;
+            then:
+              - script.execute:
+                  id: boot_log
+                  category: OTA
+                  log_message: Error
 
 safe_mode:
   reboot_timeout: 3min
@@ -155,108 +179,88 @@ safe_mode:
 script:
   - id: !extend boot_progress_dump
     then:
-      - lambda: |-
-          ESP_LOGCONFIG("script.boot_progress_dump", " - Base:                 %s", is_boot_step_completed(BOOT_STEP_BASE) ? "Completed" : "PENDING");
+      - script.execute:
+          id: boot_progress_dump_item
+          step: !lambda return BOOT_STEP_BASE;
+          step_name: Base
 
   - id: dump_config
     mode: restart
     then:
-      - wait_until:
-          condition:
-            - lambda: return (id(is_uploading_tft));
-          timeout: 15s
-      - if:
-          condition:
-            - lambda: return (id(is_uploading_tft));
-          then:
-            - lambda: |-
-                ESP_LOGW("${project_tag}", "TFT upload in progress");
-            - script.stop: dump_config_report
-            - script.stop: dump_config
-          else:
-            - script.execute: dump_config_report
-
-  - id: dump_config_report
-    mode: restart
-    then:
+      - delay: 15s
       - lambda: |-
-          if (id(is_uploading_tft)) {
-            ESP_LOGW("${project_tag}", "TFT upload in progress");
+          // report API status
+          if (api_server->is_connected()) {
+            ESP_LOGCONFIG("${project_tag}", "API:           Connected");
           } else {
-            // report API status
-            bool api_connected = api_server->is_connected();
-            if (api_connected) {
-              ESP_LOGCONFIG("${project_tag}", "API:           Connected");
-            } else {
-              ESP_LOGW("${project_tag}", "API:           DISCONNECTED");
-            }
-
-            if (!(wifi_component->is_connected()) or !api_connected) reset_boot_steps();
-
-            // Report ESPHome
-            ESP_LOGCONFIG("${project_tag}", "ESPHome:");
-            ESP_LOGCONFIG("${project_tag}", "  Version:     ${version}");
-            ESP_LOGCONFIG("${project_tag}", "  Compiler:    %s", ESPHOME_VERSION);
-            // Report framework
-            #ifdef ARDUINO
-            ESP_LOGCONFIG("${project_tag}", "  Framework:   Arduino");
-            #elif defined(USE_ESP_IDF)
-            ESP_LOGCONFIG("${project_tag}", "  Framework:   ESP-IDF");
-            #endif
-
-            ESP_LOGCONFIG("${project_tag}", "Packages:");
-            #ifdef NSPANEL_HA_BLUEPRINT_CORE
-            ESP_LOGCONFIG("${project_tag}", "  - Core");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADVANCED
-            ESP_LOGCONFIG("${project_tag}", "  - Advanced");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_BLUETOOTH_PROXY
-            ESP_LOGCONFIG("${project_tag}", "  - Bluetooth Proxy");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
-            ESP_LOGCONFIG("${project_tag}", "  - Upload TFT");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE
-            ESP_LOGCONFIG("${project_tag}", "  - Climate - Base");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL
-            ESP_LOGCONFIG("${project_tag}", "  - Climate - Cool");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
-            ESP_LOGCONFIG("${project_tag}", "  - Climate - Dual");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT
-            ESP_LOGCONFIG("${project_tag}", "  - Climate - Heat");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT
-            ESP_LOGCONFIG("${project_tag}", "  - Pre-built");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY
-            ESP_LOGCONFIG("${project_tag}", "  - Pre-built (Wall Display)");
-            #endif
-            #if defined(USE_BLUETOOTH_PROXY) || defined(USE_WEBSERVER) || defined(USE_CAPTIVE_PORTAL)
-            ESP_LOGCONFIG("${project_tag}", "Components:");
-            #ifdef USE_ESP32_BLE_SERVER
-            ESP_LOGCONFIG("${project_tag}", "  - BLE server");
-            #endif
-            #ifdef USE_ESP32_BLE_CLIENT
-            ESP_LOGCONFIG("${project_tag}", "  - BLE tracker");
-            #endif
-            #ifdef USE_BLUETOOTH_PROXY
-            ESP_LOGCONFIG("${project_tag}", "  - Bluetooth proxy");
-            #endif
-            #ifdef USE_CAPTIVE_PORTAL
-            ESP_LOGCONFIG("${project_tag}", "  - Captive portal");
-            #endif
-            #ifdef USE_IMPROV
-            ESP_LOGCONFIG("${project_tag}", "  - Improv (BLE)");
-            #endif
-            #ifdef USE_WEBSERVER
-            ESP_LOGCONFIG("${project_tag}", "  - Web server");
-            #endif
-            #endif
+            ESP_LOGW("${project_tag}", "API:           DISCONNECTED");
           }
+
+          // if (!(wifi_component->is_connected()) or !api_server->is_connected()) reset_boot_steps();
+
+          // Report ESPHome
+          ESP_LOGCONFIG("${project_tag}", "ESPHome:");
+          ESP_LOGCONFIG("${project_tag}", "  Version:     ${version}");
+          ESP_LOGCONFIG("${project_tag}", "  Compiler:    %s", ESPHOME_VERSION);
+          // Report framework
+          #ifdef ARDUINO
+          ESP_LOGCONFIG("${project_tag}", "  Framework:   Arduino");
+          #elif defined(USE_ESP_IDF)
+          ESP_LOGCONFIG("${project_tag}", "  Framework:   ESP-IDF");
+          #endif
+
+          ESP_LOGCONFIG("${project_tag}", "Packages:");
+          #ifdef NSPANEL_HA_BLUEPRINT_CORE
+          ESP_LOGCONFIG("${project_tag}", "  - Core");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_ADVANCED
+          ESP_LOGCONFIG("${project_tag}", "  - Advanced");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_BLUETOOTH_PROXY
+          ESP_LOGCONFIG("${project_tag}", "  - Bluetooth Proxy");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
+          ESP_LOGCONFIG("${project_tag}", "  - Upload TFT");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE
+          ESP_LOGCONFIG("${project_tag}", "  - Climate - Base");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL
+          ESP_LOGCONFIG("${project_tag}", "  - Climate - Cool");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+          ESP_LOGCONFIG("${project_tag}", "  - Climate - Dual");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT
+          ESP_LOGCONFIG("${project_tag}", "  - Climate - Heat");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT
+          ESP_LOGCONFIG("${project_tag}", "  - Pre-built");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY
+          ESP_LOGCONFIG("${project_tag}", "  - Pre-built (Wall Display)");
+          #endif
+          #if defined(USE_BLUETOOTH_PROXY) || defined(USE_WEBSERVER) || defined(USE_CAPTIVE_PORTAL)
+          ESP_LOGCONFIG("${project_tag}", "Components:");
+          #ifdef USE_ESP32_BLE_SERVER
+          ESP_LOGCONFIG("${project_tag}", "  - BLE server");
+          #endif
+          #ifdef USE_ESP32_BLE_CLIENT
+          ESP_LOGCONFIG("${project_tag}", "  - BLE tracker");
+          #endif
+          #ifdef USE_BLUETOOTH_PROXY
+          ESP_LOGCONFIG("${project_tag}", "  - Bluetooth proxy");
+          #endif
+          #ifdef USE_CAPTIVE_PORTAL
+          ESP_LOGCONFIG("${project_tag}", "  - Captive portal");
+          #endif
+          #ifdef USE_IMPROV
+          ESP_LOGCONFIG("${project_tag}", "  - Improv (BLE)");
+          #endif
+          #ifdef USE_WEBSERVER
+          ESP_LOGCONFIG("${project_tag}", "  - Web server");
+          #endif
+          #endif
 
   - id: ha_button
     mode: parallel
@@ -270,34 +274,29 @@ script:
           data:
             device_name: !lambda return device_name->state.c_str();
             esphome_version: ${version}
-            type: button_click"
+            type: button_click
             page: !lambda return page.c_str();
             component: !lambda return component.c_str();
             command: !lambda return command.c_str();
 
   - id: ha_call_action
-    mode: restart
+    mode: parallel
     parameters:
       action: string
       key: string
       value: string
       entity: string
     then:
-      - if:
-          condition:
-            - lambda: return !id(is_uploading_tft);
-            - lambda: return !action.empty();
-          then:
-            - homeassistant.event:
-                event: esphome.nspanel_ha_blueprint
-                data:
-                  device_name: !lambda return device_name->state.c_str();
-                  esphome_version: ${version}
-                  type: action_call
-                  action: !lambda return action.c_str();
-                  key: !lambda return key.c_str();
-                  value: !lambda return value.c_str();
-                  entity: !lambda return entity.c_str();
+      - homeassistant.event:
+          event: esphome.nspanel_ha_blueprint
+          data:
+            device_name: !lambda return device_name->state.c_str();
+            esphome_version: ${version}
+            type: action_call
+            action: !lambda return action.c_str();
+            key: !lambda return key.c_str();
+            value: !lambda return value.c_str();
+            entity: !lambda return entity.c_str();
 
   - id: set_var_bool
     mode: queued
@@ -329,7 +328,6 @@ script:
     mode: restart
     then:
       - script.stop: dump_config
-      - script.stop: dump_config_report
       - script.stop: ha_button
       - script.stop: ha_call_action
 
@@ -342,6 +340,12 @@ text_sensor:
     disabled_by_default: false
     on_value:
       then:
-        - lambda: |-
-            if (!x.empty()) ESP_LOGI("text_sensor.detailed_entity", "Entity shown: %s", x.c_str());
+        - if:
+            condition:
+              - lambda: return not x.empty();
+            then:
+              - logger.log:
+                  format: "Entity shown: %s"
+                  args: ['x.c_str()']
+                  level: INFO
 ...

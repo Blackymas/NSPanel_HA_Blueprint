@@ -24,31 +24,38 @@ binary_sensor:
       number: 14
       inverted: true
     on_press: &hardware_button_on_press
-      - if:
-          condition:
-            - switch.is_on: hw_button_wakeup
-          then:
-            - lambda: |-
-                // wake-up
-                if (current_page->state == "screensaver") goto_page->execute(wakeup_page_name->state.c_str());
-                timer_dim->execute();
-                timer_sleep->execute();
+      then:
+        - if:
+            condition:
+              - switch.is_on: hw_button_wakeup
+            then:
+              - if:
+                  condition:
+                    - text_sensor.state:
+                        id: current_page
+                        state: screensaver
+                  then:
+                    - script.execute:
+                        id: goto_page
+                        page: !lambda return wakeup_page_name->state.c_str();
+              - script.execute: timer_dim
+              - script.execute: timer_sleep
     on_multi_click:
       - timing: &long_click-timing
           - ON for at least 0.8s
         invalid_cooldown: ${invalid_cooldown}
         then:
-          - logger.log: "Left button - Long click"
+          - logger.log: Left button - Long click
           - script.execute:
               id: ha_button
               page: !lambda return current_page->state.c_str();
-              component: "hw_bt_left"
-              command: "long_click"
+              component: hw_bt_left
+              command: long_click
       - timing: &short_click-timing
           - ON for at most 0.8s
         invalid_cooldown: ${invalid_cooldown}
         then:
-          - logger.log: "Left button - Short click"
+          - logger.log: Left button - Short click
           - if:
               condition:
                 or:
@@ -65,8 +72,8 @@ binary_sensor:
           - script.execute:
               id: ha_button
               page: !lambda return current_page->state.c_str();
-              component: "hw_bt_left"
-              command: "short_click"
+              component: hw_bt_left
+              command: short_click
 
   ##### RIGHT BUTTON BELOW DISPLAY TO TOGGLE RELAY #####
   - name: Right Button
@@ -80,16 +87,16 @@ binary_sensor:
       - timing: *long_click-timing
         invalid_cooldown: ${invalid_cooldown}
         then:
-          - logger.log: "Right button - Long click"
+          - logger.log: Right button - Long click
           - script.execute:
               id: ha_button
               page: !lambda return current_page->state.c_str();
-              component: "hw_bt_right"
-              command: "long_click"
+              component: hw_bt_right
+              command: long_click
       - timing: *short_click-timing
         invalid_cooldown: ${invalid_cooldown}
         then:
-          - logger.log: "Right button - Short click"
+          - logger.log: Right button - Short click
           - if:
               condition:
                 or:
@@ -106,8 +113,8 @@ binary_sensor:
           - script.execute:
               id: ha_button
               page: !lambda return current_page->state.c_str();
-              component: "hw_bt_right"
-              command: "short_click"
+              component: hw_bt_right
+              command: short_click
 
 globals:
   - id: button_left_enabled
@@ -131,24 +138,24 @@ globals:
     type: uint16_t
     restore_value: true
     initial_value: '${buttons_color_on}'
-
   - id: buttons_color_off
     type: uint16_t
     restore_value: true
     initial_value: '${buttons_color_off}'
-
   - id: buttons_bars_pages
     type: uint32_t
     restore_value: true
     initial_value: '1'
 
 script:
-  - id: !extend boot_progress_dump
+  - id: !extend boot_progress_dump  # Defined by nspanel_esphome_core_boot.yaml
     then:
-      - lambda: |-
-          ESP_LOGCONFIG("script.boot_progress_dump", " - HW Buttons:           %s", is_boot_step_completed(BOOT_STEP_HW_BUTTONS) ? "Completed" : "PENDING");
+      - script.execute:
+          id: boot_progress_dump_item
+          step: !lambda return BOOT_STEP_HW_BUTTONS;
+          step_name: HW Buttons
 
-  - id: !extend page_changed
+  - id: !extend page_changed  # Defined by nspanel_esphome_core_hw_display.yaml
     then:
       - &refresh_hardware_buttons_bars_3
         script.execute:
@@ -163,7 +170,7 @@ script:
       button_mask: uint8_t
     then:
       - lambda: |-
-          if (!id(is_uploading_tft) and ((id(buttons_bars_pages) & (1 << get_page_id(current_page->state.c_str()))) != 0)) {
+          if ((id(buttons_bars_pages) & (1 << get_page_id(current_page->state.c_str()))) != 0) {
             switch (int(display_mode->state)) {
               case 1:  // EU model
                 if (button_mask & 1 and id(button_left_enabled)) {  // Left button
@@ -201,16 +208,13 @@ script:
   - id: !extend set_component_font_color  # Defined by nspanel_esphome_core_hw_display.yaml
     then:
       - lambda: |-
-          if (component == "button_bar_color_on") id(buttons_color_on) = color;
-          else if (component == "button_bar_color_off") id(buttons_color_off) = color;
+          if (component_id == "button_bar_color_on") id(buttons_color_on) = color;
+          else if (component_id == "button_bar_color_off") id(buttons_color_off) = color;
 
-  - id: !extend set_var_int
+  - id: !extend set_var_int  # Defined by nspanel_esphome_core_base.yaml
     then:
       - lambda: |-
-          if (component == "buttons_bars_pages" and val >= 0) {
-            id(buttons_bars_pages) = val;
-            boot_progress->execute(BOOT_STEP_HW_BUTTONS, "HW Buttons");
-          } else if (component == "hw_button_state" and val >= 0) {
+          if (component == "hw_button_state" and val >= 0) {
             id(button_left_enabled) = ((val & 0x03) == 3) ? false
                                     : ((val & 0x03) == 1 || (val & 0x03) == 2) ? true
                                     : id(button_left_enabled);
@@ -227,9 +231,14 @@ script:
                 (((val & 0x03) != 0) ? 1 : 0) +
                 (((val >> 2) & 0x03) != 0 ? 1 : 0)
             );
+          } else if (component == "button_bar_color_on" and val >= 0) id(buttons_color_on) = val;
+          else if (component == "button_bar_color_off" and val >= 0) id(buttons_color_off) = val;
+          else if (component == "buttons_bars_pages" and val >= 0) {
+            id(buttons_bars_pages) = val;
+            boot_progress->execute(BOOT_STEP_HW_BUTTONS, "HW Buttons");
           }
 
-  - id: !extend stop_all
+  - id: !extend stop_all  # Defined by nspanel_esphome_core_base.yaml
     then:
       - script.stop: refresh_hardware_buttons_bars
 

@@ -7,7 +7,6 @@
 
 ---
 api:
-  id: !extend api_server
   actions:
     # Dynamically displays QR codes on the ESPHome UI for sharing information such as WiFi passwords or website links.
     - action: qrcode
@@ -18,14 +17,12 @@ api:
       then:
         - lambda: |-
             id(qrcode_string) = qrcode;
-            if (!id(is_uploading_tft)) {
-              delay(10*disp1->queue_size()+tf_uart->available());
-              set_component_visibility->execute("home", "bt_qrcode", !(id(qrcode_string).empty()));
-              delay(10*disp1->queue_size()+tf_uart->available());
-              disp1->set_component_text("qrcode.qrcode_label", title.c_str());
-              delay(10*disp1->queue_size()+tf_uart->available());
-              if (show) goto_page->execute("qrcode");
-            }
+            delay(10*disp1->queue_size()+tf_uart->available());
+            set_component_visibility->execute("home", "bt_qrcode", !(id(qrcode_string).empty()));
+            delay(10*disp1->queue_size()+tf_uart->available());
+            disp1->set_component_text("qrcode.qrcode_label", title.c_str());
+            delay(10*disp1->queue_size()+tf_uart->available());
+            if (show) goto_page->execute("qrcode");
             boot_progress->execute(BOOT_STEP_PAGE_QRCODE, "Page QRcode - Action");
 
 globals:
@@ -48,20 +45,28 @@ script:
 
   - id: !extend page_changed
     then:
-      - lambda: |-
-          if (current_page->state == "qrcode") page_qrcode->execute();
+      - if:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: qrcode
+          then:
+            - script.execute: page_qrcode
 
   - id: !extend page_home
     then:
-      - lambda: |-
-          set_component_visibility->execute("home", "bt_qrcode", id(qrcode_enabled));
+      - script.execute:
+          id: set_component_visibility
+          page: home
+          component_id: bt_qrcode
+          show: !lambda return id(qrcode_enabled);
 
   # Load the QRCode page
   - id: page_qrcode
     mode: restart
     then:
       - lambda: |-
-          if (!id(is_uploading_tft) and not id(qrcode_string).empty()) {
+          if (!id(qrcode_string).empty()) {
             disp1->qrcode(25, 25, id(qrcode_string).c_str());
           }
 

@@ -10,29 +10,27 @@
 
 ---
 api:
-  id: !extend api_server
   actions:
     # Dynamically configures button properties on a specified page, enhancing UI interactivity by allowing updates to button appearance and behavior based on given parameters.
     - action: button  # yamllint disable-line rule:indentation
       variables:
-        page: string       # Identifier of the page where the button is located.
-        id: string         # Unique identifier for the button.
-        state: bool        # Determines the button's state, influencing background and other visual aspects.
-        icon: string       # Icon codepoint from HASwitchPlate Material Design Icons. Example: "\uE6E8" for mdi:lightbulb-on-outline.
-        icon_color: int[]  # RGB color array for the icon.
-        icon_font: int     # Nextion font identifier for the icon, default is 8.
-        bri: string        # Brightness level or other dynamic info to be displayed close to the icon.
-        label: string      # Main text label for the button.
+        page: string          # Identifier of the page where the button is located.
+        component_id: string  # Unique identifier for the button.
+        state: bool           # Determines the button's state, influencing background and other visual aspects.
+        icon: string          # Icon codepoint from HASwitchPlate Material Design Icons. Example: "\uE6E8" for mdi:lightbulb-on-outline.
+        icon_color: int[]     # RGB color array for the icon.
+        icon_font: int        # Nextion font identifier for the icon, default is 8.
+        bri: string           # Brightness level or other dynamic info to be displayed close to the icon.
+        label: string         # Main text label for the button.
       then:
         - if:
             condition:
-              - lambda: return (!id(is_uploading_tft));
               - lambda: return (page == current_page->state);
             then:
               - script.execute:
                   id: button_display
                   page: !lambda return page;
-                  button_id: !lambda return id;
+                  button_id: !lambda return component_id;
                   state: !lambda return state;
                   icon: !lambda return icon;
                   icon_color: !lambda return icon_color;
@@ -67,16 +65,16 @@ script:
       - wait_until:
           condition:
             or:
-              - lambda: return (id(is_uploading_tft));
-              - lambda: return (page != current_page->state);
+              - lambda: |-
+                  return (current_page->state == page);
               - and:
                   - lambda: return (disp1->queue_size() < 1);
                   - lambda: return (tf_uart->available() < 1);
           timeout: 50ms
       - if:
           condition:
-            - lambda: return (!id(is_uploading_tft));
-            - lambda: return (page == current_page->state);
+            - lambda: |-
+                  return (current_page->state == page);
           then:
             - wait_until:
                 condition:
@@ -85,37 +83,67 @@ script:
                 timeout: 50ms
             - lambda: |-
                 delay(10*disp1->queue_size()+tf_uart->available());
+                App.feed_wdt();
+                yield();
+
                 disp1->set_component_picc((button_id + "pic").c_str(), state ? 47 : 46);
                 disp1->set_component_picc((button_id + "bri").c_str(), state ? 47 : 46);
                 disp1->set_component_picc((button_id + "text").c_str(), state ? 47 : 46);
                 disp1->set_component_picc((button_id + "icon").c_str(), state ? 47 : 46);
+            - script.execute:
+                id: set_component_font
+                component_id: !lambda return (button_id + "icon").c_str();
+                font: !lambda return icon_font;
 
+            - lambda: |-
                 delay(10*disp1->queue_size()+tf_uart->available());
                 App.feed_wdt();
                 yield();
 
-                disp1->set_component_font((button_id + "icon").c_str(), icon_font);
                 disp1->set_component_foreground_color((button_id + "bri").c_str(), state ? 10597 : 65535);
                 disp1->set_component_foreground_color((button_id + "text").c_str(), state ? 10597 : 65535);
-                disp1->set_component_font_color((button_id + "icon").c_str(), rgbTo565(icon_color));
+                disp1->set_component_font_color((button_id + "icon").c_str(), rgbTo565(icon_color[0], icon_color[1], icon_color[2]));
 
-                delay(10*disp1->queue_size()+tf_uart->available());
-                App.feed_wdt();
-                yield();
-
-                disp1->set_component_text((button_id + "icon").c_str(), icon.c_str());
-                display_wrapped_text->execute(page.c_str(), (button_id + "text").c_str(), label.c_str(), 10);
-                disp1->set_component_text((button_id + "bri").c_str(), (strcmp(bri.c_str(), "0") == 0) ? " " : bri.c_str());
-
-                delay(10*disp1->queue_size()+tf_uart->available());
-                App.feed_wdt();
-                yield();
-
-                set_component_visibility->execute(page.c_str(), (button_id + "pic").c_str(), true);
-                set_component_visibility->execute(page.c_str(), (button_id + "icon").c_str(), true);
-                set_component_visibility->execute(page.c_str(), (button_id + "text").c_str(), true);
-                set_component_visibility->execute(page.c_str(), (button_id + "bri").c_str(), true);
-                set_component_visibility->execute(page.c_str(), button_id.c_str(), true);
+            - script.execute:
+                id: set_component_text
+                component_id: !lambda return (button_id + "icon").c_str();
+                text: !lambda return icon.c_str();
+            - script.execute:
+                id: display_wrapped_text
+                page: !lambda return page.c_str();
+                component: !lambda return (button_id + "text").c_str();
+                text_to_display: !lambda return label.c_str();
+                line_length_limit: 10
+            - script.execute:
+                id: set_component_text
+                component_id: !lambda return (button_id + "bri").c_str();
+                text: !lambda |-
+                  return (strcmp(bri.c_str(), "0") == 0) ? " " : bri.c_str();
+            - script.execute:
+                id: set_component_visibility
+                page: !lambda return page.c_str();
+                component_id: !lambda return (button_id + "pic").c_str();
+                show: true
+            - script.execute:
+                id: set_component_visibility
+                page: !lambda return page.c_str();
+                component_id: !lambda return (button_id + "icon").c_str();
+                show: true
+            - script.execute:
+                id: set_component_visibility
+                page: !lambda return page.c_str();
+                component_id: !lambda return (button_id + "text").c_str();
+                show: true
+            - script.execute:
+                id: set_component_visibility
+                page: !lambda return page.c_str();
+                component_id: !lambda return (button_id + "bri").c_str();
+                show: true
+            - script.execute:
+                id: set_component_visibility
+                page: !lambda return page.c_str();
+                component_id: !lambda return button_id.c_str();
+                show: true
 
   - id: page_buttonpage
     mode: restart

@@ -9,57 +9,53 @@
 ###############################
 
 ---
-substitutions:
-  ##############################
-  ## Change only in your      ##
-  ## local yaml substitutions ##
-  bytes_per_char: "1"
-  ##############################
-
 api:
-  id: !extend api_server
   actions:
     # Sends custom commands directly to the display for dynamic interactions and updates.
     - action: command
       variables:
         cmd: string  # Command string to be sent. Refer to the Nextion Instruction Set for supported commands: https://nextion.tech/instruction-set/
       then:
-        - lambda: |-
-            if (!id(is_uploading_tft))
-              disp1->send_command(cmd.c_str());
+        - script.execute:
+            id: send_command
+            cmd: !lambda return cmd;
 
     # Changes the foreground color of a specified component on the display.
     - action: component_color
       variables:
-        id: string    # Identifier of the component to change color. Ensure this matches the component's ID in your display layout.
+        component_id: string    # Identifier of the component to change color. Ensure this matches the component's ID in your display layout.
         color: int[]  # New color for the component, specified as an RGB array (e.g., [255, 0, 0] for red).
       then:
-        - lambda: |-
-            delay(10*disp1->queue_size()+tf_uart->available());
-            if (!id(is_uploading_tft) and color.size() == 3) {}
-              set_component_font_color->execute(id.c_str(), rgbTo565(color));
+        - if:
+            condition:
+              - lambda: return (color.size() == 3);
+            then:
+              - script.execute:
+                  id: set_component_font_color
+                  component_id: !lambda return component_id;
+                  color: !lambda return rgbTo565(color[0], color[1], color[2]);
 
     # Updates the text of a specified component on the display.
     - action: component_text
       variables:
-        id: string   # Identifier of the component. Ensure it matches the component's ID in your display layout.
+        component_id: string   # Identifier of the component. Ensure it matches the component's ID in your display layout.
         txt: string  # New text content to be displayed. Supports both static and dynamic content.
       then:
-        - lambda: |-
-            delay(10*disp1->queue_size()+tf_uart->available());
-            if (!id(is_uploading_tft))
-              disp1->set_component_text(id.c_str(), txt.c_str());
+        - script.execute:
+            id: set_component_text
+            component_id: !lambda return component_id;
+            text: !lambda return txt;
 
     # Updates the value of a specified component on the display.
     - action: component_val
       variables:
-        id: string  # Identifier of the component to update. Must match the component's ID in the display layout.
+        component_id: string  # Identifier of the component to update. Must match the component's ID in the display layout.
         val: int    # New integer value to set for the component. Adjust based on the data type you're displaying.
       then:
-        - lambda: |-
-            delay(10*disp1->queue_size()+tf_uart->available());
-            if (!id(is_uploading_tft))
-              disp1->set_component_value(id.c_str(), val);
+        - script.execute:
+            id: set_component_value
+            component_id: !lambda return component_id;
+            val: !lambda return val;
 
     # Hides or shows a specified component on the display.
     - action: component_visibility
@@ -80,61 +76,96 @@ api:
         entity: string     # The ID of the entity for which details are shown. Supports "embedded_climate" for built-in climate control.
         back_page: string  # Specifies the page to return to. Accepts "home" or "buttonpage01" to "buttonpage04".
       then:
-        - lambda: |-
-            if (!id(is_uploading_tft)) {
-              HomeAssistantEntity entity_id = extractHomeAssistantEntity(entity);
-              if (entity == "embedded_climate") entity_id.domain = "climate";
-              else if (entity_id.domain == "alarm_control_panel") entity_id.domain = "alarm";
-              if (entity_id.domain != "invalid" or entity == "embedded_climate") {
-                detailed_entity->publish_state(entity);
-                delay(10*disp1->queue_size()+tf_uart->available());
-                goto_page->execute(entity_id.domain.c_str());
-                delay(10*disp1->queue_size()+tf_uart->available());
-                disp1->send_command_printf("back_page_id=%" PRIu8, get_page_id(back_page.c_str()));
-                delay(10*disp1->queue_size()+tf_uart->available());
-                if (entity_id.domain == "climate")
-                  disp1->set_component_value("climate.embedded", (entity == "embedded_climate") ? 1 : 0);
-              }
-            }
+        - if:
+            condition:
+              - or:
+                  - lambda: |-
+                      return entity == "embedded_climate";
+                  - lambda: |-
+                      HomeAssistantEntity entity_id = extractHomeAssistantEntity(entity);
+                      return entity_id.domain != "invalid";
+            then:
+              - text_sensor.template.publish:
+                  id: detailed_entity
+                  state: !lambda return entity;
+              - script.execute:
+                  id: goto_page
+                  page: !lambda |-
+                    if (entity == "embedded_climate")
+                      return "climate";
+                    else {
+                      HomeAssistantEntity entity_id = extractHomeAssistantEntity(entity);
+                      if (extractHomeAssistantEntity(entity).domain == "alarm_control_panel")
+                        return "alarm";
+                      else
+                        return extractHomeAssistantEntity(entity).domain.c_str();
+                    }
+              - script.execute:
+                  id: set_variable_value
+                  variable: back_page_id
+                  val: !lambda return get_page_id(back_page.c_str());
+              - if:
+                  condition:
+                    - or:
+                        - lambda: |-
+                            return entity == "embedded_climate";
+                        - lambda: |-
+                            return extractHomeAssistantEntity(entity).domain == "climate";
+                  then:
+                    - script.execute:
+                        id: set_component_value
+                        component_id: climate.embedded
+                        val: !lambda if (entity == "embedded_climate") return 1; else return 0;
 
     # Icon action
     - action: icon
       variables:
-        page: string       # Page name
-        id: string         # Identifier of the component. See "Screen components" in the documentation.
-        icon: string       # Icon codepoint, e.g., "/uE6E8" for `mdi:lightbulb-on-outline`.
-        icon_color: int[]  # RGB color array for the icon, e.g., [0, 255, 0] for green.
-        visible: bool      # Set to `true` for visible or `false` for hidden.
+        page: string          # Page name
+        component_id: string  # Identifier of the component. See "Screen components" in the documentation.
+        icon: string          # Icon codepoint, e.g., "/uE6E8" for `mdi:lightbulb-on-outline`.
+        icon_color: int[]     # RGB color array for the icon, e.g., [0, 255, 0] for green.
+        visible: bool         # Set to `true` for visible or `false` for hidden.
       then:
-        - lambda: |-
-            if (!id(is_uploading_tft) and !id.empty()) {
-              delay(10*disp1->queue_size()+tf_uart->available());
-              disp1->set_component_text(id.c_str(), visible ? icon.c_str() : "");
-              delay(10*disp1->queue_size()+tf_uart->available());
-              if (icon_color.size() == 3)
-                disp1->set_component_font_color(id.c_str(), rgbTo565(icon_color));
-              delay(10*disp1->queue_size()+tf_uart->available());
-              set_component_visibility->execute(page.c_str(), id.c_str(), visible);
-            }
+        - if:
+            condition:
+              - lambda: return not component_id.empty();
+            then:
+              - script.execute:
+                  id: set_component_text
+                  component_id: !lambda return component_id;
+                  text: !lambda |-
+                    return visible ? icon.c_str() : "";
+              - if:
+                  condition:
+                    - lambda: return icon_color.size() == 3;
+                  then:
+                    - script.execute:
+                        id: set_component_font_color
+                        component_id: !lambda return component_id;
+                        color: !lambda return rgbTo565(icon_color[0], icon_color[1], icon_color[2]);
+              - script.execute:
+                  id: set_component_visibility
+                  page: !lambda return page;
+                  component_id: !lambda return component_id;
+                  show: !lambda return visible;
 
     # Updates an entity to display specific values with dynamic icons, names, and color codes.
     - action: value
       variables:
-        id: string          # Identifier of the entity. See "Screen components" for entity IDs.
-        icon: string        # Icon codepoint (e.g., "/uE6E8" for mdi:thermometer) from HASwitchPlate Material Design Icons.
-        icon_color: int[]   # RGB color array for the icon (e.g., [255, 0, 0] for red).
-        name: string        # Display name for the entity (e.g., "Temperature").
-        value: string       # Actual value to display (e.g., "75°F").
-        value_color: int[]  # RGB color array for the value text (e.g., [255, 255, 0] for yellow).
+        component_id: string  # Identifier of the entity. See "Screen components" for entity IDs.
+        icon: string          # Icon codepoint (e.g., "/uE6E8" for mdi:thermometer) from HASwitchPlate Material Design Icons.
+        icon_color: int[]     # RGB color array for the icon (e.g., [255, 0, 0] for red).
+        name: string          # Display name for the entity (e.g., "Temperature").
+        value: string         # Actual value to display (e.g., "75°F").
+        value_color: int[]    # RGB color array for the value text (e.g., [255, 255, 0] for yellow).
       then:
         - if:
             condition:
-              - lambda: return not id(is_uploading_tft);
-              - lambda: return not id.empty();
+              - lambda: return not component_id.empty();
             then:
               - script.execute:
                   id: set_value
-                  component_id: !lambda return id;
+                  component_id: !lambda return component_id;
                   icon: !lambda return icon;
                   icon_color: !lambda return icon_color;
                   name: !lambda return name;
@@ -146,16 +177,23 @@ api:
       variables:
         reset_timer: bool  # Determines whether to reset the sleep and dimming timers upon waking the display.
       then:
-        - lambda: |-
-            if (!id(is_uploading_tft)) {
-              if (current_page->state == "screensaver") goto_page->execute(wakeup_page_name->state.c_str());
-              if (reset_timer)
-                timer_reset_all->execute();
-              else {
-                timer_sleep->execute();
-                timer_dim->execute();
-              }
-            }
+        - if:
+            condition:
+              text_sensor.state:
+                id: current_page
+                state: screensaver
+            then:
+              - script.execute:
+                  id: goto_page
+                  page: !lambda return wakeup_page_name->state;
+        - if:
+            condition:
+              - lambda: return reset_timer;
+            then:
+              - script.execute: timer_reset_all
+            else:
+              - script.execute: timer_sleep
+              - script.execute: timer_dim
 
 binary_sensor:
   ## Delays initial info from HA to the display #####
@@ -166,22 +204,7 @@ binary_sensor:
     publish_initial_state: true
     entity_category: diagnostic
     icon: mdi:tablet-dashboard
-    lambda: |-
-      return (!id(is_uploading_tft) and disp1->is_setup());
-
-button:
-  ###### Power cycle Nextion Display ######
-  - name: Nextion display - Power cycle
-    id: screen_power_cycle
-    platform: template
-    internal: false
-    disabled_by_default: true
-    icon: mdi:power-cycle
-    entity_category: diagnostic
-    on_press:
-      - switch.turn_off: screen_power
-      - delay: 1s
-      - switch.turn_on: screen_power
+    lambda: return disp1->is_setup();
 
 display:
   - id: disp1
@@ -190,10 +213,16 @@ display:
 
     on_page:
       then:
-        - lambda: |-
-            if (!id(is_uploading_tft) and current_page->state != page_names[x]) {
-              current_page->publish_state(page_names[x]);
-            }
+        - if:
+            condition:
+              - not:
+                  - text_sensor.state:
+                      id: current_page
+                      state: !lambda return page_names[x];
+            then:
+              - text_sensor.template.publish:
+                  id: current_page
+                  state: !lambda return page_names[x];
 
     on_touch:
       then:
@@ -238,9 +267,9 @@ esphome:
         - switch.turn_off: screen_power
     - priority: 0.5
       then:
-        - lambda: |-
-            // Make it unavailable to blueprint calls
-            nextion_init->publish_state(false);
+        - binary_sensor.template.publish:  # Make it unavailable to blueprint calls
+            id: nextion_init
+            state: false
 
 globals:
   - id: last_page
@@ -251,7 +280,7 @@ globals:
   - id: mui_bytes_per_char
     type: uint8_t
     restore_value: true
-    initial_value: ${bytes_per_char}
+    initial_value: '1'
 
   - id: mui_decimal_separator
     type: char
@@ -270,15 +299,21 @@ light:
     default_transition_length: 0s
     on_turn_on:
       then:
-        - lambda: |-
-            ESP_LOGD("light", "Display: On");
-            if (current_page->state == "screensaver") disp1->goto_page(wakeup_page_name->state.c_str());
-            timer_reset_all->execute();
+        - logger.log: "Display: On"
+        - if:
+            condition:
+              - text_sensor.state:
+                  id: current_page
+                  state: screensaver
+            then:
+              - lambda: disp1->goto_page(wakeup_page_name->state.c_str());
+              - script.execute: timer_reset_all
     on_turn_off:
       then:
-        - lambda: |-
-            ESP_LOGD("light", "Display: Off");
-            goto_page->execute("screensaver");
+        - logger.log: "Display: Off"
+        - script.execute:
+            id: goto_page
+            page: screensaver
 
 logger:
   logs:
@@ -301,11 +336,18 @@ number:
       then:
         - lambda: |-
             disp1->send_command_printf("brightness=%i", int(x));
-            if (current_page->state != "screensaver") {
-              set_brightness->execute(x);
-              timer_dim->execute();
-              timer_sleep->execute();
-            }
+        - if:
+            condition:
+              - not:
+                  - text_sensor.state:
+                      id: current_page
+                      state: screensaver
+            then:
+              - script.execute:
+                  id: set_brightness
+                  brightness: !lambda return x;
+              - script.execute: timer_dim
+              - script.execute: timer_sleep
 
   ##### SCREEN BRIGHTNESS DIMMED DOWN #####
   - id: display_dim_brightness
@@ -323,10 +365,18 @@ number:
       then:
         - lambda: |-
             disp1->send_command_printf("brightness_dim=%i", int(x));
-            if (current_page->state != "screensaver" and current_brightness->state != x) {
-              set_brightness->execute(x);
-              timer_sleep->execute();
-            }
+        - if:
+            condition:
+              - not:
+                  - text_sensor.state:
+                      id: current_page
+                      state: screensaver
+              - lambda: return current_brightness->state != x;
+            then:
+              - script.execute:
+                  id: set_brightness
+                  brightness: !lambda return x;
+              - script.execute: timer_sleep
 
   ##### SCREEN BRIGHTNESS SLEEP #####
   - id: display_sleep_brightness
@@ -344,7 +394,7 @@ number:
       then:
         - lambda: |-
             disp1->send_command_printf("brightness_sleep=%i", int(x));
-            page_screensaver->execute();
+        - script.execute: page_screensaver
 
   ##### Timers #####
   - name: Timeout Page
@@ -360,7 +410,8 @@ number:
     icon: mdi:timer
     unit_of_measurement: "s"
     on_value:
-      - lambda: timer_page->execute();
+      then:
+        - script.execute: timer_page
   - name: Timeout Dimming
     platform: template
     id: timeout_dim
@@ -374,7 +425,8 @@ number:
     icon: mdi:timer
     unit_of_measurement: "s"
     on_value:
-      - lambda: timer_dim->execute();
+      then:
+        - script.execute: timer_dim
   - name: Timeout Sleep
     platform: template
     id: timeout_sleep
@@ -388,10 +440,19 @@ number:
     icon: mdi:timer
     unit_of_measurement: "s"
     on_value:
-      - lambda: |-
-          if (x == 0 and current_page->state == "screensaver") goto_page->execute(wakeup_page_name->state.c_str());
-          timer_dim->execute();
-          timer_sleep->execute();
+      then:
+        - script.execute: timer_dim
+        - script.execute: timer_sleep
+        - if:
+            condition:
+              - lambda: return x == 0;
+              - text_sensor.state:
+                  id: current_page
+                  state: screensaver
+            then:
+              - script.execute:
+                  id: goto_page
+                  page: !lambda return wakeup_page_name->state.c_str();
 
 output:
   # Output required by `display_light` to send the commands to Nextion
@@ -399,17 +460,18 @@ output:
     platform: template
     type: float
     write_action:
-      - lambda: |-
-          ESP_LOGD("output", "state:              %f", state);
-          const uint8_t current_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
-          ESP_LOGD("output", "current_brightness: %i%%", current_brightness);
-          set_brightness->execute(current_brightness);
+      then:
+        - script.execute:
+            id: set_brightness
+            brightness: !lambda 'return int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));'
 
 script:
   - id: !extend boot_progress_dump
     then:
-      - lambda: |-
-          ESP_LOGCONFIG("script.boot_progress_dump", " - HW Display:           %s", is_boot_step_completed(BOOT_STEP_HW_DISPLAY) ? "Completed" : "PENDING");
+      - script.execute:
+          id: boot_progress_dump_item
+          step: !lambda return BOOT_STEP_HW_DISPLAY;
+          step_name: HW Display
 
   - id: !extend boot_sequence
     then:
@@ -417,26 +479,26 @@ script:
           condition:
             - lambda: return isnan(display_mode->state);
           then:
-            - lambda: |-
-                ESP_LOGD("script.update_tft_info", "Updating TFT mode");
-                display_mode->update();
+            - logger.log: Updating TFT mode
+            - lambda: display_mode->update();
             - wait_until:
                 condition:
-                  - lambda: return !isnan(display_mode->state);
+                  - lambda: return not isnan(display_mode->state);
                 timeout: 10s
       - while:
           condition:
             - lambda: return isnan(display_charset->state);
           then:
-            - lambda: |-
-                ESP_LOGD("script.update_tft_info", "Updating TFT charset");
-                display_charset->update();
+            - logger.log: Updating TFT charset
+            - lambda: display_charset->update();
             - wait_until:
                 condition:
-                  - lambda: return !isnan(display_charset->state);
+                  - lambda: return not isnan(display_charset->state);
                 timeout: 10s
-      - lambda: |-
-          boot_progress->execute(BOOT_STEP_HW_DISPLAY, "HW Display - Boot sequence");
+      - script.execute:
+          id: boot_progress
+          step: !lambda return BOOT_STEP_HW_DISPLAY;
+          step_name: HW Display - Boot sequence
 
   - id: display_wrapped_text
     mode: queued
@@ -447,11 +509,7 @@ script:
       text_to_display: string
       line_length_limit: uint
     then:
-      - wait_until:
-          condition:
-            - lambda: return (disp1->queue_size() < 1);
-            - lambda: return (tf_uart->available() < 1);
-          timeout: 250ms
+      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
       - lambda: |-
           int startPos = 0;
           int endPos = 0;
@@ -478,10 +536,9 @@ script:
               while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
             }
           }
-          // ESP_LOGD("script.display_wrapped_text", "%s=%s", (std::string(page) + "." + component).c_str(), wrappedText.c_str());
           disp1->set_component_text((std::string(page) + "." + component).c_str(), wrappedText.c_str());
 
-  - id: !extend dump_config_report
+  - id: !extend dump_config
     then:
       - lambda: |-
           // Report UART
@@ -490,7 +547,7 @@ script:
           ESP_LOGCONFIG("${project_tag}", "  Queue size:  %d", tf_uart->available());
 
           // Report Nextion status
-          nextion_init->publish_state(!id(is_uploading_tft) and nextion_init->state and disp1->is_setup());
+          nextion_init->publish_state(nextion_init->state and disp1->is_setup());
           ESP_LOGCONFIG("${project_tag}", "Nextion:");
           ESP_LOGCONFIG("${project_tag}", "  Queue size:  %d", disp1->queue_size());
           if (disp1->is_setup())
@@ -530,7 +587,7 @@ script:
                 data:
                   device_name: !lambda return device_name->state.c_str();
                   esphome_version: ${version}
-                  type: button_click"
+                  type: button_click
                   page: !lambda return page.c_str();
                   component: !lambda return component.c_str();
                   command: !lambda return event.c_str();
@@ -540,7 +597,7 @@ script:
                 data:
                   device_name: !lambda return device_name->state.c_str();
                   esphome_version: ${version}
-                  type: button_click"
+                  type: generic
                   page: !lambda return page.c_str();
                   component: !lambda return component.c_str();
                   event: !lambda return event.c_str();
@@ -560,56 +617,75 @@ script:
     parameters:
       page: string
     then:
-      - lambda: if (current_page->state != page) disp1->goto_page(page.c_str());
+      - if:
+          condition:
+            - lambda: return (current_page->state != page);
+          then:
+            - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+            - lambda: disp1->goto_page(page.c_str());
 
   - id: !extend ha_button
     then:
-      - &reset_timer_if_not_screensaver
-        if:
+      - if:
           condition:
-            - lambda: return (current_page->state != "screensaver");
+            not:
+              text_sensor.state:
+                id: current_page
+                state: screensaver
           then:
             - script.execute: timer_reset_all
 
   - id: page_changed
     mode: restart
     then:
-      - *reset_timer_if_not_screensaver
+      - if:
+          condition:
+            not:
+              text_sensor.state:
+                id: current_page
+                state: screensaver
+          then:
+            - script.execute: timer_reset_all
       - if:  # Update the display light entity
           condition:
             - light.is_on: display_light
-            - lambda: |-
-                return current_page->state == "screensaver";
+            - text_sensor.state:
+                id: current_page
+                state: screensaver
           then:
             light.turn_off: display_light
           else:
             - if:
                 condition:
                   - light.is_off: display_light
-                  - lambda: |-
-                      return current_page->state != "screensaver";
+                  - not:
+                      - text_sensor.state:
+                          id: current_page
+                          state: screensaver
                 then:
                   - light.turn_on: display_light
+
+      - if:
+          condition:
+            - lambda: return current_page->state != "alarm";
+            - lambda: return current_page->state != "climate";
+            - lambda: return current_page->state != "cover";
+            - lambda: return current_page->state != "fan";
+            - lambda: return current_page->state != "light";
+            - lambda: return current_page->state != "media_player";
+            - lambda: return current_page->state != "confirm";
+            - lambda: return current_page->state != "keyb_num";
+          then:
+            - text_sensor.template.publish:
+                id: detailed_entity
+                state: ''
+            - script.execute:
+                id: send_command
+                cmd: back_page_id=1
 
       - lambda: |-
           // Report new page to logs
           ESP_LOGI("script.page_changed", "New page: %s", current_page->state.c_str());
-
-          // Reset globals
-          if
-            (
-              current_page->state != "alarm" &&
-              current_page->state != "climate" &&
-              current_page->state != "cover" &&
-              current_page->state != "fan" &&
-              current_page->state != "light" &&
-              current_page->state != "media_player" &&
-              current_page->state != "confirm" &&
-              current_page->state != "keyb_num"
-            ) {
-              detailed_entity->publish_state("");
-              disp1->send_command("back_page_id=1");
-          }
 
       - homeassistant.event:
           event: esphome.nspanel_ha_blueprint
@@ -621,7 +697,16 @@ script:
             last_page: !lambda return id(last_page).c_str();
             entity: !lambda return detailed_entity->state.c_str();
 
-      - lambda: id(last_page) = current_page->state;
+      - lambda: |-
+          id(last_page) = current_page->state;
+
+  - id: send_command
+    mode: queued
+    parameters:
+      cmd: string
+    then:
+      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - lambda: disp1->send_command(cmd.c_str());
 
   - id: set_baud_rate
     mode: restart
@@ -657,41 +742,69 @@ script:
   - id: set_brightness
     mode: restart
     parameters:
-      brightness: float
+      brightness: uint8_t
     then:
       - lambda: |-
-          if (!id(is_uploading_tft)) {
-            disp1->set_backlight_brightness(brightness / 100.0f);
-            current_brightness->update();
-            uint8_t current_light_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
-            ESP_LOGV("script.set_brightness(custom)", "current_light_brightness: %i%%", current_light_brightness);
-            if (brightness != current_light_brightness) {
-              if (current_page->state != "screensaver" and brightness > 0) {
-                ESP_LOGV("script.set_brightness(custom)", "Adjusting light brightness to %.3f%%", brightness / 100.0f);
-                auto call = display_light->turn_on();
-                call.set_brightness(brightness / 100.0f);
-                call.perform();
-              } else if (display_light->current_values.is_on()) {
-                ESP_LOGV("script.set_brightness(custom)", "Turning off light.");
-                auto call = display_light->turn_off();
-                call.set_brightness(0);
-                call.perform();
-              }
-            }
-          }
+          disp1->set_backlight_brightness(brightness / 100.0f);
+          current_brightness->update();
+      - if:
+          condition:
+            - lambda: |-
+                return (brightness != int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0)));
+          then:
+            - if:
+                condition:
+                  - lambda: |-
+                      return (current_page->state != "screensaver" and brightness > 0);
+                then:
+                  - light.turn_on:
+                      id: display_light
+                      brightness: !lambda return (brightness / 100.0f);
+                else:
+                  - if:
+                      condition:
+                        - light.is_on: display_light
+                      then:
+                        - light.turn_off: display_light
+
+  - id: set_component_font
+    mode: queued
+    parameters:
+      component_id: string
+      font: uint8_t
+    then:
+      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - lambda: disp1->set_component_font(component_id.c_str(), font);
 
   - id: set_component_font_color
     mode: queued
     parameters:
-      component: string
+      component_id: string
       color: int
     then:
-      - lambda: |-
-          disp1->set_component_font_color(component.c_str(), color);
+      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - lambda: disp1->set_component_font_color(component_id.c_str(), color);
+
+  - id: set_component_text
+    mode: queued
+    parameters:
+      component_id: string
+      text: string
+    then:
+      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - lambda: disp1->set_component_text(component_id.c_str(), text.c_str());
+
+  - id: set_component_value
+    mode: queued
+    parameters:
+      component_id: string
+      val: int
+    then:
+      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - lambda: disp1->set_component_value(component_id.c_str(), val);
 
   - id: set_component_visibility
     mode: queued
-    max_runs: 15
     parameters:
       page: string
       component_id: string
@@ -699,13 +812,15 @@ script:
     then:
       - wait_until:
           condition:
-            - lambda: return (disp1->queue_size() < 1);
-            - lambda: return (tf_uart->available() < 1);
             - lambda: return (page == current_page->state);
           timeout: 50ms
-      - lambda: |-
-          delay(10*disp1->queue_size()+tf_uart->available());
-          if (page == current_page->state) disp1->send_command_printf("vis %s,%i", component_id.c_str(), show ? 1 : 0);
+      - if:
+          condition:
+            - lambda: return (page == current_page->state);
+          then:
+            - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+            - lambda: |-
+                disp1->send_command_printf("vis %s,%i", component_id.c_str(), show ? 1 : 0);
 
   - id: set_value
     mode: queued
@@ -719,14 +834,14 @@ script:
     then:
       - lambda: |-
           // using namespace esphome::display;
-          if (!(icon.empty())) disp1->set_component_text((component_id + "_icon").c_str(), icon.c_str());
+          if (!(icon.empty())) set_component_text->execute((component_id + "_icon").c_str(), icon.c_str());
           if (icon_color.size() == 3)
-            disp1->set_component_font_color((component_id + "_icon").c_str(), rgbTo565(icon_color));
+            set_component_font_color->execute((component_id + "_icon").c_str(), rgbTo565(icon_color[0], icon_color[1], icon_color[2]));
 
-          if (!(name.empty())) disp1->set_component_text((component_id + "_label").c_str(), name.c_str());
-          if (!(value.empty())) disp1->set_component_text(component_id.c_str(), adjustDecimalSeparator(value, id(mui_decimal_separator)).c_str());
+          if (!(name.empty())) set_component_text->execute((component_id + "_label").c_str(), name.c_str());
+          if (!(value.empty())) set_component_text->execute(component_id.c_str(), adjustDecimalSeparator(value, id(mui_decimal_separator)).c_str());
           if (value_color.size() == 3)
-            disp1->set_component_font_color(component_id.c_str(), rgbTo565(value_color));
+            set_component_font_color->execute(component_id.c_str(), rgbTo565(value_color[0], value_color[1], value_color[2]));
 
   - id: !extend set_var_int
     then:
@@ -741,15 +856,27 @@ script:
             boot_progress->execute(BOOT_STEP_HW_DISPLAY, "HW Display - Decimal separator");
           }
 
+  - id: set_variable_value
+    mode: queued
+    parameters:
+      variable: string
+      val: int
+    then:
+      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - lambda: |-
+          disp1->send_command_printf("%s=%i", variable.c_str(), val);
+
   - id: !extend stop_all
     then:
       - script.stop: display_wrapped_text
       - script.stop: event_from_display
       - script.stop: goto_page
       - script.stop: page_changed
+      - script.stop: send_command
       - script.stop: set_baud_rate
       - script.stop: set_brightness
       - script.stop: set_component_font_color
+      - script.stop: set_component_text
       - script.stop: set_component_visibility
       - script.stop: set_value
       - script.stop: timer_reset_all
@@ -761,10 +888,9 @@ script:
   - id: timer_reset_all  # Global timer reset - Triggered with a touch on the screen
     mode: restart
     then:
-      - lambda: |-
-          timer_page->execute();
-          timer_dim->execute();
-          timer_sleep->execute();
+      - script.execute: timer_page
+      - script.execute: timer_dim
+      - script.execute: timer_sleep
   - id: timer_page       # Handles the fallback to home page after a timeout
     mode: restart
     then:
@@ -779,20 +905,22 @@ script:
                         current_page->state != "screensaver");
           then:
             - delay: !lambda return (int(timeout_page->state) *1000);
-            - lambda: |-
-                #if ESPHOME_LOG_LEVEL > ESPHOME_LOG_LEVEL_DEBUG
-                ESP_LOGV("script.timer_page", "Timed out on page: %s", current_page->state.c_str());
-                #endif
-                if (timeout_page->state >= 1 and
-                    current_page->state != "boot" and
-                    current_page->state != "confirm" and
-                    current_page->state != "home" and
-                    current_page->state != "notification" and
-                    current_page->state != "screensaver")
-                  {
-                    ESP_LOGD("script.timer_page", "Fallback to page Home");
-                    goto_page->execute("home");
-                  }
+            - if:
+                condition:
+                  - lambda: |-
+                      return (timeout_page->state >= 1 and
+                              current_page->state != "boot" and
+                              current_page->state != "confirm" and
+                              current_page->state != "home" and
+                              current_page->state != "notification" and
+                              current_page->state != "screensaver");
+                then:
+                  - logger.log:
+                      format: "Fallback to page Home"
+                      level: INFO
+                  - script.execute:
+                      id: goto_page
+                      page: home
   - id: timer_dim        # Handles the brightness dimming after a timeout
     mode: restart
     then:
@@ -805,32 +933,69 @@ script:
           }
       - if:
           condition:
-            - lambda: return (timeout_dim->state >= 1);
+            - number.in_range:
+                id: timeout_dim
+                above: 1
           then:
             - delay: !lambda return (int(timeout_dim->state) *1000);
-            - lambda: |-
-                if (current_page->state != "screensaver" and
-                    current_page->state != "boot" and
-                    timeout_dim->state >= 1) {
-                  set_brightness->execute(display_dim_brightness->state);
-                }
+            - if:
+                condition:
+                  - number.in_range:
+                      id: timeout_dim
+                      above: 1
+                  - not:
+                      text_sensor.state:
+                        id: current_page
+                        state: boot
+                  - not:
+                      text_sensor.state:
+                        id: current_page
+                        state: screensaver
+                then:
+                  - script.execute:
+                      id: set_brightness
+                      brightness: !lambda return display_dim_brightness->state;
   - id: timer_sleep  # Handles the sleep (go to screensaver page) after a timeout
     mode: restart
     then:
       - if:
           condition:
-            - lambda: |-
-                return (timeout_sleep->state >= 1 and current_page->state != "screensaver" and current_page->state != "boot");
+            - number.in_range:
+                id: timeout_sleep
+                above: 1
+            - not:
+                text_sensor.state:
+                  id: current_page
+                  state: boot
+            - not:
+                text_sensor.state:
+                  id: current_page
+                  state: screensaver
           then:
             - delay: !lambda return (int(timeout_sleep->state) *1000);
-            - lambda: |-
-                if (current_page->state != "screensaver" and
-                    current_page->state != "boot" and
-                    timeout_sleep->state >= 1) {
-                  ESP_LOGD("script.timer_sleep", "Going to sleep from page %s", current_page->state.c_str());
-                  goto_page->execute("screensaver");
-                  set_brightness->execute(display_sleep_brightness->state);
-                }
+            - if:
+                condition:
+                  - number.in_range:
+                      id: timeout_sleep
+                      above: 1
+                  - not:
+                      - text_sensor.state:
+                          id: current_page
+                          state: boot
+                  - not:
+                      - text_sensor.state:
+                          id: current_page
+                          state: screensaver
+                then:
+                  - logger.log:
+                      format: "Going to sleep from page %s"
+                      args: ['current_page->state.c_str()']
+                  - script.execute:
+                      id: goto_page
+                      page: screensaver
+                  - script.execute:
+                      id: set_brightness
+                      brightness: !lambda return display_sleep_brightness->state;
 
 select:
   - id: baud_rate
@@ -858,7 +1023,11 @@ select:
     disabled_by_default: true
     icon: mdi:swap-horizontal
     on_value:
-      - lambda: set_baud_rate->execute(stoi(x), true);
+      then:
+        - script.execute:
+            id: set_baud_rate
+            baud_rate: !lambda return stoi(x);
+            definitive: true
 
   - id: wakeup_page_name
     name: Wake-up page
@@ -883,8 +1052,8 @@ select:
     entity_category: config
     icon: mdi:page-next-outline
     on_value:
-      - lambda: |-
-          page_screensaver->execute();
+      then:
+        - script.execute: page_screensaver
 
 sensor:
   ###### Display Brightness GET VALUE FROM NSPanel SLIDER #####
@@ -895,11 +1064,10 @@ sensor:
     internal: true
     on_value:
       then:
+        - script.execute: timer_reset_all
         - number.set:
             id: display_brightness
             value: !lambda return int(x);
-        - lambda: |-
-            timer_reset_all->execute();
 
   ###### Display DIM Brightness GET VALUE FROM NSPanel SLIDER #####
   - id: dimslider
@@ -909,11 +1077,10 @@ sensor:
     internal: true
     on_value:
       then:
+        - script.execute: timer_reset_all
         - number.set:
             id: display_dim_brightness
             value: !lambda return int(x);
-        - lambda: |-
-            timer_reset_all->execute();
 
   ###### Display Brightness - Current value (%) #####
   - id: current_brightness
@@ -971,8 +1138,10 @@ switch:
     internal: true
     disabled_by_default: false
     on_turn_off:
-      - lambda: |-
-          nextion_init->publish_state(false);
+      then:
+        - binary_sensor.template.publish:
+            id: nextion_init
+            state: false
 
 text_sensor:
   - id: current_page  # Current page name
@@ -988,10 +1157,12 @@ text_sensor:
           x.shrink_to_fit();
           return x;
     on_value:
-      lambda: |-
-        if (!id(is_uploading_tft) and x != id(last_page)) {
-          page_changed->execute();
-        }
+      then:
+        - if:
+            condition:
+              - lambda: return x != id(last_page);
+            then:
+              - script.execute: page_changed
 
   - id: disp1_local_event  # NSPanel event - Execute actions from ESPHome - NO directly push to HA
     name: NSPanel local event

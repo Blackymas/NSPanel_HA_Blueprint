@@ -28,38 +28,45 @@ script:
       - lambda: |-
           ESP_LOGCONFIG("script.boot_progress_dump", " - Page Home:            %s", is_boot_step_completed(BOOT_STEP_PAGE_HOME) ? "Completed" : "PENDING");
 
-  - id: !extend boot_sequence
-    then:
-      - lambda: |-
-          #if defined(USE_ESP32_BLE_SERVER) || defined(USE_ESP32_BLE_CLIENT) || defined(USE_BLUETOOTH_PROXY) || defined(USE_IMPROV)
-          disp1->set_component_text("home.bt_icon", "\uE0AE");
-          #endif
-
   - id: chip_font
     mode: restart
     parameters:
       chip_font: uint8_t
       boot: bool
     then:
-      - lambda: |-
-          if (boot or chip_font != id(home_chip_font_id)) {
-            id(home_chip_font_id) = chip_font;
-            delay(10*disp1->queue_size()+tf_uart->available());
-            disp1->set_component_font("home.wifi_icon", chip_font);
-            // Chips icon size
-            delay(10*disp1->queue_size()+tf_uart->available());
-            disp1->set_component_font("home.chip_relay1", chip_font);
-            delay(10*disp1->queue_size()+tf_uart->available());
-            disp1->set_component_font("home.chip_relay2", chip_font);
-            delay(10*disp1->queue_size()+tf_uart->available());
-            disp1->set_component_font("home.chip_climate", chip_font);
-
-            for (int i = 1; i <= 7; ++i) {
-              delay(10*disp1->queue_size()+tf_uart->available());
-              disp1->send_command_printf("home.chip%02d.font=%" PRIu8, i, chip_font);
-            }
-          }
-          boot_progress->execute(BOOT_STEP_PAGE_HOME, "Page Home - Chip font");
+      - if:
+          condition:
+            - or:
+                - lambda: return boot;
+                - lambda: return chip_font != id(home_chip_font_id);
+          then:
+            - lambda: id(home_chip_font_id) = chip_font;
+      - script.execute:
+          id: set_component_font
+          component_id: home.wifi_icon
+          font: !lambda return chip_font;
+      - script.execute:
+          id: set_component_font
+          component_id: home.chip_relay1
+          font: !lambda return chip_font;
+      - script.execute:
+          id: set_component_font
+          component_id: home.chip_relay2
+          font: !lambda return chip_font;
+      - script.execute:
+          id: set_component_font
+          component_id: home.chip_climate
+          font: !lambda return chip_font;
+      - repeat:
+          count: 7
+          then:
+            - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+            - lambda: |-
+                disp1->send_command_printf("home.chip%02" PRIu32 ".font=%" PRIu8, iteration, chip_font);
+      - script.execute:
+          id: boot_progress
+          step: !lambda return BOOT_STEP_PAGE_HOME;
+          step_name: Page Home - Chip font
 
   - id: custom_buttons_font
     mode: restart
@@ -71,13 +78,21 @@ script:
           if (boot or custom_buttons_font != id(home_custom_buttons_font_id)) {
             id(home_custom_buttons_font_id) = custom_buttons_font;
             delay(10*disp1->queue_size()+tf_uart->available());
+            App.feed_wdt();
+            yield();
             disp1->set_component_font("home.bt_notific", id(home_custom_buttons_font_id));
             delay(10*disp1->queue_size()+tf_uart->available());
+            App.feed_wdt();
+            yield();
             disp1->set_component_font("home.bt_qrcode", id(home_custom_buttons_font_id));
             delay(10*disp1->queue_size()+tf_uart->available());
+            App.feed_wdt();
+            yield();
             disp1->set_component_font("home.bt_entities", id(home_custom_buttons_font_id));
             for (int i = 1; i <= 7; ++i) {
               delay(10*disp1->queue_size()+tf_uart->available());
+              App.feed_wdt();
+              yield();
               disp1->send_command_printf("home.button%02d.font=%" PRIu8, i, id(home_custom_buttons_font_id));
             }
           }
@@ -85,11 +100,18 @@ script:
 
   - id: !extend boot_sequence
     then:
-      - lambda: |-
-          boot_log->execute("Boot", "Set Home page elements");
-          // Chips icon size
-          chip_font->execute(id(home_chip_font_id), true);
-          custom_buttons_font->execute(id(home_custom_buttons_font_id), true);
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: Set Home page elements
+      - script.execute:
+          id: chip_font
+          chip_font: !lambda return id(home_chip_font_id);
+          boot: true
+      - script.execute:
+          id: custom_buttons_font
+          custom_buttons_font: !lambda return id(home_custom_buttons_font_id);
+          boot: true
 
   - id: !extend page_changed
     then:

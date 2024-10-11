@@ -55,9 +55,9 @@ climate:
     on_boot_restore_from: memory
     internal: false
     on_state:
-      - lambda: |-
-          page_climate->execute();
-          page_home->execute();
+      then:
+        - script.execute: page_climate
+        - script.execute: page_home
 
 globals:
   ##### Is embedded thermostat visible on climate page? #####
@@ -80,42 +80,62 @@ switch:
   - name: Relay 0 (dummy)
     platform: template
     id: relay_0
-    lambda: !lambda return false;
+    lambda: return false;
     internal: true
     optimistic: true
 
 script:
   - id: !extend change_climate_state
     then:
-      - lambda: |-
-          if (embedded and !id(is_uploading_tft)) {
-            auto FahrenheitToCelsius = [](float fahrenheit) -> float {
-              return (fahrenheit - 32.0) * 5.0 / 9.0;
-            };
-            std::string temp_units = "${temp_units}";
-            bool temp_unit_fahrenheit = (temp_units == "°F" || temp_units == "F" || temp_units == "°f" || temp_units == "f");
-            auto call = thermostat_embedded->make_call();
-            float temperature;
-
-            id(is_addon_climate_visible) = true;
-            disp1->set_component_value("climate.embedded", 1);
-            if (key == "temperature") {
-              temperature = stof(value) / 10;
-              if (temp_unit_fahrenheit) temperature = FahrenheitToCelsius(temperature);
-              call.set_target_temperature(temperature);
-            } else if (key == "target_temp_high") {
-              temperature = stof(value) / 10;
-              if (temp_unit_fahrenheit) temperature = FahrenheitToCelsius(temperature);
-              call.set_target_temperature_high(temperature);
-            } else if (key == "target_temp_low") {
-              temperature = stof(value) / 10;
-              if (temp_unit_fahrenheit) temperature = FahrenheitToCelsius(temperature);
-              call.set_target_temperature_low(temperature);
-            } else if (key == "hvac_mode") {
-              call.set_mode(value);
-            }
-            call.perform();
-          }
+      - if:
+          condition:
+            - lambda: return embedded;
+          then:
+            - script.execute:
+                id: set_component_value
+                component_id: climate.embedded
+                val: 1
+            - lambda: id(is_addon_climate_visible) = true;
+            - if:
+                condition:
+                  - lambda: return key == "temperature";
+                then:
+                  - climate.control:
+                      id: thermostat_embedded
+                      target_temperature: !lambda |-
+                        if (id(temperature_is_celsius))
+                          return (stof(value) / 10);
+                        else
+                          return (((stof(value) / 10) - 32.0) * 5.0 / 9.0);
+            - if:
+                condition:
+                  - lambda: return key == "target_temp_high";
+                then:
+                  - climate.control:
+                      id: thermostat_embedded
+                      target_temperature_high: !lambda |-
+                        if (id(temperature_is_celsius))
+                          return (stof(value) / 10);
+                        else
+                          return (((stof(value) / 10) - 32.0) * 5.0 / 9.0);
+            - if:
+                condition:
+                  - lambda: return key == "target_temp_low";
+                then:
+                  - climate.control:
+                      id: thermostat_embedded
+                      target_temp_low: !lambda |-
+                        if (id(temperature_is_celsius))
+                          return (stof(value) / 10);
+                        else
+                          return (((stof(value) / 10) - 32.0) * 5.0 / 9.0);
+            - if:
+                condition:
+                  - lambda: return key == "hvac_mode";
+                then:
+                  - climate.control:
+                      id: thermostat_embedded
+                      mode: !lambda return value.c_str();
 
   - id: !extend dump_config
     then:
@@ -130,119 +150,198 @@ script:
           #elif !defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL) && !defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT) && !defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL)
             #error "Invalid settings for add-on Climate. No option selected between Cool, Heat or Dual."
           #endif
-          if (!id(is_uploading_tft)) {
-            static const char *const TAG = "nspanel_ha_blueprint";
-            const uint cooler_relay = ${cooler_relay};
-            const uint heater_relay = ${heater_relay};
-            ESP_LOGCONFIG(TAG, "Add-on climate:");
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL
-            ESP_LOGCONFIG(TAG, "  Cool:  Enabled");
-            if (cooler_relay == 1 or cooler_relay == 2)
-              ESP_LOGCONFIG(TAG, "  Relay: %u", cooler_relay);
-            else
-              ESP_LOGE(TAG, "  Relay: %u", cooler_relay);
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT
-            ESP_LOGCONFIG(TAG, "  Heat:  Enabled");
-            if (heater_relay == 1 or heater_relay == 2)
-              ESP_LOGCONFIG(TAG, "  Relay: %u", heater_relay);
-            else
-              ESP_LOGE(TAG, "  Relay: %u", heater_relay);
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
-            ESP_LOGCONFIG(TAG, "  Dual:  Enabled");
-            if (cooler_relay == 1 or cooler_relay == 2)
-              ESP_LOGCONFIG(TAG, "  Relay (cooler): %u", cooler_relay);
-            else
-              ESP_LOGE(TAG, "  Relay (cooler): %u", cooler_relay);
-            if (heater_relay == 1 or heater_relay == 2)
-              ESP_LOGCONFIG(TAG, "  Relay (heater): %u", heater_relay);
-            else
-              ESP_LOGE(TAG, "  Relay (heater): %u", heater_relay);
-            if (cooler_relay == heater_relay)
-              ESP_LOGE(TAG, "  Double relay assignment");
-            #endif
-          }
+          const uint cooler_relay = ${cooler_relay};
+          const uint heater_relay = ${heater_relay};
+          ESP_LOGCONFIG("${project_tag}", "Add-on climate:");
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL
+          ESP_LOGCONFIG("${project_tag}", "  Cool:  Enabled");
+          if (cooler_relay == 1 or cooler_relay == 2)
+            ESP_LOGCONFIG("${project_tag}", "  Relay: %u", cooler_relay);
+          else
+            ESP_LOGE("${project_tag}", "  Relay: %u", cooler_relay);
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT
+          ESP_LOGCONFIG("${project_tag}", "  Heat:  Enabled");
+          if (heater_relay == 1 or heater_relay == 2)
+            ESP_LOGCONFIG("${project_tag}", "  Relay: %u", heater_relay);
+          else
+            ESP_LOGE("${project_tag}", "  Relay: %u", heater_relay);
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+          ESP_LOGCONFIG("${project_tag}", "  Dual:  Enabled");
+          if (cooler_relay == 1 or cooler_relay == 2)
+            ESP_LOGCONFIG("${project_tag}", "  Relay (cooler): %u", cooler_relay);
+          else
+            ESP_LOGE("${project_tag}", "  Relay (cooler): %u", cooler_relay);
+          if (heater_relay == 1 or heater_relay == 2)
+            ESP_LOGCONFIG("${project_tag}", "  Relay (heater): %u", heater_relay);
+          else
+            ESP_LOGE("${project_tag}", "  Relay (heater): %u", heater_relay);
+          if (cooler_relay == heater_relay)
+            ESP_LOGE("${project_tag}", "  Double relay assignment");
+          #endif
 
   - id: !extend page_climate
     then:
       - lambda: |-
           id(is_addon_climate_visible) = (current_page->state == "climate" and detailed_entity->state == "embedded_climate");
-          if (id(is_addon_climate_visible) and !id(is_uploading_tft)) {
-            auto CelsiusToFahrenheit = [](float celsius) -> float {
-              return (celsius * 9 / 5) + 32;
-            };
-            const std::string temp_units = "${temp_units}";
-            const bool temp_unit_fahrenheit = (temp_units == "°F" || temp_units == "F" || temp_units == "°f" || temp_units == "f");
-            ClimateTraits traits = thermostat_embedded->get_traits();
+      - if:
+          condition:
+            - lambda: return id(is_addon_climate_visible);
+          then:
+            - script.execute:
+                id: set_component_text
+                component: page_label
+                text: !lambda return id(addon_climate_friendly_name).c_str();
+            - lambda: |-
+                inline auto CelsiusToFahrenheit = [](float celsius) -> float {
+                  return (celsius * 9 / 5) + 32;
+                };
+                ClimateTraits traits = thermostat_embedded->get_traits();
 
-            disp1->set_component_text("page_label", id(addon_climate_friendly_name).c_str());
-            float temp_step = traits.get_visual_target_temperature_step();
-            float temp_offset = traits.get_visual_min_temperature();
-            float temp_max = traits.get_visual_max_temperature();
-            float temp_target = thermostat_embedded->target_temperature;
-            float temp_target_high = thermostat_embedded->target_temperature_high;
-            float temp_target_low = thermostat_embedded->target_temperature_low;
-            float temp_current = thermostat_embedded->current_temperature;
-            if (temp_unit_fahrenheit) {
-              //temp_step = CelsiusToFahrenheit(temp_step);
-              temp_step = std::ceil(temp_step * 1.8);
-              temp_offset = CelsiusToFahrenheit(temp_offset);
-              temp_max = CelsiusToFahrenheit(temp_max);
-              temp_target = CelsiusToFahrenheit(temp_target);
-              temp_target_high = CelsiusToFahrenheit(temp_target_high);
-              temp_target_low = CelsiusToFahrenheit(temp_target_low);
-              temp_current = CelsiusToFahrenheit(temp_current);
-            }
-            float total_steps = (temp_max-temp_offset)/temp_step;
-            set_climate->execute
-              (
-                temp_current,                                         // current_temp
-                0,                                                    // supported_features
-                ((${addon_climate_dual}) ? -999 : temp_target),       // target_temp
-                ((${addon_climate_dual}) ? temp_target_high : -999),  // target_temp_high
-                ((${addon_climate_dual}) ? temp_target_low : -999),   // target_temp_low
-                int(round(temp_step*10)),                             // temp_step
-                int(round(total_steps)),                              // total_steps
-                int(round(temp_offset*10)),                           // temp_offset
-                "",                                                   // climate_icon
-                true                                                  // embedded_climate
-              );
-
-              // Update target temp icon
-              update_climate_icon->execute("target_icon", int(thermostat_embedded->action), int(thermostat_embedded->mode));
-
-              // Update buttons bar
-              // Hide not supported hotspots
-              disp1->hide_component("button01");
-              if (${addon_climate_dual}) disp1->show_component("button02"); else disp1->hide_component("button02");
-              if (${addon_climate_heat} or ${addon_climate_dual}) disp1->show_component("button03"); else disp1->hide_component("button03"); //Heat
-              if (${addon_climate_cool} or ${addon_climate_dual}) disp1->show_component("button04"); else disp1->hide_component("button04"); //Cool
-              disp1->hide_component("button05");
-              disp1->hide_component("button06");
-              disp1->show_component("button07"); //Off
-              // Set buttons colors
-              disp1->set_component_font_color("button01", 6339);
-              disp1->set_component_font_color("button02", (thermostat_embedded->mode==climate::CLIMATE_MODE_HEAT_COOL) ? 65535 : ((${addon_climate_dual}) ? 48631 : 6339));
-              disp1->set_component_font_color("button03", (thermostat_embedded->mode==climate::CLIMATE_MODE_HEAT) ? 64164 : ((${addon_climate_heat} or ${addon_climate_dual}) ? 48631 : 6339));
-              disp1->set_component_font_color("button04", (thermostat_embedded->mode==climate::CLIMATE_MODE_COOL) ? 1055 : ((${addon_climate_cool} or ${addon_climate_dual}) ? 48631 : 6339));
-              disp1->set_component_font_color("button05", 6339);
-              disp1->set_component_font_color("button06", 6339);
-              disp1->set_component_font_color("button07", (thermostat_embedded->mode==climate::CLIMATE_MODE_OFF) ? 10597 : 35921);
-            }
+                float temp_step = traits.get_visual_target_temperature_step();
+                float temp_offset = traits.get_visual_min_temperature();
+                float temp_max = traits.get_visual_max_temperature();
+                float temp_target = thermostat_embedded->target_temperature;
+                float temp_target_high = thermostat_embedded->target_temperature_high;
+                float temp_target_low = thermostat_embedded->target_temperature_low;
+                float temp_current = thermostat_embedded->current_temperature;
+                if (!id(temperature_is_celsius)) {
+                  //temp_step = CelsiusToFahrenheit(temp_step);
+                  temp_step = std::ceil(temp_step * 1.8);
+                  temp_offset = CelsiusToFahrenheit(temp_offset);
+                  temp_max = CelsiusToFahrenheit(temp_max);
+                  temp_target = CelsiusToFahrenheit(temp_target);
+                  temp_target_high = CelsiusToFahrenheit(temp_target_high);
+                  temp_target_low = CelsiusToFahrenheit(temp_target_low);
+                  temp_current = CelsiusToFahrenheit(temp_current);
+                }
+                float total_steps = (temp_max-temp_offset)/temp_step;
+                set_climate->execute
+                  (
+                    temp_current,                                         // current_temp
+                    0,                                                    // supported_features
+                    ((${addon_climate_dual}) ? -999 : temp_target),       // target_temp
+                    ((${addon_climate_dual}) ? temp_target_high : -999),  // target_temp_high
+                    ((${addon_climate_dual}) ? temp_target_low : -999),   // target_temp_low
+                    int(round(temp_step*10)),                             // temp_step
+                    int(round(total_steps)),                              // total_steps
+                    int(round(temp_offset*10)),                           // temp_offset
+                    "",                                                   // climate_icon
+                    true                                                  // embedded_climate
+                  );
+            - script.execute:
+                id: update_climate_icon
+                component: target_icon
+                action: !lambda return int(thermostat_embedded->action);
+                mode: !lambda return int(thermostat_embedded->mode);
+            - script.execute:
+                id: set_component_visibility
+                page: climate
+                component_id: button01
+                show: false
+            - script.execute:
+                id: set_component_visibility
+                page: climate
+                component_id: button02
+                show: !lambda return (${addon_climate_dual});
+            - script.execute:
+                id: set_component_visibility
+                page: climate
+                component_id: button03  # Heat
+                show: !lambda return (${addon_climate_heat} or ${addon_climate_dual});
+            - script.execute:
+                id: set_component_visibility
+                page: climate
+                component_id: button04  # Cool
+                show: !lambda return (${addon_climate_cool} or ${addon_climate_dual});
+            - script.execute:
+                id: set_component_visibility
+                page: climate
+                component_id: button05
+                show: false
+            - script.execute:
+                id: set_component_visibility
+                page: climate
+                component_id: button06
+                show: false
+            - script.execute:
+                id: set_component_visibility
+                page: climate
+                component_id: button07  # Off
+                show: true
+            - script.execute:
+                id: set_component_font_color
+                component_id: button01
+                color: 6339
+            - script.execute:
+                id: set_component_font_color
+                component_id: button02
+                color: !lambda |-
+                  if (thermostat_embedded->mode==climate::CLIMATE_MODE_HEAT_COOL)
+                    return 65535;
+                  else if (${addon_climate_dual})
+                    return 48631;
+                  else
+                    return 6339;
+            - script.execute:
+                id: set_component_font_color
+                component_id: button03
+                color: !lambda |-
+                  if (thermostat_embedded->mode==climate::CLIMATE_MODE_HEAT)
+                    return 64164;
+                  else if (${addon_climate_heat} or ${addon_climate_dual})
+                    return 48631;
+                  else
+                    return 6339;
+            - script.execute:
+                id: set_component_font_color
+                component_id: button04
+                color: !lambda |-
+                  if (thermostat_embedded->mode==climate::CLIMATE_MODE_COOL)
+                    return 1055;
+                  else if (${addon_climate_cool} or ${addon_climate_dual})
+                    return 48631;
+                  else
+                    return 6339;
+            - script.execute:
+                id: set_component_font_color
+                component_id: button05
+                color: 6339
+            - script.execute:
+                id: set_component_font_color
+                component_id: button06
+                color: 6339
+            - script.execute:
+                id: set_component_font_color
+                component_id: button07
+                color: !lambda |-
+                  if (thermostat_embedded->mode==climate::CLIMATE_MODE_OFF)
+                    return 10597;
+                  else
+                    return 35921;
 
   - id: !extend page_home
     then:
-      - lambda: |-
-          // Update chips
-          if (id(is_embedded_thermostat) and !id(is_uploading_tft))
-            update_climate_icon->execute("home.chip_climate", int(thermostat_embedded->action), int(thermostat_embedded->mode));
+      - if:
+          condition:
+            - lambda: return id(is_embedded_thermostat);
+          then:
+            - script.execute:
+                id: update_climate_icon
+                component: home.chip_climate
+                action: !lambda return int(thermostat_embedded->action);
+                mode: !lambda return int(thermostat_embedded->mode);
 
   - id: !extend set_climate
     then:
-      - lambda: |-
-          if (current_page->state == "climate" and !id(is_uploading_tft))
-            id(is_addon_climate_visible) = embedded_climate;
+      - if:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: climate
+          then:
+            - lambda: id(is_addon_climate_visible) = embedded_climate;
 
   - id: !extend set_var_string
     then:

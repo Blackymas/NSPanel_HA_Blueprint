@@ -10,7 +10,6 @@
 
 ---
 api:
-  id: !extend api_server
   actions:
     # Updates the alarm settings page with current state and configuration, integrating with the panel's interface.
     - action: page_alarm
@@ -25,7 +24,7 @@ api:
       then:
         - lambda: |-
             // Is page Alarm visible?
-            if (current_page->state == "alarm" and !id(is_uploading_tft))  // To do: This page constructor should be moved to Blueprint
+            if (current_page->state == "alarm")  // To do: This page constructor should be moved to Blueprint
               { // Update alarm page
                   detailed_entity->publish_state(entity);
 
@@ -150,21 +149,52 @@ script:
 
   - id: !extend event_from_display
     then:
-      - lambda: |-
-          if (page == "alarm") {
-            const std::string code_format = json["code_format"];
-            const std::string code_arm_req = json["code_arm_req"];
-            const std::string title = json["mui"];
-            if (code_format == "number" and (key == "disarm" or code_arm_req == "1")) {
-              goto_page->execute("keyb_num");
-              disp1->set_component_value("keyb_num.page_id", get_page_id("alarm")); //Calling from Alarm page
-              disp1->set_component_text("keyb_num.domain", page.c_str());
-              disp1->set_component_text("keyb_num.key", key.c_str());
-              disp1->set_component_text("keyb_num.value", value.c_str());
-              disp1->set_component_text("keyb_num.entity", detailed_entity->state.c_str());
-              disp1->set_component_text("keyb_num.title", title.c_str());
-              } else action_call_alarm_control_panel->execute(detailed_entity->state.c_str(), key.c_str(), code_format.c_str(), "");
-          }
+      - if:
+          condition:
+            - lambda: |-
+                return (page == "alarm");
+          then:
+            - if:
+                condition:
+                  - lambda: |-
+                      return json["code_format"] == "number";
+                  - lambda: |-
+                      return (key == "disarm" or json["code_arm_req"] == "1");
+                then:
+                  - script.execute:
+                      id: goto_page
+                      page: keyb_num
+                  - script.execute:
+                      id: set_component_value
+                      component_id: keyb_num.page_id
+                      val: !lambda return get_page_id("alarm");
+                  - script.execute:
+                      id: set_component_text
+                      component_id: keyb_num.domain
+                      text: !lambda return page.c_str();
+                  - script.execute:
+                      id: set_component_text
+                      component_id: keyb_num.key
+                      text: !lambda return key.c_str();
+                  - script.execute:
+                      id: set_component_text
+                      component_id: keyb_num.value
+                      text: !lambda return value.c_str();
+                  - script.execute:
+                      id: set_component_text
+                      component_id: keyb_num.entity
+                      text: !lambda return detailed_entity->state.c_str();
+                  - script.execute:
+                      id: set_component_text
+                      component_id: keyb_num.title
+                      text: !lambda return json["mui"];
+                else:
+                  - script.execute:
+                      id: action_call_alarm_control_panel
+                      entity: !lambda return detailed_entity->state.c_str();
+                      key: !lambda return key.c_str();
+                      code_format: !lambda return json["code_format"];
+                      pin: ''
 
   # - id: page_alarm
   #   mode: restart
