@@ -1,7 +1,6 @@
 // boot.cpp
 
 #include "boot.h"  // Include the header file for function and variable declarations.
-#include "esphome/core/application.h"
 
 namespace nspanel_ha_blueprint {
 
@@ -12,18 +11,17 @@ namespace nspanel_ha_blueprint {
     // Function to mark a boot step as completed.
     // Parameters:
     //   step - The boot step constant representing the step to be marked as completed.
-    void complete_boot_step(uint32_t step) {
+    bool complete_boot_step(uint32_t step) {
         // Validate that the step is a power of two (i.e., only one bit is set).
         // This ensures that only valid boot step constants are accepted.
         if (step == 0 || (step & (step - 1)) != 0) {
             // If the step is zero or not a power of two, it's invalid.
-            // Print an error message and exit the function.
-            esphome::ESP_LOGE("boot", "Error: Invalid boot step provided.");
-            return;
+            return false;
         }
         // Use bitwise OR to set the corresponding bit in completed_boot_steps.
         // This marks the boot step as completed.
         completed_boot_steps |= step;
+        return true;
     }
 
     // Helper function to count the number of bits set to '1' in a uint32_t value.
@@ -38,9 +36,6 @@ namespace nspanel_ha_blueprint {
             count += value & 1;
             // Right-shift the value to check the next bit.
             value >>= 1;
-            // Give a chance for other processes
-            esphome::App.feed_wdt();
-            esphome::yield();
         }
         return count;
     }
