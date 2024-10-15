@@ -6,7 +6,11 @@
 #####################################################################################################
 
 ---
+substitutions:
+  BOOT_STEP_BOOT: '1UL << 1'
+
 api:
+  id: !extend api_service
   on_client_connected:
     then:
       - script.execute:
@@ -20,7 +24,7 @@ display:
       then:
         - script.execute:
             id: send_command
-            cmd: esphome=0
+            cmd: 'esphome=0'
         - script.execute:
             id: set_brightness
             brightness: 100
@@ -85,10 +89,8 @@ script:
       category: string
       log_message: string
     then:
-      - logger.log:
-          format: "%s: %s"
-          args: ['category.c_str()', 'log_message.c_str()']
-          level: INFO
+      - lambda: |-
+          ESP_LOGI("script.boot_log", "%s: %s", category.c_str(), log_message.c_str());
       - if:
           condition:
             - text_sensor.state:
@@ -102,17 +104,13 @@ script:
   - id: boot_progress
     mode: restart
     parameters:
-      step: BootStepType
+      step: uint32_t
       step_name: string
     then:
       - script.execute: boot_progress_dump
       - lambda: |-
           ESP_LOGI("script.boot_progress", "Boot step completed: %s (step %i of %i - %i%%)", step_name.c_str(),
                     get_boot_steps_completed(), TOTAL_BOOT_STEPS, get_boot_progress_percentage());
-      # - logger.log:
-      #     format: "Boot step completed: %s (step %i of %i - %i%%)"
-      #     args: ['step_name.c_str()', 'get_boot_steps_completed()', 'TOTAL_BOOT_STEPS', 'get_boot_progress_percentage()']
-      #     level: INFO
       - if:
           condition:
             - lambda: return is_boot_complete();
@@ -126,7 +124,6 @@ script:
                 id: current_page
                 state: boot
           then:
-            - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
             - script.execute:
                 id: set_component_value
                 component_id: progress
@@ -143,19 +140,22 @@ script:
           ESP_LOGCONFIG("script.boot_progress_dump", "Boot progress: %d%%", get_boot_progress_percentage());
       - script.execute:
           id: boot_progress_dump_item
-          step: !lambda return BOOT_STEP_BOOT;
+          step: ${BOOT_STEP_BOOT}
           step_name: Boot
 
   - id: boot_progress_dump_item
     mode: queued
     parameters:
-      step: BootStepType
+      step: uint32_t
       step_name: string
     then:
       - lambda: |-
-          int8_t padding = std::max(0, 21 - static_cast<int>(step_name.length())); // Calculate dynamic padding
-          ESP_LOGCONFIG("script.boot_progress_dump", " - %s:%*s%s", step_name.c_str(), padding, "",
+          ESP_LOGCONFIG("script.boot_progress_dump", " - %s:%s", step_name.c_str(),
                         is_boot_step_completed(step) ? "Completed" : "PENDING");
+      #- lambda: |-
+      #    int8_t padding = std::max(0, 21 - static_cast<int>(step_name.length())); // Calculate dynamic padding
+      #    ESP_LOGCONFIG("script.boot_progress_dump", " - %s:%*s%s", step_name.c_str(), padding, "",
+      #                  is_boot_step_completed(step) ? "Completed" : "PENDING");
 
   - id: boot_sequence
     mode: single
@@ -239,7 +239,7 @@ script:
           brightness: !lambda return display_brightness->state;
       - script.execute:
           id: boot_progress
-          step: !lambda return BOOT_STEP_BOOT;
+          step: ${BOOT_STEP_BOOT}
           step_name: Boot
       - script.execute: boot_event
 
@@ -261,74 +261,6 @@ script:
                 ESP_LOGCONFIG("${project_tag}", "Requesting new boot parameters from Blueprint");
             - script.execute: boot_event
 
-  - id: page_boot
-    mode: single
-    then:
-      - logger.log: Page boot called
-      - script.execute: page_boot_exit
-      - script.execute:
-          id: send_command
-          cmd: 'tm_esphome.en=0'
-      - script.execute:
-          id: send_command
-          cmd: 'esphome=0'
-      - if:
-          condition:
-            - lambda: |-
-                #ifdef ARDUINO
-                return true;
-                #else
-                return false;
-                #endif
-          then:
-            - script.execute:
-                id: set_component_text
-                component_id: sys_framework
-                text: 'Framework: Arduino'
-          else:
-            - script.execute:
-                id: set_component_text
-                component_id: sys_framework
-                text: 'Framework: ESP-IDF'
-
-  - id: page_boot_exit
-    mode: restart
-    then:
-      - wait_until:
-          condition:
-            - not:
-                - text_sensor.state:
-                    id: current_page
-                    state: boot
-          timeout: 180s
-      - if:
-          condition:
-            - text_sensor.state:
-                id: current_page
-                state: boot
-          then:
-            - wait_until:
-                condition:
-                  - lambda: return (disp1->queue_size() < 1);
-                  - lambda: return (tf_uart->available() < 1);
-            - if:
-                condition:
-                  - text_sensor.state:
-                      id: current_page
-                      state: boot
-                then:
-                  - logger.log:
-                      format: "Jump to wake-up page: %s"
-                      args: ['wakeup_page_name->state.c_str()']
-                  - script.execute:
-                      id: goto_page
-                      page: !lambda return wakeup_page_name->state.c_str();
-                  - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
-                  - script.execute:
-                      id: set_variable_value
-                      variable: wakeup_page_id
-                      val: !lambda return get_page_id(wakeup_page_name->state.c_str());
-
   - id: !extend page_changed
     then:
       - if:
@@ -344,6 +276,4 @@ script:
       - script.stop: boot_log
       - script.stop: boot_event
       - script.stop: boot_progress
-      - script.stop: page_boot
-      - script.stop: page_boot_exit
 ...

@@ -9,7 +9,11 @@
 ###############################
 
 ---
+substitutions:
+  BOOT_STEP_HW_DISPLAY: '1UL << 5'
+
 api:
+  id: !extend api_server
   actions:
     # Sends custom commands directly to the display for dynamic interactions and updates.
     - action: command
@@ -33,7 +37,7 @@ api:
               - script.execute:
                   id: set_component_font_color
                   component_id: !lambda return component_id;
-                  color: !lambda return rgbTo565(color[0], color[1], color[2]);
+                  color: !lambda return (((color[0] & 0xF8) << 8) | ((color[1] & 0xFC) << 3) | (color[2] >> 3));
 
     # Updates the text of a specified component on the display.
     - action: component_text
@@ -142,7 +146,7 @@ api:
                     - script.execute:
                         id: set_component_font_color
                         component_id: !lambda return component_id;
-                        color: !lambda return rgbTo565(icon_color[0], icon_color[1], icon_color[2]);
+                        color: !lambda return (((icon_color[0] & 0xF8) << 8) | ((icon_color[1] & 0xFC) << 3) | (icon_color[2] >> 3));
               - script.execute:
                   id: set_component_visibility
                   page: !lambda return page;
@@ -163,14 +167,46 @@ api:
             condition:
               - lambda: return not component_id.empty();
             then:
-              - script.execute:
-                  id: set_value
-                  component_id: !lambda return component_id;
-                  icon: !lambda return icon;
-                  icon_color: !lambda return icon_color;
-                  name: !lambda return name;
-                  value: !lambda return value;
-                  value_color: !lambda return value_color;
+              - if:
+                  condition:
+                    - lambda: return not icon.empty();
+                  then:
+                    - script.execute:
+                        id: set_component_text
+                        component_id: !lambda return (component_id + "_icon").c_str();
+                        text: !lambda return icon.c_str();
+              - if:
+                  condition:
+                    - lambda: return icon_color.size() == 3;
+                  then:
+                    - script.execute:
+                        id: set_component_font_color
+                        component_id: !lambda return (component_id + "_icon").c_str();
+                        color: !lambda return (((icon_color[0] & 0xF8) << 8) | ((icon_color[1] & 0xFC) << 3) | (icon_color[2] >> 3));
+              - if:
+                  condition:
+                    - lambda: return not name.empty();
+                  then:
+                    - script.execute:
+                        id: set_component_text
+                        component_id: !lambda return (component_id + "_label").c_str();
+                        text: !lambda return name.c_str();
+              - if:
+                  condition:
+                    - lambda: return not value.empty();
+                  then:
+                    - script.execute:
+                        id: set_component_text
+                        component_id: !lambda return component_id.c_str();
+                        text: !lambda return adjustDecimalSeparator(value, id(mui_decimal_separator)).c_str();
+              - if:
+                  condition:
+                    - lambda: return value_color.size() == 3;
+                  then:
+                    - script.execute:
+                        id: set_component_font_color
+                        component_id: !lambda return component_id.c_str();
+                        color: !lambda return (((value_color[0] & 0xF8) << 8) | ((value_color[1] & 0xFC) << 3) | (value_color[2] >> 3));
 
     # Wake Up action
     - action: wake_up
@@ -227,7 +263,6 @@ display:
     on_touch:
       then:
         - script.execute: timer_reset_all
-
     # Extended by
     # - nspanel_esphome_core_page_climate.yaml
     # - nspanel_esphome_core_page_fan.yaml
@@ -245,9 +280,18 @@ esphome:
             condition:
               - lambda: return (not isnan(stoi(baud_rate->state)));
             timeout: 60s
-        - lambda: |-
-            boot_log->execute("on_boot", "Set baud rate");
-            if (stoi(baud_rate->state) != tf_uart->get_baud_rate()) set_baud_rate->execute(stoi(baud_rate->state), true);
+        - script.execute:
+            id: boot_log
+            category: on_boot
+            log_message: Set baud rate
+        - if:
+            condition:
+              - lambda: return stoi(baud_rate->state) != tf_uart->get_baud_rate();
+            then:
+              - script.execute:
+                  id: set_baud_rate
+                  baud_rate: !lambda return stoi(baud_rate->state);
+                  definitive: true
         - wait_until:
             condition:
               - lambda: return disp1->is_setup();
@@ -256,7 +300,10 @@ esphome:
             condition:
               - lambda: return (not disp1->is_detected());
             then:
-              - lambda: boot_log->execute("on_boot", "Restart Nextion");
+              - script.execute:
+                  id: boot_log
+                  category: on_boot
+                  log_message: Restart Nextion
               - switch.turn_off: screen_power
               - delay: 2s
               - switch.turn_on: screen_power
@@ -306,7 +353,9 @@ light:
                   id: current_page
                   state: screensaver
             then:
-              - lambda: disp1->goto_page(wakeup_page_name->state.c_str());
+              - script.execute:
+                  id: goto_page
+                  page: !lambda return wakeup_page_name->state.c_str();
               - script.execute: timer_reset_all
     on_turn_off:
       then:
@@ -334,8 +383,10 @@ number:
     optimistic: true
     on_value:
       then:
-        - lambda: |-
-            disp1->send_command_printf("brightness=%i", int(x));
+        - script.execute:
+            id: set_variable_value
+            variable: brightness
+            val: !lambda return int(x);
         - if:
             condition:
               - not:
@@ -363,8 +414,10 @@ number:
     optimistic: true
     on_value:
       then:
-        - lambda: |-
-            disp1->send_command_printf("brightness_dim=%i", int(x));
+        - script.execute:
+            id: set_variable_value
+            variable: brightness_dim
+            val: !lambda return int(x);
         - if:
             condition:
               - not:
@@ -392,8 +445,10 @@ number:
     optimistic: true
     on_value:
       then:
-        - lambda: |-
-            disp1->send_command_printf("brightness_sleep=%i", int(x));
+        - script.execute:
+            id: set_variable_value
+            variable: brightness_sleep
+            val: !lambda return int(x);
         - script.execute: page_screensaver
 
   ##### Timers #####
@@ -463,14 +518,16 @@ output:
       then:
         - script.execute:
             id: set_brightness
-            brightness: !lambda 'return int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));'
+            brightness: !lambda |-
+              return int(round(display_light->current_values.is_on() ?
+                        (display_light->current_values.get_brightness() * 100.0f) : 0.0));
 
 script:
   - id: !extend boot_progress_dump
     then:
       - script.execute:
           id: boot_progress_dump_item
-          step: !lambda return BOOT_STEP_HW_DISPLAY;
+          step: ${BOOT_STEP_HW_DISPLAY}
           step_name: HW Display
 
   - id: !extend boot_sequence
@@ -497,7 +554,7 @@ script:
                 timeout: 10s
       - script.execute:
           id: boot_progress
-          step: !lambda return BOOT_STEP_HW_DISPLAY;
+          step: ${BOOT_STEP_HW_DISPLAY}
           step_name: HW Display - Boot sequence
 
   - id: display_wrapped_text
@@ -571,38 +628,36 @@ script:
     parameters:
       json: DynamicJsonDocument
       page: string
-      event: string
-      component: string
-      key: string
-      value: string
     then:
-      # Send event to Home Assistant
-      - if:
-          condition:
-            - lambda: |-
-                return (event == "short_click" or event == "long_click");
-          then:
-            - homeassistant.event:
-                event: esphome.nspanel_ha_blueprint
-                data:
-                  device_name: !lambda return device_name->state.c_str();
-                  esphome_version: ${version}
-                  type: button_click
-                  page: !lambda return page.c_str();
-                  component: !lambda return component.c_str();
-                  command: !lambda return event.c_str();
-          else:
-            - homeassistant.event:  # Generic event
-                event: esphome.nspanel_ha_blueprint
-                data:
-                  device_name: !lambda return device_name->state.c_str();
-                  esphome_version: ${version}
-                  type: generic
-                  page: !lambda return page.c_str();
-                  component: !lambda return component.c_str();
-                  event: !lambda return event.c_str();
-                  value: !lambda return value.c_str();
-                  entity: !lambda return detailed_entity->state.c_str();
+      - lambda: |-
+          const std::string event = json["event"];
+          const std::string component = json["component"];
+          const std::string value = json["value"];
+          // Send event to Home Assistant
+          esphome::api::CustomAPIDevice ha_event;
+          if (event == "short_click" or event == "long_click") {
+            // Button click event
+            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
+              {"device_name", device_name->state.c_str()},
+              {"esphome_version", "${version}"},
+              {"type", "button_click"},
+              {"page", page.c_str()},
+              {"component", component.c_str()},
+              {"command", event.c_str()}
+            });
+          } else {
+            // Generic event
+            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
+              {"device_name", device_name->state.c_str()},
+              {"esphome_version", "${version}"},
+              {"type", "button_click"},
+              {"page", page.c_str()},
+              {"component", component.c_str()},
+              {"event", event.c_str()},
+              {"value", value.c_str()},
+              {"entity", detailed_entity->state.c_str()}
+            });
+          }
       # Extended by:
       #   - nspanel_esphome_core_page_alarm.yaml
       #   - nspanel_esphome_core_page_climate.yaml
@@ -619,7 +674,10 @@ script:
     then:
       - if:
           condition:
-            - lambda: return (current_page->state != page);
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: !lambda return page.c_str();
           then:
             - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
             - lambda: disp1->goto_page(page.c_str());
@@ -638,6 +696,19 @@ script:
   - id: page_changed
     mode: restart
     then:
+      - if:
+          condition:
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: !lambda return id(last_page).c_str();
+          then:  # Clear the buffer when a new page opens
+            - script.stop: set_component_pic
+            - script.stop: set_component_text
+            - script.stop: set_component_value
+            - script.stop: set_component_visibility
+            - script.stop: set_component_font
+            - script.stop: set_component_font_color
       - if:
           condition:
             not:
@@ -680,8 +751,9 @@ script:
                 id: detailed_entity
                 state: ''
             - script.execute:
-                id: send_command
-                cmd: back_page_id=1
+                id: set_variable_value
+                variable: back_page_id
+                val: 1
 
       - lambda: |-
           // Report new page to logs
@@ -697,8 +769,7 @@ script:
             last_page: !lambda return id(last_page).c_str();
             entity: !lambda return detailed_entity->state.c_str();
 
-      - lambda: |-
-          id(last_page) = current_page->state;
+      - lambda: id(last_page) = current_page->state;
 
   - id: send_command
     mode: queued
@@ -754,8 +825,11 @@ script:
           then:
             - if:
                 condition:
-                  - lambda: |-
-                      return (current_page->state != "screensaver" and brightness > 0);
+                  - not:
+                      - text_sensor.state:
+                          id: current_page
+                          state: screensaver
+                  - lambda: return brightness > 0;
                 then:
                   - light.turn_on:
                       id: display_light
@@ -784,6 +858,15 @@ script:
     then:
       - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
       - lambda: disp1->set_component_font_color(component_id.c_str(), color);
+
+  - id: set_component_pic
+    mode: queued
+    parameters:
+      component_id: string
+      pic: uint8_t
+    then:
+      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - lambda: disp1->set_component_pic(component_id.c_str(), pic);
 
   - id: set_component_text
     mode: queued
@@ -822,27 +905,6 @@ script:
             - lambda: |-
                 disp1->send_command_printf("vis %s,%i", component_id.c_str(), show ? 1 : 0);
 
-  - id: set_value
-    mode: queued
-    parameters:
-      component_id: string
-      icon: string
-      icon_color: int32_t[]
-      name: string
-      value: string
-      value_color: int32_t[]
-    then:
-      - lambda: |-
-          // using namespace esphome::display;
-          if (!(icon.empty())) set_component_text->execute((component_id + "_icon").c_str(), icon.c_str());
-          if (icon_color.size() == 3)
-            set_component_font_color->execute((component_id + "_icon").c_str(), rgbTo565(icon_color[0], icon_color[1], icon_color[2]));
-
-          if (!(name.empty())) set_component_text->execute((component_id + "_label").c_str(), name.c_str());
-          if (!(value.empty())) set_component_text->execute(component_id.c_str(), adjustDecimalSeparator(value, id(mui_decimal_separator)).c_str());
-          if (value_color.size() == 3)
-            set_component_font_color->execute(component_id.c_str(), rgbTo565(value_color[0], value_color[1], value_color[2]));
-
   - id: !extend set_var_int
     then:
       - lambda: |-
@@ -853,7 +915,7 @@ script:
       - lambda: |-
           if (component == "decimal_separator" and !(val.empty())) {
             id(mui_decimal_separator) = val[0];
-            boot_progress->execute(BOOT_STEP_HW_DISPLAY, "HW Display - Decimal separator");
+            boot_progress->execute(${BOOT_STEP_HW_DISPLAY}, "HW Display - Decimal separator");
           }
 
   - id: set_variable_value
@@ -878,7 +940,6 @@ script:
       - script.stop: set_component_font_color
       - script.stop: set_component_text
       - script.stop: set_component_visibility
-      - script.stop: set_value
       - script.stop: timer_reset_all
       - script.stop: timer_page
       - script.stop: timer_dim
@@ -987,9 +1048,8 @@ script:
                           id: current_page
                           state: screensaver
                 then:
-                  - logger.log:
-                      format: "Going to sleep from page %s"
-                      args: ['current_page->state.c_str()']
+                  - lambda: |-
+                      ESP_LOGI("script.timer_sleep", "Going to sleep from page %s", current_page->state.c_str());
                   - script.execute:
                       id: goto_page
                       page: screensaver
@@ -1176,15 +1236,11 @@ text_sensor:
             DynamicJsonDocument json(1024);
             DeserializationError error = deserializeJson(json, x.c_str());
             if (error) {
-                ESP_LOGE("text_sensor.disp1_local_event", "Error parsing json: %s", x.c_str());
-                ESP_LOGE("text_sensor.disp1_local_event", "Error: %s", error.c_str());
+              ESP_LOGE("text_sensor.disp1_local_event", "Error parsing json: %s", x.c_str());
+              ESP_LOGE("text_sensor.disp1_local_event", "Error: %s", error.c_str());
             } else {
               const std::string page = json["page"];
-              const std::string event = json["event"];
-              const std::string component = json["component"];
-              const std::string key = json["key"];
-              const std::string value = json["value"];
-              event_from_display->execute(json, page, event, component, key, value);
+              event_from_display->execute(json, page.c_str());
             }
 
 uart:  ## UART for Nextion display

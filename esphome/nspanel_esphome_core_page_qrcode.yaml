@@ -6,7 +6,11 @@
 #####################################################################################################
 
 ---
+substitutions:
+  BOOT_STEP_PAGE_QRCODE: '1UL << 22'
+
 api:
+  id: !extend api_server
   actions:
     # Dynamically displays QR codes on the ESPHome UI for sharing information such as WiFi passwords or website links.
     - action: qrcode
@@ -15,15 +19,27 @@ api:
         qrcode: string  # Data or URL to be encoded into the QR code.
         show: bool      # Flag to immediately display the QR code page upon action invocation.
       then:
-        - lambda: |-
-            id(qrcode_string) = qrcode;
-            delay(10*disp1->queue_size()+tf_uart->available());
-            set_component_visibility->execute("home", "bt_qrcode", !(id(qrcode_string).empty()));
-            delay(10*disp1->queue_size()+tf_uart->available());
-            disp1->set_component_text("qrcode.qrcode_label", title.c_str());
-            delay(10*disp1->queue_size()+tf_uart->available());
-            if (show) goto_page->execute("qrcode");
-            boot_progress->execute(BOOT_STEP_PAGE_QRCODE, "Page QRcode - Action");
+        - lambda: id(qrcode_string) = qrcode;
+        - script.execute:
+            id: set_component_visibility
+            page: home
+            component_id: bt_qrcode
+            show: !lambda return not id(qrcode_string).empty();
+        - script.execute:
+            id: set_component_text
+            component_id: qrcode.qrcode_label
+            text: !lambda return title.c_str();
+        - if:
+            condition:
+              - lambda: return show;
+            then:
+              - script.execute:
+                  id: goto_page
+                  page: qrcode
+        - script.execute:
+            id: boot_progress
+            step: ${BOOT_STEP_PAGE_QRCODE}
+            step_name: Page QRcode - Action
 
 globals:
   - id: qrcode_enabled
@@ -40,8 +56,10 @@ globals:
 script:
   - id: !extend boot_progress_dump
     then:
-      - lambda: |-
-          ESP_LOGCONFIG("script.boot_progress_dump", " - Page QR Code:         %s", is_boot_step_completed(BOOT_STEP_PAGE_QRCODE) ? "Completed" : "PENDING");
+      - script.execute:
+          id: boot_progress_dump_item
+          step: ${BOOT_STEP_PAGE_QRCODE}
+          step_name: Page QRcode
 
   - id: !extend page_changed
     then:
@@ -77,7 +95,7 @@ script:
             id(qrcode_enabled) = val;
             delay(10*disp1->queue_size()+tf_uart->available());
             set_component_visibility->execute("home", "bt_qrcode", id(qrcode_enabled));
-            if (!val) boot_progress->execute(BOOT_STEP_PAGE_QRCODE, "Page QRcode - Enabler");
+            if (!val) boot_progress->execute(${BOOT_STEP_PAGE_QRCODE}, "Page QRcode - Enabler");
           }
 
   - id: !extend stop_all
