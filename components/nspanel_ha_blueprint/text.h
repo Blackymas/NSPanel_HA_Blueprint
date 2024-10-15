@@ -24,7 +24,7 @@ namespace nspanel_ha_blueprint {
      * @param c The character to check.
      * @return True if the character is part of a number; false otherwise.
      */
-    bool isNumberChar(char c);
+    inline bool isNumberChar(char c);
 
     /**
      * Adjusts the decimal separator in a numeric string to the specified character.
