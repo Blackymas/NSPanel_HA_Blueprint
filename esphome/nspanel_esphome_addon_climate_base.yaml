@@ -87,55 +87,29 @@ switch:
 script:
   - id: !extend change_climate_state
     then:
-      - if:
-          condition:
-            - lambda: return embedded;
-          then:
-            - script.execute:
-                id: set_component_value
-                component_id: climate.embedded
-                val: 1
-            - lambda: id(is_addon_climate_visible) = true;
-            - if:
-                condition:
-                  - lambda: return key == "temperature";
-                then:
-                  - climate.control:
-                      id: thermostat_embedded
-                      target_temperature: !lambda |-
-                        if (id(temperature_is_celsius))
-                          return (stof(value) / 10);
-                        else
-                          return (((stof(value) / 10) - 32.0) * 5.0 / 9.0);
-            - if:
-                condition:
-                  - lambda: return key == "target_temp_high";
-                then:
-                  - climate.control:
-                      id: thermostat_embedded
-                      target_temperature_high: !lambda |-
-                        if (id(temperature_is_celsius))
-                          return (stof(value) / 10);
-                        else
-                          return (((stof(value) / 10) - 32.0) * 5.0 / 9.0);
-            - if:
-                condition:
-                  - lambda: return key == "target_temp_low";
-                then:
-                  - climate.control:
-                      id: thermostat_embedded
-                      target_temp_low: !lambda |-
-                        if (id(temperature_is_celsius))
-                          return (stof(value) / 10);
-                        else
-                          return (((stof(value) / 10) - 32.0) * 5.0 / 9.0);
-            - if:
-                condition:
-                  - lambda: return key == "hvac_mode";
-                then:
-                  - climate.control:
-                      id: thermostat_embedded
-                      mode: !lambda return value.c_str();
+      - lambda: |-
+          if (embedded) {
+            set_component_value->execute("climate", "embedded", 1);
+            id(is_addon_climate_visible) = true;
+
+            auto call = thermostat_embedded->make_call();
+            if (key == "temperature") {
+              call.set_target_temperature(id(temperature_is_celsius) ?
+                                          (stof(value) / 10) :
+                                          (((stof(value) / 10) - 32.0) * 5.0 / 9.0));
+            } else if (key == "target_temp_high") {
+              call.set_target_temperature_high(id(temperature_is_celsius) ?
+                                              (stof(value) / 10) :
+                                              (((stof(value) / 10) - 32.0) * 5.0 / 9.0));
+            } else if (key == "target_temp_low") {
+              call.set_target_temperature_low(id(temperature_is_celsius) ?
+                                              (stof(value) / 10) :
+                                              (((stof(value) / 10) - 32.0) * 5.0 / 9.0));
+            } else if (key == "hvac_mode") {
+              call.set_mode(value);
+            }
+            call.perform();
+          }
 
   - id: !extend dump_config
     then:
@@ -185,164 +159,146 @@ script:
     then:
       - lambda: |-
           id(is_addon_climate_visible) = (current_page->state == "climate" and detailed_entity->state == "embedded_climate");
-      - if:
-          condition:
-            - lambda: return id(is_addon_climate_visible);
-          then:
-            - script.execute:
-                id: set_component_text
-                component: page_label
-                text: !lambda return id(addon_climate_friendly_name).c_str();
-            - lambda: |-
-                ClimateTraits traits = thermostat_embedded->get_traits();
+          if (id(is_addon_climate_visible)) {
+            set_component_text->execute("climate", "page_label", id(addon_climate_friendly_name).c_str());
+            ClimateTraits traits = thermostat_embedded->get_traits();
 
-                float temp_step = traits.get_visual_target_temperature_step();
-                float temp_offset = traits.get_visual_min_temperature();
-                float temp_max = traits.get_visual_max_temperature();
-                float temp_target = thermostat_embedded->target_temperature;
-                float temp_target_high = thermostat_embedded->target_temperature_high;
-                float temp_target_low = thermostat_embedded->target_temperature_low;
-                float temp_current = thermostat_embedded->current_temperature;
-                if (!id(temperature_is_celsius)) {
-                  //temp_step = (temp_step * 9 / 5) + 32;
-                  temp_step = std::ceil(temp_step * 1.8);
-                  temp_offset = (temp_offset * 9 / 5) + 32;
-                  temp_max = (temp_max * 9 / 5) + 32;
-                  temp_target = (temp_target * 9 / 5) + 32;
-                  temp_target_high = (temp_target_high * 9 / 5) + 32;
-                  temp_target_low = (temp_target_low * 9 / 5) + 32;
-                  temp_current = (temp_current * 9 / 5) + 32;
-                }
-                float total_steps = (temp_max-temp_offset)/temp_step;
-                set_climate->execute
-                  (
-                    temp_current,                                         // current_temp
-                    0,                                                    // supported_features
-                    ((${addon_climate_dual}) ? -999 : temp_target),       // target_temp
-                    ((${addon_climate_dual}) ? temp_target_high : -999),  // target_temp_high
-                    ((${addon_climate_dual}) ? temp_target_low : -999),   // target_temp_low
-                    int(round(temp_step*10)),                             // temp_step
-                    int(round(total_steps)),                              // total_steps
-                    int(round(temp_offset*10)),                           // temp_offset
-                    "",                                                   // climate_icon
-                    true                                                  // embedded_climate
-                  );
-            - script.execute:
-                id: update_climate_icon
-                component: target_icon
-                action: !lambda return int(thermostat_embedded->action);
-                mode: !lambda return int(thermostat_embedded->mode);
-            - script.execute:
-                id: set_component_visibility
-                page: climate
-                component_id: button01
-                show: false
-            - script.execute:
-                id: set_component_visibility
-                page: climate
-                component_id: button02
-                show: !lambda return (${addon_climate_dual});
-            - script.execute:
-                id: set_component_visibility
-                page: climate
-                component_id: button03  # Heat
-                show: !lambda return (${addon_climate_heat} or ${addon_climate_dual});
-            - script.execute:
-                id: set_component_visibility
-                page: climate
-                component_id: button04  # Cool
-                show: !lambda return (${addon_climate_cool} or ${addon_climate_dual});
-            - script.execute:
-                id: set_component_visibility
-                page: climate
-                component_id: button05
-                show: false
-            - script.execute:
-                id: set_component_visibility
-                page: climate
-                component_id: button06
-                show: false
-            - script.execute:
-                id: set_component_visibility
-                page: climate
-                component_id: button07  # Off
-                show: true
-            - script.execute:
-                id: set_component_font_color
-                component_id: button01
-                color: 6339
-            - script.execute:
-                id: set_component_font_color
-                component_id: button02
-                color: !lambda |-
-                  if (thermostat_embedded->mode==climate::CLIMATE_MODE_HEAT_COOL)
-                    return 65535;
-                  else if (${addon_climate_dual})
-                    return 48631;
-                  else
-                    return 6339;
-            - script.execute:
-                id: set_component_font_color
-                component_id: button03
-                color: !lambda |-
-                  if (thermostat_embedded->mode==climate::CLIMATE_MODE_HEAT)
-                    return 64164;
-                  else if (${addon_climate_heat} or ${addon_climate_dual})
-                    return 48631;
-                  else
-                    return 6339;
-            - script.execute:
-                id: set_component_font_color
-                component_id: button04
-                color: !lambda |-
-                  if (thermostat_embedded->mode==climate::CLIMATE_MODE_COOL)
-                    return 1055;
-                  else if (${addon_climate_cool} or ${addon_climate_dual})
-                    return 48631;
-                  else
-                    return 6339;
-            - script.execute:
-                id: set_component_font_color
-                component_id: button05
-                color: 6339
-            - script.execute:
-                id: set_component_font_color
-                component_id: button06
-                color: 6339
-            - script.execute:
-                id: set_component_font_color
-                component_id: button07
-                color: !lambda |-
-                  if (thermostat_embedded->mode==climate::CLIMATE_MODE_OFF)
-                    return 10597;
-                  else
-                    return 35921;
+            float temp_step = traits.get_visual_target_temperature_step();
+            float temp_offset = traits.get_visual_min_temperature();
+            float temp_max = traits.get_visual_max_temperature();
+            float temp_target = thermostat_embedded->target_temperature;
+            float temp_target_high = thermostat_embedded->target_temperature_high;
+            float temp_target_low = thermostat_embedded->target_temperature_low;
+            float temp_current = thermostat_embedded->current_temperature;
+            if (!id(temperature_is_celsius)) {
+              //temp_step = (temp_step * 9 / 5) + 32;
+              temp_step = std::ceil(temp_step * 1.8);
+              temp_offset = (temp_offset * 9 / 5) + 32;
+              temp_max = (temp_max * 9 / 5) + 32;
+              temp_target = (temp_target * 9 / 5) + 32;
+              temp_target_high = (temp_target_high * 9 / 5) + 32;
+              temp_target_low = (temp_target_low * 9 / 5) + 32;
+              temp_current = (temp_current * 9 / 5) + 32;
+            }
+            float total_steps = (temp_max-temp_offset)/temp_step;
+            set_climate->execute (
+              temp_current,                                         // current_temp
+              0,                                                    // supported_features
+              ((${addon_climate_dual}) ? -999 : temp_target),       // target_temp
+              ((${addon_climate_dual}) ? temp_target_high : -999),  // target_temp_high
+              ((${addon_climate_dual}) ? temp_target_low : -999),   // target_temp_low
+              int(round(temp_step*10)),                             // temp_step
+              int(round(total_steps)),                              // total_steps
+              int(round(temp_offset*10)),                           // temp_offset
+              "",                                                   // climate_icon
+              true                                                  // embedded_climate
+            );
+
+            update_climate_icon->execute("climate", "target_icon", int(thermostat_embedded->action), int(thermostat_embedded->mode));
+            set_component_visibility->execute("climate", "button01", false);
+            set_component_visibility->execute("climate", "button02", ${addon_climate_dual});
+            set_component_visibility->execute("climate", "button03", ${addon_climate_dual} or ${addon_climate_heat});  // Heat
+            set_component_visibility->execute("climate", "button04", ${addon_climate_dual} or ${addon_climate_cool});  // Cool
+            set_component_visibility->execute("climate", "button05", false);
+            set_component_visibility->execute("climate", "button06", false);
+            set_component_visibility->execute("climate", "button07", true);  // Off
+            set_component_font_color->execute("climate", "button01", 6339);
+            set_component_font_color->execute("climate", "button02", thermostat_embedded->mode == climate::CLIMATE_MODE_HEAT_COOL ? 65535 :
+                                              (${addon_climate_dual} ? 48631 : 6339));
+            set_component_font_color->execute("climate", "button03", thermostat_embedded->mode == climate::CLIMATE_MODE_HEAT ? 64164 :
+                                              ((${addon_climate_dual} or ${addon_climate_heat}) ? 48631 : 6339));
+            set_component_font_color->execute("climate", "button04", thermostat_embedded->mode == climate::CLIMATE_MODE_COOL ? 1055 :
+                                              ((${addon_climate_dual} or ${addon_climate_cool}) ? 48631 : 6339));
+            set_component_font_color->execute("climate", "button05", 6339);
+            set_component_font_color->execute("climate", "button06", 6339);
+            set_component_font_color->execute("climate", "button07", thermostat_embedded->mode == climate::CLIMATE_MODE_OFF ? 10597 : 35921);
+          }
 
   - id: !extend page_home
     then:
-      - if:
-          condition:
-            - lambda: return id(is_embedded_thermostat);
-          then:
-            - script.execute:
-                id: update_climate_icon
-                component: home.chip_climate
-                action: !lambda return int(thermostat_embedded->action);
-                mode: !lambda return int(thermostat_embedded->mode);
+      - lambda: |-
+          if (id(is_embedded_thermostat))
+            update_climate_icon->execute("home", "chip_climate", int(thermostat_embedded->action), int(thermostat_embedded->mode));
 
   - id: !extend set_climate
     then:
-      - if:
-          condition:
-            - text_sensor.state:
-                id: current_page
-                state: climate
-          then:
-            - lambda: id(is_addon_climate_visible) = embedded_climate;
+      - lambda: |-
+          if (current_page->state == "climate")
+            id(is_addon_climate_visible) = embedded_climate;
 
   - id: !extend set_var_string
     then:
       - lambda: |-
           if (component == "embedded_climate_friendly_name")  // Friendly name for the climate control feature
             id(addon_climate_friendly_name) = val;
+
+  - id: !extend stop_all
+    then:
+      - script.stop: update_climate_icon
+
+  - id: update_climate_icon
+    mode: restart
+    parameters:
+      page: string
+      component: string
+      action: uint
+      mode: uint
+    then:
+      - lambda: |-
+          switch (action) // CLIMATE_ACTION_OFF = 0, CLIMATE_ACTION_COOLING = 2, CLIMATE_ACTION_HEATING = 3, CLIMATE_ACTION_IDLE = 4, CLIMATE_ACTION_DRYING = 5, CLIMATE_ACTION_FAN = 6
+            {
+              case 0: //CLIMATE_ACTION_OFF
+                switch (mode) // CLIMATE_MODE_OFF = 0, CLIMATE_MODE_HEAT_COOL = 1, CLIMATE_MODE_COOL = 2, CLIMATE_MODE_HEAT = 3, CLIMATE_MODE_FAN_ONLY = 4, CLIMATE_MODE_DRY = 5, CLIMATE_MODE_AUTO = 6
+                  {
+                    case 0: //CLIMATE_MODE_OFF
+                      set_component_text->execute(page.c_str(), component.c_str(), "\uFFFF"); // (E424) Don't show icon when off
+                      set_component_font_color->execute(page.c_str(), component.c_str(), 35921); // grey (off)
+                      break;
+                    case 1: //CLIMATE_MODE_HEAT_COOL
+                      set_component_text->execute(page.c_str(), component.c_str(), "\uE069"); // mdi:autorenew
+                      set_component_font_color->execute(page.c_str(), component.c_str(), 35921); // grey (off)
+                      break;
+                    case 2: //CLIMATE_MODE_COOL
+                      set_component_text->execute(page.c_str(), component.c_str(), "\uE716"); // mdi:snowflake
+                      set_component_font_color->execute(page.c_str(), component.c_str(), 35921); // grey (off)
+                      break;
+                    case 3: //CLIMATE_MODE_HEAT
+                      set_component_text->execute(page.c_str(), component.c_str(), "\uE237"); // mdi:fire
+                      set_component_font_color->execute(page.c_str(), component.c_str(), 35921); // grey (off)
+                      break;
+                    case 4: //CLIMATE_MODE_FAN_ONLY
+                      set_component_text->execute(page.c_str(), component.c_str(), "\uE20F"); // mdi:fan
+                      set_component_font_color->execute(page.c_str(), component.c_str(), 35921); // grey (off)
+                      break;
+                    case 5: //CLIMATE_MODE_DRY
+                      set_component_text->execute(page.c_str(), component.c_str(), "\uE58D"); // mdi:water-percent
+                      set_component_font_color->execute(page.c_str(), component.c_str(), 35921); // grey (off)
+                      break;
+                    case 6: //CLIMATE_MODE_AUTO
+                      set_component_text->execute(page.c_str(), component.c_str(), "\uF8F1"); // mdi:refresh-auto
+                      set_component_font_color->execute(page.c_str(), component.c_str(), 35921); // grey (off)
+                      break;
+                  }
+                  break;
+              case 2: //CLIMATE_ACTION_COOLING
+                set_component_text->execute(page.c_str(), component.c_str(), "\uE716"); // mdi:snowflake
+                set_component_font_color->execute(page.c_str(), component.c_str(), 1055); // blue
+                break;
+              case 3: //CLIMATE_ACTION_HEATING
+                set_component_text->execute(page.c_str(), component.c_str(), "\uE237"); // mdi:fire
+                set_component_font_color->execute(page.c_str(), component.c_str(), 64164); // deep-orange
+                break;
+              case 4: //CLIMATE_ACTION_IDLE
+                set_component_text->execute(page.c_str(), component.c_str(), "\uE50E"); // mdi:thermometer
+                set_component_font_color->execute(page.c_str(), component.c_str(), 35921); // grey (off)
+                break;
+              case 5: //CLIMATE_ACTION_DRYING
+                set_component_text->execute(page.c_str(), component.c_str(), "\uE58D"); // mdi:water-percent
+                set_component_font_color->execute(page.c_str(), component.c_str(), 64704); // orange
+                break;
+              case 6: //CLIMATE_ACTION_FAN
+                set_component_text->execute(page.c_str(), component.c_str(), "\uE20F"); // mdi:fan
+                set_component_font_color->execute(page.c_str(), component.c_str(), 1530); // cyan
+                break;
+            }
 ...
