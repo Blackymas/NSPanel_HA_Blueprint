@@ -131,6 +131,7 @@ This action is ideal for creating visually dynamic interfaces, allowing elements
 events, or user actions, such as indicating status changes or highlighting specific UI components.
 
 **Parameters:**
+- `page` (string): The page identifier where the component is located.
 - `component` (string): Identifier of the component whose color will be updated. It is essential that this matches the component's ID in your display layout to ensure the correct element is targeted.
 - `color` (int[]): The new color for the component, specified as an RGB array (e.g., `[255, 0, 0]` for red).
 
@@ -138,7 +139,8 @@ events, or user actions, such as indicating status changes or highlighting speci
 ```yaml
 action: esphome.<your_panel_name>_component_color
 data:
-  component: "home.time"
+  page: home
+  component: time
   color: [255, 0, 0]  # Changes the component's color to red
 ```
 > [!NOTE]
@@ -153,6 +155,7 @@ Updates the text of a specified component on the display, enabling dynamic text 
 Ideal for user interfaces that require real-time text updates, such as status messages, labels, or any text-based information display.
 
 **Parameters:**
+- `page` (string): The page identifier where the component is located.
 - `component` (string): Identifier of the component whose text will be updated. Ensure this matches the component's ID in your display layout.
 - `txt` (string): The new text content to display. This can include static text or dynamic information passed at runtime.
 
@@ -160,7 +163,8 @@ Ideal for user interfaces that require real-time text updates, such as status me
 ```yaml
 action: esphome.<your_panel_name>_component_text
 data:
-  component: "home.time"
+  page: home
+  component: time
   txt: "12:34"
 ```
 > [!NOTE]
@@ -175,6 +179,7 @@ Updates the value of a specified component on the display, enabling dynamic valu
 Ideal for interfaces requiring real-time updates of numerical values, such as counters, temperature readings, or any numeric indicators.
 
 **Parameters:**
+- `page` (string): The page identifier where the component is located.
 - `component` (string): Identifier of the component whose value will be updated. It's crucial this matches the component's ID in your display layout accurately.
 - `val` (int): The new integer value to be set for the component. This can represent various data types, depending on the component's purpose (e.g., temperature, humidity levels).
 
@@ -182,7 +187,8 @@ Ideal for interfaces requiring real-time updates of numerical values, such as co
 ```yaml
 action: esphome.<your_panel_name>_component_val
 data:
-  component: "cover.coverslider"
+  page: cover
+  component: coverslider
   val: 25
 ```
 > [!NOTE]
@@ -267,7 +273,7 @@ Example: "\uE6E8" for `mdi:lightbulb-on-outline`.
 action: esphome.<your_panel_name>_icon
 data:
   page: home
-  component: "chip03"
+  component: chip03
   icon: "\uE6E8"           # Example for mdi:lightbulb-on-outline
   icon_color: [0, 255, 0]  # Green
   visible: true

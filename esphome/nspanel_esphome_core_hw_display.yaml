@@ -27,46 +27,47 @@ api:
     # Changes the foreground color of a specified component on the display.
     - action: component_color
       variables:
-        component: string    # Identifier of the component to change color. Ensure this matches the component's ID in your display layout.
-        color: int[]  # New color for the component, specified as an RGB array (e.g., [255, 0, 0] for red).
+        page: string       # Page name
+        component: string  # Identifier of the component to change color. Ensure this matches the component's ID in your display layout.
+        color: int[]       # New color for the component, specified as an RGB array (e.g., [255, 0, 0] for red).
       then:
-        - if:
-            condition:
-              - lambda: return (color.size() == 3);
-            then:
-              - script.execute:
-                  id: set_component_font_color
-                  component: !lambda return component;
-                  color: !lambda return (((color[0] & 0xF8) << 8) | ((color[1] & 0xFC) << 3) | (color[2] >> 3));
+        - lambda: |-
+            if (color.size() == 3)
+              set_component_font_color->execute(page.c_str(), component.c_str(),
+                                                (((color[0] & 0xF8) << 8) | ((color[1] & 0xFC) << 3) |(color[2] >> 3)));
 
     # Updates the text of a specified component on the display.
     - action: component_text
       variables:
-        component: string   # Identifier of the component. Ensure it matches the component's ID in your display layout.
-        txt: string  # New text content to be displayed. Supports both static and dynamic content.
+        page: string       # Page name
+        component: string  # Identifier of the component. Ensure it matches the component's ID in your display layout.
+        txt: string        # New text content to be displayed. Supports both static and dynamic content.
       then:
         - script.execute:
             id: set_component_text
+            page: !lambda return page;
             component: !lambda return component;
             text: !lambda return txt;
 
     # Updates the value of a specified component on the display.
     - action: component_val
       variables:
+        page: string       # Page where the component is located
         component: string  # Identifier of the component to update. Must match the component's ID in the display layout.
-        val: int    # New integer value to set for the component. Adjust based on the data type you're displaying.
+        val: int           # New integer value to set for the component. Adjust based on the data type you're displaying.
       then:
         - script.execute:
             id: set_component_value
+            page: !lambda return page;
             component: !lambda return component;
             val: !lambda return val;
 
     # Hides or shows a specified component on the display.
     - action: component_visibility
       variables:
-        page: string          # Page where the component is located
+        page: string       # Page where the component is located
         component: string  # Identifier of the component to be hidden/shown. Ensure this matches the component's ID in your display layout.
-        show: bool            # Set to true to show the component, or false to hide it.
+        show: bool         # Set to true to show the component, or false to hide it.
       then:
         - script.execute:
             id: set_component_visibility
@@ -80,156 +81,80 @@ api:
         entity: string     # The ID of the entity for which details are shown. Supports "embedded_climate" for built-in climate control.
         back_page: string  # Specifies the page to return to. Accepts "home" or "buttonpage01" to "buttonpage04".
       then:
-        - if:
-            condition:
-              - or:
-                  - lambda: |-
-                      return entity == "embedded_climate";
-                  - lambda: |-
-                      HomeAssistantEntity entity_id = extractHomeAssistantEntity(entity);
-                      return entity_id.domain != "invalid";
-            then:
-              - text_sensor.template.publish:
-                  id: detailed_entity
-                  state: !lambda return entity;
-              - script.execute:
-                  id: goto_page
-                  page: !lambda |-
-                    if (entity == "embedded_climate")
-                      return "climate";
-                    else {
-                      HomeAssistantEntity entity_id = extractHomeAssistantEntity(entity);
-                      if (extractHomeAssistantEntity(entity).domain == "alarm_control_panel")
-                        return "alarm";
-                      else
-                        return extractHomeAssistantEntity(entity).domain.c_str();
-                    }
-              - script.execute:
-                  id: set_variable_value
-                  variable: back_page_id
-                  val: !lambda return get_page_id(back_page.c_str());
-              - if:
-                  condition:
-                    - or:
-                        - lambda: |-
-                            return entity == "embedded_climate";
-                        - lambda: |-
-                            return extractHomeAssistantEntity(entity).domain == "climate";
-                  then:
-                    - script.execute:
-                        id: set_component_value
-                        component: climate.embedded
-                        val: !lambda if (entity == "embedded_climate") return 1; else return 0;
+        - lambda: |-
+            if (not entity.empty() and not back_page.empty()) {
+              HomeAssistantEntity entity_id = extractHomeAssistantEntity(entity);
+              if (entity == "embedded_climate" or entity_id.domain != "invalid") {
+                detailed_entity->publish_state(entity.c_str());
+                std::string new_page = (entity == "embedded_climate" ? "climate" :
+                                        (entity_id.domain == "alarm_control_panel" ? "alarm" : entity_id.domain));
+                goto_page->execute(new_page.c_str());
+                set_variable_value->execute("back_page_id", get_page_id(back_page.c_str()));
+                if (new_page == "climate")
+                  set_component_value->execute("climate", "embedded", entity == "embedded_climate" ? 1 : 0);
+              }
+            }
 
     # Icon action
     - action: icon
       variables:
-        page: string          # Page name
+        page: string       # Page name
         component: string  # Identifier of the component. See "Screen components" in the documentation.
-        icon: string          # Icon codepoint, e.g., "/uE6E8" for `mdi:lightbulb-on-outline`.
-        icon_color: int[]     # RGB color array for the icon, e.g., [0, 255, 0] for green.
-        visible: bool         # Set to `true` for visible or `false` for hidden.
+        icon: string       # Icon codepoint, e.g., "/uE6E8" for `mdi:lightbulb-on-outline`.
+        icon_color: int[]  # RGB color array for the icon, e.g., [0, 255, 0] for green.
+        visible: bool      # Set to `true` for visible or `false` for hidden.
       then:
-        - if:
-            condition:
-              - lambda: return not component.empty();
-            then:
-              - script.execute:
-                  id: set_component_text
-                  component: !lambda return component;
-                  text: !lambda |-
-                    return visible ? icon.c_str() : "";
-              - if:
-                  condition:
-                    - lambda: return icon_color.size() == 3;
-                  then:
-                    - script.execute:
-                        id: set_component_font_color
-                        component: !lambda return component;
-                        color: !lambda return (((icon_color[0] & 0xF8) << 8) | ((icon_color[1] & 0xFC) << 3) | (icon_color[2] >> 3));
-              - script.execute:
-                  id: set_component_visibility
-                  page: !lambda return page;
-                  component: !lambda return component;
-                  show: !lambda return visible;
+        - lambda: |-
+            if (not component.empty()) {
+              set_component_text->execute(page.c_str(), component.c_str(), visible ? icon.c_str() : "");
+              if (icon_color.size() == 3)
+                set_component_font_color->execute(page.c_str(), component.c_str(),
+                                                  (((icon_color[0] & 0xF8) << 8) |((icon_color[1] & 0xFC) << 3) | (icon_color[2] >> 3)));
+              set_component_visibility->execute(page.c_str(), component.c_str(), visible);
+            }
 
     # Updates an entity to display specific values with dynamic icons, names, and color codes.
     - action: value
       variables:
+        page: string       # Page name
         component: string  # Identifier of the entity. See "Screen components" for entity IDs.
-        icon: string          # Icon codepoint (e.g., "/uE6E8" for mdi:thermometer) from HASwitchPlate Material Design Icons.
-        icon_color: int[]     # RGB color array for the icon (e.g., [255, 0, 0] for red).
-        name: string          # Display name for the entity (e.g., "Temperature").
-        value: string         # Actual value to display (e.g., "75°F").
-        value_color: int[]    # RGB color array for the value text (e.g., [255, 255, 0] for yellow).
+        icon: string       # Icon codepoint (e.g., "/uE6E8" for mdi:thermometer) from HASwitchPlate Material Design Icons.
+        icon_color: int[]  # RGB color array for the icon (e.g., [255, 0, 0] for red).
+        name: string       # Display name for the entity (e.g., "Temperature").
+        value: string      # Actual value to display (e.g., "75°F").
+        value_color: int[] # RGB color array for the value text (e.g., [255, 255, 0] for yellow).
       then:
-        - if:
-            condition:
-              - lambda: return not component.empty();
-            then:
-              - if:
-                  condition:
-                    - lambda: return not icon.empty();
-                  then:
-                    - script.execute:
-                        id: set_component_text
-                        component: !lambda return (component + "_icon").c_str();
-                        text: !lambda return icon.c_str();
-              - if:
-                  condition:
-                    - lambda: return icon_color.size() == 3;
-                  then:
-                    - script.execute:
-                        id: set_component_font_color
-                        component: !lambda return (component + "_icon").c_str();
-                        color: !lambda return (((icon_color[0] & 0xF8) << 8) | ((icon_color[1] & 0xFC) << 3) | (icon_color[2] >> 3));
-              - if:
-                  condition:
-                    - lambda: return not name.empty();
-                  then:
-                    - script.execute:
-                        id: set_component_text
-                        component: !lambda return (component + "_label").c_str();
-                        text: !lambda return name.c_str();
-              - if:
-                  condition:
-                    - lambda: return not value.empty();
-                  then:
-                    - script.execute:
-                        id: set_component_text
-                        component: !lambda return component.c_str();
-                        text: !lambda return adjustDecimalSeparator(value, id(mui_decimal_separator)).c_str();
-              - if:
-                  condition:
-                    - lambda: return value_color.size() == 3;
-                  then:
-                    - script.execute:
-                        id: set_component_font_color
-                        component: !lambda return component.c_str();
-                        color: !lambda return (((value_color[0] & 0xF8) << 8) | ((value_color[1] & 0xFC) << 3) | (value_color[2] >> 3));
+        - lambda: |-
+            if (not component.empty()) {
+              if (not icon.empty())
+                set_component_text->execute(page.c_str(), (component + "_icon").c_str(), icon.c_str());
+              if (icon_color.size() == 3)
+                set_component_font_color->execute(page.c_str(), (component + "_icon").c_str(),
+                                                  (((icon_color[0] & 0xF8) << 8) | ((icon_color[1] & 0xFC) << 3) | (icon_color[2] >> 3)));
+              if (not name.empty())
+                set_component_text->execute(page.c_str(), (component + "_label").c_str(), name.c_str());
+              if (not value.empty())
+                set_component_text->execute(page.c_str(), component.c_str(),
+                                            adjustDecimalSeparator(value, id(mui_decimal_separator)).c_str());
+              if (value_color.size() == 3)
+                set_component_font_color->execute(page.c_str(), component.c_str(),
+                                                  (((value_color[0] & 0xF8) << 8) | ((value_color[1] & 0xFC) << 3) | (value_color[2] >> 3)));
+            }
 
     # Wake Up action
     - action: wake_up
       variables:
         reset_timer: bool  # Determines whether to reset the sleep and dimming timers upon waking the display.
       then:
-        - if:
-            condition:
-              text_sensor.state:
-                id: current_page
-                state: screensaver
-            then:
-              - script.execute:
-                  id: goto_page
-                  page: !lambda return wakeup_page_name->state;
-        - if:
-            condition:
-              - lambda: return reset_timer;
-            then:
-              - script.execute: timer_reset_all
-            else:
-              - script.execute: timer_sleep
-              - script.execute: timer_dim
+        - lambda: |-
+            if (current_page->state == "screensaver")
+              goto_page->execute(wakeup_page_name->state.c_str());
+            if (reset_timer)
+              timer_reset_all->execute();
+            else {
+              timer_sleep->execute();
+              timer_dim->execute();
+            }
 
 binary_sensor:
   ## Delays initial info from HA to the display #####
@@ -249,16 +174,9 @@ display:
 
     on_page:
       then:
-        - if:
-            condition:
-              - not:
-                  - text_sensor.state:
-                      id: current_page
-                      state: !lambda return page_names[x];
-            then:
-              - text_sensor.template.publish:
-                  id: current_page
-                  state: !lambda return page_names[x];
+        - lambda: |-
+            if (current_page->state != page_names[x])
+              current_page->publish_state(page_names[x]);
 
     on_touch:
       then:
@@ -593,7 +511,7 @@ script:
               while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
             }
           }
-          disp1->set_component_text((std::string(page) + "." + component).c_str(), wrappedText.c_str());
+          set_component_text->execute(page.c_str(), component.c_str(), wrappedText.c_str());
 
   - id: !extend dump_config
     then:
@@ -844,6 +762,7 @@ script:
   - id: set_component_font
     mode: queued
     parameters:
+      page: string
       component: string
       font: uint8_t
     then:
@@ -853,6 +772,7 @@ script:
   - id: set_component_font_color
     mode: queued
     parameters:
+      page: string
       component: string
       color: int
     then:
@@ -862,6 +782,7 @@ script:
   - id: set_component_pic
     mode: queued
     parameters:
+      page: string
       component: string
       pic: uint8_t
     then:
@@ -871,6 +792,7 @@ script:
   - id: set_component_text
     mode: queued
     parameters:
+      page: string
       component: string
       text: string
     then:
@@ -880,6 +802,7 @@ script:
   - id: set_component_value
     mode: queued
     parameters:
+      page: string
       component: string
       val: int
     then:
