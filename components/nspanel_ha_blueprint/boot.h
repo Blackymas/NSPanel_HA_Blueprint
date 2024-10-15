@@ -6,7 +6,7 @@
 
 namespace nspanel_ha_blueprint {
     // Total number of defined boot steps.
-    const uint8_t TOTAL_BOOT_STEPS = 29; // Update as needed.
+    const uint8_t TOTAL_BOOT_STEPS = 30; // Update as needed.
 
     // Extern declaration of the global variable to track completed boot steps.
     // This variable is defined in boot.cpp.

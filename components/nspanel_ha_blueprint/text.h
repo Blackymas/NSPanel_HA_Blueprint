@@ -37,4 +37,14 @@ namespace nspanel_ha_blueprint {
      */
     std::string adjustDecimalSeparator(const std::string& input, char decimalSeparator);
 
+    /**
+    * @brief Constructs a string by concatenating a prefix, object name, and suffix.
+    * 
+    * @param prefix The prefix to be added before the object name.
+    * @param object The name of the object.
+    * @param suffix The suffix to be added after the object name.
+    * @return A concatenated string in the format prefix + object + suffix.
+    */
+    std::string constructName(const std::string& prefix, const std::string& object, const std::string& suffix);
+
 }  // namespace nspanel_ha_blueprint

@@ -13,6 +13,7 @@ substitutions:
   BOOT_STEP_HW_DISPLAY: '1UL << 5'
 
 api:
+  id: !extend api_server
   actions:
     # Sends custom commands directly to the display for dynamic interactions and updates.
     - action: command
@@ -627,38 +628,36 @@ script:
     parameters:
       json: DynamicJsonDocument
       page: string
-      event: string
-      component: string
-      key: string
-      value: string
     then:
-      # Send event to Home Assistant
-      - if:
-          condition:
-            - lambda: |-
-                return (event == "short_click" or event == "long_click");
-          then:
-            - homeassistant.event:
-                event: esphome.nspanel_ha_blueprint
-                data:
-                  device_name: !lambda return device_name->state.c_str();
-                  esphome_version: ${version}
-                  type: button_click
-                  page: !lambda return page.c_str();
-                  component: !lambda return component.c_str();
-                  command: !lambda return event.c_str();
-          else:
-            - homeassistant.event:  # Generic event
-                event: esphome.nspanel_ha_blueprint
-                data:
-                  device_name: !lambda return device_name->state.c_str();
-                  esphome_version: ${version}
-                  type: generic
-                  page: !lambda return page.c_str();
-                  component: !lambda return component.c_str();
-                  event: !lambda return event.c_str();
-                  value: !lambda return value.c_str();
-                  entity: !lambda return detailed_entity->state.c_str();
+      - lambda: |-
+          const std::string event = json["event"];
+          const std::string component = json["component"];
+          const std::string value = json["value"];
+          // Send event to Home Assistant
+          esphome::api::CustomAPIDevice ha_event;
+          if (event == "short_click" or event == "long_click") {
+            // Button click event
+            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
+              {"device_name", device_name->state.c_str()},
+              {"esphome_version", "${version}"},
+              {"type", "button_click"},
+              {"page", page.c_str()},
+              {"component", component.c_str()},
+              {"command", event.c_str()}
+            });
+          } else {
+            // Generic event
+            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
+              {"device_name", device_name->state.c_str()},
+              {"esphome_version", "${version}"},
+              {"type", "button_click"},
+              {"page", page.c_str()},
+              {"component", component.c_str()},
+              {"event", event.c_str()},
+              {"value", value.c_str()},
+              {"entity", detailed_entity->state.c_str()}
+            });
+          }
       # Extended by:
       #   - nspanel_esphome_core_page_alarm.yaml
       #   - nspanel_esphome_core_page_climate.yaml
@@ -846,6 +845,15 @@ script:
     then:
       - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
       - lambda: disp1->set_component_font_color(component_id.c_str(), color);
+
+  - id: set_component_pic
+    mode: queued
+    parameters:
+      component_id: string
+      pic: uint8_t
+    then:
+      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - lambda: disp1->set_component_pic(component_id.c_str(), pic);
 
   - id: set_component_text
     mode: queued
@@ -1211,20 +1219,16 @@ text_sensor:
     internal: true
     on_value:
       then:
-        - lambda: |-
-            DynamicJsonDocument json(1024);
-            DeserializationError error = deserializeJson(json, x.c_str());
-            if (error) {
-                ESP_LOGE("text_sensor.disp1_local_event", "Error parsing json: %s", x.c_str());
-                ESP_LOGE("text_sensor.disp1_local_event", "Error: %s", error.c_str());
-            } else {
-              const std::string page = json["page"];
-              const std::string event = json["event"];
-              const std::string component = json["component"];
-              const std::string key = json["key"];
-              const std::string value = json["value"];
-              event_from_display->execute(json, page, event, component, key, value);
-            }
+      - lambda: |-
+          DynamicJsonDocument json(1024);
+          DeserializationError error = deserializeJson(json, x.c_str());
+          if (error) {
+            ESP_LOGE("text_sensor.disp1_local_event", "Error parsing json: %s", x.c_str());
+            ESP_LOGE("text_sensor.disp1_local_event", "Error: %s", error.c_str());
+          } else {
+            const std::string page = json["page"];
+            event_from_display->execute(json, page.c_str());
+          }
 
 uart:  ## UART for Nextion display
   - id: tf_uart

@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <sstream>
+#include <string>
 
 namespace nspanel_ha_blueprint {
 
@@ -44,6 +46,12 @@ namespace nspanel_ha_blueprint {
         } else {
             return input;
         }
+    }
+
+    std::string constructName(const std::string& prefix, const std::string& object, const std::string& suffix) {
+        std::ostringstream oss;
+        oss << prefix << object << suffix;
+        return oss.str();
     }
 
 }  // namespace nspanel_ha_blueprint
