@@ -2,6 +2,7 @@
 
 #include "pages.h"
 #include <cstring>
+#include <string>
 
 namespace nspanel_ha_blueprint {
 

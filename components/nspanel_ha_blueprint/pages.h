@@ -3,6 +3,8 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
+#include <string>
 
 namespace nspanel_ha_blueprint {
 
