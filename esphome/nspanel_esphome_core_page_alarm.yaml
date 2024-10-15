@@ -26,85 +26,29 @@ api:
         entity: string           # Entity ID for the alarm system, enabling state updates and control.
         mui_alarm: string[]      # Localized text for alarm control buttons (e.g., Arm, Disarm), allowing for a multilingual interface.
       then:
-        - if:
-            condition:
-              - text_sensor.state:
-                  id: current_page
-                  state: alarm
-            then:  # Update alarm page
-              - text_sensor.template.publish:
-                  id: detailed_entity
-                  state: !lambda return entity.c_str();
-              - script.execute:
-                  id: alarm_update_icon
-                  component: icon_state  # Alarm page - Header
-                  state: !lambda return state.c_str();
-              - script.execute:
-                  id: set_component_text
-                  component_id: page_label
-                  text: !lambda |-
-                    return (page_title.find("\\r") != std::string::npos) ?
-                            page_title.replace(page_title.find("\\r"), 2, " ").c_str() :
-                            page_title.c_str();
-              # Alarm page - Code format
-              - script.execute:
-                  id: set_component_text
-                  component_id: code_format
-                  text: !lambda return code_format.c_str();
-              - script.execute:
-                  id: set_component_text
-                  component_id: code_arm_req
-                  text: !lambda |-
-                    return code_arm_required ? "1" : "0";
-              # Alarm page - Buttons
-              - script.execute:
-                  id: alarm_button_renderer
-                  button_name: 'home'
-                  button_text: !lambda return mui_alarm[0].c_str();
-                  button_feature: 1
-                  alarm_supported_features: !lambda return supported_features;
-                  state_is_current: !lambda return state == "armed_home";
-              #- script.execute:
-              #    id: alarm_button_renderer
-              #    button: away
-              #    feature: 2
-              #    text: !lambda return mui_alarm[1].c_str();
-              #    supported_features: !lambda return supported_features;
-              #    state: !lambda return state.c_str();
-              #    compare_state: armed_away
-              #- script.execute:
-              #    id: alarm_button_renderer
-              #    button: night
-              #    text: !lambda return mui_alarm[2].c_str();
-              #    feature: 4
-              #    supported_features: !lambda return supported_features;
-              #    state: !lambda return state.c_str();
-              #    supported_features: !lambda return supported_features;
-              #    compare_state: armed_night
-              #- script.execute:
-              #    id: alarm_button_renderer
-              #    button: vacat
-              #    text: !lambda return mui_alarm[3].c_str();
-              #    feature: 32
-              #    state: !lambda return state.c_str();
-              #    compare_state: armed_vacation
-              #    supported_features: !lambda return supported_features;
-              #- script.execute:
-              #    id: alarm_button_renderer
-              #    button: bypass
-              #    text: !lambda return mui_alarm[4].c_str();
-              #    feature: 16
-              #    state: !lambda return state.c_str();
-              #    compare_state: armed_bypass
-              #    supported_features: !lambda return supported_features;
-              #- script.execute:
-              #    id: alarm_button_renderer
-              #    button: disarm
-              #    text: !lambda return mui_alarm[5].c_str();
-              #    feature: 0
-              #    state: !lambda return state.c_str();
-              #    compare_state: disarmed
-              #    supported_features: !lambda return supported_features;
+        - lambda: |-
+            if (current_page->state == "alarm") {  // Update alarm page
+              detailed_entity->publish_state(entity.c_str());
+
+              // Alarm page header
+              alarm_update_icon->execute("icon_state", state.c_str());
+              set_component_text->execute("page_label",
+                                          (page_title.find("\\r") != std::string::npos) ?
+                                          page_title.replace(page_title.find("\\r"), 2, " ").c_str() :
+                                          page_title.c_str());
+
+              // Alarm page code format
+              set_component_text->execute("code_format", code_format.c_str());
+              set_component_text->execute("code_arm_req", code_arm_required ? "1" : "0");
+
+              // Alarm page buttons
+              alarm_button_renderer->execute("disarm", mui_alarm[5].c_str(), true, state == "disarmed");
+              alarm_button_renderer->execute("home", mui_alarm[0].c_str(), supported_features & 1, state == "armed_home");
+              alarm_button_renderer->execute("away", mui_alarm[1].c_str(), supported_features & 2, state == "armed_away");
+              alarm_button_renderer->execute("night", mui_alarm[2].c_str(), supported_features & 4, state == "armed_night");
+              alarm_button_renderer->execute("vacat", mui_alarm[3].c_str(), supported_features & 32, state == "armed_vacation");
+              alarm_button_renderer->execute("bypass", mui_alarm[4].c_str(), supported_features & 16, state == "armed_bypass");
+            }
 
 script:
   - id: alarm_button_renderer
@@ -112,37 +56,19 @@ script:
     parameters:
       button_name: string
       button_text: string
-      button_feature: int
-      alarm_supported_features: int
+      is_feature_supported: bool
       state_is_current: bool
     then:
-      - script.execute:
-          id: display_wrapped_text
-          page: "alarm"
-          component: !lambda return constructName("bt_", button_name.c_str(), "_text").c_str();
-          text_to_display: !lambda return button_text.c_str();
-          line_length_limit: 10
-      #- lambda: |-
-      #    if (alarm_supported_features & button_feature) {
-      #      disp1->set_component_pic(constructName("bt_", button_name.c_str(), "_pic").c_str(), state_is_current ? 43 : 42);
-      #      // disp1->set_component_background_color(constructName("bt_", button_name, "_text").c_str(), state_is_current ? 19818 : 52857);
-      #      // disp1->set_component_background_color(constructName("bt_", button_name.c_str(), "_icon").c_str(), state_is_current ? 19818 : 52857);
-      #    }
-      #      - script.execute:
-      #          id: set_component_font_color
-      #          component_id: !lambda return ("bt_" + button_name + "_text").c_str();
-      #          color: !lambda |-
-      #            return state_is_current ? 65535 : 0;
-      #      - script.execute:
-      #          id: set_component_font_color
-      #          component_id: !lambda return ("bt_" + button_name + "_icon").c_str();
-      #          color: !lambda |-
-      #            return state_is_current ? 65535 : 0;
-      #      - script.execute:
-      #          id: set_component_visibility
-      #          page: alarm
-      #          component_id: !lambda return ("bt_" + button_name).c_str();
-      #          show: !lambda return state_is_current;
+      - lambda: |-
+          display_wrapped_text->execute("alarm", constructName("bt_", button_name.c_str(), "_text").c_str(), button_text.c_str(), 10);
+          if (is_feature_supported) {
+            set_component_pic->execute(constructName("bt_", button_name.c_str(), "_pic").c_str(), state_is_current ? 43 : 42);
+            disp1->set_component_background_color(constructName("bt_", button_name, "_text").c_str(), state_is_current ? 19818 : 52857);
+            disp1->set_component_background_color(constructName("bt_", button_name.c_str(), "_icon").c_str(), state_is_current ? 19818 : 52857);
+            set_component_font_color->execute(constructName("bt_", button_name, "_text").c_str(), state_is_current ? 65535 : 0);
+            set_component_font_color->execute(constructName("bt_", button_name, "_icon").c_str(), state_is_current ? 65535 : 0);
+            set_component_visibility->execute("alarm", constructName("bt_", button_name, "").c_str(), state_is_current);
+          }
 
   - id: alarm_control_panel_action
     mode: restart
