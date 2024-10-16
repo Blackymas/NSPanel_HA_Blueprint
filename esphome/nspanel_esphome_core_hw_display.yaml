@@ -5,9 +5,6 @@
 ##### For normal use with the Blueprint, no changes are necessary.                              #####
 #####################################################################################################
 
-##### External references #####
-###############################
-
 ---
 substitutions:
   BOOT_STEP_HW_DISPLAY: '1UL << 5'
@@ -20,9 +17,8 @@ api:
       variables:
         cmd: string  # Command string to be sent. Refer to the Nextion Instruction Set for supported commands: https://nextion.tech/instruction-set/
       then:
-        - script.execute:
-            id: send_command
-            cmd: !lambda return cmd;
+        - lambda: |-
+            send_command->execute(cmd.c_str());
 
     # Changes the foreground color of a specified component on the display.
     - action: component_color
@@ -213,14 +209,9 @@ esphome:
             id: boot_log
             category: on_boot
             log_message: Set baud rate
-        - if:
-            condition:
-              - lambda: return stoi(baud_rate->state) != tf_uart->get_baud_rate();
-            then:
-              - script.execute:
-                  id: set_baud_rate
-                  baud_rate: !lambda return stoi(baud_rate->state);
-                  definitive: true
+        - lambda: |-
+            if (stoi(baud_rate->state) != tf_uart->get_baud_rate())
+              set_baud_rate->execute(stoi(baud_rate->state), true);
         - wait_until:
             condition:
               - lambda: return disp1->is_setup();
@@ -265,38 +256,6 @@ globals:
 
 json:  # Can be replaced by web_server
 
-light:
-  # Add the display as a light in Home Assistant
-  - name: Display
-    id: display_light
-    icon: mdi:tablet-dashboard
-    platform: monochromatic
-    output: display_output
-    default_transition_length: 0s
-    on_turn_on:
-      then:
-        - logger.log: "Display: On"
-        - if:
-            condition:
-              - text_sensor.state:
-                  id: current_page
-                  state: screensaver
-            then:
-              - script.execute:
-                  id: goto_page
-                  page: !lambda return wakeup_page_name->state.c_str();
-              - script.execute: timer_reset_all
-    on_turn_off:
-      then:
-        - logger.log: "Display: Off"
-        - script.execute:
-            id: goto_page
-            page: screensaver
-
-logger:
-  logs:
-    light: INFO
-
 number:
   ##### SCREEN BRIGHTNESS #####
   - id: display_brightness
@@ -312,22 +271,13 @@ number:
     optimistic: true
     on_value:
       then:
-        - script.execute:
-            id: set_variable_value
-            variable: brightness
-            val: !lambda return int(x);
-        - if:
-            condition:
-              - not:
-                  - text_sensor.state:
-                      id: current_page
-                      state: screensaver
-            then:
-              - script.execute:
-                  id: set_brightness
-                  brightness: !lambda return x;
-              - script.execute: timer_dim
-              - script.execute: timer_sleep
+        - lambda: |-
+            set_variable_value->execute("brightness", int(x));
+            if (current_page->state != "screensaver") {
+              set_brightness->execute(int(x));
+              timer_dim->execute();
+              timer_sleep->execute();
+            }
 
   ##### SCREEN BRIGHTNESS DIMMED DOWN #####
   - id: display_dim_brightness
@@ -343,22 +293,12 @@ number:
     optimistic: true
     on_value:
       then:
-        - script.execute:
-            id: set_variable_value
-            variable: brightness_dim
-            val: !lambda return int(x);
-        - if:
-            condition:
-              - not:
-                  - text_sensor.state:
-                      id: current_page
-                      state: screensaver
-              - lambda: return current_brightness->state != x;
-            then:
-              - script.execute:
-                  id: set_brightness
-                  brightness: !lambda return x;
-              - script.execute: timer_sleep
+        - lambda: |-
+            set_variable_value->execute("brightness_dim", int(x));
+            if (current_page->state != "screensaver" and current_brightness->state != x) {
+              set_brightness->execute(int(x));
+              timer_sleep->execute();
+            }
 
   ##### SCREEN BRIGHTNESS SLEEP #####
   - id: display_sleep_brightness
@@ -374,11 +314,9 @@ number:
     optimistic: true
     on_value:
       then:
-        - script.execute:
-            id: set_variable_value
-            variable: brightness_sleep
-            val: !lambda return int(x);
-        - script.execute: page_screensaver
+        - lambda: |-
+            set_variable_value->execute("brightness_sleep", int(x));
+            page_screensaver->execute();
 
   ##### Timers #####
   - name: Timeout Page
@@ -425,31 +363,11 @@ number:
     unit_of_measurement: "s"
     on_value:
       then:
-        - script.execute: timer_dim
-        - script.execute: timer_sleep
-        - if:
-            condition:
-              - lambda: return x == 0;
-              - text_sensor.state:
-                  id: current_page
-                  state: screensaver
-            then:
-              - script.execute:
-                  id: goto_page
-                  page: !lambda return wakeup_page_name->state.c_str();
-
-output:
-  # Output required by `display_light` to send the commands to Nextion
-  - id: display_output
-    platform: template
-    type: float
-    write_action:
-      then:
-        - script.execute:
-            id: set_brightness
-            brightness: !lambda |-
-              return int(round(display_light->current_values.is_on() ?
-                        (display_light->current_values.get_brightness() * 100.0f) : 0.0));
+        - lambda: |-
+            timer_dim->execute();
+            timer_sleep->execute();
+            if (x == 0 and current_page->state == "screensaver")
+              goto_page->execute(wakeup_page_name->state.c_str());
 
 script:
   - id: !extend boot_progress_dump
@@ -495,7 +413,6 @@ script:
       text_to_display: string
       line_length_limit: uint
     then:
-      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
       - lambda: |-
           int startPos = 0;
           int endPos = 0;
@@ -601,90 +518,47 @@ script:
     parameters:
       page: string
     then:
-      - if:
+      - wait_until:
           condition:
-            - not:
-                - text_sensor.state:
-                    id: current_page
-                    state: !lambda return page.c_str();
-          then:
-            - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
-            - lambda: disp1->goto_page(page.c_str());
+            - text_sensor.state:
+                id: current_page
+                state: !lambda return page.c_str();
+          timeout: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - lambda: |-
+          if (current_page->state != page)
+            disp1->goto_page(page.c_str());
 
   - id: !extend ha_button
     then:
-      - if:
-          condition:
-            not:
-              text_sensor.state:
-                id: current_page
-                state: screensaver
-          then:
-            - script.execute: timer_reset_all
+      - lambda: |-
+          if (current_page->state != "screensaver")
+            timer_reset_all->execute();
 
   - id: page_changed
     mode: restart
     then:
-      - if:
-          condition:
-            - not:
-                - text_sensor.state:
-                    id: current_page
-                    state: !lambda return id(last_page).c_str();
-          then:  # Clear the buffer when a new page opens
-            - script.stop: set_component_pic
-            - script.stop: set_component_text
-            - script.stop: set_component_value
-            - script.stop: set_component_visibility
-            - script.stop: set_component_font
-            - script.stop: set_component_font_color
-      - if:
-          condition:
-            not:
-              text_sensor.state:
-                id: current_page
-                state: screensaver
-          then:
-            - script.execute: timer_reset_all
-      - if:  # Update the display light entity
-          condition:
-            - light.is_on: display_light
-            - text_sensor.state:
-                id: current_page
-                state: screensaver
-          then:
-            light.turn_off: display_light
-          else:
-            - if:
-                condition:
-                  - light.is_off: display_light
-                  - not:
-                      - text_sensor.state:
-                          id: current_page
-                          state: screensaver
-                then:
-                  - light.turn_on: display_light
-
-      - if:
-          condition:
-            - lambda: return current_page->state != "alarm";
-            - lambda: return current_page->state != "climate";
-            - lambda: return current_page->state != "cover";
-            - lambda: return current_page->state != "fan";
-            - lambda: return current_page->state != "light";
-            - lambda: return current_page->state != "media_player";
-            - lambda: return current_page->state != "confirm";
-            - lambda: return current_page->state != "keyb_num";
-          then:
-            - text_sensor.template.publish:
-                id: detailed_entity
-                state: ''
-            - script.execute:
-                id: set_variable_value
-                variable: back_page_id
-                val: 1
-
       - lambda: |-
+          if (current_page->state != id(last_page)) {  // Clear the buffer when a new page opens
+            set_component_font->stop();
+            set_component_font_color->stop();
+            set_component_pic->stop();
+            set_component_text->stop();
+            set_component_value->stop();
+            set_component_visibility->stop();
+          }
+          if (
+              current_page->state != "alarm" and
+              current_page->state != "climate" and
+              current_page->state != "cover" and
+              current_page->state != "fan" and
+              current_page->state != "light" and
+              current_page->state != "media_player" and
+              current_page->state != "confirm" and
+              current_page->state != "keyb_num"
+              ) {
+            detailed_entity->publish_state("");
+            set_variable_value->execute("back_page_id", 1);
+          }
           // Report new page to logs
           ESP_LOGI("script.page_changed", "New page: %s", current_page->state.c_str());
 
@@ -698,7 +572,8 @@ script:
             last_page: !lambda return id(last_page).c_str();
             entity: !lambda return detailed_entity->state.c_str();
 
-      - lambda: id(last_page) = current_page->state;
+      - lambda: |-
+          id(last_page) = current_page->state;
 
   - id: send_command
     mode: queued
@@ -706,7 +581,8 @@ script:
       cmd: string
     then:
       - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
-      - lambda: disp1->send_command(cmd.c_str());
+      - lambda: |-
+          disp1->send_command(cmd.c_str());
 
   - id: set_baud_rate
     mode: restart
@@ -747,28 +623,6 @@ script:
       - lambda: |-
           disp1->set_backlight_brightness(brightness / 100.0f);
           current_brightness->update();
-      - if:
-          condition:
-            - lambda: |-
-                return (brightness != int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0)));
-          then:
-            - if:
-                condition:
-                  - not:
-                      - text_sensor.state:
-                          id: current_page
-                          state: screensaver
-                  - lambda: return brightness > 0;
-                then:
-                  - light.turn_on:
-                      id: display_light
-                      brightness: !lambda return (brightness / 100.0f);
-                else:
-                  - if:
-                      condition:
-                        - light.is_on: display_light
-                      then:
-                        - light.turn_off: display_light
 
   - id: set_component_font
     mode: queued

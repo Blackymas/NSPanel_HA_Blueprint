@@ -1,0 +1,94 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - HARDWARE - Display - Light                                                 #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+light:
+  # Add the display as a light in Home Assistant
+  - name: Display
+    id: display_light
+    icon: mdi:tablet-dashboard
+    platform: monochromatic
+    output: display_output
+    default_transition_length: 0s
+    on_turn_on:
+      then:
+        - lambda: |-
+            ESP_LOGI("light.display_light", "Display: On");
+            if (current_page->state == "screensaver") {
+              goto_page->execute(wakeup_page_name->state.c_str());
+              timer_reset_all->execute();
+            }
+    on_turn_off:
+      then:
+        - lambda: |-
+            ESP_LOGI("light.display_light", "Display: Off");
+            goto_page->execute("screensaver");
+
+logger:
+  logs:
+    light: INFO
+
+output:
+  # Output required by `display_light` to send the commands to Nextion
+  - id: display_output
+    platform: template
+    type: float
+    write_action:
+      then:
+        - script.execute:
+            id: set_brightness
+            brightness: !lambda |-
+              return int(round(display_light->current_values.is_on() ?
+                        (display_light->current_values.get_brightness() * 100.0f) : 0.0));
+
+script:
+  - id: !extend page_changed
+    then:
+      - if:  # Update the display light entity
+          condition:
+            - light.is_on: display_light
+            - text_sensor.state:
+                id: current_page
+                state: screensaver
+          then:
+            light.turn_off: display_light
+          else:
+            - if:
+                condition:
+                  - light.is_off: display_light
+                  - not:
+                      - text_sensor.state:
+                          id: current_page
+                          state: screensaver
+                then:
+                  - light.turn_on: display_light
+
+  - id: !extend set_brightness
+    then:
+      - if:
+          condition:
+            - lambda: |-
+                return (brightness != int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0)));
+          then:
+            - if:
+                condition:
+                  - not:
+                      - text_sensor.state:
+                          id: current_page
+                          state: screensaver
+                  - lambda: return brightness > 0;
+                then:
+                  - light.turn_on:
+                      id: display_light
+                      brightness: !lambda return (brightness / 100.0f);
+                else:
+                  - if:
+                      condition:
+                        - light.is_on: display_light
+                      then:
+                        - light.turn_off: display_light
+...
