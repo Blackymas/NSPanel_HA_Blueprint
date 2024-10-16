@@ -254,6 +254,11 @@ globals:
     restore_value: true
     initial_value: "'.'"
 
+  - id: nextion_queue
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+
 json:  # Can be replaced by web_server
 
 number:
@@ -523,7 +528,7 @@ script:
             - text_sensor.state:
                 id: current_page
                 state: !lambda return page.c_str();
-          timeout: !lambda return (10*disp1->queue_size()+tf_uart->available());
+          timeout: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
       - lambda: |-
           if (current_page->state != page)
             disp1->goto_page(page.c_str());
@@ -533,6 +538,19 @@ script:
       - lambda: |-
           if (current_page->state != "screensaver")
             timer_reset_all->execute();
+
+  - id: nextion_queue_add
+    mode: queued
+    then:
+      - lambda: |-
+          id(nextion_queue)++;
+
+  - id: nextion_queue_del
+    mode: queued
+    then:
+      - lambda: |-
+          if (id(nextion_queue) > 0)
+            id(nextion_queue)--;
 
   - id: page_changed
     mode: restart
@@ -580,9 +598,11 @@ script:
     parameters:
       cmd: string
     then:
-      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - script.execute: nextion_queue_add
+      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
       - lambda: |-
           disp1->send_command(cmd.c_str());
+      - script.execute: nextion_queue_del
 
   - id: set_baud_rate
     mode: restart
@@ -620,78 +640,124 @@ script:
     parameters:
       brightness: uint8_t
     then:
+      - script.execute: nextion_queue_add
       - lambda: |-
           disp1->set_backlight_brightness(brightness / 100.0f);
           current_brightness->update();
+      - script.execute: nextion_queue_del
 
   - id: set_component_font
-    mode: queued
+    mode: parallel
     parameters:
       page: string
       component: string
       font: uint8_t
     then:
-      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - script.execute: nextion_queue_add
+      - wait_until:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: !lambda return page.c_str();
+          timeout: 2s
+      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
       - lambda: disp1->set_component_font(component.c_str(), font);
+      - script.execute: nextion_queue_del
 
   - id: set_component_font_color
-    mode: queued
+    mode: parallel
     parameters:
       page: string
       component: string
       color: int
     then:
-      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - script.execute: nextion_queue_add
+      - wait_until:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: !lambda return page.c_str();
+          timeout: 2s
+      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
       - lambda: disp1->set_component_font_color(component.c_str(), color);
+      - script.execute: nextion_queue_del
 
   - id: set_component_pic
-    mode: queued
+    mode: parallel
     parameters:
       page: string
       component: string
       pic: uint8_t
     then:
-      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - script.execute: nextion_queue_add
+      - wait_until:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: !lambda return page.c_str();
+          timeout: 2s
+      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
       - lambda: disp1->set_component_pic(component.c_str(), pic);
+      - script.execute: nextion_queue_del
 
   - id: set_component_text
-    mode: queued
+    mode: parallel
     parameters:
       page: string
       component: string
       text: string
     then:
-      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - script.execute: nextion_queue_add
+      - wait_until:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: !lambda return page.c_str();
+          timeout: 2s
+      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
       - lambda: disp1->set_component_text(component.c_str(), text.c_str());
+      - script.execute: nextion_queue_del
 
   - id: set_component_value
-    mode: queued
+    mode: parallel
     parameters:
       page: string
       component: string
       val: int
     then:
-      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - script.execute: nextion_queue_add
+      - wait_until:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: !lambda return page.c_str();
+          timeout: 2s
+      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
       - lambda: disp1->set_component_value(component.c_str(), val);
+      - script.execute: nextion_queue_del
 
   - id: set_component_visibility
-    mode: queued
+    mode: parallel
     parameters:
       page: string
       component: string
       show: bool
     then:
+      - script.execute: nextion_queue_add
       - wait_until:
           condition:
-            - lambda: return (page == current_page->state);
-          timeout: 50ms
+            - text_sensor.state:
+                id: current_page
+                state: !lambda return page.c_str();
+          timeout: 2s
       - if:
           condition:
             - lambda: return (page == current_page->state);
           then:
-            - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+            - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
             - lambda: |-
                 disp1->send_command_printf("vis %s,%i", component.c_str(), show ? 1 : 0);
+      - script.execute: nextion_queue_del
 
   - id: !extend set_var_int
     then:
@@ -712,7 +778,7 @@ script:
       variable: string
       val: int
     then:
-      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
       - lambda: |-
           disp1->send_command_printf("%s=%i", variable.c_str(), val);
 
