@@ -160,48 +160,27 @@ script:
       - delay: 2s
       - logger.log: Starting TFT upload
       - lambda: |-
+          ESP_LOGI("script.nextion_upload", "Starting TFT upload");
           id(tft_upload_result) = disp1->upload_tft(baud_rate, !disp1->is_setup());
-          ESP_LOGD("script.nextion_upload", "TFT upload: %s", YESNO(id(tft_upload_result)));
+          ESP_LOGI("script.nextion_upload", "TFT upload: %s", YESNO(id(tft_upload_result)));
 
   - id: open_upload_dialog
     mode: restart
     then:
-      - logger.log: Showing upload dialog page
-      - script.execute:
-          id: goto_page
-          page: confirm
+      - lambda: |-
+          ESP_LOGD("script.open_upload_dialog", "Showing upload dialog page");
+          goto_page->execute("confirm");
       - wait_until:
           condition:
             - text_sensor.state:
                 id: current_page
                 state: confirm
           timeout: 2s
-      - if:
-          condition:
-            - text_sensor.state:
-                id: current_page
-                state: confirm
-          then:
-            - script.execute:
-                id: set_component_visibility
-                page: confirm
-                component: bclose
-                show: false
-            - script.execute:
-                id: set_component_visibility
-                page: confirm
-                component: bt_accept
-                show: false
-            - script.execute:
-                id: set_component_visibility
-                page: confirm
-                component: bt_clear
-                show: false
-      - script.execute:
-          id: set_component_text
-          page: confirm
-          component: title
-          text: Upload TFT
+      - lambda: |-
+          set_component_visibility->execute("confirm", "bclose", false);
+          set_component_visibility->execute("confirm", "bt_accept", false);
+          set_component_visibility->execute("confirm", "bt_clear", false);
+          set_component_text->execute("confirm", "title", "Upload TFT");
 
   - id: report_upload_progress
     mode: restart
@@ -209,26 +188,23 @@ script:
       message: string
     then:
       - lambda: |-
-          ESP_LOGD("script.report_upload_progress", message.c_str());
+          ESP_LOGI("script.report_upload_progress", message.c_str());
+          disp1->set_backlight_brightness(1);
       - if:
           condition:
             - lambda: return id(tft_is_valid);
           then:
-            - if:
+            - lambda: |-
+                if (current_page->state != "confirm")
+                  open_upload_dialog->execute();
+            - wait_until:
                 condition:
-                  - not:
-                      - text_sensor.state:
-                          id: current_page
-                          state: confirm
-                then:
-                  - script.execute: open_upload_dialog
-            - script.execute:
-                id: display_wrapped_text
-                page: confirm
-                component: body
-                text_to_display: !lambda return message.c_str();
-                line_length_limit: 18
-            - lambda: disp1->set_backlight_brightness(1);
+                  - text_sensor.state:
+                      id: current_page
+                      state: confirm
+                timeout: 2s
+            - lambda: |-
+                display_wrapped_text->execute("confirm", "body", message.c_str(), 18);
 
   - id: select_tft_file_model
     mode: restart

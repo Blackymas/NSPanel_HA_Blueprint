@@ -26,12 +26,6 @@ substitutions:
   heat_deadband: "0.5"  # Temperature delta before engaging heat
   heat_overrun: "0.5"   # Temperature delta before disengaging heat
 
-  ##### DO NOT CHANGE THIS #####
-  addon_climate_cool: "false"
-  addon_climate_heat: "false"
-  addon_climate_dual: "false"
-  ##############################
-
 esphome:
   platformio_options:
     build_flags:
@@ -59,17 +53,38 @@ climate:
         - script.execute: page_climate
         - script.execute: page_home
 
+display:
+  - id: !extend disp1
+    on_touch:
+      then:
+        - lambda: |-
+            if (
+                  page_id == 1  // Page Home
+                  and id(is_climate)
+                  and (
+                    component_id == 4      // indr_temp
+                    or component_id == 27  // indr_temp_icon
+                  )
+                ) {
+              detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
+              set_component_value->execute("climate", "embedded", id(is_embedded_thermostat) ? 1 : 0);
+            }
+
 globals:
-  ##### Is embedded thermostat visible on climate page? #####
-  - id: is_addon_climate_visible
+  - id: is_addon_climate_visible  # Is embedded thermostat visible on climate page?
     type: bool
     restore_value: false
     initial_value: 'false'
-  ##### Embeded climate friendly name #####
-  - id: addon_climate_friendly_name
+
+  - id: addon_climate_friendly_name  # Embeded climate friendly name
     type: std::string
     restore_value: false
     initial_value: '"${name} Thermostat"'
+
+  - id: is_embedded_thermostat  # Is embedded thermostat set as main climate entity?
+    type: bool
+    restore_value: true
+    initial_value: 'false'
 
 logger:
   logs:
@@ -182,33 +197,57 @@ script:
             }
             float total_steps = (temp_max-temp_offset)/temp_step;
             set_climate->execute (
-              temp_current,                                         // current_temp
-              0,                                                    // supported_features
-              ((${addon_climate_dual}) ? -999 : temp_target),       // target_temp
-              ((${addon_climate_dual}) ? temp_target_high : -999),  // target_temp_high
-              ((${addon_climate_dual}) ? temp_target_low : -999),   // target_temp_low
-              int(round(temp_step*10)),                             // temp_step
-              int(round(total_steps)),                              // total_steps
-              int(round(temp_offset*10)),                           // temp_offset
-              "",                                                   // climate_icon
-              true                                                  // embedded_climate
+              temp_current,                // current_temp
+              0,                           // supported_features
+            #if defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL)
+              -999,                        // target_temp
+              temp_target_high,            // target_temp_high
+              temp_target_low,             // target_temp_low
+            #else
+              temp_target,                 // target_temp
+              -999,                        // target_temp_high
+              -999,                        // target_temp_low
+            #endif
+              int(round(temp_step*10)),    // temp_step
+              int(round(total_steps)),     // total_steps
+              int(round(temp_offset*10)),  // temp_offset
+              "",                          // climate_icon
+              true                         // embedded_climate
             );
 
             update_climate_icon->execute("climate", "target_icon", int(thermostat_embedded->action), int(thermostat_embedded->mode));
             set_component_visibility->execute("climate", "button01", false);
-            set_component_visibility->execute("climate", "button02", ${addon_climate_dual});
-            set_component_visibility->execute("climate", "button03", ${addon_climate_dual} or ${addon_climate_heat});  // Heat
-            set_component_visibility->execute("climate", "button04", ${addon_climate_dual} or ${addon_climate_cool});  // Cool
+            #if defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL)
+            set_component_visibility->execute("climate", "button02", true);
+            set_component_font_color->execute("climate", "button02", thermostat_embedded->mode == climate::CLIMATE_MODE_HEAT_COOL ?
+                                                                      65535 : 48631);
+            #else
+            set_component_visibility->execute("climate", "button02", false);
+            set_component_font_color->execute("climate", "button02", thermostat_embedded->mode == climate::CLIMATE_MODE_HEAT_COOL ?
+                                                                      65535 : 6339);
+            #endif
+            #if defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL) or defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT)
+            set_component_visibility->execute("climate", "button03", true);  // Heat
+            set_component_font_color->execute("climate", "button03", thermostat_embedded->mode == climate::CLIMATE_MODE_HEAT ?
+                                                                      64164 : 48631);
+            #else
+            set_component_visibility->execute("climate", "button03", false);  // Heat
+            set_component_font_color->execute("climate", "button03", thermostat_embedded->mode == climate::CLIMATE_MODE_HEAT ?
+                                                                      64164 : 6339);
+            #endif
+            #if defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL) or defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL)
+            set_component_visibility->execute("climate", "button04", true);  // Cool
+            set_component_font_color->execute("climate", "button04", thermostat_embedded->mode == climate::CLIMATE_MODE_COOL ?
+                                                                      1055 : 48631);
+            #else
+            set_component_visibility->execute("climate", "button04", false);  // Cool
+            set_component_font_color->execute("climate", "button04", thermostat_embedded->mode == climate::CLIMATE_MODE_COOL ?
+                                                                      1055 : 6339);
+            #endif
             set_component_visibility->execute("climate", "button05", false);
             set_component_visibility->execute("climate", "button06", false);
             set_component_visibility->execute("climate", "button07", true);  // Off
             set_component_font_color->execute("climate", "button01", 6339);
-            set_component_font_color->execute("climate", "button02", thermostat_embedded->mode == climate::CLIMATE_MODE_HEAT_COOL ? 65535 :
-                                              (${addon_climate_dual} ? 48631 : 6339));
-            set_component_font_color->execute("climate", "button03", thermostat_embedded->mode == climate::CLIMATE_MODE_HEAT ? 64164 :
-                                              ((${addon_climate_dual} or ${addon_climate_heat}) ? 48631 : 6339));
-            set_component_font_color->execute("climate", "button04", thermostat_embedded->mode == climate::CLIMATE_MODE_COOL ? 1055 :
-                                              ((${addon_climate_dual} or ${addon_climate_cool}) ? 48631 : 6339));
             set_component_font_color->execute("climate", "button05", 6339);
             set_component_font_color->execute("climate", "button06", 6339);
             set_component_font_color->execute("climate", "button07", thermostat_embedded->mode == climate::CLIMATE_MODE_OFF ? 10597 : 35921);
