@@ -36,33 +36,13 @@ script:
       chip_font: uint8_t
       boot: bool
     then:
-      - if:
-          condition:
-            - or:
-                - lambda: return boot;
-                - lambda: return chip_font != id(home_chip_font_id);
-          then:
-            - lambda: id(home_chip_font_id) = chip_font;
-      - script.execute:
-          id: set_component_font
-          page: home
-          component: wifi_icon
-          font: !lambda return chip_font;
-      - script.execute:
-          id: set_component_font
-          page: home
-          component: chip_relay1
-          font: !lambda return chip_font;
-      - script.execute:
-          id: set_component_font
-          page: home
-          component: chip_relay2
-          font: !lambda return chip_font;
-      - script.execute:
-          id: set_component_font
-          page: home
-          component: chip_climate
-          font: !lambda return chip_font;
+      - lambda: |-
+          if (boot or chip_font != id(home_chip_font_id))
+            id(home_chip_font_id) = chip_font;
+          set_component_font->execute("home", "wifi_icon", chip_font);
+          set_component_font->execute("home", "chip_relay1", chip_font);
+          set_component_font->execute("home", "chip_relay2", chip_font);
+          set_component_font->execute("home", "chip_climate", chip_font);
       - repeat:
           count: 7
           then:
@@ -81,38 +61,34 @@ script:
       boot: bool
     then:
       - lambda: |-
-          if (boot or custom_buttons_font != id(home_custom_buttons_font_id)) {
+          if (boot or custom_buttons_font != id(home_custom_buttons_font_id))
             id(home_custom_buttons_font_id) = custom_buttons_font;
-            set_component_font->execute("home","bt_notific", id(home_custom_buttons_font_id));
-            set_component_font->execute("home","bt_qrcode", id(home_custom_buttons_font_id));
-            set_component_font->execute("home", "bt_entities", id(home_custom_buttons_font_id));
-            for (int i = 1; i <= 7; ++i) {
-              delay(10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
-              App.feed_wdt();
-              disp1->send_command_printf("home.button%02d.font=%" PRIu8, i, id(home_custom_buttons_font_id));
-            }
-          }
-          boot_progress->execute(${BOOT_STEP_PAGE_HOME}, "Page Home - Custom buttons font");
+          set_component_font->execute("home","bt_notific", custom_buttons_font);
+          set_component_font->execute("home","bt_qrcode", custom_buttons_font);
+          set_component_font->execute("home", "bt_entities", custom_buttons_font);
+      - repeat:
+          count: 7
+          then:
+            - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+            - lambda: |-
+                disp1->send_command_printf("home.button%02" PRIu32 ".font=%" PRIu8, iteration, custom_buttons_font);
+      - script.execute:
+          id: boot_progress
+          step: ${BOOT_STEP_PAGE_HOME}
+          step_name: Page Home - Custom buttons font
 
   - id: !extend boot_sequence
     then:
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: Set Home page elements
-      - script.execute:
-          id: chip_font
-          chip_font: !lambda return id(home_chip_font_id);
-          boot: true
-      - script.execute:
-          id: custom_buttons_font
-          custom_buttons_font: !lambda return id(home_custom_buttons_font_id);
-          boot: true
+      - lambda: |-
+          boot_log->execute("Boot", "Set Home page elements");
+          chip_font->execute(id(home_chip_font_id), true);
+          custom_buttons_font->execute(id(home_custom_buttons_font_id), true);
 
   - id: !extend page_changed
     then:
       - lambda: |-
-          if (current_page->state == "home") page_home->execute();
+          if (current_page->state == "home")
+            page_home->execute();
 
   - id: page_home
     mode: restart
