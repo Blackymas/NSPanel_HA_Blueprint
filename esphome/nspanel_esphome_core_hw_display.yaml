@@ -561,6 +561,7 @@ script:
           set_component_font->stop();
           set_component_font_color->stop();
           set_component_pic->stop();
+          set_component_picc->stop();
           set_component_text->stop();
           set_component_value->stop();
           set_component_visibility->stop();
@@ -610,7 +611,7 @@ script:
       - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
       - lambda: |-
           disp1->send_command(cmd.c_str());
-      - script.execute: nextion_queue_del
+          nextion_queue_del->execute();
 
   - id: set_baud_rate
     mode: restart
@@ -652,7 +653,7 @@ script:
       - lambda: |-
           disp1->set_backlight_brightness(brightness / 100.0f);
           current_brightness->update();
-      - script.execute: nextion_queue_del
+          nextion_queue_del->execute();
 
   - id: set_component_font
     mode: parallel
@@ -669,15 +670,16 @@ script:
                 state: !lambda return page.c_str();
           timeout: 2s
       - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
-      - lambda: disp1->set_component_font(component.c_str(), font);
-      - script.execute: nextion_queue_del
+      - lambda: |-
+          disp1->set_component_font(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), font);
+          nextion_queue_del->execute();
 
   - id: set_component_font_color
     mode: parallel
     parameters:
       page: string
       component: string
-      color: int
+      color: uint16_t
     then:
       - script.execute: nextion_queue_add
       - wait_until:
@@ -687,8 +689,37 @@ script:
                 state: !lambda return page.c_str();
           timeout: 2s
       - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
-      - lambda: disp1->set_component_font_color(component.c_str(), color);
-      - script.execute: nextion_queue_del
+      - lambda: |-
+          disp1->set_component_font_color(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), color);
+          nextion_queue_del->execute();
+
+  - id: set_component_picc
+    mode: parallel
+    parameters:
+      page: string
+      component: string
+      picc: uint8_t
+    then:
+      - script.execute: nextion_queue_add
+      - wait_until:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: !lambda return page.c_str();
+          timeout: 2s
+      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+      - lambda: |-
+          disp1->set_component_picc(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), picc);
+          nextion_queue_del->execute();
+
+  - id: set_component_foreground_color
+    mode: parallel
+    parameters:
+      page: string
+      component: string
+      color: int
+    then:
+      - lambda: set_component_font_color->execute(page.c_str(), component.c_str(), color);
 
   - id: set_component_pic
     mode: parallel
@@ -705,8 +736,9 @@ script:
                 state: !lambda return page.c_str();
           timeout: 2s
       - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
-      - lambda: disp1->set_component_pic(component.c_str(), pic);
-      - script.execute: nextion_queue_del
+      - lambda: |-
+          disp1->set_component_pic(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), pic);
+          nextion_queue_del->execute();
 
   - id: set_component_text
     mode: parallel
@@ -723,8 +755,9 @@ script:
                 state: !lambda return page.c_str();
           timeout: 2s
       - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
-      - lambda: disp1->set_component_text(component.c_str(), text.c_str());
-      - script.execute: nextion_queue_del
+      - lambda: |-
+          disp1->set_component_text(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), text.c_str());
+          nextion_queue_del->execute();
 
   - id: set_component_value
     mode: parallel
@@ -741,8 +774,9 @@ script:
                 state: !lambda return page.c_str();
           timeout: 2s
       - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
-      - lambda: disp1->set_component_value(component.c_str(), val);
-      - script.execute: nextion_queue_del
+      - lambda: |-
+          disp1->set_component_value(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), val);
+          nextion_queue_del->execute();
 
   - id: set_component_visibility
     mode: parallel
@@ -786,26 +820,31 @@ script:
       variable: string
       val: int
     then:
+      - script.execute: nextion_queue_add
       - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
       - lambda: |-
           disp1->send_command_printf("%s=%i", variable.c_str(), val);
+          nextion_queue_del->execute();
 
   - id: !extend stop_all
     then:
-      - script.stop: display_wrapped_text
-      - script.stop: event_from_display
-      - script.stop: goto_page
-      - script.stop: page_changed
-      - script.stop: send_command
-      - script.stop: set_baud_rate
-      - script.stop: set_brightness
-      - script.stop: set_component_font_color
-      - script.stop: set_component_text
-      - script.stop: set_component_visibility
-      - script.stop: timer_reset_all
-      - script.stop: timer_page
-      - script.stop: timer_dim
-      - script.stop: timer_sleep
+      - lambda: |-
+          display_wrapped_text->stop();
+          event_from_display->stop();
+          goto_page->stop();
+          page_changed->stop();
+          send_command->stop();
+          set_baud_rate->stop();
+          set_brightness->stop();
+          set_component_font_color->stop();
+          set_component_pic->stop();
+          set_component_picc->stop();
+          set_component_text->stop();
+          set_component_visibility->stop();
+          timer_reset_all->stop();
+          timer_page->stop();
+          timer_dim->stop();
+          timer_sleep->stop();
 
   ###### Timers ######
   - id: timer_reset_all  # Global timer reset - Triggered with a touch on the screen
