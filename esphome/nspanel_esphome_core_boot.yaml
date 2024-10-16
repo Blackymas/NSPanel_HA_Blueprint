@@ -215,68 +215,41 @@ script:
           id: boot_log
           category: Boot
           log_message: Display settings
-      - script.execute:
-          id: set_variable_value
-          variable: brightness_dim
-          val: !lambda return int(display_dim_brightness->state);
-      - script.execute:
-          id: set_component_value
-          page: settings
-          component: dimslider
-          val: !lambda return int(display_dim_brightness->state);
-      - script.execute:
-          id: set_variable_value
-          variable: brightness_sleep
-          val: !lambda return int(display_sleep_brightness->state);
-      - script.execute:
-          id: set_variable_value
-          variable: brightness
-          val: !lambda return int(display_brightness->state);
-      - script.execute:
-          id: set_component_value
-          page: settings
-          component: brightslider
-          val: !lambda return int(display_brightness->state);
-      - script.execute:
-          id: set_brightness
-          brightness: !lambda return display_brightness->state;
-      - script.execute:
-          id: boot_progress
-          step: ${BOOT_STEP_BOOT}
-          step_name: Boot
-      - script.execute: boot_event
+      - lambda: |-
+          set_variable_value->execute("brightness_dim", int(display_dim_brightness->state));
+          set_variable_value->execute("brightness_sleep", int(display_sleep_brightness->state));
+          set_variable_value->execute("brightness", int(display_brightness->state));
+          set_component_value->execute("settings", "dimslider", int(display_dim_brightness->state));
+          set_component_value->execute("settings", "brightslider", int(display_brightness->state));
+          set_brightness->execute(display_brightness->state);
+          boot_progress->execute(${BOOT_STEP_BOOT}, "Boot");
+          boot_event->execute();
 
   - id: !extend dump_config
     then:
-      - if:
-          condition:
-            - lambda: return is_boot_complete();
-          then:
-            - lambda: |-
-                ESP_LOGCONFIG("${project_tag}", "  Boot steps:  %" PRIu8 "/%" PRIu8 " (100%%)", get_boot_steps_completed(),
-                              TOTAL_BOOT_STEPS);
-          else:
-            - lambda: |-
-                ESP_LOGW("${project_tag}", "  Boot steps:  %" PRIu8 "/%" PRIu8 " (%" PRIu8 "%%)", get_boot_steps_completed(),
-                          TOTAL_BOOT_STEPS, get_boot_progress_percentage());
-                ESP_LOGW("${project_tag}", "  State:       %s",
-                          ((wifi_component->is_connected()) and api_server->is_connected()) ? "Pending" : "DISCONNECTED");
-                ESP_LOGCONFIG("${project_tag}", "Requesting new boot parameters from Blueprint");
-            - script.execute: boot_event
+      - lambda: |-
+          if (is_boot_complete())
+            ESP_LOGCONFIG("${project_tag}", "  Boot steps:  %" PRIu8 "/%" PRIu8 " (100%%)",
+                          get_boot_steps_completed(), TOTAL_BOOT_STEPS);
+          else {
+            ESP_LOGW("${project_tag}", "  Boot steps:  %" PRIu8 "/%" PRIu8 " (%" PRIu8 "%%)",
+                      get_boot_steps_completed(), TOTAL_BOOT_STEPS, get_boot_progress_percentage());
+            ESP_LOGW("${project_tag}", "  State:       %s",
+                      ((wifi_component->is_connected()) and api_server->is_connected()) ? "Pending" : "DISCONNECTED");
+            ESP_LOGCONFIG("${project_tag}", "Requesting new boot parameters from Blueprint");
+            boot_event->execute();
+          }
 
   - id: !extend page_changed
     then:
-      - if:
-          condition:
-            - text_sensor.state:
-                id: current_page
-                state: boot
-          then:
-            - script.execute: page_boot
+      - lambda: |-
+          if (current_page->state == "boot")
+            page_boot->execute();
 
   - id: !extend stop_all
     then:
-      - script.stop: boot_log
-      - script.stop: boot_event
-      - script.stop: boot_progress
+      - lambda: |-
+          boot_log->stop();
+          boot_event->stop();
+          boot_progress->stop();
 ...
