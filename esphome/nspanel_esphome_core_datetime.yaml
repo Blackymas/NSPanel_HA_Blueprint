@@ -9,25 +9,12 @@
 substitutions:
   BOOT_STEP_DATETIME: '1UL << 2'
 
-api:
-  id: !extend api_server
-  actions:
-    - action: set_timezone  # To do: Merge this on another init action for v4.4.0
-      variables:
-        timezone: string
-      then:
-        - script.stop: set_timezone
-        - script.execute:
-            id: set_timezone
-            timezone: !lambda return timezone;
-
 esphome:
   on_boot:
     - priority: 600.2
       then:
-        - script.execute:
-            id: set_timezone
-            timezone: !lambda return id(mui_timezone);
+        - lambda: |-
+            set_timezone->execute(id(mui_timezone).c_str());
 
 globals:
   - id: mui_timezone
@@ -124,22 +111,17 @@ script:
           then:
             - lambda: |-
                 id(mui_timezone) = timezone;
-            - if:
-                condition:
-                  - lambda: return timezone.empty();
-                then:
-                  - lambda: arch_restart();  // Restart when timezone is set to blank so it uses the one from ESPHome compiller
-                else:
-                  - lambda: |-
-                      time_provider->set_timezone(timezone.c_str());
-                      time_provider->call_setup();
-                      time_provider->dump_config();
-            - script.execute: refresh_datetime
+                if (timezone.empty())
+                  arch_restart();  // Restart when timezone is set to blank so it uses the one from ESPHome compiller
+                  time_provider->set_timezone(timezone.c_str());
+                  time_provider->call_setup();
+                  time_provider->dump_config();
+                refresh_datetime->execute();
 
   - id: !extend set_var_string
     then:
       - lambda: |-
-          if (component == "timezone") set_timezone->execute(val);
+          if (component == "timezone") set_timezone->execute(val.c_str());
           else if (component == "mui_meridiem_am") id(mui_meridiem_am) = val;
           else if (component == "mui_meridiem_pm") id(mui_meridiem_pm) = val;
           else if (component == "time_format") {
