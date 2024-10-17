@@ -15,27 +15,13 @@ api:
     # This action removes any displayed notifications from the screen, helping to keep the user interface clean and focused on its primary functions.
     - action: notification_clear
       then:
-        - if:
-            condition:
-              - text_sensor.state:
-                  id: current_page
-                  state: notification
-            then:
-              - script.execute:
-                  id: goto_page
-                  page: home
-        - text_sensor.template.publish:
-            id: notification_label
-            state: ""
-        - text_sensor.template.publish:
-            id: notification_text
-            state: ""
-        - switch.turn_off: notification_unread
-        - script.execute:
-            id: set_component_visibility
-            page: home
-            component: bt_notific
-            show: false
+        - lambda: |-
+            if (current_page->state == "notification")
+              goto_page->execute("home");
+            notification_label->publish_state("");
+            notification_text->publish_state("");
+            notification_unread->turn_off();
+            set_component_visibility->execute("home", "bt_notific", false);
 
     # Displays a notification message on the screen, useful for alerts or informational updates.
     - action: notification_show
@@ -43,39 +29,17 @@ api:
         label: string    # Title or label for the notification, displayed in a prominent format.
         message: string  # Detailed message or content of the notification. Include `\r` to insert a line break, allowing for custom formatting.
       then:
-        - script.execute:
-            id: set_component_visibility
-            page: home
-            component: bt_notific
-            show: true
-        - script.execute:
-            id: goto_page
-            page: notification
-        - script.execute: timer_reset_all
-        - script.execute:
-            id: set_component_text
-            page: notification
-            component: notifi_label
-            text: !lambda return label.c_str();
-        - script.execute:
-            id: display_wrapped_text
-            page: notification
-            component: notifi_text01
-            text_to_display: !lambda return message.c_str();
-            line_length_limit: !lambda |-
-              return display_mode->state == 2 ? 23 : 32;
-        - text_sensor.template.publish:
-            id: notification_label
-            state: !lambda return label.c_str();
-        - text_sensor.template.publish:
-            id: notification_text
-            state: !lambda return message.c_str();
-        - switch.turn_on: notification_unread
-        - if:
-            condition:
-              - switch.is_on: notification_sound
-            then:
-              - rtttl.play: "two short:d=4,o=5,b=100:16e6,16e6"
+        - lambda: |-
+            set_component_visibility->execute("home", "bt_notific", true);
+            goto_page->execute("notification");
+            timer_reset_all->execute();
+            set_component_text->execute("notification", "notifi_label", label.c_str());
+            display_wrapped_text->execute("notification", "notifi_text01", message.c_str(), display_mode->state == 2 ? 23 : 32);
+            notification_label->publish_state(label.c_str());
+            notification_text->publish_state(message.c_str());
+            notification_unread->turn_on();
+            if (notification_sound->state)
+              buzzer->play("two short:d=4,o=5,b=100:16e6,16e6");
 
 display:
   - id: !extend disp1
