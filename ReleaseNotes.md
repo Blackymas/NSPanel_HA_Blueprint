@@ -36,6 +36,18 @@ The boot process was totally rebuilt.
 
 ## Noteworthy Changes
 
+### Dynamic QR Code (#452 & #2283)
+- **Criticality:** Enhancement
+- **Issue Numbers:**
+  - #452
+  - #2283
+- **Description:**
+  Introduces the ability to assign an entity (supports input text or sensors) to a QR code. 
+  The QR code will automatically update on the panel when the entity's value changes.
+
+  This feature is useful in cases where you have dynamic content, such as a Wi-Fi password, and 
+  want the panel to display the updated value in real-time.
+
 ### Swipe Functionality Improvement and Bug Fix (#2244)
 - **Criticality:** Medium
 - **Issue Number:** #2244
