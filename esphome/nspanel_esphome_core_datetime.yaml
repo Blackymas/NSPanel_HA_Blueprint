@@ -9,54 +9,18 @@
 substitutions:
   BOOT_STEP_DATETIME: '1UL << 2'
 
-api:
-  id: !extend api_server
-  actions:
-    - action: set_timezone  # To do: Merge this on another init action for v4.4.0
-      variables:
-        timezone: string
-      then:
-        - script.stop: set_timezone
-        - script.execute:
-            id: set_timezone
-            timezone: !lambda return timezone;
-
 esphome:
   on_boot:
     - priority: 600.2
       then:
-        - script.execute:
-            id: set_timezone
-            timezone: !lambda return id(mui_timezone);
+        - lambda: |-
+            set_timezone->execute(id(mui_timezone).c_str());
 
 globals:
   - id: mui_timezone
     type: std::string
     restore_value: true
     initial_value: '""'
-
-  ##### Date/time formats #####
-  - id: home_date_color
-    type: uint16_t
-    restore_value: true
-    initial_value: '65535'
-  - id: mui_time_format
-    type: std::string
-    restore_value: true
-    max_restore_data_length: 15
-    initial_value: '"%H:%M"'
-  - id: home_time_color
-    type: uint16_t
-    restore_value: true
-    initial_value: '65535'
-  - id: mui_meridiem_am
-    type: std::string
-    restore_value: true
-    initial_value: '"AM"'
-  - id: mui_meridiem_pm
-    type: std::string
-    restore_value: true
-    initial_value: '"PM"'
 
 script:
   - id: !extend boot_progress_dump
@@ -75,33 +39,10 @@ script:
 
   - id: refresh_datetime
     mode: restart
-    then:
-      - lambda: |-
-          std::string time_format_str = id(mui_time_format);
-          if (time_format_str.find("%-H") != std::string::npos) {
-            time_format_str = time_format_str.replace(time_format_str.find("%-H"), sizeof("%-H")-1,
-                                                      to_string((int)(id(time_provider).now().hour)));
-          }
-          if (time_format_str.find("%-I") != std::string::npos) {
-            if (id(time_provider).now().hour>12) {
-              time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1,
-                                                        to_string((int)(id(time_provider).now().hour-12)));
-            } else if (id(time_provider).now().hour==0) {
-              time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1, "12");
-            } else {
-              time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1,
-                                                        to_string((int)(id(time_provider).now().hour)));
-            }
-          }
-          std::string meridiem_text = (id(time_provider).now().hour<12) ? id(mui_meridiem_am) : id(mui_meridiem_pm);
-          if (current_page->state == "screensaver" and id(screensaver_display_time)) {
-              std::string time_format_str_sleep = time_format_str;
-              if (time_format_str_sleep.find("%p") != std::string::npos)
-                time_format_str_sleep.replace(time_format_str_sleep.find("%p"), sizeof("%p")-1, meridiem_text.c_str());
-              set_component_text->execute("home", "text", id(time_provider).now().strftime(time_format_str_sleep).c_str());
-          }
-          set_component_text->execute("home", "meridiem", (time_format_str.find("%p") != std::string::npos) ? meridiem_text.c_str() : " ");
-          set_component_text->execute("home", "time", id(time_provider).now().strftime(time_format_str).c_str());
+    then:  # There's nothing here so far
+      # Extended by:
+      #   - nspanel_esphome_core_page_home.yaml
+      #   - nspanel_esphome_core_page_screensaver.yaml
 
   - id: !extend set_component_font_color  # Defined by nspanel_esphome_core_hw_display.yaml
     then:
@@ -124,22 +65,17 @@ script:
           then:
             - lambda: |-
                 id(mui_timezone) = timezone;
-            - if:
-                condition:
-                  - lambda: return timezone.empty();
-                then:
-                  - lambda: arch_restart();  // Restart when timezone is set to blank so it uses the one from ESPHome compiller
-                else:
-                  - lambda: |-
-                      time_provider->set_timezone(timezone.c_str());
-                      time_provider->call_setup();
-                      time_provider->dump_config();
-            - script.execute: refresh_datetime
+                if (timezone.empty())
+                  arch_restart();  // Restart when timezone is set to blank so it uses the one from ESPHome compiller
+                  time_provider->set_timezone(timezone.c_str());
+                  time_provider->call_setup();
+                  time_provider->dump_config();
+                refresh_datetime->execute();
 
   - id: !extend set_var_string
     then:
       - lambda: |-
-          if (component == "timezone") set_timezone->execute(val);
+          if (component == "timezone") set_timezone->execute(val.c_str());
           else if (component == "mui_meridiem_am") id(mui_meridiem_am) = val;
           else if (component == "mui_meridiem_pm") id(mui_meridiem_pm) = val;
           else if (component == "time_format") {
@@ -149,8 +85,9 @@ script:
 
   - id: !extend stop_all
     then:
-      - script.stop: refresh_datetime
-      - script.stop: set_timezone
+      - lambda: |-
+          refresh_datetime->stop();
+          set_timezone->stop();
 
 ##### Keeps time display updated #####
 time:
@@ -164,56 +101,26 @@ time:
 
       - seconds: 30  # Watchdog - Every minute, at second 30
         then:
-          - if:
-              condition:
-                - not:
-                    - wifi.connected:
-              then:
-                - logger.log:
-                    format: Retrying Wi-Fi connection
-                    level: WARN
-                - lambda: wifi_component->retry_connect();
-          - if:
-              condition:
-                - not:
-                    - api.connected:
-                - not:
-                    - text_sensor.state:
-                        id: current_page
-                        state: blank
-                - not:
-                    - text_sensor.state:
-                        id: current_page
-                        state: boot
-                - not:
-                    - text_sensor.state:
-                        id: current_page
-                        state: confirm
-                - not:
-                    - text_sensor.state:
-                        id: current_page
-                        state: home
-                - not:
-                    - text_sensor.state:
-                        id: current_page
-                        state: qrcode
-                - not:
-                    - text_sensor.state:
-                        id: current_page
-                        state: screensaver
-                - not:
-                    - text_sensor.state:
-                        id: current_page
-                        state: settings
-              then:
-                - logger.log:
-                    format: API disconnected. Falling back to Home page.
-                    level: WARN
-                - script.execute:
-                    id: goto_page
-                    page: home
-                - lambda: reset_boot_steps();
-          - script.execute: refresh_wifi_icon
+          - lambda: |-
+              if (not wifi_component->is_connected()) {
+                ESP_LOGW("time_provider.on_time", "Retrying Wi-Fi connection");
+                wifi_component->retry_connect();
+              }
+              if (
+                !api_server->is_connected() and
+                current_page->state != "blank" and
+                current_page->state != "boot" and
+                current_page->state != "confirm" and
+                current_page->state != "home" and
+                current_page->state != "qrcode" and
+                current_page->state != "screensaver" and
+                current_page->state != "settings"
+                ) {
+                ESP_LOGW("time_provider.on_time", "API disconnected. Falling back to Home page.");
+                goto_page->execute("home");
+                reset_boot_steps();
+              }
+              refresh_wifi_icon->execute();
 
       - minutes: /10
         seconds: 5
@@ -222,8 +129,8 @@ time:
 
     on_time_sync:
       then:
-        - script.execute: refresh_datetime
         - lambda: |-
+            refresh_datetime->execute();
             ESP_LOGI("time.on_time_sync", "System clock synchronized");
             ESP_LOGI("time.on_time_sync", "Timezone: %s", time_provider->get_timezone().c_str());
 ...

@@ -28,13 +28,25 @@ It was replaced by [`component_visibility` action](docs/api.md#component-visibil
 #### Action `icon` now requires page name as a parameter
 More info at [API doc - Icon action](docs/api.md#icon-action-icon).
 
-#### Actions `init_global`, `init_hardware`, `init_page_home` and `hw_button_state` are deprecated
+#### Actions `init_global`, `init_hardware`, `init_page_home`, `set_timezone` and `hw_button_state` are deprecated
 It was replaced by a few `set_` var actions during the boot or automation reloaded.
 
 ### Sensor `blueprint_status` was removed
 The boot process was totally rebuilt.
 
 ## Noteworthy Changes
+
+### Dynamic QR Code (#452 & #2283)
+- **Criticality:** Enhancement
+- **Issue Numbers:**
+  - #452
+  - #2283
+- **Description:**
+  Introduces the ability to assign an entity (supports input text or sensors) to a QR code. 
+  The QR code will automatically update on the panel when the entity's value changes.
+
+  This feature is useful in cases where you have dynamic content, such as a Wi-Fi password, and 
+  want the panel to display the updated value in real-time.
 
 ### Swipe Functionality Improvement and Bug Fix (#2244)
 - **Criticality:** Medium

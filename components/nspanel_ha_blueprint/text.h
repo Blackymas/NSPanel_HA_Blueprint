@@ -37,4 +37,16 @@ namespace nspanel_ha_blueprint {
      */
     std::string adjustDecimalSeparator(const std::string& input, char decimalSeparator);
 
+    /**
+     * Processes the given time format string by replacing specific placeholders with actual values.
+     *
+     * @param time_format The input time format string containing placeholders such as "%-H" and "%-I".
+     * @param current_hour The current hour in 24-hour format (0-23).
+     * @param meridiem_am The string representation for AM.
+     * @param meridiem_pm The string representation for PM.
+     * @return The processed time format string with placeholders replaced by the actual values.
+      */
+    std::string process_time_format(const std::string &time_format, int current_hour,
+                                    const std::string &meridiem_am, const std::string &meridiem_pm);
+
 }  // namespace nspanel_ha_blueprint

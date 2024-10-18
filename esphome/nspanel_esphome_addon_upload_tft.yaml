@@ -44,21 +44,6 @@ api:
         variables:
           url: string
         then:
-          - script.execute:
-              id: upload_tft
-              url: !lambda |-
-                std::string clean_url = url;
-                // Convert to lowercase
-                std::transform(clean_url.begin(), clean_url.end(), clean_url.begin(),
-                              [](unsigned char c){ return std::tolower(c); });
-                // Trim trailing spaces
-                auto endPos = clean_url.find_last_not_of(" \t");
-                if (std::string::npos != endPos) clean_url = clean_url.substr(0, endPos + 1);
-                if (clean_url.empty() or clean_url == "default")
-                  url = construct_tft_url("v${version}", tft_file_model->state, "${nextion_update_url}",
-                                          "${nextion_update_base_url}");
-                return url.c_str();
-
           - lambda: |-
               std::string clean_url = url;
               // Convert to lowercase
@@ -82,11 +67,9 @@ button:
     entity_category: config
     on_press:
       then:
-        - script.execute:
-            id: upload_tft
-            url: !lambda |-
-              return construct_tft_url("v${version}", tft_file_model->state, "${nextion_update_url}",
-                                      "${nextion_update_base_url}").c_str();
+        - lambda: |-
+            upload_tft->execute(construct_tft_url("v${version}", tft_file_model->state, "${nextion_update_url}",
+                                                  "${nextion_update_base_url}").c_str());
 
 display:
   - id: !extend disp1
@@ -125,35 +108,25 @@ script:
           then:
             - wait_until:
                 condition:
-                  - lambda: |-
-                      return compare_versions("${version}", version_tft->state.c_str());
+                  - lambda: return version_tft->state == "${version}";
                 timeout: 60s
-            - if:
-                condition:
-                  - switch.is_on: tft_update_automatically
-                  - lambda: return tft_file_model->state != "Use nextion_update_url";
-                  - lambda: return tft_file_model->state != "NSPanel Blank";
-                  - lambda: |-
-                      return not compare_versions("${version}", version_tft->state.c_str());
-                then:
-                  - logger.log:
-                      format: Automatically updating TFT
-                      level: INFO
-                  - script.execute:
-                      id: upload_tft
-                      url: !lambda |-
-                        return construct_tft_url("v${version}", tft_file_model->state, "${nextion_update_url}",
-                                                "${nextion_update_base_url}").c_str();
+            - lambda: |-
+                if (tft_update_automatically->state and version_tft->state != "${version}" and
+                                        tft_file_model->state != "Use nextion_update_url" and
+                                        tft_file_model->state != "NSPanel Blank") {
+                  ESP_LOGI("script.check_versions.upload_tft", "Automatically updating TFT");
+                  upload_tft->execute(construct_tft_url("v${version}", tft_file_model->state, "${nextion_update_url}",
+                                                        "${nextion_update_base_url}").c_str());
+                }
 
   - id: nextion_status
     mode: restart
     then:
       - lambda: |-
-          static const char *const TAG = "script.nextion_status";
-          ESP_LOGD(TAG, "Nextion status:");
-          ESP_LOGD(TAG, "  Is detected: %s", YESNO(disp1->is_detected()));
-          ESP_LOGD(TAG, "  Is setup:    %s", YESNO(disp1->is_setup()));
-          ESP_LOGD(TAG, "  Queue size:  %d", disp1->queue_size());
+          ESP_LOGD("script.nextion_status", "Nextion status:");
+          ESP_LOGD("script.nextion_status", "  Is detected: %s", YESNO(disp1->is_detected()));
+          ESP_LOGD("script.nextion_status", "  Is setup:    %s", YESNO(disp1->is_setup()));
+          ESP_LOGD("script.nextion_status", "  Queue size:  %d", disp1->queue_size());
 
   - id: nextion_upload
     mode: single
@@ -169,48 +142,27 @@ script:
       - delay: 2s
       - logger.log: Starting TFT upload
       - lambda: |-
+          ESP_LOGI("script.nextion_upload", "Starting TFT upload");
           id(tft_upload_result) = disp1->upload_tft(baud_rate, !disp1->is_setup());
-          ESP_LOGD("script.nextion_upload", "TFT upload: %s", YESNO(id(tft_upload_result)));
+          ESP_LOGI("script.nextion_upload", "TFT upload: %s", YESNO(id(tft_upload_result)));
 
   - id: open_upload_dialog
     mode: restart
     then:
-      - logger.log: Showing upload dialog page
-      - script.execute:
-          id: goto_page
-          page: confirm
+      - lambda: |-
+          ESP_LOGD("script.open_upload_dialog", "Showing upload dialog page");
+          goto_page->execute("confirm");
       - wait_until:
           condition:
             - text_sensor.state:
                 id: current_page
                 state: confirm
           timeout: 2s
-      - if:
-          condition:
-            - text_sensor.state:
-                id: current_page
-                state: confirm
-          then:
-            - script.execute:
-                id: set_component_visibility
-                page: confirm
-                component: bclose
-                show: false
-            - script.execute:
-                id: set_component_visibility
-                page: confirm
-                component: bt_accept
-                show: false
-            - script.execute:
-                id: set_component_visibility
-                page: confirm
-                component: bt_clear
-                show: false
-      - script.execute:
-          id: set_component_text
-          page: confirm
-          component: title
-          text: Upload TFT
+      - lambda: |-
+          set_component_visibility->execute("confirm", "bclose", false);
+          set_component_visibility->execute("confirm", "bt_accept", false);
+          set_component_visibility->execute("confirm", "bt_clear", false);
+          set_component_text->execute("confirm", "title", "Upload TFT");
 
   - id: report_upload_progress
     mode: restart
@@ -218,26 +170,23 @@ script:
       message: string
     then:
       - lambda: |-
-          ESP_LOGD("script.report_upload_progress", message.c_str());
+          ESP_LOGI("script.report_upload_progress", message.c_str());
+          disp1->set_backlight_brightness(1);
       - if:
           condition:
             - lambda: return id(tft_is_valid);
           then:
-            - if:
+            - lambda: |-
+                if (current_page->state != "confirm")
+                  open_upload_dialog->execute();
+            - wait_until:
                 condition:
-                  - not:
-                      - text_sensor.state:
-                          id: current_page
-                          state: confirm
-                then:
-                  - script.execute: open_upload_dialog
-            - script.execute:
-                id: display_wrapped_text
-                page: confirm
-                component: body
-                text_to_display: !lambda return message.c_str();
-                line_length_limit: 18
-            - lambda: disp1->set_backlight_brightness(1);
+                  - text_sensor.state:
+                      id: current_page
+                      state: confirm
+                timeout: 2s
+            - lambda: |-
+                display_wrapped_text->execute("confirm", "body", message.c_str(), 18);
 
   - id: select_tft_file_model
     mode: restart

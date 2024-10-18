@@ -33,17 +33,10 @@ esphome:
 
   on_shutdown:
     - priority: 0.1
-      then:
-        - script.execute:  # Update Wi-Fi icon
-            id: set_component_text
-            page: home
-            component: wifi_icon
-            text: "\uE708"
-        - script.execute:  # Update Wi-Fi color
-            id: set_component_font_color
-            page: home
-            component: wifi_icon
-            color: 63488
+      then:  # Update Wi-Fi icon
+        - lambda: |-
+            set_component_text->execute("home", "wifi_icon", "\uE708");
+            set_component_font_color->execute("home", "wifi_icon", 63488);
 
 script:
   - id: !extend boot_progress_dump
@@ -62,24 +55,20 @@ script:
 
   - id: !extend dump_config
     then:
-      - if:
-          condition:
-            - wifi.connected:
-          then:
-            - lambda: |-
-                float rssi = wifi_rssi->state;
-                const char *rssi_status = "Unknown"; // Use const char* to avoid dynamic memory allocation
-                if (rssi > -50) rssi_status = "Excellent";
-                else if (rssi > -60) rssi_status = "Good";
-                else if (rssi > -70) rssi_status = "Fair";
-                else if (rssi > -80) rssi_status = "Weak";
-                else rssi_status = "Poor";
-                if (rssi > -70) ESP_LOGCONFIG("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
-                else if (rssi > -80) ESP_LOGW("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
-                else ESP_LOGE("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
-          else:
-            - lambda: |-
-                ESP_LOGW("${project_tag}", "Wi-Fi:         DISCONNECTED");
+      - lambda: |-
+          if (wifi_component->is_connected()) {
+            float rssi = wifi_rssi->state;
+            const char *rssi_status = "Unknown"; // Use const char* to avoid dynamic memory allocation
+            if (rssi > -50) rssi_status = "Excellent";
+            else if (rssi > -60) rssi_status = "Good";
+            else if (rssi > -70) rssi_status = "Fair";
+            else if (rssi > -80) rssi_status = "Weak";
+            else rssi_status = "Poor";
+            if (rssi > -70) ESP_LOGCONFIG("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
+            else if (rssi > -80) ESP_LOGW("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
+            else ESP_LOGE("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
+          } else
+            ESP_LOGE("${project_tag}", "Wi-Fi:         DISCONNECTED");
 
   - id: !extend page_boot
     then:
@@ -95,7 +84,7 @@ script:
           condition:
             - lambda: return wifi_component->is_connected();
           timeout: 20s
-      - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
       - lambda: |-
           if (current_page->state == "boot")
             disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());

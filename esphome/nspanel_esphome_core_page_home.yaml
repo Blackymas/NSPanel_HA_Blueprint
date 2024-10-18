@@ -5,9 +5,6 @@
 ##### For normal use with the Blueprint, no changes are necessary.                              #####
 #####################################################################################################
 
-##### External references #####
-###############################
-
 ---
 substitutions:
   BOOT_STEP_PAGE_HOME: '1UL << 17'
@@ -25,6 +22,30 @@ globals:
     restore_value: true
     initial_value: '8'
 
+  ##### Date/time formats #####
+  - id: home_date_color
+    type: uint16_t
+    restore_value: true
+    initial_value: '65535'
+  - id: mui_time_format
+    type: std::string
+    restore_value: true
+    max_restore_data_length: 15
+    initial_value: '"%H:%M"'
+  - id: home_time_color
+    type: uint16_t
+    restore_value: true
+    initial_value: '65535'
+  - id: mui_meridiem_am
+    type: std::string
+    restore_value: true
+    initial_value: '"AM"'
+  - id: mui_meridiem_pm
+    type: std::string
+    restore_value: true
+    initial_value: '"PM"'
+
+
 script:
   - id: !extend boot_progress_dump
     then:
@@ -39,37 +60,17 @@ script:
       chip_font: uint8_t
       boot: bool
     then:
-      - if:
-          condition:
-            - or:
-                - lambda: return boot;
-                - lambda: return chip_font != id(home_chip_font_id);
-          then:
-            - lambda: id(home_chip_font_id) = chip_font;
-      - script.execute:
-          id: set_component_font
-          page: home
-          component: wifi_icon
-          font: !lambda return chip_font;
-      - script.execute:
-          id: set_component_font
-          page: home
-          component: chip_relay1
-          font: !lambda return chip_font;
-      - script.execute:
-          id: set_component_font
-          page: home
-          component: chip_relay2
-          font: !lambda return chip_font;
-      - script.execute:
-          id: set_component_font
-          page: home
-          component: chip_climate
-          font: !lambda return chip_font;
+      - lambda: |-
+          if (boot or chip_font != id(home_chip_font_id))
+            id(home_chip_font_id) = chip_font;
+          set_component_font->execute("home", "wifi_icon", chip_font);
+          set_component_font->execute("home", "chip_relay1", chip_font);
+          set_component_font->execute("home", "chip_relay2", chip_font);
+          set_component_font->execute("home", "chip_climate", chip_font);
       - repeat:
           count: 7
           then:
-            - delay: !lambda return (10*disp1->queue_size()+tf_uart->available());
+            - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
             - lambda: |-
                 disp1->send_command_printf("home.chip%02" PRIu32 ".font=%" PRIu8, iteration, chip_font);
       - script.execute:
@@ -84,48 +85,40 @@ script:
       boot: bool
     then:
       - lambda: |-
-          if (boot or custom_buttons_font != id(home_custom_buttons_font_id)) {
+          if (boot or custom_buttons_font != id(home_custom_buttons_font_id))
             id(home_custom_buttons_font_id) = custom_buttons_font;
-            delay(10*disp1->queue_size()+tf_uart->available());
-            App.feed_wdt();
-            disp1->set_component_font("home.bt_notific", id(home_custom_buttons_font_id));
-            delay(10*disp1->queue_size()+tf_uart->available());
-            App.feed_wdt();
-            disp1->set_component_font("home.bt_qrcode", id(home_custom_buttons_font_id));
-            delay(10*disp1->queue_size()+tf_uart->available());
-            App.feed_wdt();
-            disp1->set_component_font("home.bt_entities", id(home_custom_buttons_font_id));
-            for (int i = 1; i <= 7; ++i) {
-              delay(10*disp1->queue_size()+tf_uart->available());
-              App.feed_wdt();
-              disp1->send_command_printf("home.button%02d.font=%" PRIu8, i, id(home_custom_buttons_font_id));
-            }
-          }
-          boot_progress->execute(${BOOT_STEP_PAGE_HOME}, "Page Home - Custom buttons font");
+          set_component_font->execute("home","bt_notific", custom_buttons_font);
+          set_component_font->execute("home","bt_qrcode", custom_buttons_font);
+          set_component_font->execute("home", "bt_entities", custom_buttons_font);
+      - repeat:
+          count: 7
+          then:
+            - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+            - lambda: |-
+                disp1->send_command_printf("home.button%02" PRIu32 ".font=%" PRIu8, iteration, custom_buttons_font);
+      - script.execute:
+          id: boot_progress
+          step: ${BOOT_STEP_PAGE_HOME}
+          step_name: Page Home - Custom buttons font
 
   - id: !extend boot_sequence
     then:
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: Set Home page elements
-      - script.execute:
-          id: chip_font
-          chip_font: !lambda return id(home_chip_font_id);
-          boot: true
-      - script.execute:
-          id: custom_buttons_font
-          custom_buttons_font: !lambda return id(home_custom_buttons_font_id);
-          boot: true
+      - lambda: |-
+          boot_log->execute("Boot", "Set Home page elements");
+          chip_font->execute(id(home_chip_font_id), true);
+          custom_buttons_font->execute(id(home_custom_buttons_font_id), true);
 
   - id: !extend page_changed
     then:
       - lambda: |-
-          if (current_page->state == "home") page_home->execute();
+          if (current_page->state == "home")
+            page_home->execute();
 
   - id: page_home
     mode: restart
     then:  # There's nothing to do so far
+      # Extended by:
+      #   - nspanel_esphome_core_hw_relays.yaml
 
   - id: !extend set_var_int
     then:
@@ -133,9 +126,22 @@ script:
           if (component == "chip_font") chip_font->execute(val, false);
           else if (component == "custom_buttons_font") custom_buttons_font->execute(val, false);
 
+  - id: !extend refresh_datetime  # Defined by nspanel_esphome_core_datetime.yaml
+    mode: restart
+    then:
+      - lambda: |-
+          if (current_page->state == "home") {
+            std::string time_format_str = process_time_format(id(mui_time_format).c_str(), id(time_provider).now().hour,
+                                                              id(mui_meridiem_am).c_str(), id(mui_meridiem_pm).c_str());
+            std::string meridiem_text = (id(time_provider).now().hour<12) ? id(mui_meridiem_am) : id(mui_meridiem_pm);
+            set_component_text->execute("home", "meridiem", (time_format_str.find("%p") != std::string::npos) ? meridiem_text.c_str() : " ");
+            set_component_text->execute("home", "time", id(time_provider).now().strftime(time_format_str).c_str());
+          }
+
   - id: !extend stop_all
     then:
-      - script.stop: chip_font
-      - script.stop: custom_buttons_font
-      - script.stop: page_home
+      - lambda: |-
+          chip_font->stop();
+          custom_buttons_font->stop();
+          page_home->stop();
 ...

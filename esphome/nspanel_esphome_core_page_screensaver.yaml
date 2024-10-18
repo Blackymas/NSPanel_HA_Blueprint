@@ -8,6 +8,7 @@
 ---
 substitutions:
   BOOT_STEP_PAGE_SCREENSAVER: '1UL << 23'
+  screensaver_timeformat_override: ""
 
 globals:
   ##### Screensaver #####
@@ -23,6 +24,11 @@ globals:
     type: uint16_t
     restore_value: true
     initial_value: '16904'
+  - id: mui_time_format_screensaver
+    type: std::string
+    restore_value: true
+    max_restore_data_length: 15
+    initial_value: '"${screensaver_timeformat_override}"'
 
 script:
   - id: !extend boot_progress_dump
@@ -34,13 +40,9 @@ script:
 
   - id: !extend page_changed
     then:
-      - if:
-          condition:
-            - text_sensor.state:
-                id: current_page
-                state: screensaver
-          then:
-            - script.execute: page_screensaver
+      - lambda: |-
+          if (current_page->state == "screensaver")
+            page_screensaver->execute();
 
   - id: page_screensaver
     mode: restart
@@ -57,6 +59,19 @@ script:
             set_brightness->execute(display_sleep_brightness->state);
           }
 
+  - id: !extend refresh_datetime  # Defined by nspanel_esphome_core_datetime.yaml
+    mode: restart
+    then:
+      - lambda: |-
+          if (current_page->state == "screensaver" and id(screensaver_display_time)) {
+            std::string time_format_str = process_time_format(id(mui_time_format).c_str(), id(time_provider).now().hour,
+                                                              id(mui_meridiem_am).c_str(), id(mui_meridiem_pm).c_str());
+            std::string meridiem_text = (id(time_provider).now().hour<12) ? id(mui_meridiem_am) : id(mui_meridiem_pm);
+            if (time_format_str.find("%p") != std::string::npos)
+              time_format_str.replace(time_format_str.find("%p"), sizeof("%p")-1, meridiem_text.c_str());
+            set_component_text->execute("screensaver", "text", id(time_provider).now().strftime(time_format_str).c_str());
+          }
+
   - id: !extend set_component_font_color  # Defined by nspanel_esphome_core_hw_display.yaml
     then:
       - lambda: |-
@@ -68,7 +83,6 @@ script:
       - lambda: |-
           if (component == "screensaver_display_time") {
             id(screensaver_display_time) = val;
-            delay(10*disp1->queue_size()+tf_uart->available());
             boot_progress->execute(${BOOT_STEP_PAGE_SCREENSAVER}, "Page Screensaver - Display time enabler");
             page_screensaver->execute();
           }
@@ -78,7 +92,6 @@ script:
       - lambda: |-
           if (component == "screensaver_display_time_font" and val >= 0 and val <= 255) {
             id(screensaver_display_time_font) = val;
-            delay(10*disp1->queue_size()+tf_uart->available());
             boot_progress->execute(${BOOT_STEP_PAGE_SCREENSAVER}, "Page Screensaver - Display time font");
             page_screensaver->execute();
           }
