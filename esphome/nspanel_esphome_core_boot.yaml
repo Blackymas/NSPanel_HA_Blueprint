@@ -106,28 +106,15 @@ script:
       step: uint32_t
       step_name: string
     then:
-      - script.execute: boot_progress_dump
       - lambda: |-
+          boot_progress_dump->execute();
+          complete_boot_step(step);
           ESP_LOGI("script.boot_progress", "Boot step completed: %s (step %i of %i - %i%%)", step_name.c_str(),
                     get_boot_steps_completed(), TOTAL_BOOT_STEPS, get_boot_progress_percentage());
-      - if:
-          condition:
-            - lambda: return is_boot_complete();
-          then:
-            - logger.log:
-                format: "Progress: Boot sequence completed"
-                level: INFO
-      - if:
-          condition:
-            - text_sensor.state:
-                id: current_page
-                state: boot
-          then:
-            - script.execute:
-                id: set_component_value
-                page: boot
-                component: progress
-                val: !lambda return get_boot_progress_percentage();
+          ESP_LOGI("script.boot_progress", "Step ID: %i", step);
+          ESP_LOGI("script.boot_progress", "completed_boot_steps: %i", completed_boot_steps);
+          if (is_boot_complete())
+            ESP_LOGI("script.boot_progress", "Progress: Boot sequence completed");
 
   - id: boot_progress_dump
     mode: restart
@@ -138,10 +125,7 @@ script:
           timeout: 60s
       - lambda: |-
           ESP_LOGCONFIG("script.boot_progress_dump", "Boot progress: %d%%", get_boot_progress_percentage());
-      - script.execute:
-          id: boot_progress_dump_item
-          step: ${BOOT_STEP_BOOT}
-          step_name: Boot
+          boot_progress_dump_item->execute(${BOOT_STEP_BOOT}, "Boot");
 
   - id: boot_progress_dump_item
     mode: queued
@@ -149,60 +133,41 @@ script:
       step: uint32_t
       step_name: string
     then:
-      - lambda: |-
-          ESP_LOGCONFIG("script.boot_progress_dump", " - %s:%s", step_name.c_str(),
-                        is_boot_step_completed(step) ? "Completed" : "PENDING");
       #- lambda: |-
-      #    int8_t padding = std::max(0, 21 - static_cast<int>(step_name.length())); // Calculate dynamic padding
-      #    ESP_LOGCONFIG("script.boot_progress_dump", " - %s:%*s%s", step_name.c_str(), padding, "",
+      #    ESP_LOGCONFIG("script.boot_progress_dump", " - %s:%s", step_name.c_str(),
       #                  is_boot_step_completed(step) ? "Completed" : "PENDING");
+      - lambda: |-
+          int8_t padding = std::max(0, 21 - static_cast<int>(step_name.length())); // Calculate dynamic padding
+          ESP_LOGCONFIG("script.boot_progress_dump", " - %s:%*s%s", step_name.c_str(), padding, "",
+                        is_boot_step_completed(step) ? "Completed" : "PENDING");
 
   - id: boot_sequence
     mode: single
     then:
-      - if:
-          condition:
-            - lambda: return not disp1->is_setup();
-          then:
-            - script.execute:
-                id: boot_log
-                category: Boot
-                log_message: Waiting for Nextion
+      - lambda: |-
+          if (!disp1->is_setup())
+            boot_log->execute("Boot", "Waiting for Nextion");
       - wait_until:
           condition:
             - lambda: return disp1->is_setup();
           timeout: 10s
-      - if:
-          condition:
-            - not:
-                - wifi.connected:
-          then:
-            - script.execute:
-                id: boot_log
-                category: Boot
-                log_message: Waiting for Wi-Fi
+      - lambda: |-
+          if (!wifi_component->is_connected())
+            boot_log->execute("Boot", "Waiting for Wi-Fi");
       - wait_until:
           condition:
             - wifi.connected:
           timeout: 10s
-      - if:
-          condition:
-            - not:
-                - api.connected:
-          then:
-            - script.execute:
-                id: boot_log
-                category: Boot
-                log_message: Waiting for API
+      - lambda: |-
+          if (!api_server->is_connected())
+            boot_log->execute("Boot", "Waiting for API");
       - wait_until:
           condition:
             - api.connected:
           timeout: 10s
       - delay: 2s
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: Report to Blueprint
+      - lambda: |-
+          boot_log->execute("Boot", "Report to Blueprint");
       - homeassistant.event:
           event: esphome.nspanel_ha_blueprint
           data:
@@ -210,11 +175,8 @@ script:
             esphome_version: ${version}
             type: boot
             step: start
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: Display settings
       - lambda: |-
+          boot_log->execute("Boot", "Display settings");
           set_variable_value->execute("brightness_dim", int(display_dim_brightness->state));
           set_variable_value->execute("brightness_sleep", int(display_sleep_brightness->state));
           set_variable_value->execute("brightness", int(display_brightness->state));
