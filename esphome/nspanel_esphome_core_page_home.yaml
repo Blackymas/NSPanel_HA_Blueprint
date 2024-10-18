@@ -22,6 +22,30 @@ globals:
     restore_value: true
     initial_value: '8'
 
+  ##### Date/time formats #####
+  - id: home_date_color
+    type: uint16_t
+    restore_value: true
+    initial_value: '65535'
+  - id: mui_time_format
+    type: std::string
+    restore_value: true
+    max_restore_data_length: 15
+    initial_value: '"%H:%M"'
+  - id: home_time_color
+    type: uint16_t
+    restore_value: true
+    initial_value: '65535'
+  - id: mui_meridiem_am
+    type: std::string
+    restore_value: true
+    initial_value: '"AM"'
+  - id: mui_meridiem_pm
+    type: std::string
+    restore_value: true
+    initial_value: '"PM"'
+
+
 script:
   - id: !extend boot_progress_dump
     then:
@@ -93,12 +117,26 @@ script:
   - id: page_home
     mode: restart
     then:  # There's nothing to do so far
+      # Extended by:
+      #   - nspanel_esphome_core_hw_relays.yaml
 
   - id: !extend set_var_int
     then:
       - lambda: |-
           if (component == "chip_font") chip_font->execute(val, false);
           else if (component == "custom_buttons_font") custom_buttons_font->execute(val, false);
+
+  - id: !extend refresh_datetime  # Defined by nspanel_esphome_core_datetime.yaml
+    mode: restart
+    then:
+      - lambda: |-
+          if (current_page->state == "home") {
+            std::string time_format_str = process_time_format(id(mui_time_format).c_str(), id(time_provider).now().hour,
+                                                              id(mui_meridiem_am).c_str(), id(mui_meridiem_pm).c_str());
+            std::string meridiem_text = (id(time_provider).now().hour<12) ? id(mui_meridiem_am) : id(mui_meridiem_pm);
+            set_component_text->execute("home", "meridiem", (time_format_str.find("%p") != std::string::npos) ? meridiem_text.c_str() : " ");
+            set_component_text->execute("home", "time", id(time_provider).now().strftime(time_format_str).c_str());
+          }
 
   - id: !extend stop_all
     then:
