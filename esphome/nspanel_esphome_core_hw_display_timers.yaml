@@ -1,0 +1,272 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - HARDWARE - Display - Timers                                                #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+api:
+  id: !extend api_server
+  actions:
+    # Wake Up action
+    - action: wake_up
+      variables:
+        reset_timer: bool  # Determines whether to reset the sleep and dimming timers upon waking the display.
+      then:
+        - lambda: |-
+            if (current_page->state == "screensaver")
+              goto_page->execute(wakeup_page_name->state.c_str());
+            if (reset_timer)
+              timer_page->execute();
+            timer_sleep->execute();
+            timer_dim->execute();
+
+binary_sensor:
+  - id: !extend left_button
+    on_press:
+      then:
+        - &hardware_button_on_press
+          lambda: |-
+            if (hw_button_wakeup->state) {
+              if (current_page->state == "screensaver")
+                goto_page->execute(wakeup_page_name->state.c_str());
+              timer_dim->execute();
+              timer_sleep->execute();
+            }
+
+  - id: !extend right_button
+    on_press:
+      then:
+        - *hardware_button_on_press
+
+display:
+  - id: !extend disp1
+    on_touch:
+      then:
+        - script.execute: timer_reset_all
+
+number:
+  - id: !extend display_brightness  # Defined by nspanel_esphome_core_display.yaml
+    on_value:
+      then:
+        - lambda: |-
+            if (current_page->state != "screensaver") {
+              set_brightness->execute(int(x));
+              timer_dim->execute();
+              timer_sleep->execute();
+            }
+
+  - name: Timeout Page
+    platform: template
+    id: timeout_page
+    entity_category: config
+    min_value: 0
+    max_value: 86400
+    initial_value: 15
+    step: 1
+    restore_value: true
+    optimistic: true
+    icon: mdi:timer
+    unit_of_measurement: "s"
+    on_value:
+      then:
+        - script.execute: timer_page
+
+  - name: Timeout Dimming
+    platform: template
+    id: timeout_dim
+    entity_category: config
+    min_value: 0
+    max_value: 86400
+    initial_value: 30
+    step: 1
+    restore_value: true
+    optimistic: true
+    icon: mdi:timer
+    unit_of_measurement: "s"
+    on_value:
+      then:
+        - script.execute: timer_dim
+
+  - name: Timeout Sleep
+    platform: template
+    id: timeout_sleep
+    entity_category: config
+    min_value: 0
+    max_value: 86400
+    initial_value: 60
+    step: 1
+    restore_value: true
+    optimistic: true
+    icon: mdi:timer
+    unit_of_measurement: "s"
+    on_value:
+      then:
+        - lambda: |-
+            timer_dim->execute();
+            timer_sleep->execute();
+            if (x == 0 and current_page->state == "screensaver")
+              goto_page->execute(wakeup_page_name->state.c_str());
+
+script:
+  - id: !extend ha_button
+    then:
+      - lambda: |-
+          if (current_page->state != "screensaver")
+            timer_reset_all->execute();
+
+  - id: !extend stop_all
+    then:
+      - lambda: |-
+          timer_reset_all->stop();
+          timer_page->stop();
+          timer_dim->stop();
+          timer_sleep->stop();
+
+  - id: timer_reset_all  # Global timer reset - Triggered with a touch on the screen
+    mode: restart
+    then:
+      - script.execute: timer_page
+      - script.execute: timer_dim
+      - script.execute: timer_sleep
+
+  - id: timer_page       # Handles the fallback to home page after a timeout
+    mode: restart
+    then:
+      - if:
+          condition:
+            - lambda: |-
+                return (timeout_page->state >= 1 and
+                        current_page->state != "boot" and
+                        current_page->state != "confirm" and
+                        current_page->state != "home" and
+                        current_page->state != "notification" and
+                        current_page->state != "screensaver");
+          then:
+            - delay: !lambda return (timeout_page->state *1000);
+            - if:
+                condition:
+                  - lambda: |-
+                      return (timeout_page->state >= 1 and
+                              current_page->state != "boot" and
+                              current_page->state != "confirm" and
+                              current_page->state != "home" and
+                              current_page->state != "notification" and
+                              current_page->state != "screensaver");
+                then:
+                  - logger.log:
+                      format: "Fallback to page Home"
+                      level: INFO
+                  - script.execute:
+                      id: goto_page
+                      page: home
+
+  - id: timer_dim        # Handles the brightness dimming after a timeout
+    mode: restart
+    then:
+      - lambda: |-
+          if (current_brightness->state <= display_dim_brightness->state
+              and current_page->state != "screensaver"
+              and current_page->state != "boot") {
+            ESP_LOGD("script.timer_dim", "Waking up on page: %s", current_page->state.c_str());
+            set_brightness->execute(display_brightness->state);
+          }
+      - if:
+          condition:
+            - number.in_range:
+                id: timeout_dim
+                above: 1
+          then:
+            - delay: !lambda return (timeout_dim->state *1000);
+            - if:
+                condition:
+                  - number.in_range:
+                      id: timeout_dim
+                      above: 1
+                  - not:
+                      text_sensor.state:
+                        id: current_page
+                        state: boot
+                  - not:
+                      text_sensor.state:
+                        id: current_page
+                        state: screensaver
+                then:
+                  - script.execute:
+                      id: set_brightness
+                      brightness: !lambda return display_dim_brightness->state;
+
+  - id: timer_sleep  # Handles the sleep (go to screensaver page) after a timeout
+    mode: restart
+    then:
+      - if:
+          condition:
+            - lambda: |-
+                return (timeout_sleep->state >= 1 and
+                        current_page->state != "boot" and
+                        current_page->state != "screensaver");
+          then:
+            - delay: !lambda return (timeout_sleep->state *1000);
+            - lambda: |-
+                if (timeout_sleep->state >= 1 and
+                    current_page->state != "boot" and
+                    current_page->state != "screensaver") {
+                  ESP_LOGI("script.timer_sleep", "Going to sleep from page %s", current_page->state.c_str());
+                  goto_page->execute("screensaver");
+                  set_brightness->execute(display_sleep_brightness->state);
+                }
+
+select:
+  - id: wakeup_page_name
+    name: Wake-up page
+    platform: template
+    options:
+      - buttonpage01
+      - buttonpage02
+      - buttonpage03
+      - buttonpage04
+      - climate
+      - entitypage01
+      - entitypage02
+      - entitypage03
+      - entitypage04
+      - home
+      - qrcode
+      - utilities
+    initial_option: home
+    optimistic: true
+    restore_value: true
+    internal: false
+    entity_category: config
+    icon: mdi:page-next-outline
+    on_value:
+      then:
+        - script.execute: page_screensaver
+
+sensor:
+  - id: !extend brightslider
+    on_value:
+      then:
+        - script.execute: timer_reset_all
+        - number.set:
+            id: display_brightness
+            value: !lambda return int(x);
+
+  - id: !extend dimslider
+    on_value:
+      then:
+        - script.execute: timer_reset_all
+        - number.set:
+            id: display_dim_brightness
+            value: !lambda return int(x);
+
+switch:
+  - id: hw_button_wakeup
+    name: Wake-up with hardware buttons
+    platform: template
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    disabled_by_default: false
+...

@@ -148,21 +148,6 @@ api:
                                                   (((value_color[0] & 0xF8) << 8) | ((value_color[1] & 0xFC) << 3) | (value_color[2] >> 3)));
             }
 
-    # Wake Up action
-    - action: wake_up
-      variables:
-        reset_timer: bool  # Determines whether to reset the sleep and dimming timers upon waking the display.
-      then:
-        - lambda: |-
-            if (current_page->state == "screensaver")
-              goto_page->execute(wakeup_page_name->state.c_str());
-            if (reset_timer)
-              timer_reset_all->execute();
-            else {
-              timer_sleep->execute();
-              timer_dim->execute();
-            }
-
 binary_sensor:
   ## Delays initial info from HA to the display #####
   - name: Nextion display
@@ -186,9 +171,9 @@ display:
               current_page->publish_state(page_names[x]);
 
     on_touch:
-      then:
-        - script.execute: timer_reset_all
+      then:  # There's nothing here so far
     # Extended by
+    # - nspanel_esphome_core_display_timers.yaml
     # - nspanel_esphome_core_page_climate.yaml
     # - nspanel_esphome_core_page_fan.yaml
     # - nspanel_esphome_core_page_light.yaml
@@ -262,8 +247,7 @@ globals:
 json:  # Can be replaced by web_server
 
 number:
-  ##### SCREEN BRIGHTNESS #####
-  - id: display_brightness
+  - id: display_brightness  # SCREEN BRIGHTNESS
     name: Display Brightness
     platform: template
     entity_category: config
@@ -278,14 +262,10 @@ number:
       then:
         - lambda: |-
             set_variable_value->execute("brightness", int(x));
-            if (current_page->state != "screensaver") {
-              set_brightness->execute(int(x));
-              timer_dim->execute();
-              timer_sleep->execute();
-            }
+      # Extended by:
+      #   - nspanel_esphome_core_hw_display_timers.yaml
 
-  ##### SCREEN BRIGHTNESS DIMMED DOWN #####
-  - id: display_dim_brightness
+  - id: display_dim_brightness  # SCREEN BRIGHTNESS DIMMED DOWN
     name: Display Brightness Dimdown
     platform: template
     entity_category: config
@@ -300,13 +280,10 @@ number:
       then:
         - lambda: |-
             set_variable_value->execute("brightness_dim", int(x));
-            if (current_page->state != "screensaver" and current_brightness->state != x) {
+            if (current_page->state != "screensaver" and current_brightness->state != x)
               set_brightness->execute(int(x));
-              timer_sleep->execute();
-            }
 
-  ##### SCREEN BRIGHTNESS SLEEP #####
-  - id: display_sleep_brightness
+  - id: display_sleep_brightness  # SCREEN BRIGHTNESS SLEEP
     name: Display Brightness Sleep
     platform: template
     entity_category: config
@@ -322,57 +299,6 @@ number:
         - lambda: |-
             set_variable_value->execute("brightness_sleep", int(x));
             page_screensaver->execute();
-
-  ##### Timers #####
-  - name: Timeout Page
-    platform: template
-    id: timeout_page
-    entity_category: config
-    min_value: 0
-    max_value: 86400
-    initial_value: 15
-    step: 1
-    restore_value: true
-    optimistic: true
-    icon: mdi:timer
-    unit_of_measurement: "s"
-    on_value:
-      then:
-        - script.execute: timer_page
-  - name: Timeout Dimming
-    platform: template
-    id: timeout_dim
-    entity_category: config
-    min_value: 0
-    max_value: 86400
-    initial_value: 30
-    step: 1
-    restore_value: true
-    optimistic: true
-    icon: mdi:timer
-    unit_of_measurement: "s"
-    on_value:
-      then:
-        - script.execute: timer_dim
-  - name: Timeout Sleep
-    platform: template
-    id: timeout_sleep
-    entity_category: config
-    min_value: 0
-    max_value: 86400
-    initial_value: 60
-    step: 1
-    restore_value: true
-    optimistic: true
-    icon: mdi:timer
-    unit_of_measurement: "s"
-    on_value:
-      then:
-        - lambda: |-
-            timer_dim->execute();
-            timer_sleep->execute();
-            if (x == 0 and current_page->state == "screensaver")
-              goto_page->execute(wakeup_page_name->state.c_str());
 
 script:
   - id: !extend boot_progress_dump
@@ -530,12 +456,6 @@ script:
       - lambda: |-
           if (current_page->state != page)
             disp1->goto_page(page.c_str());
-
-  - id: !extend ha_button
-    then:
-      - lambda: |-
-          if (current_page->state != "screensaver")
-            timer_reset_all->execute();
 
   - id: nextion_queue_add
     mode: queued
@@ -839,122 +759,6 @@ script:
           set_component_picc->stop();
           set_component_text->stop();
           set_component_visibility->stop();
-          timer_reset_all->stop();
-          timer_page->stop();
-          timer_dim->stop();
-          timer_sleep->stop();
-
-  ###### Timers ######
-  - id: timer_reset_all  # Global timer reset - Triggered with a touch on the screen
-    mode: restart
-    then:
-      - script.execute: timer_page
-      - script.execute: timer_dim
-      - script.execute: timer_sleep
-  - id: timer_page       # Handles the fallback to home page after a timeout
-    mode: restart
-    then:
-      - if:
-          condition:
-            - lambda: |-
-                return (timeout_page->state >= 1 and
-                        current_page->state != "boot" and
-                        current_page->state != "confirm" and
-                        current_page->state != "home" and
-                        current_page->state != "notification" and
-                        current_page->state != "screensaver");
-          then:
-            - delay: !lambda return (int(timeout_page->state) *1000);
-            - if:
-                condition:
-                  - lambda: |-
-                      return (timeout_page->state >= 1 and
-                              current_page->state != "boot" and
-                              current_page->state != "confirm" and
-                              current_page->state != "home" and
-                              current_page->state != "notification" and
-                              current_page->state != "screensaver");
-                then:
-                  - logger.log:
-                      format: "Fallback to page Home"
-                      level: INFO
-                  - script.execute:
-                      id: goto_page
-                      page: home
-  - id: timer_dim        # Handles the brightness dimming after a timeout
-    mode: restart
-    then:
-      - lambda: |-
-          if (current_brightness->state <= display_dim_brightness->state
-              and current_page->state != "screensaver"
-              and current_page->state != "boot") {
-            ESP_LOGD("script.timer_dim", "Waking up on page: %s", current_page->state.c_str());
-            set_brightness->execute(display_brightness->state);
-          }
-      - if:
-          condition:
-            - number.in_range:
-                id: timeout_dim
-                above: 1
-          then:
-            - delay: !lambda return (int(timeout_dim->state) *1000);
-            - if:
-                condition:
-                  - number.in_range:
-                      id: timeout_dim
-                      above: 1
-                  - not:
-                      text_sensor.state:
-                        id: current_page
-                        state: boot
-                  - not:
-                      text_sensor.state:
-                        id: current_page
-                        state: screensaver
-                then:
-                  - script.execute:
-                      id: set_brightness
-                      brightness: !lambda return display_dim_brightness->state;
-  - id: timer_sleep  # Handles the sleep (go to screensaver page) after a timeout
-    mode: restart
-    then:
-      - if:
-          condition:
-            - number.in_range:
-                id: timeout_sleep
-                above: 1
-            - not:
-                text_sensor.state:
-                  id: current_page
-                  state: boot
-            - not:
-                text_sensor.state:
-                  id: current_page
-                  state: screensaver
-          then:
-            - delay: !lambda return (int(timeout_sleep->state) *1000);
-            - if:
-                condition:
-                  - number.in_range:
-                      id: timeout_sleep
-                      above: 1
-                  - not:
-                      - text_sensor.state:
-                          id: current_page
-                          state: boot
-                  - not:
-                      - text_sensor.state:
-                          id: current_page
-                          state: screensaver
-                then:
-                  - lambda: |-
-                      ESP_LOGI("script.timer_sleep", "Going to sleep from page %s", current_page->state.c_str());
-                  - script.execute:
-                      id: goto_page
-                      page: screensaver
-                  - script.execute:
-                      id: set_brightness
-                      brightness: !lambda return display_sleep_brightness->state;
 
 select:
   - id: baud_rate
@@ -988,61 +792,20 @@ select:
             baud_rate: !lambda return stoi(x);
             definitive: true
 
-  - id: wakeup_page_name
-    name: Wake-up page
-    platform: template
-    options:
-      - buttonpage01
-      - buttonpage02
-      - buttonpage03
-      - buttonpage04
-      - climate
-      - entitypage01
-      - entitypage02
-      - entitypage03
-      - entitypage04
-      - home
-      - qrcode
-      - utilities
-    initial_option: home
-    optimistic: true
-    restore_value: true
-    internal: false
-    entity_category: config
-    icon: mdi:page-next-outline
-    on_value:
-      then:
-        - script.execute: page_screensaver
-
 sensor:
-  ###### Display Brightness GET VALUE FROM NSPanel SLIDER #####
-  - id: brightslider
+  - id: brightslider  # Display Brightness GET VALUE FROM NSPanel SLIDER
     name: brightness Slider
     platform: nextion
     variable_name: brightslider
     internal: true
-    on_value:
-      then:
-        - script.execute: timer_reset_all
-        - number.set:
-            id: display_brightness
-            value: !lambda return int(x);
 
-  ###### Display DIM Brightness GET VALUE FROM NSPanel SLIDER #####
-  - id: dimslider
+  - id: dimslider  # Display DIM Brightness GET VALUE FROM NSPanel SLIDER
     name: dim brightness slider
     platform: nextion
     variable_name: dimslider
     internal: true
-    on_value:
-      then:
-        - script.execute: timer_reset_all
-        - number.set:
-            id: display_dim_brightness
-            value: !lambda return int(x);
 
-  ###### Display Brightness - Current value (%) #####
-  - id: current_brightness
+  - id: current_brightness  # Display Brightness - Current value (%)
     name: Display Current brightness
     platform: nextion
     variable_name: dim
@@ -1054,8 +817,7 @@ sensor:
     disabled_by_default: false
     update_interval: 15s
 
-  ##### Charset (1 = International (original), 2 = CJK languages)
-  - id: display_charset
+  - id: display_charset  # Charset (1 = International (original), 2 = CJK languages)
     name: Display charset
     platform: nextion
     variable_name: charset
@@ -1065,8 +827,7 @@ sensor:
     icon: mdi:translate
     entity_category: diagnostic
 
-  ##### Display mode (1 = EU, 2 = US, 3 = US Landscape)
-  - id: display_mode
+  - id: display_mode  # Display mode (1 = EU, 2 = US, 3 = US Landscape)
     name: Display mode
     platform: nextion
     variable_name: display_mode
@@ -1077,16 +838,7 @@ sensor:
     entity_category: diagnostic
 
 switch:
-  - id: hw_button_wakeup
-    name: Wake-up with hardware buttons
-    platform: template
-    entity_category: config
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
-    disabled_by_default: false
-
-  ##### DISPLAY ALWAYS ON #####
-  - name: Nextion display - Power
+  - name: Nextion display - Power  # DISPLAY ALWAYS ON
     platform: gpio
     id: screen_power
     entity_category: diagnostic
