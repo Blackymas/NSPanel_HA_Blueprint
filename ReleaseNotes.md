@@ -34,6 +34,11 @@ It was replaced by a few `set_` var actions during the boot or automation reload
 ### Sensor `blueprint_status` was removed
 The boot process was totally rebuilt.
 
+### Customizations
+We made improvements in some scripts, so the customizations using those scripts must be updated:
+- [Sleep & Wake-up buttons](docs/customization.md#sleep--wake-up-buttons)
+- [Set display as a light (deprecated)](docs/customization.md#set-display-as-a-light)
+
 ## Noteworthy Changes
 
 ### Dynamic QR Code (#452 & #2283)

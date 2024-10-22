@@ -385,7 +385,7 @@ button:
       then:
         - logger.log: Button Sleep pressed
         - lambda: |-
-            goto_page->execute("screensaver");
+            goto_page->execute("screensaver", false);
   
   # Adds a button to wake-up the panel (similar to the existing action)
   - name: Wake-up
@@ -396,10 +396,8 @@ button:
       then:
         - logger.log: Button Wake-up pressed
         - lambda: |-
-            if (current_page->state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
-            // timer_page->execute(); // enable this if you want page timeout to be reset
-            timer_sleep->execute();
-            timer_dim->execute();
+            if (current_page->state == "screensaver")
+              goto_page->execute(wakeup_page_name->state.c_str(), true);
 ```
 
 ### Set display as a light
@@ -424,13 +422,14 @@ light:
       then:
         - lambda: |-
             ESP_LOGD("light.display_light", "Turn-on");
-            if (current_page->state == "screensaver") disp1->goto_page(wakeup_page_name->state.c_str());
+            if (current_page->state == "screensaver")
+              goto_page->execute(wakeup_page_name->state.c_str(), true);
             timer_reset_all->execute();
     on_turn_off:
       then:
         - lambda: |-
             ESP_LOGD("light.display_light", "Turn-off");
-            goto_page->execute("screensaver");
+            goto_page->execute("screensaver", false);
 
 output:
   # Output required by `display_light` to send the commands to Nextion
