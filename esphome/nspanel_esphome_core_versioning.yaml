@@ -8,42 +8,26 @@
 substitutions:
   BOOT_STEP_VERSIONING: '1UL << 26'
 
-display:
-  - id: !extend disp1
-    on_setup:
-      then:
-        - lambda: version_tft->update();
-
 esphome:
   project:
     version: "${version}"
 
-  on_boot:
-    - priority: 600.01
-      then:
-        - lambda: |-
-            boot_log->execute("on_boot", "Publish firmware version");
-            version_esphome->publish_state("${version}");
+globals:
+  - id: version_blueprint
+    type: std::string
+    restore_value: false
+    initial_value: ''
+
+  - id: version_tft
+    type: std::string
+    restore_value: false
+    initial_value: ''
 
 script:
   - id: !extend boot_progress_dump
     then:
       - lambda: |-
           boot_progress_dump_item->execute(${BOOT_STEP_VERSIONING}, "Versioning");
-
-  - id: !extend boot_sequence
-    then:
-      - while:
-          condition:
-            - lambda: return version_tft->state.empty();
-          then:
-            - lambda: |-
-                ESP_LOGI("script.boot_sequence (versioning)", "Updating TFT version");
-                version_tft->update();
-            - wait_until:
-                condition:
-                  - lambda: return not version_tft->state.empty();
-                timeout: 10s
 
   - id: check_versions
     mode: restart
@@ -54,20 +38,20 @@ script:
           then:
             - wait_until:
                 condition:
-                  - lambda: return version_tft->state == "${version}";
-                  - lambda: return version_blueprint->state == "${version}";
+                  - lambda: return id(version_tft) == "${version}";
+                  - lambda: return id(version_blueprint) == "${version}";
                 timeout: 90s
             - lambda: |-
                 boot_log->execute("Versions", "Reporting");
-                if (version_tft->state == "${version}" and version_blueprint->state == "${version}")
+                if (id(version_tft) == "${version}" and id(version_blueprint) == "${version}")
                   boot_progress->execute(${BOOT_STEP_VERSIONING}, "Version");
                 ESP_LOGI("script.check_versions", "Versions:");
-                ESP_LOGI("script.check_versions", "  TFT:       %s", version_tft->state.c_str());
+                ESP_LOGI("script.check_versions", "  TFT:       %s", id(version_tft).c_str());
                 ESP_LOGI("script.check_versions", "  ESPHome:   ${version}");
-                if (version_tft->state != "${version}")
+                if (id(version_tft) != "${version}")
                   ESP_LOGE("script.check_versions", "TFT version mismatch!");
-                ESP_LOGI("script.check_versions", "  Blueprint: %s", version_blueprint->state.c_str());
-                if (version_blueprint->state != "${version}")
+                ESP_LOGI("script.check_versions", "  Blueprint: %s", id(version_blueprint).c_str());
+                if (id(version_blueprint) != "${version}")
                   ESP_LOGE("script.check_versions", "Blueprint version mismatch!");
             - homeassistant.event:
                 event: esphome.nspanel_ha_blueprint
@@ -75,19 +59,30 @@ script:
                   device_name: !lambda return device_name->state.c_str();
                   esphome_version: ${version}
                   type: version
-                  tft: !lambda return version_tft->state.c_str();
+                  tft: !lambda return id(version_tft).c_str();
                   esphome: ${version}
-                  blueprint: !lambda return version_blueprint->state.c_str();
+                  blueprint: !lambda return id(version_blueprint).c_str();
 
   - id: !extend dump_config
     then:
       - lambda: |-
           // Report blueprint version
           ESP_LOGCONFIG("${project_tag}", "Blueprint:");
-          if (!version_blueprint->state.empty())
-            ESP_LOGCONFIG("${project_tag}", "  Version:     %s", version_blueprint->state.c_str());
+          if (!id(version_blueprint).empty())
+            ESP_LOGCONFIG("${project_tag}", "  Version:     %s", id(version_blueprint).c_str());
           else
             ESP_LOGW("${project_tag}", "  Version:     UNKNOWN");
+
+  - id: !extend event_from_display  # Defined by nspanel_esphome_core_hw_display.yaml
+    then:
+      - lambda: |-
+          if (id(version_tft).empty()) {
+            const std::string event = json["event"];
+            if (event == "params") {
+              id(version_tft) = json["version"].as<std::string>();
+              check_versions->execute();
+            }
+          }
 
   - id: !extend page_boot
     then:
@@ -99,64 +94,26 @@ script:
       - lambda: |-
           boot_log->execute("Boot", "ESPHome FW v${version}");
           set_component_text->execute("boot", "ver_firmware", "Firmware: ${version}");
-          if (version_blueprint->state.empty())
+          if (id(version_blueprint).empty())
             boot_log->execute("Boot", "Waiting for Blueprint version");
       - wait_until:
           condition:
-            - lambda: return not version_blueprint->state.empty();
+            - lambda: return not id(version_blueprint).empty();
           timeout: 20s
 
   - id: !extend set_var_string
     then:
       - lambda: |-
-          if (component == "version_blueprint" and !val.empty())
-            version_blueprint->publish_state(val.c_str());
+          if (component == "version_blueprint") {
+            id(version_blueprint) = val;
+            if (current_page->state == "boot")
+              set_component_text->execute("boot", "ver_blueprint", ("Blueprint: " + id(version_blueprint)).c_str());
+            ESP_LOGI("text_sensor.version_blueprint", "Blueprint version: %s", id(version_blueprint).c_str());
+          }
 
   - id: !extend stop_all
     then:
       - lambda: |-
           check_versions->stop();
           page_boot_versions->stop();
-
-text_sensor:
-  - id: version_blueprint
-    name: Version Blueprint
-    platform: template
-    entity_category: diagnostic
-    icon: mdi:tag-text-outline
-    internal: false
-    update_interval: never
-    on_value:
-      then:
-        - lambda: |-
-            check_versions->execute();
-            if (current_page->state == "boot")
-              disp1->set_component_text_printf("ver_blueprint", "Blueprint: %s", x.c_str());
-            ESP_LOGI("text_sensor.version_blueprint", "Blueprint version: %s", x.c_str());
-
-  - id: version_esphome
-    name: Version ESPHome
-    platform: template
-    entity_category: diagnostic
-    icon: mdi:tag-text-outline
-    internal: false
-    update_interval: never
-    lambda: return {"${version}"};
-
-  - id: version_tft
-    name: Version TFT
-    platform: nextion
-    component_name: boot.version
-    entity_category: diagnostic
-    icon: mdi:tag-text-outline
-    internal: false
-    update_interval: never
-    filters:
-      - lambda: |-
-          x = x.c_str();
-          x.shrink_to_fit();
-          return x;
-    on_value:
-      then:
-        - script.execute: check_versions
 ...

@@ -224,6 +224,16 @@ esphome:
             state: false
 
 globals:
+  - id: display_charset
+    type: uint8_t
+    restore_value: false
+    initial_value: '0'  # Charset (1 = International (original), 2 = CJK languages)
+
+  - id: display_mode
+    type: uint8_t
+    restore_value: false
+    initial_value: '0'
+
   - id: last_page
     type: std::string
     restore_value: false
@@ -306,33 +316,6 @@ script:
       - lambda: |-
           boot_progress_dump_item->execute(${BOOT_STEP_HW_DISPLAY}, "HW Display");
 
-  - id: !extend boot_sequence
-    then:
-      - while:
-          condition:
-            - lambda: return isnan(display_mode->state);
-          then:
-            - logger.log: Updating TFT mode
-            - lambda: display_mode->update();
-            - wait_until:
-                condition:
-                  - lambda: return not isnan(display_mode->state);
-                timeout: 10s
-      - while:
-          condition:
-            - lambda: return isnan(display_charset->state);
-          then:
-            - logger.log: Updating TFT charset
-            - lambda: display_charset->update();
-            - wait_until:
-                condition:
-                  - lambda: return not isnan(display_charset->state);
-                timeout: 10s
-      - script.execute:
-          id: boot_progress
-          step: ${BOOT_STEP_HW_DISPLAY}
-          step_name: HW Display - Boot sequence
-
   - id: display_wrapped_text
     mode: queued
     max_runs: 15
@@ -393,10 +376,10 @@ script:
             ESP_LOGCONFIG("${project_tag}", "  Init:        True");
           } else
             ESP_LOGW("${project_tag}", "  Init:        False");
-          if (version_tft->state.empty())
+          if (id(version_tft).empty())
             ESP_LOGW("${project_tag}", "  TFT:         UNKNOWN");
           else
-            ESP_LOGCONFIG("${project_tag}", "  TFT:         %s", version_tft->state.c_str());
+            ESP_LOGCONFIG("${project_tag}", "  TFT:         %s", id(version_tft).c_str());
 
   - id: event_from_display
     mode: queued
@@ -420,6 +403,10 @@ script:
               {"component", component.c_str()},
               {"command", event.c_str()}
             });
+          } else if (event == "params") {
+              id(display_mode) = json["display_mode"].as<uint8_t>();
+              id(display_charset) = json["charset"].as<uint8_t>();
+              boot_progress->execute(${BOOT_STEP_HW_DISPLAY}, "HW Display");
           } else {
             // Generic event
             ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
@@ -433,6 +420,7 @@ script:
               {"entity", detailed_entity->state.c_str()}
             });
           }
+
       # Extended by:
       #   - nspanel_esphome_core_page_alarm.yaml
       #   - nspanel_esphome_core_page_climate.yaml
@@ -441,6 +429,7 @@ script:
       #   - nspanel_esphome_core_page_keyb_num.yaml
       #   - nspanel_esphome_core_page_light.yaml
       #   - nspanel_esphome_core_page_media_player.yaml
+      #   - nspanel_esphome_core_versioning.yaml
 
   - id: goto_page
     mode: restart
@@ -730,10 +719,8 @@ script:
   - id: !extend set_var_string
     then:
       - lambda: |-
-          if (component == "decimal_separator" and !(val.empty())) {
+          if (component == "decimal_separator" and !(val.empty()))
             id(mui_decimal_separator) = val[0];
-            boot_progress->execute(${BOOT_STEP_HW_DISPLAY}, "HW Display - Decimal separator");
-          }
 
   - id: set_variable_value
     mode: queued
@@ -819,26 +806,6 @@ sensor:
     internal: false
     disabled_by_default: false
     update_interval: 15s
-
-  - id: display_charset  # Charset (1 = International (original), 2 = CJK languages)
-    name: Display charset
-    platform: nextion
-    variable_name: charset
-    precision: 0
-    accuracy_decimals: 0
-    internal: false
-    icon: mdi:translate
-    entity_category: diagnostic
-
-  - id: display_mode  # Display mode (1 = EU, 2 = US, 3 = US Landscape)
-    name: Display mode
-    platform: nextion
-    variable_name: display_mode
-    precision: 0
-    accuracy_decimals: 0
-    internal: false
-    icon: mdi:phone-rotate-portrait
-    entity_category: diagnostic
 
 switch:
   - name: Nextion display - Power  # DISPLAY ALWAYS ON

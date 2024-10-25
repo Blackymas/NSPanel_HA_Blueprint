@@ -12,6 +12,10 @@ Please refer to our [Version Compatibility Matrix](https://github.com/Blackymas/
 ### Changes on the versioning requires updating all the three components
 Moving forward, update all three components (Blueprint, ESPHome, and TFT) together to ensure consistency.
 
+### Many diagnostic sensors disappeared
+I know some of you love some of those, but we had to compromise something to free-up a bit of memory for the new things.
+The values are now shown in the logs and if you need as a sensor please report as an issue and we can support with customizations.
+
 ### Users using the "Display as a light" customization must remove it
 This is now part of the core system.
 
