@@ -68,6 +68,7 @@ You can use this button to force a reboot of your panel. This button is availabl
 | :-- | :-- |
 | You may have an older version of ESPHome installed or ESPHome is not installed. | Make sure you have the latest version of ESPHome and flash your device again. |
 | Baud rate mismatch. | The default baud rate for this project is 115200 bps, however your device might be set with a different baud rate. Use the baud rate selector under your device's page to adjust to the same baud rate as the display, then change it back to 115200 bps, which will instruct the display to start using that. |
+| Some old setting might interfere. | Perform a Factory Reset. This can be done by enabling the Factory Reset button in the Configuration section in the Home Assistant device page for your NSPanel. Wait 30 seconds for it to become available, and then press the button. Symptoms for when this is needed can be that the display sometimes work, e.g. after reflashing the firmware, but not always. |
 <!-- markdownlint-enable MD013 MD033 -->
 
 ### Blueprint is not detected
