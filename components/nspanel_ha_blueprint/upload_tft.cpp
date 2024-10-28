@@ -6,9 +6,8 @@
 
 namespace nspanel_ha_blueprint {
 
-    std::string construct_tft_url(const std::string& branch, const std::string& model,
+    std::string construct_tft_url(const std::string& tag, const std::string& model,
                                     const std::string& defaultUrl, const std::string& baseUrl) {
-        std::string relative_branch = branch.find("b") != std::string::npos ? "beta" : branch.find("d") != std::string::npos ? "dev" : branch;
         std::string file_name;
         if (model == "NSPanel Blank") file_name = "nspanel_blank.tft";
         else if (model == "NSPanel EU") file_name = "nspanel_eu.tft";
@@ -17,7 +16,7 @@ namespace nspanel_ha_blueprint {
         else if (model == "NSPanel EU (CJK languages)") file_name = "nspanel_CJK_eu.tft";
         else if (model == "NSPanel US (CJK languages)") file_name = "nspanel_CJK_us.tft";
         else if (model == "NSPanel US Landscape (CJK languages)") file_name = "nspanel_CJK_us_land.tft";
-        return file_name.empty() ? defaultUrl : baseUrl + relative_branch + "/hmi/" + file_name;
+        return file_name.empty() ? defaultUrl : baseUrl + tag + "/hmi/" + file_name;
     }
 
     std::string getNSPanelText(int displayMode, int charset) {

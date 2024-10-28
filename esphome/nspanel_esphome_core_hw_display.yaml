@@ -234,10 +234,18 @@ globals:
     restore_value: false
     initial_value: '0'
 
-  - id: last_page
-    type: std::string
+  - id: current_page_id
+    type: uint8_t
     restore_value: false
-    initial_value: '""'
+    initial_value: '0'
+  - id: last_page_id
+    type: uint8_t
+    restore_value: false
+    initial_value: '0'
+  - id: previous_page_id
+    type: uint8_t
+    restore_value: false
+    initial_value: '0'
 
   - id: mui_bytes_per_char
     type: uint8_t
@@ -484,8 +492,12 @@ script:
     mode: restart
     then:
       - lambda: |-
-          if (current_page->state != id(last_page))  // Clear the buffer when a new page opens
+          // Report new page to logs
+          ESP_LOGI("script.page_changed", "Page changed from \"%s\" to \"%s\"", page_names[id(previous_page_id)], current_page->state.c_str());
+          if (id(current_page_id) != id(previous_page_id)) {  // Clear the buffer when a new page opens
+            id(previous_page_id) = id(last_page_id);
             nextion_queue_reset->execute();
+          }
           if (
               current_page->state != "alarm" and
               current_page->state != "climate" and
@@ -499,8 +511,6 @@ script:
             detailed_entity->publish_state("");
             set_variable_value->execute("back_page_id", 1);
           }
-          // Report new page to logs
-          ESP_LOGI("script.page_changed", "New page: %s", current_page->state.c_str());
 
       - homeassistant.event:
           event: esphome.nspanel_ha_blueprint
@@ -509,11 +519,11 @@ script:
             esphome_version: ${version}
             type: page_changed
             page: !lambda return current_page->state.c_str();
-            last_page: !lambda return id(last_page).c_str();
+            from: !lambda return page_names[id(previous_page_id)];
             entity: !lambda return detailed_entity->state.c_str();
 
       - lambda: |-
-          id(last_page) = current_page->state;
+          id(last_page_id) = id(current_page_id);
 
   - id: send_command
     mode: queued
@@ -842,11 +852,10 @@ text_sensor:
           return x;
     on_value:
       then:
-        - if:
-            condition:
-              - lambda: return x != id(last_page);
-            then:
-              - script.execute: page_changed
+        - lambda: |-
+            id(current_page_id) = get_page_id(x.c_str());
+            if (id(current_page_id) != id(last_page_id) or x == "boot")
+              page_changed->execute();
 
   - id: disp1_local_event  # NSPanel event - Execute actions from ESPHome - NO directly push to HA
     name: NSPanel local event
@@ -871,5 +880,5 @@ uart:  ## UART for Nextion display
   - id: tf_uart
     tx_pin: 16
     rx_pin: 17
-    baud_rate: 115200
+    baud_rate: 921600
 ...
