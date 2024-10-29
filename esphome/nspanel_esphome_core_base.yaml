@@ -17,6 +17,7 @@ substitutions:
   project_tag: nspanel_ha_blueprint
   ##############################
   BOOT_STEP_BASE: '1UL << 0'
+  loop_time_threshold: 'UINT32_MAX'
 
 api:
   id: !extend api_server
@@ -70,6 +71,8 @@ button:
     name: Restart
     platform: restart
 
+debug:
+
 esp32:
   board: esp32dev
   framework:
@@ -96,6 +99,17 @@ external_components:
       - nspanel_ha_blueprint
     refresh: 30s
 
+globals:
+  - id: is_safe_mode
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+
+  - id: max_loop_time
+    type: uint32_t
+    restore_value: true
+    initial_value: '0'
+
 logger:
   id: logger_std
   baud_rate: 0  # Disable serial logger to save some memory and CPU
@@ -105,7 +119,7 @@ logger:
     esp-idf: INFO
     binary_sensor: INFO
     output: INFO
-    # script: INFO
+    script: INFO
     sensor: INFO
     switch: INFO
     text_sensor: INFO
@@ -120,6 +134,8 @@ ota:
     on_state_change:
       then:
         - lambda: |-
+            if (state == ota::OTA_STARTED)
+              stop_all->execute();
             goto_page->execute("boot", true);
             if (state == ota::OTA_STARTED) {
               set_component_value->execute("boot", "progress", 0);
@@ -134,14 +150,22 @@ ota:
               boot_log->execute("OTA", "Error");
 
 safe_mode:
-  reboot_timeout: 3min
+  reboot_timeout: 15min
   num_attempts: 3
+  on_safe_mode:
+    then:
+      - script.execute: safe_mode_loop
 
 script:
   - id: !extend boot_progress_dump
     then:
       - lambda: |-
           boot_progress_dump_item->execute(${BOOT_STEP_BASE}, "Base");
+
+  - id: !extend boot_sequence
+    then:
+      - lambda: |-
+          boot_progress->execute(${BOOT_STEP_BASE}, "Base");
 
   - id: dump_config
     mode: restart
@@ -169,40 +193,25 @@ script:
           #else
           ESP_LOGW("${project_tag}", "  Framework:   UNKNOWN");
           #endif
+          // Report Loop time
+          ESP_LOGCONFIG("${project_tag}", "Loop time:   %" PRIu32, static_cast<uint32_t>(debug_loop_time->state));
+          ESP_LOGCONFIG("${project_tag}", "  Max:       %" PRIu32, id(max_loop_time));
+          ESP_LOGCONFIG("${project_tag}", "  Threshold: %" PRIu32, ${loop_time_threshold});
+          dump_config_packages->execute();
 
+  - id: dump_config_packages
+    mode: restart
+    then:
+      - lambda: |-
           ESP_LOGCONFIG("${project_tag}", "Packages:");
-          #ifdef NSPANEL_HA_BLUEPRINT_CORE
           ESP_LOGCONFIG("${project_tag}", "  - Core");
-          #endif
-          #ifdef NSPANEL_HA_BLUEPRINT_ADVANCED
-          ESP_LOGCONFIG("${project_tag}", "  - Advanced");
-          #endif
-          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_BLUETOOTH_PROXY
-          ESP_LOGCONFIG("${project_tag}", "  - Bluetooth Proxy");
-          #endif
-          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
-          ESP_LOGCONFIG("${project_tag}", "  - Upload TFT");
-          #endif
-          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE
-          ESP_LOGCONFIG("${project_tag}", "  - Climate - Base");
-          #endif
-          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL
-          ESP_LOGCONFIG("${project_tag}", "  - Climate - Cool");
-          #endif
-          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
-          ESP_LOGCONFIG("${project_tag}", "  - Climate - Dual");
-          #endif
-          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT
-          ESP_LOGCONFIG("${project_tag}", "  - Climate - Heat");
-          #endif
-          #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT
-          ESP_LOGCONFIG("${project_tag}", "  - Pre-built");
-          #endif
-          #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY
-          ESP_LOGCONFIG("${project_tag}", "  - Pre-built (Wall Display)");
-          #endif
-          #if defined(USE_BLUETOOTH_PROXY) || defined(USE_WEBSERVER) || defined(USE_CAPTIVE_PORTAL)
-          ESP_LOGCONFIG("${project_tag}", "Components:");
+          #if defined(USE_ESP32_BLE_SERVER) || \
+              defined(USE_ESP32_BLE_CLIENT) || \
+              defined(USE_BLUETOOTH_PROXY) || \
+              defined(USE_CAPTIVE_PORTAL) || \
+              defined(USE_IMPROV) || \
+              defined(USE_WEBSERVER)
+          ESP_LOGCONFIG("${project_tag}", "ESPHome components:");
           #ifdef USE_ESP32_BLE_SERVER
           ESP_LOGCONFIG("${project_tag}", "  - BLE server");
           #endif
@@ -222,6 +231,17 @@ script:
           ESP_LOGCONFIG("${project_tag}", "  - Web server");
           #endif
           #endif
+      # Extended by:
+      #   - nspanel_esphome_advanced.yaml
+      #   - nspanel_esphome_addon_bluetooth_proxy.yaml
+      #   - nspanel_esphome_addon_climate_base.yaml
+      #   - nspanel_esphome_addon_climate_cool.yaml
+      #   - nspanel_esphome_addon_climate_dual.yaml
+      #   - nspanel_esphome_addon_climate_heat.yaml
+      #   - nspanel_esphome_addon_cover.yaml
+      #   - nspanel_esphome_addon_upload_tft.yaml
+      #   - nspanel_esphome_prebuild.yaml
+      #   - wall_display.yaml
 
   - id: ha_button
     mode: parallel
@@ -259,6 +279,15 @@ script:
             value: !lambda return value.c_str();
             entity: !lambda return entity.c_str();
 
+  - id: safe_mode_loop
+    mode: restart
+    then:
+      - lambda: |-
+          id(is_safe_mode) = true;
+          screen_power->turn_off();
+      - delay: 30s
+      - script.execute: safe_mode_loop
+
   - id: set_var_bool
     mode: queued
     parameters:
@@ -287,12 +316,15 @@ script:
           dump_config->stop();
           ha_button->stop();
           ha_call_action->stop();
+          safe_mode_loop->stop();
           time_watchdog->stop();
 
   - id: time_watchdog  # The name `watchdog` is reserved
     mode: restart
     then:
       - lambda: |-
+          if (debug_loop_time->state > ${loop_time_threshold})
+            stop_all->execute();
           if (!api_server->is_connected() and
               current_page->state != "blank" and
               current_page->state != "boot" and
@@ -308,6 +340,17 @@ script:
       # Extended by:
       #   - nspanel_esphome_core_hw_display_timers.yaml
       #   - nspanel_esphome_core_hw_wifi.yaml
+
+sensor:
+  - platform: debug
+    loop_time:
+      id: debug_loop_time
+      name: Loop time
+      on_value:
+        then:
+          - lambda: |-
+              if (x > id(max_loop_time))
+                id(max_loop_time) = x;
 
 text_sensor:
   - id: detailed_entity  # Entity Id of the entity displayed on the detailed pages
@@ -336,6 +379,4 @@ time:
         seconds: 5
         then:
           - script.execute: dump_config
-
-
 ...

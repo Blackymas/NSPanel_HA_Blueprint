@@ -43,6 +43,9 @@ We made improvements in some scripts, so the customizations using those scripts 
 - [Sleep & Wake-up buttons](docs/customization.md#sleep--wake-up-buttons)
 - [Set display as a light (deprecated)](docs/customization.md#set-display-as-a-light)
 
+### Notification unread sensor
+The former "**Notification unread**" switch is now a binary sensor.
+
 ## Noteworthy Changes
 
 ### Dynamic QR Code (#452 & #2283)

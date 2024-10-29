@@ -187,6 +187,8 @@ esphome:
     - priority: 600.5
       then:
         - wait_until:
+            - lambda: return not id(is_safe_mode);
+        - wait_until:
             condition:
               - lambda: return (not isnan(stoi(baud_rate->state)));
             timeout: 60s
@@ -234,10 +236,18 @@ globals:
     restore_value: false
     initial_value: '0'
 
-  - id: last_page
-    type: std::string
+  - id: current_page_id
+    type: uint8_t
     restore_value: false
-    initial_value: '""'
+    initial_value: '0'
+  - id: last_page_id
+    type: uint8_t
+    restore_value: false
+    initial_value: '0'
+  - id: previous_page_id
+    type: uint8_t
+    restore_value: false
+    initial_value: '0'
 
   - id: mui_bytes_per_char
     type: uint8_t
@@ -484,8 +494,12 @@ script:
     mode: restart
     then:
       - lambda: |-
-          if (current_page->state != id(last_page))  // Clear the buffer when a new page opens
+          // Report new page to logs
+          ESP_LOGI("script.page_changed", "Page changed from \"%s\" to \"%s\"", page_names[id(previous_page_id)], current_page->state.c_str());
+          if (id(current_page_id) != id(previous_page_id)) {  // Clear the buffer when a new page opens
+            id(previous_page_id) = id(last_page_id);
             nextion_queue_reset->execute();
+          }
           if (
               current_page->state != "alarm" and
               current_page->state != "climate" and
@@ -499,8 +513,6 @@ script:
             detailed_entity->publish_state("");
             set_variable_value->execute("back_page_id", 1);
           }
-          // Report new page to logs
-          ESP_LOGI("script.page_changed", "New page: %s", current_page->state.c_str());
 
       - homeassistant.event:
           event: esphome.nspanel_ha_blueprint
@@ -509,20 +521,19 @@ script:
             esphome_version: ${version}
             type: page_changed
             page: !lambda return current_page->state.c_str();
-            last_page: !lambda return id(last_page).c_str();
+            from: !lambda return page_names[id(previous_page_id)];
             entity: !lambda return detailed_entity->state.c_str();
 
       - lambda: |-
-          id(last_page) = current_page->state;
+          id(last_page_id) = id(current_page_id);
 
   - id: send_command
     mode: queued
     parameters:
       cmd: string
     then:
-      - script.execute: nextion_queue_add
-      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
       - lambda: |-
+          nextion_queue_add->execute();
           disp1->send_command(cmd.c_str());
           nextion_queue_del->execute();
 
@@ -537,7 +548,7 @@ script:
             - lambda: return (tf_uart->get_baud_rate() != baud_rate);
           then:
             - lambda: |-
-                ESP_LOGD("script.set_baud_rate", "Baud rate changing from %" PRIu32 " to %" PRIu32 " bps", tf_uart->get_baud_rate(), baud_rate);
+                ESP_LOGI("script.set_baud_rate", "Baud rate changing from %" PRIu32 " to %" PRIu32 " bps", tf_uart->get_baud_rate(), baud_rate);
                 ESP_LOGD("script.set_baud_rate", "Flush UART");
             - wait_until:
                 condition:
@@ -555,7 +566,7 @@ script:
                 ESP_LOGD("script.set_baud_rate", "Set ESPHome new baud rate to %" PRIu32 " bps", baud_rate);
                 tf_uart->set_baud_rate(baud_rate);
                 tf_uart->load_settings();
-                ESP_LOGD("script.set_baud_rate", "Current baud rate: %" PRIu32 " bps", tf_uart->get_baud_rate());
+                ESP_LOGI("script.set_baud_rate", "Current baud rate: %" PRIu32 " bps", tf_uart->get_baud_rate());
 
   - id: set_brightness
     mode: restart
@@ -771,7 +782,7 @@ select:
       - "256000"
       - "512000"
       - "921600"
-    initial_option: "115200"
+    initial_option: "921600"
     optimistic: true
     restore_value: true
     internal: false
@@ -808,7 +819,18 @@ sensor:
     icon: mdi:brightness-percent
     internal: false
     disabled_by_default: false
-    update_interval: 15s
+    update_interval: 60s
+
+#  - id: current_page_id
+#    name: Current Page Id
+#    platform: nextion
+#    variable_name: dp
+#    precision: 0
+#    accuracy_decimals: 0
+#    icon: mdi:tablet-dashboard
+#    internal: false
+#    disabled_by_default: false
+#    update_interval: 60s
 
 switch:
   - name: Nextion display - Power  # DISPLAY ALWAYS ON
@@ -842,11 +864,10 @@ text_sensor:
           return x;
     on_value:
       then:
-        - if:
-            condition:
-              - lambda: return x != id(last_page);
-            then:
-              - script.execute: page_changed
+        - lambda: |-
+            id(current_page_id) = get_page_id(x.c_str());
+            if (id(current_page_id) != id(last_page_id) or x == "boot")
+              page_changed->execute();
 
   - id: disp1_local_event  # NSPanel event - Execute actions from ESPHome - NO directly push to HA
     name: NSPanel local event
@@ -871,5 +892,5 @@ uart:  ## UART for Nextion display
   - id: tf_uart
     tx_pin: 16
     rx_pin: 17
-    baud_rate: 115200
+    baud_rate: 921600
 ...
