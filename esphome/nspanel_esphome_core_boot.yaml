@@ -22,15 +22,10 @@ display:
   - id: !extend disp1
     on_setup:
       then:
-        - script.execute:
-            id: send_command
-            cmd: 'esphome=0'
-        - script.execute:
-            id: set_brightness
-            brightness: 100
-        - binary_sensor.template.publish:
-            id: nextion_init
-            state: !lambda return disp1->is_setup();
+        - lambda: |-
+            send_command->execute("esphome=0");
+            set_brightness->execute(100);
+            nextion_init->publish_state(disp1->is_setup());
 
     on_touch:
       then:
@@ -44,6 +39,12 @@ display:
                   break;
               }
             }
+
+esphome:
+  on_boot:
+    - priority: 600.0
+      then:
+        - script.execute: boot_sequence
 
 script:
   - id: boot_event
@@ -71,7 +72,7 @@ script:
       step_name: string
     then:
       - lambda: |-
-          boot_progress_dump->execute();
+          boot_progress_dump_timer->execute();
           complete_boot_step(step);
           ESP_LOGI("script.boot_progress", "Boot step completed: %s (step %i of %i - %i%%)", step_name.c_str(),
                     get_boot_steps_completed(), TOTAL_BOOT_STEPS, get_boot_progress_percentage());
@@ -79,12 +80,8 @@ script:
             ESP_LOGI("script.boot_progress", "Progress: Boot sequence completed");
 
   - id: boot_progress_dump
-    mode: restart
+    mode: queued
     then:
-      - wait_until:
-          condition:
-            - lambda: return get_boot_progress_percentage() == 100;
-          timeout: 60s
       - lambda: |-
           ESP_LOGCONFIG("script.boot_progress_dump", "Boot progress: %" PRIu8 "%% (%" PRIu32 ")",
                         get_boot_progress_percentage(), completed_boot_steps);
@@ -103,6 +100,15 @@ script:
           int8_t padding = std::max(0, 21 - static_cast<int>(step_name.length())); // Calculate dynamic padding
           ESP_LOGCONFIG("script.boot_progress_dump", " - %s:%*s%s", step_name.c_str(), padding, "",
                         is_boot_step_completed(step) ? "Completed" : "PENDING");
+
+  - id: boot_progress_dump_timer
+    mode: restart
+    then:
+      - wait_until:
+          condition:
+            - lambda: return get_boot_progress_percentage() == 100;
+          timeout: 60s
+      - script.execute: boot_progress_dump
 
   - id: boot_sequence
     mode: single
@@ -161,13 +167,14 @@ script:
     then:
       - lambda: |-
           if (is_boot_complete())
-            ESP_LOGCONFIG("${project_tag}", "  Boot steps:  %" PRIu8 "/%" PRIu8 " (100%%)",
+            ESP_LOGCONFIG("${project_tag}", "Boot steps: %" PRIu8 "/%" PRIu8 " (100%%)",
                           get_boot_steps_completed(), TOTAL_BOOT_STEPS);
           else {
-            ESP_LOGW("${project_tag}", "  Boot steps:  %" PRIu8 "/%" PRIu8 " (%" PRIu8 "%% - %" PRIu32 ")",
+            ESP_LOGW("${project_tag}", "Boot steps: %" PRIu8 "/%" PRIu8 " (%" PRIu8 "%% - %" PRIu32 ")",
                       get_boot_steps_completed(), TOTAL_BOOT_STEPS, get_boot_progress_percentage(), completed_boot_steps);
-            ESP_LOGW("${project_tag}", "  State:       %s",
+            ESP_LOGW("${project_tag}", "  State:    %s",
                       ((wifi_component->is_connected()) and api_server->is_connected()) ? "Pending" : "DISCONNECTED");
+            boot_progress_dump->execute();
             ESP_LOGCONFIG("${project_tag}", "Requesting new boot parameters from Blueprint");
             boot_event->execute();
           }
@@ -183,4 +190,5 @@ script:
       - lambda: |-
           boot_event->stop();
           boot_progress->stop();
+          boot_progress_dump_timer->stop();
 ...
