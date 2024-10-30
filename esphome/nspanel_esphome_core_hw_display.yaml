@@ -95,7 +95,7 @@ api:
                 detailed_entity->publish_state(entity_id.c_str());
                 std::string new_page = (entity_id == "embedded_climate" ? "climate" :
                                         (domain == "alarm_control_panel" ? "alarm" : domain));
-                goto_page->execute(new_page.c_str(), true);
+                goto_page_id->execute(get_page_id(new_page.c_str()), true);
                 set_variable_value->execute("back_page_id", get_page_id(back_page.c_str()));
                 if (new_page == "climate")
                   set_component_value->execute("climate", "embedded", entity_id == "embedded_climate" ? 1 : 0);
@@ -166,9 +166,16 @@ display:
 
     on_page:
       then:
+        - lambda: page_changed->execute(x);
+
+    on_setup:
+      then:
         - lambda: |-
-            if (current_page->state != page_names[x])
-              current_page->publish_state(page_names[x]);
+            page_changed->execute(${PAGE_ID_BOOT});
+            // Set the current baud rate into the display
+            disp1->send_command_printf("bauds=%" PRIu32, tf_uart->get_baud_rate());
+    # Extended by:
+    # - nspanel_esphome_core_boot.yaml
 
     on_touch:
       then:  # There's nothing here so far
@@ -240,10 +247,6 @@ globals:
     type: uint8_t
     restore_value: false
     initial_value: '0'
-  - id: last_page_id
-    type: uint8_t
-    restore_value: false
-    initial_value: '0'
   - id: previous_page_id
     type: uint8_t
     restore_value: false
@@ -300,7 +303,7 @@ number:
       then:
         - lambda: |-
             set_variable_value->execute("brightness_dim", int(x));
-            if (current_page->state != "screensaver" and current_brightness->state != x)
+            if (id(current_page_id) != ${PAGE_ID_SCREENSAVER} and current_brightness->state != x)
               set_brightness->execute(int(x));
 
   - id: display_sleep_brightness  # SCREEN BRIGHTNESS SLEEP
@@ -444,21 +447,13 @@ script:
       #   - nspanel_esphome_core_page_media_player.yaml
       #   - nspanel_esphome_core_versioning.yaml
 
-  - id: goto_page
+  - id: goto_page_id
     mode: restart
     parameters:
-      page: string
+      page_id: uint8_t
       reset_timers: bool
     then:
-      - wait_until:
-          condition:
-            - text_sensor.state:
-                id: current_page
-                state: !lambda return page.c_str();
-          timeout: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
-      - lambda: |-
-          if (current_page->state != page)
-            disp1->goto_page(page.c_str());
+      - lambda: disp1->goto_page(page_id);
       # Extended by:
       #   - nspanel_esphome_core_hw_display_timers.yaml
 
@@ -491,41 +486,50 @@ script:
           id(nextion_queue) = 0;
 
   - id: page_changed
+    parameters:
+      new_page_id: uint8_t
     mode: restart
-    then:
+    then:  # There's nothing here so far
       - lambda: |-
-          // Report new page to logs
-          ESP_LOGI("script.page_changed", "Page changed from \"%s\" to \"%s\"", page_names[id(previous_page_id)], current_page->state.c_str());
-          if (id(current_page_id) != id(previous_page_id)) {  // Clear the buffer when a new page opens
-            id(previous_page_id) = id(last_page_id);
-            nextion_queue_reset->execute();
-          }
-          if (
-              current_page->state != "alarm" and
-              current_page->state != "climate" and
-              current_page->state != "cover" and
-              current_page->state != "fan" and
-              current_page->state != "light" and
-              current_page->state != "media_player" and
-              current_page->state != "confirm" and
-              current_page->state != "keyb_num"
-              ) {
-            detailed_entity->publish_state("");
-            set_variable_value->execute("back_page_id", 1);
-          }
+            const bool is_new_page = (new_page_id != id(current_page_id));
+            if (is_new_page) {
+              id(previous_page_id) = id(current_page_id);
+              id(current_page_id) = new_page_id;
+              current_page->publish_state(page_names[id(current_page_id)]);
+            }
+            if (is_new_page or new_page_id == ${PAGE_ID_BOOT}) {
+              // Report new page to logs
+              ESP_LOGI("display.disp1.on_page", "Page changed from \"%s\" to \"%s\"", page_names[id(previous_page_id)],
+                        page_names[new_page_id]);
 
-      - homeassistant.event:
-          event: esphome.nspanel_ha_blueprint
-          data:
-            device_name: !lambda return device_name->state.c_str();
-            esphome_version: ${version}
-            type: page_changed
-            page: !lambda return current_page->state.c_str();
-            from: !lambda return page_names[id(previous_page_id)];
-            entity: !lambda return detailed_entity->state.c_str();
+              // Clear the buffer when a new page opens
+              nextion_queue_reset->execute();
 
-      - lambda: |-
-          id(last_page_id) = id(current_page_id);
+              // Reset entity_id when it does not apply
+              if (new_page_id != ${PAGE_ID_ALARM} and
+                  new_page_id != ${PAGE_ID_CLIMATE} and
+                  new_page_id != ${PAGE_ID_COVER} and
+                  new_page_id != ${PAGE_ID_FAN} and
+                  new_page_id != ${PAGE_ID_LIGHT} and
+                  new_page_id != ${PAGE_ID_MEDIA_PLAYER} and
+                  new_page_id != ${PAGE_ID_CONFIRM} and
+                  new_page_id != ${PAGE_ID_KEYB_NUM}) {
+                detailed_entity->publish_state("");
+                set_variable_value->execute("back_page_id", ${PAGE_ID_HOME});
+              }
+
+              // Inform Home Assistant about the page change
+              esphome::api::CustomAPIDevice ha_event;
+              ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
+                {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
+                {"type", "page_changed"},
+                {"page", page_names[new_page_id]},
+                {"from", page_names[id(previous_page_id)]},
+                {"entity", detailed_entity->state.c_str()}
+              });
+            }
+      # This is extended by most of the page's yaml files.
 
   - id: send_command
     mode: queued
@@ -753,7 +757,7 @@ script:
       - lambda: |-
           display_wrapped_text->stop();
           event_from_display->stop();
-          goto_page->stop();
+          goto_page_id->stop();
           page_changed->stop();
           send_command->stop();
           set_baud_rate->stop();
@@ -821,17 +825,6 @@ sensor:
     disabled_by_default: false
     update_interval: 60s
 
-#  - id: current_page_id
-#    name: Current Page Id
-#    platform: nextion
-#    variable_name: dp
-#    precision: 0
-#    accuracy_decimals: 0
-#    icon: mdi:tablet-dashboard
-#    internal: false
-#    disabled_by_default: false
-#    update_interval: 60s
-
 switch:
   - name: Nextion display - Power  # DISPLAY ALWAYS ON
     platform: gpio
@@ -850,24 +843,14 @@ switch:
             state: false
 
 text_sensor:
-  - id: current_page  # Current page name
+  - id: current_page  # Current page name - Used by Blueprint
     name: Current Page
-    platform: nextion
-    component_name: current_page
+    platform: template
     icon: mdi:tablet-dashboard
     internal: false
     disabled_by_default: false
     filters:
-      - lambda: |-
-          x = x.c_str();
-          x.shrink_to_fit();
-          return x;
-    on_value:
-      then:
-        - lambda: |-
-            id(current_page_id) = get_page_id(x.c_str());
-            if (id(current_page_id) != id(last_page_id) or x == "boot")
-              page_changed->execute();
+      - lambda: return {page_names[id(current_page_id)]};
 
   - id: disp1_local_event  # NSPanel event - Execute actions from ESPHome - NO directly push to HA
     name: NSPanel local event
