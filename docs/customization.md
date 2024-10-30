@@ -299,7 +299,7 @@ binary_sensor:
     id: display_state
     platform: template
     lambda: |-
-      return (current_page->state != "screensaver");
+      return (id(current_page_id) != ${PAGE_ID_SCREENSAVER});
 ```
 
 You can easily invert the meaning to have a sensor for display sleeping:
@@ -311,7 +311,7 @@ binary_sensor:
     id: display_sleeping
     platform: template
     lambda: |-
-      return (current_page->state == "screensaver");
+      return (id(current_page_id) == ${PAGE_ID_SCREENSAVER});
 ```
 
 ### Deep sleep
@@ -377,107 +377,34 @@ There are several ways to wake-up or put your panel to sleep, but in this exampl
 ```yaml
 button:
   # Adds a button to put the panel to sleep
-  - name: Sleep
+  - name: ${device_name} Sleep
     id: force_sleep
     platform: template
     icon: mdi:sleep
     on_press:
       then:
-        - logger.log: Button Sleep pressed
         - lambda: |-
-            goto_page->execute("screensaver", false);
-  
-  # Adds a button to wake-up the panel (similar to the existing action)
-  - name: Wake-up
+            ESP_LOGI("button.force_sleep.on_press", "Button Sleep pressed");
+            goto_page_id->execute(${PAGE_ID_SCREENSAVER}, false);
+
+  # Adds a button to wake-up the panel (similar to the existing service)
+  - name: ${device_name} Wake-up
     id: force_wake_up
     platform: template
     icon: mdi:alarm
     on_press:
       then:
-        - logger.log: Button Wake-up pressed
         - lambda: |-
-            if (current_page->state == "screensaver")
-              goto_page->execute(wakeup_page_name->state.c_str(), true);
+            ESP_LOGI("button.force_wake_up.on_press", "Button Wake-up pressed");
+            if (id(current_page_id) == ${PAGE_ID_SCREENSAVER})
+              goto_page_id->execute(get_page_id(id(wakeup_page_name).state.c_str()), true);
 ```
 
 ### Set display as a light
 
 > [!WARNING]
-> This was incorporated to the core yaml and therefore is deprecated as a customization.
+> This was incorporated to the core yaml and therefore was removed from customizations docs.
 > If you have this added as a customization, please remove it to avoid conflicts.
-
-You can set your display as a light in Home Assistant, so you can control the brightness and turn on/off just like any other light,
-and even use this in your automation to control when your panel is on with the same automation you use for your lights:
-
-```yaml
-light:
-  # Add the display as a light in Home Assistant
-  - name: Display
-    id: display_light
-    icon: mdi:tablet-dashboard
-    platform: monochromatic
-    output: display_output
-    default_transition_length: 0s
-    on_turn_on:
-      then:
-        - lambda: |-
-            ESP_LOGD("light.display_light", "Turn-on");
-            if (current_page->state == "screensaver")
-              goto_page->execute(wakeup_page_name->state.c_str(), true);
-            timer_reset_all->execute();
-    on_turn_off:
-      then:
-        - lambda: |-
-            ESP_LOGD("light.display_light", "Turn-off");
-            goto_page->execute("screensaver", false);
-
-output:
-  # Output required by `display_light` to send the commands to Nextion
-  - id: display_output
-    platform: template
-    type: float
-    write_action:
-      - lambda: |-
-          ESP_LOGV("output.display_output", "state: %f", state);
-          uint8_t current_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
-          ESP_LOGV("output.display_output", "current_brightness: %i%%", current_brightness);
-          set_brightness->execute(current_brightness);
-    
-script:
-  # Updates the existing `page_changed` script to update the `display_light` status when a page changes
-  - id: !extend page_changed
-    then:
-      - lambda: |-
-          ESP_LOGD("script.page_changed(custom)", "page: %s", current_page->state.c_str());
-          ESP_LOGV("script.page_changed(custom)", "is_on(): %s", display_light->current_values.is_on() ? "True" : "False");
-          if (current_page->state == "screensaver" and display_light->current_values.is_on()) {
-            auto call = display_light->turn_off();
-            call.perform();
-          } else if (current_page->state != "screensaver" and (not display_light->current_values.is_on())) {
-            auto call = display_light->turn_on();
-            call.perform();
-          }
-
-  # Updates the existing `set_brightness` script to update the `display_light` status when a new brightness level is set
-  - id: !extend set_brightness
-    then:
-      - lambda: |-
-          ESP_LOGD("script.set_brightness(custom)", "brightness: %.0f%%", brightness);
-          uint8_t current_light_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
-          ESP_LOGV("script.set_brightness(custom)", "current_light_brightness: %i%%", current_light_brightness);
-          if (brightness != current_light_brightness) {
-            if (current_page->state != "screensaver" and brightness > 0) {
-              auto call = display_light->turn_on();
-              call.set_brightness(static_cast<float>(current_brightness->state) / 100.0f);
-              call.perform();
-            } else if (display_light->current_values.is_on()) {
-              auto call = display_light->turn_off();
-              call.set_brightness(0);
-              call.perform();
-            }
-          }
-
-```
 
 ### Scheduled actions
 Although ESPHome doesn't have a Scheduler component, it is possible to use the timer to schedule actions and this is entirely managed in the device,
