@@ -15,8 +15,8 @@ api:
         reset_timer: bool  # Determines whether to reset the sleep and dimming timers upon waking the display.
       then:
         - lambda: |-
-            if (current_page->state == "screensaver")
-              goto_page->execute(wakeup_page_name->state.c_str(), true);
+            if (id(current_page_id) == ${PAGE_ID_SCREENSAVER})
+              goto_page_id->execute(get_page_id(wakeup_page_name->state.c_str()), true);
             if (reset_timer)
               timer_page->execute();
 
@@ -27,8 +27,8 @@ binary_sensor:
         - &hardware_button_on_press
           lambda: |-
             if (hw_button_wakeup->state) {
-              if (current_page->state == "screensaver")
-                goto_page->execute(wakeup_page_name->state.c_str(), false);
+              if (id(current_page_id) == ${PAGE_ID_SCREENSAVER})
+                goto_page_id->execute(get_page_id(wakeup_page_name->state.c_str()), false);
               timer_dim->execute();
               timer_sleep->execute();
             }
@@ -49,7 +49,7 @@ number:
     on_value:
       then:
         - lambda: |-
-            if (current_page->state != "screensaver") {
+            if (id(current_page_id) != ${PAGE_ID_SCREENSAVER}) {
               set_brightness->execute(int(x));
               timer_dim->execute();
               timer_sleep->execute();
@@ -102,21 +102,21 @@ number:
     on_value:
       then:
         - lambda: |-
-            if (x == 0 and current_page->state == "screensaver")
-              goto_page->execute(wakeup_page_name->state.c_str(), true);
+            if (x == 0 and id(current_page_id) == ${PAGE_ID_SCREENSAVER})
+              goto_page_id->execute(get_page_id(wakeup_page_name->state.c_str()), true);
 
 script:
   - id: !extend ha_button
     then:
       - lambda: |-
-          if (current_page->state != "screensaver")
+          if (id(current_page_id) != ${PAGE_ID_SCREENSAVER})
             timer_reset_all->execute();
 
-  - id: !extend goto_page
+  - id: !extend goto_page_id
     then:
       - lambda: |-
-          if (reset_timers and page != "screensaver") {
-            if (page != "home")
+          if (reset_timers and page_id != ${PAGE_ID_SCREENSAVER}) {
+            if (page_id != ${PAGE_ID_HOME})
               timer_page->execute();
             timer_dim->execute();
             timer_sleep->execute();
@@ -133,10 +133,10 @@ script:
   - id: !extend time_watchdog  # Defined by nspanel_esphome_core_base.yaml
     then:
       - lambda: |-
-          if (current_page->state != "screensaver" and current_page->state != "boot") {
+          if (id(current_page_id) != ${PAGE_ID_SCREENSAVER} and id(current_page_id) != ${PAGE_ID_BOOT}) {
             if (!timer_dim->is_running() and current_brightness->state != display_dim_brightness->state)
               timer_dim->execute();
-            if (!timer_page->is_running() and current_page->state != "home")
+            if (!timer_page->is_running() and id(current_page_id) != ${PAGE_ID_HOME})
               timer_page->execute();
             if (!timer_sleep->is_running())
               timer_sleep->execute();
@@ -157,22 +157,22 @@ script:
           condition:
             - lambda: |-
                 return (timeout_page->state >= 1 and
-                        current_page->state != "boot" and
-                        current_page->state != "confirm" and
-                        current_page->state != "home" and
-                        current_page->state != "notification" and
-                        current_page->state != "screensaver");
+                        id(current_page_id) != ${PAGE_ID_BOOT} and
+                        id(current_page_id) != ${PAGE_ID_CONFIRM} and
+                        id(current_page_id) != ${PAGE_ID_HOME} and
+                        id(current_page_id) != ${PAGE_ID_NOTIFICATION} and
+                        id(current_page_id) != ${PAGE_ID_SCREENSAVER});
           then:
             - delay: !lambda return (timeout_page->state *1000);
             - lambda: |-
                 if (timeout_page->state >= 1 and
-                    current_page->state != "boot" and
-                    current_page->state != "confirm" and
-                    current_page->state != "home" and
-                    current_page->state != "notification" and
-                    current_page->state != "screensaver") {
+                    id(current_page_id) != ${PAGE_ID_BOOT} and
+                    id(current_page_id) != ${PAGE_ID_CONFIRM} and
+                    id(current_page_id) != ${PAGE_ID_HOME} and
+                    id(current_page_id) != ${PAGE_ID_NOTIFICATION} and
+                    id(current_page_id) != ${PAGE_ID_SCREENSAVER}) {
                   ESP_LOGI("script.timer_page", "Fallback to page Home");
-                  goto_page->execute("home", false);
+                  goto_page_id->execute(${PAGE_ID_HOME}, false);
                 }
 
   - id: timer_dim        # Handles the brightness dimming after a timeout
@@ -180,9 +180,9 @@ script:
     then:
       - lambda: |-
           if (current_brightness->state <= display_dim_brightness->state
-              and current_page->state != "screensaver"
-              and current_page->state != "boot") {
-            ESP_LOGD("script.timer_dim", "Waking up on page: %s", current_page->state.c_str());
+              and id(current_page_id) != ${PAGE_ID_SCREENSAVER}
+              and id(current_page_id) != ${PAGE_ID_BOOT}) {
+            ESP_LOGD("script.timer_dim", "Waking up on page: %s", page_names[id(current_page_id)]);
             set_brightness->execute(display_brightness->state);
           }
       - if:
@@ -192,23 +192,11 @@ script:
                 above: 1
           then:
             - delay: !lambda return (timeout_dim->state *1000);
-            - if:
-                condition:
-                  - number.in_range:
-                      id: timeout_dim
-                      above: 1
-                  - not:
-                      text_sensor.state:
-                        id: current_page
-                        state: boot
-                  - not:
-                      text_sensor.state:
-                        id: current_page
-                        state: screensaver
-                then:
-                  - script.execute:
-                      id: set_brightness
-                      brightness: !lambda return display_dim_brightness->state;
+            - lambda: |-
+                if (timeout_dim->state > 0
+                    and id(current_page_id) != ${PAGE_ID_SCREENSAVER}
+                    and id(current_page_id) != ${PAGE_ID_BOOT})
+                  set_brightness->execute(display_dim_brightness->state);
 
   - id: timer_sleep  # Handles the sleep (go to screensaver page) after a timeout
     mode: restart
@@ -216,15 +204,15 @@ script:
       - if:
           condition:
             - lambda: |-
-                return (timeout_sleep->state >= 1 and current_page->state != "boot");
+                return (timeout_sleep->state >= 1 and id(current_page_id) != ${PAGE_ID_BOOT});
           then:
             - delay: !lambda return (timeout_sleep->state *1000);
             - lambda: |-
-                if (timeout_sleep->state >= 1 and
-                    current_page->state != "boot" and
-                    current_page->state != "screensaver") {
-                  ESP_LOGI("script.timer_sleep", "Going to sleep from page %s", current_page->state.c_str());
-                  goto_page->execute("screensaver", false);
+                if (timeout_sleep->state >= 1
+                    and id(current_page_id) != ${PAGE_ID_SCREENSAVER}
+                    and id(current_page_id) != ${PAGE_ID_BOOT}) {
+                  ESP_LOGI("script.timer_sleep", "Going to sleep from page %s", page_names[id(current_page_id)]);
+                  goto_page_id->execute(${PAGE_ID_SCREENSAVER}, false);
                   set_brightness->execute(display_sleep_brightness->state);
                 }
 

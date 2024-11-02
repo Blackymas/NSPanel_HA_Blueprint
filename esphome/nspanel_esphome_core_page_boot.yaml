@@ -10,6 +10,12 @@ substitutions:
   BOOT_STEP_PAGE_BOOT: '1UL << 29'
   PAGE_ID_BOOT: '0'
 
+esphome:
+  on_boot:
+    - priority: 601.0
+      then:
+        - script.execute: page_boot
+
 script:
   - id: boot_log
     mode: queued
@@ -20,7 +26,7 @@ script:
     then:
       - lambda: |-
           ESP_LOGI("script.boot_log", "%s: %s", category.c_str(), log_message.c_str());
-          if (current_page->state == "boot"){
+          if (id(current_page_id) == ${PAGE_ID_BOOT}){
             std::string combined_log = category + ": " + log_message;
             if (combined_log.length() > 40) {
               combined_log = combined_log.substr(0, 40);
@@ -39,7 +45,7 @@ script:
   - id: !extend boot_progress
     then:
       - lambda: |-
-          if (current_page->state == "boot")
+          if (id(current_page_id) == ${PAGE_ID_BOOT})
             set_component_value->execute("boot", "progress", get_boot_progress_percentage());
 
   - id: !extend boot_progress_dump
@@ -67,14 +73,20 @@ script:
       - wait_until:
           condition:
             - lambda: |-
-                return current_page->state != "boot";
+                return id(current_page_id) != ${PAGE_ID_BOOT};
           timeout: 180s
       - lambda: |-
-          if (current_page->state == "boot") {
+          if (id(current_page_id) == ${PAGE_ID_BOOT}) {
             ESP_LOGI("script.page_boot_exit", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
-            goto_page->execute(wakeup_page_name->state, true);
+            goto_page_id->execute(get_page_id(wakeup_page_name->state), true);
             set_variable_value->execute("wakeup_page_id", get_page_id(wakeup_page_name->state.c_str()));
           }
+
+  - id: !extend page_changed
+    then:
+      - lambda: |-
+          if (id(current_page_id) == ${PAGE_ID_BOOT})
+            page_boot->execute();
 
   - id: !extend stop_all
     then:
