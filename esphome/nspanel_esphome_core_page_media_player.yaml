@@ -10,6 +10,8 @@ substitutions:
   BOOT_STEP_PAGE_MEDIA_PLAYER: '1UL << 20'
   PAGE_ID_MEDIA_PLAYER: '25'
   PAGE_NAME_MEDIA_PLAYER: "media_player"
+  COMPONENT_ID_MEDIA_PLAYER_BT_VOL_DOWN: '6'
+  COMPONENT_ID_MEDIA_PLAYER_BT_VOL_UP: '7'
   MEDIA_PLAYER_FEATURE_PAUSE: '1'
   MEDIA_PLAYER_FEATURE_SEEK: '2'
   MEDIA_PLAYER_FEATURE_VOLUME_SET: '4'
@@ -57,7 +59,7 @@ api:
         - lambda: |-
             if (id(current_page_id) == ${PAGE_ID_MEDIA_PLAYER}) {
               detailed_entity->publish_state(entity);
-              disp1->set_component_text("page_label", friendly_name.c_str());
+              set_component_text->execute("${PAGE_NAME_MEDIA_PLAYER}", "page_label", friendly_name.c_str());
               display_wrapped_text->execute("${PAGE_NAME_MEDIA_PLAYER}", "track", media_title.c_str(), id(display_mode) == 2 ? 16 : 27);
               display_wrapped_text->execute("${PAGE_NAME_MEDIA_PLAYER}", "artist", media_artist.c_str(), id(display_mode) == 2 ? 26 : 40);
 
@@ -108,16 +110,17 @@ api:
               const bool vol_slider_visible = (supported_features & ${MEDIA_PLAYER_FEATURE_VOLUME_SET});
               set_component_visibility->execute("${PAGE_NAME_MEDIA_PLAYER}", "vol_slider", vol_slider_visible);
               set_component_visibility->execute("${PAGE_NAME_MEDIA_PLAYER}", "vol_text", vol_slider_visible);
-              if (vol_slider_visible and volume_level != id(last_volume_level)) {
-                id(last_volume_level) = volume_level;
+              if (vol_slider_visible and volume_level != id(media_player_last_volume_level)) {
+                id(media_player_last_volume_level) = volume_level;
                 disp1->set_component_text_printf("vol_text", "%" PRIu32 "%%", volume_level);
                 set_component_value->execute("${PAGE_NAME_MEDIA_PLAYER}", "vol_slider", volume_level);
               }
 
               if (media_duration > 0) {
-                if (media_duration != id(last_media_duration) or media_position != id(last_media_position)) {
-                  id(last_media_duration) = media_duration;
-                  id(last_media_position) = media_position;
+                if (media_duration != id(media_player_last_media_duration) or
+                    media_position != id(media_player_last_media_position)) {
+                  id(media_player_last_media_duration) = media_duration;
+                  id(media_player_last_media_position) = media_position;
                   set_component_value->execute("${PAGE_NAME_MEDIA_PLAYER}", "prg_current",
                                                 int(round(min(media_position + media_position_delta, media_duration))));
                 }
@@ -132,22 +135,42 @@ api:
                 set_component_visibility->execute("${PAGE_NAME_MEDIA_PLAYER}", "time_total", false);
                 set_component_visibility->execute("${PAGE_NAME_MEDIA_PLAYER}", "time_progress", false);
               }
+              id(media_player_supported_features) = supported_features;
+            }
+
+display:
+  - id: !extend disp1
+    on_touch:
+      then:
+        - lambda: |-
+            if (page_id == ${PAGE_ID_MEDIA_PLAYER}) {
+              switch (component_id) {
+                case ${COMPONENT_ID_MEDIA_PLAYER_BT_VOL_DOWN}:
+                  if (touch_event and not (id(media_player_supported_features) & ${MEDIA_PLAYER_FEATURE_VOLUME_SET}))
+                    ha_call_action->execute("media_player.volume_down", "", "", detailed_entity->state.c_str());
+                  break;
+                case ${COMPONENT_ID_MEDIA_PLAYER_BT_VOL_UP}:
+                  if (touch_event and not (id(media_player_supported_features) & ${MEDIA_PLAYER_FEATURE_VOLUME_SET}))
+                    ha_call_action->execute("media_player.volume_up", "", "", detailed_entity->state.c_str());
+                  break;
+              }
             }
 
 globals:
-  ###### Last volume level from Home Assistant ######
-  - id: last_volume_level
+  - id: media_player_last_volume_level  # Last volume level from Home Assistant
     type: uint8_t
     restore_value: false
     initial_value: '0'
-  ###### Last duration from Home Assistant ######
-  - id: last_media_duration
+  - id: media_player_last_media_duration  # Last duration from Home Assistant
     type: uint
     restore_value: false
     initial_value: '0'
-  ###### Last duration from Home Assistant ######
-  - id: last_media_position
+  - id: media_player_last_media_position  # Last duration from Home Assistant
     type: uint
+    restore_value: false
+    initial_value: '0'
+  - id: media_player_supported_features
+    type: uint8_t
     restore_value: false
     initial_value: '0'
 
@@ -183,9 +206,10 @@ script:
           if (id(current_page_id) == ${PAGE_ID_MEDIA_PLAYER})
             page_media_player->execute();
           else {
-            id(last_volume_level) = 0;
-            id(last_media_duration) = 0;
-            id(last_media_position) = 0;
+            id(media_player_last_volume_level) = 0;
+            id(media_player_last_media_duration) = 0;
+            id(media_player_last_media_position) = 0;
+            id(media_player_supported_features) = 0;
           }
 
   - id: page_media_player
