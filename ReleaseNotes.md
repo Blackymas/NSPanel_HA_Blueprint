@@ -920,6 +920,10 @@ This update is crucial for users leveraging BLE functionality, and the new boot 
 This hotfix addresses a critical issue introduced in v4.3.10 where the incorrect TFT file was used during the download process.
 The fix has been applied to the release flow, but updating your firmware (ESPHome) is required, and it is recommended to also update the Blueprint and TFT components.
 
+> [!WARNING]
+> Home Assistant v2024.8.0 is required.
+> Please take a look at our [Version compatibility matrix](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/version_compatibility.md) for a full list.
+
 ### Incorrect TFT File Download Issue Resolved (#2223)
 - **Criticality:** Major
 - **Affected Components:** Release Flow, ESPHome, Blueprint, TFT
@@ -928,6 +932,19 @@ The fix has been applied to the release flow, but updating your firmware (ESPHom
 This fix ensures that the correct TFT file is used, preventing potential display issues and ensuring that the panel functions as expected.
 
 This update is critical for maintaining the proper functionality of your NSPanel. Please ensure that you update all components as recommended.
+
+## v4.3.12 - Hotfix for Incorrect Timezone Calculation Issues
+This hotfix addresses critical issues with timezone handling on the NSPanel,
+specifically with POSIX string handling in ESP-IDF v4.4 and resolving an error in the propagation of timezone selection from the Blueprint to ESPHome.
+These fixes ensure accurate and consistent time display, fully synchronized with Home Assistant.
+
+### Fix for Incorrect Time Display Due to Timezone Handling (#2363, #2304)
+- **Criticality:** Critical
+- **Affected Components:** ESPHome, Blueprint
+- **Issue Numbers:** #2363, #2304
+- **Description:** Resolved issues where the NSPanel displayed incorrect time due to an inverted timezone offset,
+  affecting users with time discrepancies between the panel and Home Assistant.
+  The fix includes improvements in the propagation of timezone settings from the Blueprint, ensuring the home page accurately reflects the configured timezone.
 
 ## Support
 For support or more information about this update,
@@ -944,8 +961,10 @@ Your efforts have significantly improved its functionality and reliability (#183
 - **@andythomas**: For the comprehensive enhancements made to our documentation.
 Your contributions have made our guides more informative and accessible, enriching the user experience for everyone (#1865).
 -  **@AJediIAm**: For the valuable contributions in reviewing and improving the installation documentation (#2106 & #2107).
+-  **@briangunderson**: For updating the docs to reflect to the new name for '**action**' (formelly '**service**') on Home Assistant v2024.8.0 (#2236)
 
 ## Previous releases
+- [v4.3.11 - Hotfix for TFT File Download Issue](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.11)
 - [v4.3.10 - Boot Stability Enhancements and Troubleshooting Support](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.10)
 - [v4.3.9 - Ensuring Compatibility with ESPHome v2024.6.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.9)
 - [v4.3.8 - Enhancements and Bug Fix](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.8)
