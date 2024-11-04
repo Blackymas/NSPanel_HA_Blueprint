@@ -14,7 +14,8 @@ esphome:
     - priority: 600.2
       then:
         - lambda: |-
-            set_timezone->execute(id(mui_timezone).c_str());
+            if (not id(mui_timezone).empty())
+              set_timezone->execute(id(mui_timezone).c_str());
 
 globals:
   - id: mui_timezone
@@ -65,19 +66,30 @@ script:
           ESP_LOGI("script.set_timezone", "Setting timezone: %s", timezone.c_str());
           if (timezone != id(mui_timezone)) {
             id(mui_timezone) = timezone;
-            if (timezone.empty())
-              arch_restart();  // Restart when timezone is set to blank so it uses the one from ESPHome compiller
             size_t start = id(mui_timezone).find('<');
             size_t end = id(mui_timezone).find('>');
             if (start != std::string::npos && end != std::string::npos && end > start)
               id(mui_timezone).replace(start, (end - start) + 1, "UTC");
-            if (id(mui_timezone).empty())
-              arch_restart();  // Restart when timezone is set to blank so it uses the one from ESPHome compiller
             time_provider->set_timezone(id(mui_timezone).c_str());
             time_provider->call_setup();
+            if (timezone.empty())
+              set_timezone_restart_esp->execute();
+          }
+          if (id(time_provider).now().is_valid()) {
+              auto time = id(time_provider).now();
+              ESP_LOGI("script.set_timezone", "Current Time: %02d:%02d:%02d", time.hour, time.minute, time.second);
+              ESP_LOGI("script.set_timezone", "Time zone:    %s", id(time_provider).get_timezone().c_str());
+          } else {
+              ESP_LOGW("script.set_timezone", "Time is not available yet.");
           }
           time_provider->dump_config();
           refresh_datetime->execute();
+
+  - id: set_timezone_restart_esp
+    mode: restart
+    then:
+      - delay: 10s
+      - lambda: arch_restart();  // Restart when timezone is set to blank so it uses the one from ESPHome compiller
 
   - id: !extend set_var_string
     then:
@@ -95,6 +107,7 @@ script:
       - lambda: |-
           refresh_datetime->stop();
           set_timezone->stop();
+          set_timezone_restart_esp->stop();
 
 ##### Keeps time display updated #####
 time:
