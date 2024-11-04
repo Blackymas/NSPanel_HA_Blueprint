@@ -933,6 +933,19 @@ This fix ensures that the correct TFT file is used, preventing potential display
 
 This update is critical for maintaining the proper functionality of your NSPanel. Please ensure that you update all components as recommended.
 
+## v4.3.12 - Hotfix for Incorrect Timezone Calculation Issues
+This hotfix addresses critical issues with timezone handling on the NSPanel,
+specifically with POSIX string handling in ESP-IDF v4.4 and resolving an error in the propagation of timezone selection from the Blueprint to ESPHome.
+These fixes ensure accurate and consistent time display, fully synchronized with Home Assistant.
+
+### Fix for Incorrect Time Display Due to Timezone Handling (#2363, #2304)
+- **Criticality:** Critical
+- **Affected Components:** ESPHome, Blueprint
+- **Issue Numbers:** #2363, #2304
+- **Description:** Resolved issues where the NSPanel displayed incorrect time due to an inverted timezone offset,
+  affecting users with time discrepancies between the panel and Home Assistant.
+  The fix includes improvements in the propagation of timezone settings from the Blueprint, ensuring the home page accurately reflects the configured timezone.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
@@ -951,6 +964,7 @@ Your contributions have made our guides more informative and accessible, enrichi
 -  **@briangunderson**: For updating the docs to reflect to the new name for '**action**' (formelly '**service**') on Home Assistant v2024.8.0 (#2236)
 
 ## Previous releases
+- [v4.3.11 - Hotfix for TFT File Download Issue](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.11)
 - [v4.3.10 - Boot Stability Enhancements and Troubleshooting Support](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.10)
 - [v4.3.9 - Ensuring Compatibility with ESPHome v2024.6.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.9)
 - [v4.3.8 - Enhancements and Bug Fix](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.8)
