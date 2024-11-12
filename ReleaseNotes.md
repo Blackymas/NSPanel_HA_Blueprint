@@ -6,7 +6,7 @@ simplifying the update process and ensuring your panel always runs the latest di
 
 ## Breaking Changes and Guidance
 
-### Home Assistant v2024.8.0 and ESPHome v2024.8.0 are required
+### Home Assistant v2024.10.0 and ESPHome v2024.8.0 are required
 Please refer to our [Version Compatibility Matrix](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/version_compatibility.md) for a full list.
 
 ### Changes on the versioning requires updating all the three components
