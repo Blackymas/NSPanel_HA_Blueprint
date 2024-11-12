@@ -9,6 +9,33 @@
 substitutions:
   BOOT_STEP_PAGE_HOME: '1UL << 17'
   PAGE_ID_HOME: '1'
+  entity_id_weather: dummy.dummy
+  PIC_ID_WEATHER_SUNNY: '2'
+  PIC_ID_WEATHER_CLEAR_NIGHT: '15'
+  PIC_ID_WEATHER_CLOUDY: '3'
+  PIC_ID_WEATHER_RAINY: '4'
+  PIC_ID_WEATHER_POURING: '5'
+  PIC_ID_WEATHER_SNOWY: '6'
+  PIC_ID_WEATHER_HAIL: '7'
+  PIC_ID_WEATHER_SNOWY_RAINY: '7'
+  PIC_ID_WEATHER_FOG: '8'
+  PIC_ID_WEATHER_WINDY: '9'
+  PIC_ID_WEATHER_LIGHTNING: '10'
+  PIC_ID_WEATHER_PARTLYCLOUDY_DAY: '11'
+  PIC_ID_WEATHER_PARTLYCLOUDY_NIGHT: '12'
+  PIC_ID_WEATHER_LIGHTNING_RAINY_DAY: '13'
+  PIC_ID_WEATHER_LIGHTNING_RAINY_NIGHT: '14'
+  PIC_ID_WEATHER_UNKNOWN: '1'
+  DEFAULT_ELEVATION: '-0.83333'
+
+external_components:
+  - source:
+      type: git
+      url: https://github.com/edwardtfn/esphome
+      ref: sun-01
+    # refresh: 300s
+    components:
+      - sun
 
 globals:
   ##### Chips #####
@@ -48,6 +75,10 @@ globals:
     max_restore_data_length: 5
     initial_value: '"PM"'
 
+  - id: last_weather_pic
+    type: uint8_t
+    restore_value: false
+    initial_value: '0'
 
 script:
   - id: !extend boot_progress_dump
@@ -138,11 +169,79 @@ script:
             set_variable_value->execute("wakeup_page_id", ${PAGE_ID_HOME});
           }
 
-  - id: !extend set_var_int
+  - id: page_home_weather
+    mode: restart
     then:
       - lambda: |-
-          if (component == "chip_font") chip_font->execute(val, false);
-          else if (component == "custom_buttons_font") custom_buttons_font->execute(val, false);
+          uint8_t pic = 0;
+          if (nextion_weather->state == "sunny" or
+              nextion_weather->state == "clear_night" or
+              nextion_weather->state == "clear-night")
+            pic = the_sun->is_above_horizon(${DEFAULT_ELEVATION}) ?
+                  ${PIC_ID_WEATHER_SUNNY} :
+                  ${PIC_ID_WEATHER_CLEAR_NIGHT};
+          else if (nextion_weather->state == "cloudy")
+            pic = ${PIC_ID_WEATHER_CLOUDY};
+          else if (nextion_weather->state == "rainy")
+            pic = ${PIC_ID_WEATHER_RAINY};
+          else if (nextion_weather->state == "pouring")
+            pic = ${PIC_ID_WEATHER_POURING};
+          else if (nextion_weather->state == "hail")
+            pic = ${PIC_ID_WEATHER_HAIL};
+          else if (nextion_weather->state == "snowy")
+            pic = ${PIC_ID_WEATHER_SNOWY};
+          else if (nextion_weather->state == "snowy_rainy"
+                or nextion_weather->state == "snowy-rainy")
+            pic = ${PIC_ID_WEATHER_CLOUDY};
+          else if (nextion_weather->state == "fog")
+            pic = ${PIC_ID_WEATHER_FOG};
+          else if (nextion_weather->state == "windy"
+                or nextion_weather->state == "windy_variant"
+                or nextion_weather->state == "windy-variant")
+            pic = ${PIC_ID_WEATHER_WINDY};
+          else if (nextion_weather->state == "partlycloudy")
+            pic = the_sun->is_above_horizon(${DEFAULT_ELEVATION}) ?
+                  ${PIC_ID_WEATHER_PARTLYCLOUDY_DAY} :
+                  ${PIC_ID_WEATHER_PARTLYCLOUDY_NIGHT};
+          else if (nextion_weather->state == "lightning")
+            pic = ${PIC_ID_WEATHER_LIGHTNING};
+          else if (nextion_weather->state == "lightning_rainy"
+                or nextion_weather->state == "lightning-rainy"
+                or nextion_weather->state == "execptional")
+            pic = the_sun->is_above_horizon(${DEFAULT_ELEVATION}) ?
+                  ${PIC_ID_WEATHER_LIGHTNING_RAINY_DAY} :
+                  ${PIC_ID_WEATHER_LIGHTNING_RAINY_NIGHT};
+          else if (nextion_weather->state == "unknown"
+                or nextion_weather->state == "unavailable")
+            pic = ${PIC_ID_WEATHER_UNKNOWN};
+          if (id(last_weather_pic) != pic) {
+            ESP_LOGI("script.page_home_weather", "New weather pic: %" PRIu8, pic);
+            id(last_weather_pic) = pic;
+            set_component_pic->execute("home", "weather_pic", pic);
+          }
+
+  - id: !extend set_var_number
+    then:
+      - lambda: |-
+          if (component == "latitude") {
+            the_sun->set_latitude(val);
+            page_home_weather->execute();
+          } else if (component == "longitude") {
+            the_sun->set_longitude(val);
+            page_home_weather->execute();
+          } else if (component == "chip_font")
+            chip_font->execute(val, false);
+          else if (component == "custom_buttons_font")
+            custom_buttons_font->execute(val, false);
+
+  - id: !extend set_var_string
+    then:
+      - lambda: |-
+          if (component == "weather_entity") {
+            nextion_weather->set_entity_id(val.c_str());
+            nextion_weather->dump_config();
+            api_reset->execute();
+          }
 
   - id: !extend refresh_datetime  # Defined by nspanel_esphome_core_datetime.yaml
     mode: restart
@@ -162,4 +261,24 @@ script:
           custom_buttons_font->stop();
           page_home->stop();
           page_home_boot_progress->stop();
+
+sun:
+  id: the_sun
+  latitude: 0
+  longitude: 0
+  on_sunrise:
+    then:
+      - script.execute: page_home_weather
+  on_sunset:
+    then:
+      - script.execute: page_home_weather
+
+text_sensor:
+  - id: nextion_weather
+    platform: homeassistant
+    entity_id: ${entity_id_weather}
+    internal: true
+    on_value:
+      then:
+        - script.execute: page_home_weather
 ...

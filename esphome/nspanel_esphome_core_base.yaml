@@ -27,6 +27,8 @@ api:
       - script.execute: dump_config
       - lambda: |-
           boot_log->execute("API", (client_info + " connected (" + client_address + ")").c_str());
+          if (client_info.find("Home Assistant ") == 0)
+            id(api_is_updated) = true;
 
   actions:
     - action: set_bool
@@ -39,13 +41,13 @@ api:
             component: !lambda return component;
             val: !lambda return val;
 
-    - action: set_int
+    - action: set_number
       variables:
         component: string
-        val: int
+        val: float
       then:
         - script.execute:
-            id: set_var_int
+            id: set_var_number
             component: !lambda return component;
             val: !lambda return val;
 
@@ -75,6 +77,7 @@ debug:
 
 esp32:
   board: esp32dev
+  flash_size: 4MB
   framework:
     type: esp-idf
 
@@ -97,9 +100,21 @@ external_components:
       ref: v${version}
     components:
       - nspanel_ha_blueprint
+    refresh: 300s
+  - source:
+      type: git
+      url: https://github.com/edwardtfn/esphome
+      ref: debug-reset-reason-detailed
     refresh: 30s
+    components:
+      - debug
 
 globals:
+  - id: api_is_updated
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+
   - id: is_safe_mode
     type: bool
     restore_value: false
@@ -157,6 +172,22 @@ safe_mode:
       - script.execute: safe_mode_loop
 
 script:
+  - id: api_reset
+    mode: restart
+    then:
+      - lambda: id(api_is_updated) = false;
+      - wait_until:
+          condition:
+            - lambda: return id(api_is_updated);
+          timeout: 10s
+      - if:
+          condition:
+            - lambda: return not id(api_is_updated);
+          then:
+            - logger.log: Resetting API
+            - delay: 2s
+            - lambda: api_server->on_shutdown();
+
   - id: !extend boot_progress_dump
     then:
       - lambda: |-
@@ -172,63 +203,65 @@ script:
     then:
       - delay: 30s
       - lambda: |-
+          static const char *const TAG = "${project_tag}";
           // report API status
           if (api_server->is_connected()) {
-            ESP_LOGCONFIG("${project_tag}", "API:           Connected");
+            ESP_LOGCONFIG(TAG, "API:           Connected");
           } else {
-            ESP_LOGW("${project_tag}", "API:           DISCONNECTED");
+            ESP_LOGW(TAG, "API:           DISCONNECTED");
           }
 
           // if (!(wifi_component->is_connected()) or !api_server->is_connected()) reset_boot_steps();
 
           // Report ESPHome
-          ESP_LOGCONFIG("${project_tag}", "ESPHome:");
-          ESP_LOGCONFIG("${project_tag}", "  Version:     ${version}");
-          ESP_LOGCONFIG("${project_tag}", "  Compiler:    %s", ESPHOME_VERSION);
+          ESP_LOGCONFIG(TAG, "ESPHome:");
+          ESP_LOGCONFIG(TAG, "  Version:     ${version}");
+          ESP_LOGCONFIG(TAG, "  Compiler:    %s", ESPHOME_VERSION);
           // Report framework
           #ifdef ARDUINO
-          ESP_LOGCONFIG("${project_tag}", "  Framework:   Arduino");
+          ESP_LOGCONFIG(TAG, "  Framework:   Arduino");
           #elif defined(USE_ESP_IDF)
-          ESP_LOGCONFIG("${project_tag}", "  Framework:   ESP-IDF");
+          ESP_LOGCONFIG(TAG, "  Framework:   ESP-IDF");
           #else
-          ESP_LOGW("${project_tag}", "  Framework:   UNKNOWN");
+          ESP_LOGW(TAG, "  Framework:   UNKNOWN");
           #endif
           // Report Loop time
-          ESP_LOGCONFIG("${project_tag}", "Loop time:   %" PRIu32, static_cast<uint32_t>(debug_loop_time->state));
-          ESP_LOGCONFIG("${project_tag}", "  Max:       %" PRIu32, id(max_loop_time));
-          ESP_LOGCONFIG("${project_tag}", "  Threshold: %" PRIu32, ${loop_time_threshold});
+          ESP_LOGCONFIG(TAG, "Loop time:     %" PRIu32, static_cast<uint32_t>(debug_loop_time->state));
+          ESP_LOGCONFIG(TAG, "  Max:         %" PRIu32, id(max_loop_time));
+          ESP_LOGCONFIG(TAG, "  Threshold:   %" PRIu32, ${loop_time_threshold});
           dump_config_packages->execute();
 
   - id: dump_config_packages
     mode: restart
     then:
       - lambda: |-
-          ESP_LOGCONFIG("${project_tag}", "Packages:");
-          ESP_LOGCONFIG("${project_tag}", "  - Core");
+          static const char *const TAG = "${project_tag}";
+          ESP_LOGCONFIG(TAG, "Packages:");
+          ESP_LOGCONFIG(TAG, "  - Core");
           #if defined(USE_ESP32_BLE_SERVER) || \
               defined(USE_ESP32_BLE_CLIENT) || \
               defined(USE_BLUETOOTH_PROXY) || \
               defined(USE_CAPTIVE_PORTAL) || \
               defined(USE_IMPROV) || \
               defined(USE_WEBSERVER)
-          ESP_LOGCONFIG("${project_tag}", "ESPHome components:");
+          ESP_LOGCONFIG(TAG, "ESPHome components:");
           #ifdef USE_ESP32_BLE_SERVER
-          ESP_LOGCONFIG("${project_tag}", "  - BLE server");
+          ESP_LOGCONFIG(TAG, "  - BLE server");
           #endif
           #ifdef USE_ESP32_BLE_CLIENT
-          ESP_LOGCONFIG("${project_tag}", "  - BLE tracker");
+          ESP_LOGCONFIG(TAG, "  - BLE tracker");
           #endif
           #ifdef USE_BLUETOOTH_PROXY
-          ESP_LOGCONFIG("${project_tag}", "  - Bluetooth proxy");
+          ESP_LOGCONFIG(TAG, "  - Bluetooth proxy");
           #endif
           #ifdef USE_CAPTIVE_PORTAL
-          ESP_LOGCONFIG("${project_tag}", "  - Captive portal");
+          ESP_LOGCONFIG(TAG, "  - Captive portal");
           #endif
           #ifdef USE_IMPROV
-          ESP_LOGCONFIG("${project_tag}", "  - Improv (BLE)");
+          ESP_LOGCONFIG(TAG, "  - Improv (BLE)");
           #endif
           #ifdef USE_WEBSERVER
-          ESP_LOGCONFIG("${project_tag}", "  - Web server");
+          ESP_LOGCONFIG(TAG, "  - Web server");
           #endif
           #endif
       # Extended by:
@@ -295,11 +328,11 @@ script:
       val: bool
     then:  # There's nothing here so far
 
-  - id: set_var_int
+  - id: set_var_number
     mode: queued
     parameters:
       component: string
-      val: int
+      val: float
     then:  # There's nothing here so far
 
   - id: set_var_string
@@ -313,6 +346,7 @@ script:
     mode: restart
     then:
       - lambda: |-
+          api_reset->stop();
           dump_config->stop();
           ha_button->stop();
           ha_call_action->stop();
