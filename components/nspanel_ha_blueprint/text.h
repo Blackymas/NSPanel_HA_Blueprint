@@ -49,4 +49,45 @@ namespace nspanel_ha_blueprint {
     std::string process_time_format(const std::string &time_format, int current_hour,
                                     const std::string &meridiem_am, const std::string &meridiem_pm);
 
+    /**
+    * @brief Decode the first UTF-8 character from a C-style string and return its Unicode code point.
+    *
+    * This function extracts and decodes the first character of a UTF-8 encoded string.
+    * It determines how many bytes the UTF-8 character takes (1 to 4 bytes), and computes 
+    * the corresponding Unicode code point.
+    *
+    * @param bytes A pointer to the UTF-8 encoded character (C-style string).
+    * @return uint32_t The Unicode code point of the first character in the input string.
+    */
+    inline uint32_t decode_utf8(const char* bytes) {
+        // Ensure the input is not null and not an empty string
+        if (!bytes || bytes[0] == '\0') {
+            return 0;  // Invalid input or empty string, return 0 as an error value
+        }
+        uint32_t code_point = 0;
+        unsigned char byte = static_cast<unsigned char>(bytes[0]);
+        if ((byte & 0x80) == 0x00) {
+            // 1-byte UTF-8 character (ASCII), 0xxxxxxx
+            code_point = byte;
+        } else if ((byte & 0xE0) == 0xC0 && bytes[1] != '\0') {
+            // 2-byte UTF-8 character, 110xxxxx 10xxxxxx
+            code_point = ((byte & 0x1F) << 6) | (static_cast<unsigned char>(bytes[1]) & 0x3F);
+        } else if ((byte & 0xF0) == 0xE0 && bytes[1] != '\0' && bytes[2] != '\0') {
+            // 3-byte UTF-8 character, 1110xxxx 10xxxxxx 10xxxxxx
+            code_point = ((byte & 0x0F) << 12) |
+                          ((static_cast<unsigned char>(bytes[1]) & 0x3F) << 6) |
+                          (static_cast<unsigned char>(bytes[2]) & 0x3F);
+        } else if ((byte & 0xF8) == 0xF0 && bytes[1] != '\0' && bytes[2] != '\0' && bytes[3] != '\0') {
+            // 4-byte UTF-8 character, 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+            code_point = ((byte & 0x07) << 18) |
+                          ((static_cast<unsigned char>(bytes[1]) & 0x3F) << 12) |
+                          ((static_cast<unsigned char>(bytes[2]) & 0x3F) << 6) |
+                          (static_cast<unsigned char>(bytes[3]) & 0x3F);
+        } else {
+            // Invalid UTF-8 sequence, return 0 to indicate an error
+            code_point = 0;
+        }
+        return code_point;  // Return the decoded Unicode code point
+    }
+
 }  // namespace nspanel_ha_blueprint
