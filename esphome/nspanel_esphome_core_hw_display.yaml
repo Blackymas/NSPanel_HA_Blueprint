@@ -8,6 +8,7 @@
 ---
 substitutions:
   BOOT_STEP_HW_DISPLAY: '1UL << 5'
+  nextion_queue_delay_factor: '10'
 
 api:
   id: !extend api_server
@@ -284,7 +285,7 @@ number:
     on_value:
       then:
         - lambda: |-
-            set_variable_value->execute("brightness", int(x));
+            set_variable_value->execute("brightness", static_cast<uint8_t>(x));
       # Extended by:
       #   - nspanel_esphome_core_hw_display_timers.yaml
 
@@ -302,9 +303,9 @@ number:
     on_value:
       then:
         - lambda: |-
-            set_variable_value->execute("brightness_dim", int(x));
+            set_variable_value->execute("brightness_dim", static_cast<uint8_t>(x));
             if (id(current_page_id) != ${PAGE_ID_SCREENSAVER} and current_brightness->state != x)
-              set_brightness->execute(int(x));
+              set_brightness->execute(static_cast<uint8_t>(x));
 
   - id: display_sleep_brightness  # SCREEN BRIGHTNESS SLEEP
     name: Brightness - Sleep
@@ -319,9 +320,11 @@ number:
     optimistic: true
     on_value:
       then:
-        - lambda: |-
-            set_variable_value->execute("brightness_sleep", int(x));
-            page_screensaver->execute();
+        - script.execute:
+            id: set_variable_value
+            variable: brightness_sleep
+            val: !lambda return static_cast<uint8_t>(x);
+        - script.execute: page_screensaver
 
 script:
   - id: !extend boot_progress_dump
@@ -403,13 +406,9 @@ script:
     then:
       - lambda: |-
           static const char *const TAG = "script.event_from_display";
-          ESP_LOGD(TAG, "New json from Nextion:");
           const std::string event = json["event"];
-          ESP_LOGD(TAG, "  Event:     %s", event.c_str());
           const std::string component = json["component"];
-          ESP_LOGD(TAG, "  Component: %s", component.c_str());
           const std::string value = json["value"];
-          ESP_LOGD(TAG, "  Value:     %s", value.c_str());
           // Send event to Home Assistant
           esphome::api::CustomAPIDevice ha_event;
           if (event == "short_click" or event == "long_click") {
@@ -584,8 +583,8 @@ script:
     parameters:
       brightness: uint8_t
     then:
-      - script.execute: nextion_queue_add
       - lambda: |-
+          nextion_queue_add->execute();
           disp1->set_backlight_brightness(brightness / 100.0f);
           current_brightness->update();
           nextion_queue_del->execute();
@@ -604,7 +603,7 @@ script:
                 id: current_page
                 state: !lambda return page.c_str();
           timeout: 2s
-      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+      - delay: !lambda return ${nextion_queue_delay_factor}*id(nextion_queue);
       - lambda: |-
           disp1->set_component_font(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), font);
           nextion_queue_del->execute();
@@ -623,9 +622,10 @@ script:
                 id: current_page
                 state: !lambda return page.c_str();
           timeout: 2s
-      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+      - delay: !lambda return ${nextion_queue_delay_factor}*id(nextion_queue);
       - lambda: |-
-          disp1->set_component_font_color(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), color);
+          if (page == "home" or page == current_page->state)
+            disp1->set_component_font_color(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), color);
           nextion_queue_del->execute();
 
   - id: set_component_picc
@@ -642,9 +642,10 @@ script:
                 id: current_page
                 state: !lambda return page.c_str();
           timeout: 2s
-      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+      - delay: !lambda return ${nextion_queue_delay_factor}*id(nextion_queue);
       - lambda: |-
-          disp1->set_component_picc(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), picc);
+          if (page == "home" or page == current_page->state)
+            disp1->set_component_picc(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), picc);
           nextion_queue_del->execute();
 
   - id: set_component_foreground_color
@@ -670,9 +671,10 @@ script:
                 id: current_page
                 state: !lambda return page.c_str();
           timeout: 2s
-      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+      - delay: !lambda return ${nextion_queue_delay_factor}*id(nextion_queue);
       - lambda: |-
-          disp1->set_component_pic(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), pic);
+          if (page == "home" or page == current_page->state)
+            disp1->set_component_pic(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), pic);
           nextion_queue_del->execute();
 
   - id: set_component_text
@@ -689,9 +691,10 @@ script:
                 id: current_page
                 state: !lambda return page.c_str();
           timeout: 2s
-      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+      - delay: !lambda return ${nextion_queue_delay_factor}*id(nextion_queue);
       - lambda: |-
-          disp1->set_component_text(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), text.c_str());
+          if (page == "home" or page == current_page->state)
+            disp1->set_component_text(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), text.c_str());
           nextion_queue_del->execute();
 
   - id: set_component_value
@@ -708,9 +711,10 @@ script:
                 id: current_page
                 state: !lambda return page.c_str();
           timeout: 2s
-      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+      - delay: !lambda return ${nextion_queue_delay_factor}*id(nextion_queue);
       - lambda: |-
-          disp1->set_component_value(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), val);
+          if (page == "home" or page == current_page->state)
+            disp1->set_component_value(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), val);
           nextion_queue_del->execute();
 
   - id: set_component_visibility
@@ -731,7 +735,7 @@ script:
           condition:
             - lambda: return (page == current_page->state);
           then:
-            - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+            - delay: !lambda return ${nextion_queue_delay_factor}*id(nextion_queue);
             - lambda: |-
                 disp1->send_command_printf("vis %s,%i", component.c_str(), show ? 1 : 0);
       - script.execute: nextion_queue_del
@@ -755,7 +759,7 @@ script:
       val: int
     then:
       - script.execute: nextion_queue_add
-      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+      - delay: !lambda return ${nextion_queue_delay_factor}*id(nextion_queue);
       - lambda: |-
           disp1->send_command_printf("%s=%i", variable.c_str(), val);
           nextion_queue_del->execute();
