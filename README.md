@@ -1,3 +1,7 @@
+[![GitHub Release]][releases]
+[![GitHub Activity]][commits]
+[![License]](LICENSE)
+
 # NSPanel Custom with HA Blueprint
 
 This innovative solution is designed to revolutionize how you interact with your Sonoff NSPanel.
@@ -224,3 +228,6 @@ And special thanks for the other projects which inspired us:
 Are you happy with our version for NSPanel? Please consider supporting us with a donation.
 
 [![Paypal](https://user-images.githubusercontent.com/41958506/212499642-b2fd097a-0938-4bfc-b37b-74df64592c58.png)](https://www.paypal.com/donate/?hosted_button_id=S974SWQMB8PB2)
+
+[commits]: https://github.com/agittins/bermuda/commits/main
+[releases]: https://github.com/agittins/bermuda/releases
