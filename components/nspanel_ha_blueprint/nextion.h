@@ -6,6 +6,8 @@
 
 namespace nspanel_ha_blueprint {
 
+    bool PageButtonsButtonInitilized = false;
+
     // Structure representing a button on a Nextion page
     struct PageButtonsButton {
         bool visible;         // Indicates if the button is visible or not
@@ -33,7 +35,7 @@ namespace nspanel_ha_blueprint {
     PageButtonsButton* buttonpage_buttons;
 
     // Function to set up all buttons in the PSRAM
-    void setup_buttons() {
+    void setup_pagebuttons_buttons() {
         // Allocate memory for 32 buttons, placing them in PSRAM if available
         esphome::ESP_LOGD("nspanel_ha_blueprint.nextion.setup_buttons", "Allocating memory");
         // Allocate PageButtonsButton dynamically
@@ -50,6 +52,8 @@ namespace nspanel_ha_blueprint {
         for (uint8_t i = 0; i < 32; ++i) {
             new (&buttonpage_buttons[i]) PageButtonsButton(); // Placement new to call the constructor
         }
+
+        PageButtonsButtonInitilized = true;
     }
 
     // Example of how to calculate page and button ID within the page based on index
