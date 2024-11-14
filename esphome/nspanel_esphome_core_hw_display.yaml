@@ -164,6 +164,10 @@ display:
     platform: nextion
     uart_id: tf_uart
 
+    on_buffer_overflow:
+      then:
+        - script.execute: nextion_queue_delay_factor_increment
+
     on_page:
       then:
         - lambda: page_changed->execute(x);
@@ -231,6 +235,15 @@ esphome:
         - binary_sensor.template.publish:  # Make it unavailable to blueprint calls
             id: nextion_init
             state: false
+
+external_components:  # Remove this when PR#7772 is merged
+  - source:
+      type: git
+      url: https://github.com/edwardtfn/esphome
+      ref: nextion-on-buffer-overflow
+    refresh: 30s
+    components:
+      - nextion
 
 globals:
   - id: display_charset
@@ -331,7 +344,7 @@ number:
     entity_category: config
     min_value: 0
     max_value: 25
-    initial_value: 3
+    initial_value: 0
     step: 1
     restore_value: true
     optimistic: true
@@ -387,28 +400,29 @@ script:
           static const char *const TAG = "${project_tag}";
           // Report UART
           ESP_LOGCONFIG(TAG, "UART:");
-          ESP_LOGCONFIG(TAG, "  Baud rate:   %" PRIu32 " bps", tf_uart->get_baud_rate());
-          ESP_LOGCONFIG(TAG, "  Queue size:  %d", tf_uart->available());
+          ESP_LOGCONFIG(TAG, "  Baud rate:    %" PRIu32 " bps", tf_uart->get_baud_rate());
+          ESP_LOGCONFIG(TAG, "  Queue size:   %d", tf_uart->available());
 
           // Report Nextion status
           nextion_init->publish_state(nextion_init->state and disp1->is_setup());
           ESP_LOGCONFIG(TAG, "Nextion:");
-          ESP_LOGCONFIG(TAG, "  Queue size:  %d", disp1->queue_size());
+          ESP_LOGCONFIG(TAG, "  Delay factor: %" PRIu8, static_cast<uint8_t>(nextion_queue_delay_factor->state));
+          ESP_LOGCONFIG(TAG, "  Queue size:   %d", disp1->queue_size());
           if (disp1->is_setup())
-            ESP_LOGCONFIG(TAG, "  Is setup:    True");
+            ESP_LOGCONFIG(TAG, "  Is setup:     True");
           else {
-            ESP_LOGW(TAG, "  Is setup:    False");
-            ESP_LOGW(TAG, "  Is detected: %s", YESNO(disp1->is_detected()));
+            ESP_LOGW(TAG, "  Is setup:     False");
+            ESP_LOGW(TAG, "  Is detected:  %s", YESNO(disp1->is_detected()));
             //exit_reparse->execute();
           }
           if (nextion_init->state) {
-            ESP_LOGCONFIG(TAG, "  Init:        True");
+            ESP_LOGCONFIG(TAG, "  Init:         True");
           } else
-            ESP_LOGW(TAG, "  Init:        False");
+            ESP_LOGW(TAG, "  Init:         False");
           if (id(version_tft).empty())
-            ESP_LOGW(TAG, "  TFT:         UNKNOWN");
+            ESP_LOGW(TAG, "  TFT:          UNKNOWN");
           else
-            ESP_LOGCONFIG(TAG, "  TFT:         %s", id(version_tft).c_str());
+            ESP_LOGCONFIG(TAG, "  TFT:          %s", id(version_tft).c_str());
 
   - id: event_from_display
     mode: parallel
@@ -489,6 +503,17 @@ script:
       - lambda: |-
           if (id(nextion_queue) > 0)
             id(nextion_queue)--;
+
+  - id: nextion_queue_delay_factor_increment
+    mode: restart
+    then:
+      - delay: 15s
+      - lambda: |-
+          ESP_LOGE("script.nextion_queue_delay_factor_increment", "Nextion reported a buffer overflow");
+          ESP_LOGE("script.nextion_queue_delay_factor_increment", "Increasing the delay factor...");
+      - number.increment:
+          id: nextion_queue_delay_factor
+          cycle: false
 
   - id: nextion_queue_reset
     mode: restart
