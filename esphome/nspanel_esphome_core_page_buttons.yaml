@@ -22,7 +22,7 @@ api:
     # Dynamically configures button properties on a specified page, enhancing UI interactivity by allowing updates to button appearance and behavior based on given parameters.
     - action: button  # yamllint disable-line rule:indentation
       variables:
-        id: uint8_t        # Button index (0 to 32)
+        id: int            # Button index (0 to 32)
         page: string       # Identifier of the page where the button is located.
         component: string  # Unique identifier for the button.
         state: bool        # Determines the button's state, influencing background and other visual aspects.
@@ -33,34 +33,67 @@ api:
         label: string      # Main text label for the button.
       then:
         - lambda: |-
-            if (current_page->state == page) {
-              set_component_picc->execute(page.c_str(), (component + "pic").c_str(), state ? 47 : 46);
-              set_component_picc->execute(page.c_str(), (component + "bri").c_str(), state ? 47 : 46);
-              set_component_picc->execute(page.c_str(), (component + "text").c_str(), state ? 47 : 46);
-              set_component_picc->execute(page.c_str(), (component + "icon").c_str(), state ? 47 : 46);
-              set_component_font->execute(page.c_str(), (component + "icon").c_str(), icon_font);
-              set_component_foreground_color->execute(page.c_str(), (component + "bri").c_str(), state ? 10597 : 65535);
-              set_component_foreground_color->execute(page.c_str(), (component + "text").c_str(), state ? 10597 : 65535);
-              set_component_font_color->execute(page.c_str(), (component + "icon").c_str(),
-                                                              (((icon_color[0] & 0xF8) << 8) |
-                                                              ((icon_color[1] & 0xFC) << 3) |
-                                                              (icon_color[2] >> 3)));
-              set_component_text->execute(page.c_str(), (component + "icon").c_str(), icon.c_str());
-              display_wrapped_text->execute(page.c_str(), (component + "text").c_str(), label.c_str(), 10);
-              set_component_text->execute(page.c_str(), (component + "bri").c_str(), (strcmp(bri.c_str(), "0") == 0) ? " " : bri.c_str());
-              set_component_visibility->execute(page.c_str(), (component + "pic").c_str(), true);
-              set_component_visibility->execute(page.c_str(), (component + "icon").c_str(), true);
-              set_component_visibility->execute(page.c_str(), (component + "text").c_str(), true);
-              set_component_visibility->execute(page.c_str(), (component + "bri").c_str(), true);
-              set_component_visibility->execute(page.c_str(), component.c_str(), true);
+            ESP_LOGI("api.actions.button", "Received data for button %i", id);
+            if (id >= 1 and id <= 32) {
+              uint8_t index = static_cast<uint8_t>(id) - 1;
+              bool changed_visibility = !buttonpage_buttons[index].visible;
+
+              // Button state
+              if (changed_visibility or buttonpage_buttons[index].state != state) {
+                buttonpage_buttons[index].state = state;
+                if (current_page->state == page)
+                  page_buttonpage_button_renderer_state->execute(index, page.c_str(), component.c_str());
+              }
+
+              // Icon font
+              if (changed_visibility or buttonpage_buttons[index].icon_font != icon_font) {
+                buttonpage_buttons[index].icon_font = icon_font;
+                if (current_page->state == page)
+                  page_buttonpage_button_renderer_icon_font->execute(index, page.c_str(), component.c_str());
+              }
+
+              // Icon color
+              if (icon_color.size() == 3) {
+                uint16_t new_icon_color = ((icon_color[0] & 0xF8) << 8) |
+                                          ((icon_color[1] & 0xFC) << 3) |
+                                          (icon_color[2] >> 3);
+                if (changed_visibility or buttonpage_buttons[index].icon_color != new_icon_color) {
+                  buttonpage_buttons[index].icon_color = new_icon_color;
+                  if (current_page->state == page)
+                    page_buttonpage_button_renderer_icon_color->execute(index, page.c_str(), component.c_str());
+                }
+              }
+
+              // Icon
+              if (changed_visibility or buttonpage_buttons[index].icon != icon) {
+                copyStringToCharArray(buttonpage_buttons[index].icon, icon);
+                if (current_page->state == page)
+                  page_buttonpage_button_renderer_icon->execute(index, page.c_str(), component.c_str());
+              }
+
+              // Label
+              if (changed_visibility or buttonpage_buttons[index].label != label) {
+                copyStringToCharArray(buttonpage_buttons[index].label, label);
+                if (current_page->state == page)
+                  page_buttonpage_button_renderer_label->execute(index, page.c_str(), component.c_str());
+              }
+
+              // Bri
+              if (changed_visibility or buttonpage_buttons[index].bri != bri) {
+                copyStringToCharArray(buttonpage_buttons[index].bri, bri);
+                if (current_page->state == page)
+                  page_buttonpage_button_renderer_bri->execute(index, page.c_str(), component.c_str());
+              }
+
+              // Button visibility
+              if (changed_visibility) {
+                buttonpage_buttons[index].visible = true;
+                if (current_page->state == page)
+                  page_buttonpage_button_renderer_visibility->execute(index, page.c_str(), component.c_str());
+              }
             }
 
 script:
-  - id: !extend boot_progress_dump
-    then:
-      - lambda: |-
-          boot_progress_dump_item->execute(${BOOT_STEP_PAGE_BUTTONS}, "Page Buttons");
-
   - id: !extend boot_sequence
     then:
       - lambda: |-
@@ -71,8 +104,134 @@ script:
   - id: page_buttonpage
     mode: restart
     parameters:
-      page_number: uint
-    then:  # There's nothing here so far
+      page_number: uint8_t
+    then:
+      - repeat:
+          count: 8
+          then:
+            - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
+            - lambda: |-
+                const uint8_t index = (page_number-1)*8 + iteration;
+                if (buttonpage_buttons[index].visible) {
+                  char component[10];
+                  sprintf(component, "button%02d", iteration+1);
+                  ESP_LOGI("script.page_buttonpage", "Rendering %s - %s", current_page->state.c_str(), component);
+                  page_buttonpage_button_renderer->execute(index, current_page->state.c_str(), component);
+                }
+
+  - id: page_buttonpage_button_renderer
+    mode: parallel
+    parameters:
+      index: uint8_t
+      page: string
+      component: string
+    then:
+      - lambda: |-
+          page_buttonpage_button_renderer_bri->execute(index, page.c_str(), component.c_str());
+          page_buttonpage_button_renderer_icon->execute(index, page.c_str(), component.c_str());
+          page_buttonpage_button_renderer_icon_color->execute(index, page.c_str(), component.c_str());
+          page_buttonpage_button_renderer_icon_font->execute(index, page.c_str(), component.c_str());
+          page_buttonpage_button_renderer_label->execute(index, page.c_str(), component.c_str());
+          page_buttonpage_button_renderer_state->execute(index, page.c_str(), component.c_str());
+          page_buttonpage_button_renderer_visibility->execute(index, page.c_str(), component.c_str());
+
+  - id: page_buttonpage_button_renderer_bri
+    mode: parallel
+    parameters:
+      index: uint8_t
+      page: string
+      component: string
+    then:
+      - lambda: |-
+          set_component_text->execute(page.c_str(), (component + "bri").c_str(),
+                                      (strcmp(buttonpage_buttons[index].bri, "0") == 0) ? " " : buttonpage_buttons[index].bri);
+
+  - id: page_buttonpage_button_renderer_icon
+    mode: parallel
+    parameters:
+      index: uint8_t
+      page: string
+      component: string
+    then:
+      - lambda: |-
+          set_component_text->execute(page.c_str(), (component + "icon").c_str(), buttonpage_buttons[index].icon);
+
+  - id: page_buttonpage_button_renderer_icon_color
+    mode: parallel
+    parameters:
+      index: uint8_t
+      page: string
+      component: string
+    then:
+      - lambda: |-
+          set_component_font_color->execute(page.c_str(), (component + "icon").c_str(),
+                                            buttonpage_buttons[index].icon_color);
+
+  - id: page_buttonpage_button_renderer_icon_font
+    mode: parallel
+    parameters:
+      index: uint8_t
+      page: string
+      component: string
+    then:
+      - lambda: |-
+          set_component_font->execute(page.c_str(), (component + "icon").c_str(), buttonpage_buttons[index].icon_font);
+
+  - id: page_buttonpage_button_renderer_label
+    mode: parallel
+    parameters:
+      index: uint8_t
+      page: string
+      component: string
+    then:
+      - lambda: |-
+          display_wrapped_text->execute(page.c_str(), (component + "text").c_str(),
+                                        buttonpage_buttons[index].label, 10 * id(mui_bytes_per_char));
+
+  - id: page_buttonpage_button_renderer_state
+    mode: parallel
+    parameters:
+      index: uint8_t
+      page: string
+      component: string
+    then:
+      - lambda: |-
+          set_component_picc->execute(page.c_str(), (component + "pic").c_str(),
+                                      buttonpage_buttons[index].state ? 47 : 46);
+          set_component_picc->execute(page.c_str(), (component + "bri").c_str(),
+                                      buttonpage_buttons[index].state ? 47 : 46);
+          set_component_picc->execute(page.c_str(), (component + "text").c_str(),
+                                      buttonpage_buttons[index].state ? 47 : 46);
+          set_component_picc->execute(page.c_str(), (component + "icon").c_str(),
+                                      buttonpage_buttons[index].state ? 47 : 46);
+          set_component_foreground_color->execute(page.c_str(), (component + "bri").c_str(),
+                                                  buttonpage_buttons[index].state ? 10597 : 65535);
+          set_component_foreground_color->execute(page.c_str(), (component + "text").c_str(),
+                                                  buttonpage_buttons[index].state ? 10597 : 65535);
+
+  - id: page_buttonpage_button_renderer_visibility
+    mode: parallel
+    parameters:
+      index: uint8_t
+      page: string
+      component: string
+    then:
+      - lambda: |-
+          set_component_visibility->execute(page.c_str(), (component + "pic").c_str(),
+                                            buttonpage_buttons[index].visible);
+          set_component_visibility->execute(page.c_str(), (component + "icon").c_str(),
+                                            buttonpage_buttons[index].visible);
+          set_component_visibility->execute(page.c_str(), (component + "text").c_str(),
+                                            buttonpage_buttons[index].visible);
+          set_component_visibility->execute(page.c_str(), (component + "bri").c_str(),
+                                            buttonpage_buttons[index].visible);
+          set_component_visibility->execute(page.c_str(), component.c_str(),
+                                            buttonpage_buttons[index].visible);
+
+  - id: !extend boot_progress_dump
+    then:
+      - lambda: |-
+          boot_progress_dump_item->execute(${BOOT_STEP_PAGE_BUTTONS}, "Page Buttons");
 
   - id: !extend page_changed
     then:
@@ -84,5 +243,14 @@ script:
 
   - id: !extend stop_all
     then:
-      - script.stop: page_buttonpage
+      - lambda: |-
+          page_buttonpage->stop();
+          page_buttonpage_button_renderer->stop();
+          page_buttonpage_button_renderer_bri->stop();
+          page_buttonpage_button_renderer_icon->stop();
+          page_buttonpage_button_renderer_icon_color->stop();
+          page_buttonpage_button_renderer_icon_font->stop();
+          page_buttonpage_button_renderer_label->stop();
+          page_buttonpage_button_renderer_state->stop();
+          page_buttonpage_button_renderer_visibility->stop();
 ...

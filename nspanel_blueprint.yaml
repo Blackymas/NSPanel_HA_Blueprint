@@ -8659,6 +8659,106 @@ actions:
                         then:
                           - *boot_delay
 
+                          - alias: Initialize button pages
+                            sequence:
+                              - &variables_page_buttons
+                                variables:
+                                  event_page: '{{ nspanel_event.page if nspanel_event is defined and nspanel_event.page is defined else pages.current }}'
+                                  button_pages_icon_size: !input button_pages_icon_size
+                                  ##### BUTTON Page Labels #####
+                                  confirm_list: >
+                                    {{
+                                      buttons_pages.buttons
+                                      | selectattr("page", "defined")
+                                      | selectattr("page", "eq", event_page)
+                                      | sort(attribute="component")
+                                      | map(attribute="confirm")
+                                      | list
+                                    }}
+                                  confirm_value: >
+                                    {% set ns = namespace(decimal_value = 0, index = 0) %}
+                                    {% for confirm_item in confirm_list %}
+                                        {% if (confirm_item) %}
+                                            {% set ns.decimal_value = ns.decimal_value + (2 ** ns.index) %}
+                                        {% endif %}
+                                        {% set ns.index = ns.index + 1 %}
+                                    {% endfor %}
+                                    {{ ns.decimal_value }}
+                              - alias: Send buttons statuses
+                                repeat:
+                                  for_each: >
+                                    {{
+                                      buttons_pages.buttons
+                                      | selectattr("entity", "defined")
+                                      | rejectattr("entity", "eq", [])
+                                      | list
+                                    }}
+                                  sequence: &display_button_page_button
+                                    - condition: '{{ repeat.item.entity is defined and repeat.item.entity is string and repeat.item.entity | length > 0 }}'
+                                    - variables:
+                                        entity_id: '{{ repeat.item.entity }}'
+                                        overlap:
+                                          icon: '{{ repeat.item.icon if repeat.item.icon is defined and repeat.item.icon is string and repeat.item.icon.split("mdi:")[1] in all_icons else None }}'
+                                          icon_color: '{{ repeat.item.icon_color_rgb if repeat.item.icon_color_rgb is defined else None }}'
+                                          name: '{{ repeat.item.name if repeat.item.name is defined else None }}'
+                                    - *variable_entity
+                                    - variables:
+                                        current_entity_state_available: '{{ entity_state not in ["unavailable"] }}'
+                                        btn_state: >  # Button state (on = true or off = false)
+                                          {{
+                                            (entity_state in enum.states.on and entity_domain not in ["automation"])
+                                            or (entity_domain == "climate" and entity_state != "off")
+                                            or (entity_domain in ["button", "input_button", "scene", "automation", "remote"] and trigger.id is match "current_state_entity")
+                                          }}
+                                        btn_bri_txt: >  # Buttons value (brightness, temperature, etc.)
+                                          {% if not has_value(entity_id) %} 0
+                                          {% elif entity_domain == "light" and entity_state == "on" %}
+                                            {% set entity_brightness = state_attr(entity_id, "brightness") %}
+                                            {% set entity_brightness_index = entity_brightness/255 if entity_brightness and is_number(entity_brightness) else 0 %}
+                                            {{ (entity_brightness_index*100) | round(0) }}%
+                                          {% elif entity_domain == "fan" and entity_state == "on" and state_attr(entity_id, "percentage") | int(0) > 0 %}
+                                            {{ state_attr(entity_id, "percentage") | round(0, default=0) }}%
+                                          {% elif entity_domain == "cover" and entity_state in ["open", "opening", "closing"] and is_number(state_attr(entity_id, "current_position")) %}
+                                            {{ (state_attr(entity_id, "current_position") | int(100)) | round(0) }}%
+                                          {% elif entity_domain == "climate" and is_number(state_attr(entity_id, 'current_temperature')) %}
+                                            {% set current_temperature = state_attr(entity_id, 'current_temperature') | float %}
+                                            {{ current_temperature | round(0 if current_temperature >= 100 or temperature_units in ["F", "f", "°F", "°f", "K", "k"] else 1) }}{{ temperature_units}}
+                                          {% else %} 0
+                                          {% endif %}
+                                    - *delay_default
+                                    - alias: Plot single button
+                                      action: 'esphome.{{ nspanel_name }}_button'
+                                      data:
+                                        id: '{{ repeat.item.id }}'
+                                        page: '{{ repeat.item.page }}'
+                                        component: '{{ repeat.item.component }}'
+                                        state: '{{ btn_state if btn_state else false }}'
+                                        icon: '{{ entity.icon }}'
+                                        icon_color: '{{ entity.icon_color }}'
+                                        icon_font: '{{ button_pages_icon_size if is_number(button_pages_icon_size) else 8 }}'
+                                        bri: '{{ btn_bri_txt if btn_bri_txt and btn_bri_txt != "0%" else "" }}'
+                                        label: '{{ entity.name }}'
+                                      continue_on_error: true
+                                    - if:
+                                        - '{{ entity_domain in ["automation", "button", "input_button", "remote", "scene"] }}'
+                                        - '{{ trigger.id is match "current_state_entity" }}'
+                                      then:
+                                        - delay:
+                                            milliseconds: 800
+                                        - alias: Restore button state
+                                          action: 'esphome.{{ nspanel_name }}_button'
+                                          data:
+                                            id: '{{ repeat.item.id }}'
+                                            page: '{{ repeat.item.page }}'
+                                            component: '{{ repeat.item.component }}'
+                                            state: false
+                                            icon: '{{ entity.icon }}'
+                                            icon_color: '{{ nextion.color.grey_light }}'
+                                            icon_font: '{{ button_pages_icon_size if is_number(button_pages_icon_size) else 8 }}'
+                                            bri: '{{ btn_bri_txt }}'
+                                            label: '{{ entity.name }}'
+                                          continue_on_error: true
+
                           - alias: Disable empty buttons pages
                             repeat:
                               for_each: '{{ pages.buttonpages }}'
@@ -9661,29 +9761,7 @@ actions:
                       - alias: Button pages
                         conditions: '{{ nspanel_event.page in pages.buttonpages }}'
                         sequence: &refresh_page_buttonpage
-                          - &variables_page_buttons
-                            variables:
-                              event_page: '{{ nspanel_event.page if nspanel_event is defined and nspanel_event.page is defined else pages.current }}'
-                              button_pages_icon_size: !input button_pages_icon_size
-                              ##### BUTTON Page Labels #####
-                              confirm_list: >
-                                {{
-                                  buttons_pages.buttons
-                                  | selectattr("page", "defined")
-                                  | selectattr("page", "eq", event_page)
-                                  | sort(attribute="component")
-                                  | map(attribute="confirm")
-                                  | list
-                                }}
-                              confirm_value: >
-                                {% set ns = namespace(decimal_value = 0, index = 0) %}
-                                {% for confirm_item in confirm_list %}
-                                    {% if (confirm_item) %}
-                                        {% set ns.decimal_value = ns.decimal_value + (2 ** ns.index) %}
-                                    {% endif %}
-                                    {% set ns.index = ns.index + 1 %}
-                                {% endfor %}
-                                {{ ns.decimal_value }}
+                          - *variables_page_buttons
                           - if: '{{ event_page in pages.buttonpages }}'
                             then:
                               - alias: Button page label
@@ -9722,71 +9800,7 @@ actions:
                                       | rejectattr("entity", "eq", [])
                                       | list
                                     }}
-                                  sequence: &display_button_page_button
-                                    - condition: '{{ repeat.item.entity is defined and repeat.item.entity is string and repeat.item.entity | length > 0 }}'
-                                    - variables:
-                                        entity_id: '{{ repeat.item.entity }}'
-                                        overlap:
-                                          icon: '{{ repeat.item.icon if repeat.item.icon is defined and repeat.item.icon is string and repeat.item.icon.split("mdi:")[1] in all_icons else None }}'
-                                          icon_color: '{{ repeat.item.icon_color_rgb if repeat.item.icon_color_rgb is defined else None }}'
-                                          name: '{{ repeat.item.name if repeat.item.name is defined else None }}'
-                                    - *variable_entity
-                                    - variables:
-                                        current_entity_state_available: '{{ entity_state not in ["unavailable"] }}'
-                                        btn_state: >  # Button state (on = true or off = false)
-                                          {{
-                                            (entity_state in enum.states.on and entity_domain not in ["automation"])
-                                            or (entity_domain == "climate" and entity_state != "off")
-                                            or (entity_domain in ["button", "input_button", "scene", "automation", "remote"] and trigger.id is match "current_state_entity")
-                                          }}
-                                        btn_bri_txt: >  # Buttons value (brightness, temperature, etc.)
-                                          {% if not has_value(entity_id) %} 0
-                                          {% elif entity_domain == "light" and entity_state == "on" %}
-                                            {% set entity_brightness = state_attr(entity_id, "brightness") %}
-                                            {% set entity_brightness_index = entity_brightness/255 if entity_brightness and is_number(entity_brightness) else 0 %}
-                                            {{ (entity_brightness_index*100) | round(0) }}%
-                                          {% elif entity_domain == "fan" and entity_state == "on" and state_attr(entity_id, "percentage") | int(0) > 0 %}
-                                            {{ state_attr(entity_id, "percentage") | round(0, default=0) }}%
-                                          {% elif entity_domain == "cover" and entity_state in ["open", "opening", "closing"] and is_number(state_attr(entity_id, "current_position")) %}
-                                            {{ (state_attr(entity_id, "current_position") | int(100)) | round(0) }}%
-                                          {% elif entity_domain == "climate" and is_number(state_attr(entity_id, 'current_temperature')) %}
-                                            {% set current_temperature = state_attr(entity_id, 'current_temperature') | float %}
-                                            {{ current_temperature | round(0 if current_temperature >= 100 or temperature_units in ["F", "f", "°F", "°f", "K", "k"] else 1) }}{{ temperature_units}}
-                                          {% else %} 0
-                                          {% endif %}
-                                    - *delay_default
-                                    - alias: Plot single button
-                                      action: 'esphome.{{ nspanel_name }}_button'
-                                      data:
-                                        id: '{{ repeat.item.id }}'
-                                        page: '{{ repeat.item.page }}'
-                                        component: '{{ repeat.item.component }}'
-                                        state: '{{ btn_state if btn_state else false }}'
-                                        icon: '{{ entity.icon }}'
-                                        icon_color: '{{ entity.icon_color }}'
-                                        icon_font: '{{ button_pages_icon_size if is_number(button_pages_icon_size) else 8 }}'
-                                        bri: '{{ btn_bri_txt if btn_bri_txt and btn_bri_txt != "0%" else "" }}'
-                                        label: '{{ entity.name }}'
-                                      continue_on_error: true
-                                    - if:
-                                        - '{{ entity_domain in ["automation", "button", "input_button", "remote", "scene"] }}'
-                                        - '{{ trigger.id is match "current_state_entity" }}'
-                                      then:
-                                        - delay:
-                                            milliseconds: 800
-                                        - alias: Restore button state
-                                          action: 'esphome.{{ nspanel_name }}_button'
-                                          data:
-                                            id: '{{ repeat.item.id }}'
-                                            page: '{{ repeat.item.page }}'
-                                            component: '{{ repeat.item.component }}'
-                                            state: false
-                                            icon: '{{ entity.icon }}'
-                                            icon_color: '{{ nextion.color.grey_light }}'
-                                            icon_font: '{{ button_pages_icon_size if is_number(button_pages_icon_size) else 8 }}'
-                                            bri: '{{ btn_bri_txt }}'
-                                            label: '{{ entity.name }}'
-                                          continue_on_error: true
+                                  sequence: *display_button_page_button
 
                       - alias: Light settings page  # PAGE LIGHT
                         conditions: '{{ nspanel_event.page == pages.light }}'

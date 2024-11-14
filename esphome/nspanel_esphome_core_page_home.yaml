@@ -51,6 +51,11 @@ globals:
   - id: last_weather_pic
     type: uint8_t
     restore_value: false
+    initial_value: '1'
+
+  - id: page_home_boot_steps_count
+    type: uint8_t
+    restore_value: false
     initial_value: '0'
 
 script:
@@ -75,7 +80,7 @@ script:
       - repeat:
           count: 7
           then:
-            - delay: !lambda return ${nextion_queue_delay_factor}*id(nextion_queue);
+            - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
             - lambda: |-
                 disp1->send_command_printf("home.chip%02" PRIu32 ".font=%" PRIu8, iteration+1, chip_font);
       - script.execute:
@@ -97,7 +102,7 @@ script:
       - repeat:
           count: 7
           then:
-            - delay: !lambda return ${nextion_queue_delay_factor}*id(nextion_queue);
+            - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
             - lambda: |-
                 disp1->send_command_printf("home.button%02" PRIu32 ".font=%" PRIu8, iteration+1, custom_buttons_font);
       - script.execute:
@@ -108,6 +113,7 @@ script:
     then:
       - lambda: |-
           boot_log->execute("Boot", "Set Home page elements");
+          id(page_home_boot_steps_count) = 0;
           chip_font->execute(id(home_chip_font_id), true);
           custom_buttons_font->execute(id(home_custom_buttons_font_id), true);
 
@@ -132,15 +138,23 @@ script:
       sub_step_name: string
     then:
       - lambda: |-
-          static uint8_t page_home_boot_steps_count = 0;
-          page_home_boot_steps_count++;
-          boot_progress->execute(page_home_boot_steps_count >= 2 ? ${BOOT_STEP_PAGE_HOME} : 0,
+          id(page_home_boot_steps_count)++;
+          boot_progress->execute(id(page_home_boot_steps_count) >= 2 ? ${BOOT_STEP_PAGE_HOME} : 0,
                                 ("Page Home - " + sub_step_name).c_str());
-          if (id(current_page_id) == ${PAGE_ID_BOOT} and wakeup_page_name->state == "home" and page_home_boot_steps_count >= 2) {
-            ESP_LOGI("script.page_home_boot_progress", "Jump to Home page");
-            goto_page_id->execute(${PAGE_ID_HOME}, true);
-            set_variable_value->execute("wakeup_page_id", ${PAGE_ID_HOME});
-          }
+      - if:
+          condition:
+            - lambda: return id(page_home_boot_steps_count) >= 2;
+            - lambda: return id(current_page_id) == ${PAGE_ID_BOOT};
+            - lambda: return wakeup_page_name->state == "home";
+          then:
+            - wait_until:
+                condition:
+                  - lambda: return id(display_mode) > 0;
+                timeout: 180s
+            - lambda: |-
+                ESP_LOGI("script.page_home_boot_progress", "Jump to Home page");
+                goto_page_id->execute(${PAGE_ID_HOME}, true);
+                set_variable_value->execute("wakeup_page_id", ${PAGE_ID_HOME});
 
   - id: !extend set_var_number
     then:
