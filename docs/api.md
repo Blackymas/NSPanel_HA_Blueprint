@@ -75,6 +75,7 @@ This action is designed for dynamic user interface adjustments, enabling the cus
 It's particularly useful for reflecting changes in device states or user interactions within the UI.
 
 **Parameters:**
+- 'id' (uint8_t): The unique button's identifier (1 to 32)
 - `page` (string): The page identifier where the button is located.
 - `component` (string): The button's unique identifier.
 - `state` (bool): The state of the button, which can affect its background picture and other visual elements.
@@ -89,6 +90,7 @@ Example: "\uE6E8" for `mdi:lightbulb-on-outline`.
 ```yaml
 action: esphome.<your_panel_name>_button
 data:
+  id: 8
   page: "buttonpage01"
   component: "button08"
   state: true

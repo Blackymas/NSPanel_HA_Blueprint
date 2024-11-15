@@ -53,8 +53,8 @@ api:
               auto endPos = clean_url.find_last_not_of(" \t");
               if (std::string::npos != endPos) clean_url = clean_url.substr(0, endPos + 1);
               if (clean_url.empty() or clean_url == "default")
-                url = construct_tft_url("v${version}", tft_file_model->state, "${nextion_update_url}",
-                                        "${nextion_update_base_url}");
+                url = construct_tft_url("v${version}", tft_file_model->state,
+                                                              "${nextion_update_url}", "${nextion_update_base_url}");
               upload_tft->execute(url.c_str());
 # yamllint enable rule:comments-indentation
 
@@ -68,8 +68,8 @@ button:
     on_press:
       then:
         - lambda: |-
-            upload_tft->execute(construct_tft_url("v${version}", tft_file_model->state, "${nextion_update_url}",
-                                                  "${nextion_update_base_url}").c_str());
+            upload_tft->execute(construct_tft_url("v${version}", tft_file_model->state,
+                                "${nextion_update_url}", "${nextion_update_base_url}").c_str());
 
 display:
   - id: !extend disp1
@@ -77,11 +77,6 @@ display:
     exit_reparse_on_start: true
 
 globals:
-  - id: tft_is_valid
-    type: bool
-    restore_value: false
-    initial_value: 'false'
-
   - id: tft_upload_attempt
     type: uint8_t
     restore_value: false
@@ -100,9 +95,10 @@ script:
   - id: !extend dump_config
     then:
       - lambda: |-
-          ESP_LOGCONFIG("${project_tag}", "Add-on Upload TFT:");
-          ESP_LOGCONFIG("${project_tag}", "  File model: %s", tft_file_model->state.c_str());
-          ESP_LOGCONFIG("${project_tag}", "  Valid TFT:  %s", YESNO(id(tft_is_valid)));
+          static const char *const TAG = "${project_tag}";
+          ESP_LOGCONFIG(TAG, "Add-on Upload TFT:");
+          ESP_LOGCONFIG(TAG, "  File model:  %s", tft_file_model->state.c_str());
+          ESP_LOGCONFIG(TAG, "  Valid TFT:   %s", YESNO((id(display_mode) > 0 and id(display_mode) < 4)));
 
   - id: !extend check_versions
     then:
@@ -132,10 +128,11 @@ script:
     mode: restart
     then:
       - lambda: |-
-          ESP_LOGD("script.nextion_status", "Nextion status:");
-          ESP_LOGD("script.nextion_status", "  Is detected: %s", YESNO(disp1->is_detected()));
-          ESP_LOGD("script.nextion_status", "  Is setup:    %s", YESNO(disp1->is_setup()));
-          ESP_LOGD("script.nextion_status", "  Queue size:  %d", disp1->queue_size());
+          static const char *const TAG = "script.nextion_status";
+          ESP_LOGD(TAG, "Nextion status:");
+          ESP_LOGD(TAG, "  Is detected: %s", YESNO(disp1->is_detected()));
+          ESP_LOGD(TAG, "  Is setup:    %s", YESNO(disp1->is_setup()));
+          ESP_LOGD(TAG, "  Queue size:  %d", disp1->queue_size());
 
   - id: nextion_upload
     mode: single
@@ -183,7 +180,7 @@ script:
           disp1->set_backlight_brightness(1);
       - if:
           condition:
-            - lambda: return id(tft_is_valid);
+            - lambda: return (id(display_mode) > 0 and id(display_mode) < 4);
           then:
             - lambda: |-
                 if (id(current_page_id) != ${PAGE_ID_CONFIRM})
@@ -202,12 +199,12 @@ script:
     then:
       - wait_until:
           condition:
-            - lambda: return not isnan(id(display_mode));
+            - lambda: return id(display_mode) > 0;
+          timeout: 120s
       - lambda: |-
           static const char *const TAG = "addon_upload_tft.script.select_tft_file_model";
-          id(tft_is_valid) = (id(display_mode) > 0 and id(display_mode) < 4);
           ESP_LOGI(TAG, "Display mode: %i", id(display_mode));
-          if (id(tft_is_valid))
+          if (id(display_mode) > 0 and id(display_mode) < 4)
             ESP_LOGI(TAG, "Valid TFT:    True");
           else
             ESP_LOGE(TAG, "Valid TFT:    False");
@@ -239,7 +236,7 @@ script:
             - switch.turn_on: screen_power
             - delay: 5s
       - lambda: |-
-          if (id(tft_is_valid))
+          if (id(display_mode) > 0 and id(display_mode) < 4)
             goto_page_id->execute(${PAGE_ID_HOME}, true);
       - delay: 2s
       - script.execute: open_upload_dialog
@@ -264,7 +261,7 @@ script:
           static const char *const TAG = "addon_upload_tft.script.upload_tft";
           // The upload process starts here
           ESP_LOGD(TAG, "Starting the upload script");
-          ESP_LOGD(TAG, "  Valid TFT:               %s", YESNO(id(tft_is_valid)));
+          ESP_LOGD(TAG, "  Valid TFT:               %s", YESNO((id(display_mode) > 0 and id(display_mode) < 4)));
           ESP_LOGD(TAG, "  Current baud rate:       %" PRIu32 " bps", tf_uart->get_baud_rate());
           ESP_LOGD(TAG, "  Target upload baud rate: %s bps", tft_upload_baud_rate->state.c_str());
           ESP_LOGD(TAG, "  Upload URL: %s", url.c_str());
@@ -316,7 +313,7 @@ script:
           delay(250);
           App.feed_wdt();
           #endif  // USE_ESP32_BLE_CLIENT
-          if (id(tft_is_valid) and id(current_page_id) != ${PAGE_ID_CONFIRM})
+          if ((id(display_mode) > 0 and id(display_mode) < 4) and id(current_page_id) != ${PAGE_ID_CONFIRM})
             goto_page_id->execute(${PAGE_ID_HOME}, true);
       - delay: 2s
       - script.execute: open_upload_dialog
@@ -335,7 +332,7 @@ script:
       - script.wait: stop_all
       - wait_until:
           condition:
-            - lambda: return (!id(tft_is_valid));
+            - lambda: return (id(display_mode) > 0 and id(display_mode) < 4);
           timeout: 1s
 
       ### Attempt twice at the target baud rate
@@ -371,7 +368,7 @@ script:
       - script.wait: report_upload_progress
       - wait_until:
           condition:
-            - lambda: return (!id(tft_is_valid));
+            - lambda: return (id(display_mode) > 0 and id(display_mode) < 4);
           timeout: 3s
       - switch.turn_off: screen_power
       - delay: 2s
@@ -389,7 +386,7 @@ script:
       - script.wait: report_upload_progress
       - wait_until:
           condition:
-            - lambda: return (!id(tft_is_valid));
+            - lambda: return (id(display_mode) > 0 and id(display_mode) < 4);
           timeout: 5s
       - script.execute:
           id: report_upload_progress
@@ -397,7 +394,7 @@ script:
       - script.wait: report_upload_progress
       - wait_until:
           condition:
-            - lambda: return (!id(tft_is_valid));
+            - lambda: return (id(display_mode) > 0 and id(display_mode) < 4);
           timeout: 5s
       - switch.turn_off: screen_power
       - delay: 2s
@@ -453,7 +450,7 @@ script:
       - script.wait: report_upload_progress
       - wait_until:
           condition:
-            - lambda: return (!id(tft_is_valid));
+            - lambda: return (id(display_mode) > 0 and id(display_mode) < 4);
           timeout: 1s
       - script.execute:
           id: nextion_upload

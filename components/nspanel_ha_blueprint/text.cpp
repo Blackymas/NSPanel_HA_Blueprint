@@ -75,5 +75,4 @@ namespace nspanel_ha_blueprint {
         return processed_time_format;
     }
 
-
 }  // namespace nspanel_ha_blueprint

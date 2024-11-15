@@ -13,6 +13,11 @@
 ---
 substitutions:
   BOOT_STEP_HW_WIFI: '1UL << 9'
+  MDI_ICON_API_OFF: "\uF256"         # mdi:api-off
+  MDI_ICON_HOME_ASSISTANT: "\uE7CF"  # mdi:home-assistant
+  MDI_ICON_RESTART: "\uE708"         # mdi:restart
+  MDI_ICON_WIFI: "\uE5A8"            # mdi:wifi
+  MDI_ICON_WIFI_OFF: "\uE5A9"        # mdi:wifi-off
 
 api:
   id: !extend api_server
@@ -35,7 +40,7 @@ esphome:
     - priority: 0.1
       then:  # Update Wi-Fi icon
         - lambda: |-
-            set_component_text->execute("home", "wifi_icon", "\uE708");
+            set_component_text->execute("home", "wifi_icon", "${MDI_ICON_RESTART}");
             set_component_font_color->execute("home", "wifi_icon", 63488);
 
 script:
@@ -79,8 +84,8 @@ script:
       - wait_until:
           condition:
             - lambda: return wifi_component->is_connected();
+            - lambda: return id(current_page_id) == ${PAGE_ID_BOOT};
           timeout: 20s
-      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
       - lambda: |-
           if (id(current_page_id) == ${PAGE_ID_BOOT})
             disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());
@@ -93,21 +98,51 @@ script:
     mode: restart
     then:
       - lambda: |-
-          const bool is_blueprint_connected = is_boot_step_completed(${BOOT_STEP_VERSIONING});
-          set_variable_value->execute("api",
-                    (is_blueprint_connected and wifi_component->is_connected() and api_server->is_connected()) ? 1 : 0);
+          static bool blueprint_is_connected = false;
+          static bool api_is_connected = false;
+          static bool wifi_is_connected = false;
+          static bool wifi_rssi_warning = false;
+          bool status_has_changed = blueprint_is_connected != is_boot_step_completed(${BOOT_STEP_VERSIONING}) or
+                                    wifi_is_connected != wifi_component->is_connected() or
+                                    api_is_connected != api_server->is_connected();
+          if (status_has_changed) {
+            blueprint_is_connected = is_boot_step_completed(${BOOT_STEP_VERSIONING});
+            api_is_connected = api_server->is_connected();
+            wifi_is_connected = wifi_component->is_connected();
+            // Update Wi-Fi icon
+            char new_wifi_icon[8];  // Allocate sufficient space to store UTF-8 icon
+            if (wifi_is_connected) {
+                if (api_is_connected) {
+                    if (blueprint_is_connected) {
+                        strncpy(new_wifi_icon, "${MDI_ICON_WIFI}", sizeof(new_wifi_icon));
+                    } else {
+                        strncpy(new_wifi_icon, "${MDI_ICON_HOME_ASSISTANT}", sizeof(new_wifi_icon));
+                    }
+                } else {
+                    strncpy(new_wifi_icon, "${MDI_ICON_API_OFF}", sizeof(new_wifi_icon));
+                }
+            } else {
+                strncpy(new_wifi_icon, "${MDI_ICON_WIFI_OFF}", sizeof(new_wifi_icon));
+            }
+
+            set_component_text->execute("home", "wifi_icon", new_wifi_icon);
+            if (blueprint_is_connected and api_is_connected and wifi_is_connected) {
+              ESP_LOGI("script.refresh_wifi_icon", "Wi-Fi icon changed to %s (\\u%04X)",
+                        new_wifi_icon, decode_utf8(new_wifi_icon));
+              set_variable_value->execute("api", 1);
+            } else {
+              ESP_LOGW("script.refresh_wifi_icon", "Wi-Fi icon changed to %s (\\u%04X)",
+                        new_wifi_icon, decode_utf8(new_wifi_icon));
+              set_variable_value->execute("api", 0);
+            }
+          }
           // Update Wi-Fi icon color
-          set_component_font_color->execute("home", "wifi_icon",
-                    (is_blueprint_connected and wifi_component->is_connected() and api_server->is_connected()) ?
-                    (wifi_rssi->state > -70 ? 33808 : 64992) : 63488);
-          // Update Wi-Fi icon
-          set_component_text->execute("home", "wifi_icon",
-                                      wifi_component->is_connected() ?
-                                        (api_server->is_connected() ?
-                                          (is_blueprint_connected ? "\uE5A8" :  // mdi:wifi - All right!
-                                          "\uE7CF") :                           // mdi:home-assistant - Boot incomplete
-                                        "\uF256") :                             // mdi:api-off
-                                      "\uE5A9");                                // mdi:wifi-off
+          if (status_has_changed or (wifi_rssi_warning != (wifi_rssi->state <= -70))) {
+            wifi_rssi_warning = (wifi_rssi->state <= -70);
+            set_component_font_color->execute("home", "wifi_icon",
+                      (blueprint_is_connected and wifi_is_connected and api_is_connected) ?
+                      (wifi_rssi_warning ? 64992 : 33808) : 63488);
+          }
 
   - id: !extend stop_all
     then:

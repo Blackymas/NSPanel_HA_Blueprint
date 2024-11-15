@@ -164,6 +164,10 @@ display:
     platform: nextion
     uart_id: tf_uart
 
+    on_buffer_overflow:
+      then:
+        - script.execute: nextion_queue_delay_factor_increment
+
     on_page:
       then:
         - lambda: page_changed->execute(x);
@@ -232,6 +236,15 @@ esphome:
             id: nextion_init
             state: false
 
+external_components:  # Remove this when PR#7772 is merged
+  - source:
+      type: git
+      url: https://github.com/edwardtfn/esphome
+      ref: nextion-on-buffer-overflow
+    refresh: 30s
+    components:
+      - nextion
+
 globals:
   - id: display_charset
     type: uint8_t
@@ -284,7 +297,7 @@ number:
     on_value:
       then:
         - lambda: |-
-            set_variable_value->execute("brightness", int(x));
+            set_variable_value->execute("brightness", static_cast<uint8_t>(x));
       # Extended by:
       #   - nspanel_esphome_core_hw_display_timers.yaml
 
@@ -302,9 +315,9 @@ number:
     on_value:
       then:
         - lambda: |-
-            set_variable_value->execute("brightness_dim", int(x));
+            set_variable_value->execute("brightness_dim", static_cast<uint8_t>(x));
             if (id(current_page_id) != ${PAGE_ID_SCREENSAVER} and current_brightness->state != x)
-              set_brightness->execute(int(x));
+              set_brightness->execute(static_cast<uint8_t>(x));
 
   - id: display_sleep_brightness  # SCREEN BRIGHTNESS SLEEP
     name: Brightness - Sleep
@@ -319,9 +332,24 @@ number:
     optimistic: true
     on_value:
       then:
-        - lambda: |-
-            set_variable_value->execute("brightness_sleep", int(x));
-            page_screensaver->execute();
+        - script.execute:
+            id: set_variable_value
+            variable: brightness_sleep
+            val: !lambda return static_cast<uint8_t>(x);
+        - script.execute: page_screensaver
+
+  - id: nextion_queue_delay_factor
+    name: Display queue delay factor
+    platform: template
+    entity_category: config
+    min_value: 0
+    max_value: 25
+    initial_value: 0
+    step: 1
+    restore_value: true
+    optimistic: true
+    internal: false
+    disabled_by_default: true
 
 script:
   - id: !extend boot_progress_dump
@@ -369,38 +397,41 @@ script:
   - id: !extend dump_config
     then:
       - lambda: |-
+          static const char *const TAG = "${project_tag}";
           // Report UART
-          ESP_LOGCONFIG("${project_tag}", "UART:");
-          ESP_LOGCONFIG("${project_tag}", "  Baud rate:   %" PRIu32 " bps", tf_uart->get_baud_rate());
-          ESP_LOGCONFIG("${project_tag}", "  Queue size:  %d", tf_uart->available());
+          ESP_LOGCONFIG(TAG, "UART:");
+          ESP_LOGCONFIG(TAG, "  Baud rate:    %" PRIu32 " bps", tf_uart->get_baud_rate());
+          ESP_LOGCONFIG(TAG, "  Queue size:   %d", tf_uart->available());
 
           // Report Nextion status
           nextion_init->publish_state(nextion_init->state and disp1->is_setup());
-          ESP_LOGCONFIG("${project_tag}", "Nextion:");
-          ESP_LOGCONFIG("${project_tag}", "  Queue size:  %d", disp1->queue_size());
+          ESP_LOGCONFIG(TAG, "Nextion:");
+          ESP_LOGCONFIG(TAG, "  Delay factor: %" PRIu8, static_cast<uint8_t>(nextion_queue_delay_factor->state));
+          ESP_LOGCONFIG(TAG, "  Queue size:   %d", disp1->queue_size());
           if (disp1->is_setup())
-            ESP_LOGCONFIG("${project_tag}", "  Is setup:    True");
+            ESP_LOGCONFIG(TAG, "  Is setup:     True");
           else {
-            ESP_LOGW("${project_tag}", "  Is setup:    False");
-            ESP_LOGW("${project_tag}", "  Is detected: %s", YESNO(disp1->is_detected()));
+            ESP_LOGW(TAG, "  Is setup:     False");
+            ESP_LOGW(TAG, "  Is detected:  %s", YESNO(disp1->is_detected()));
             //exit_reparse->execute();
           }
           if (nextion_init->state) {
-            ESP_LOGCONFIG("${project_tag}", "  Init:        True");
+            ESP_LOGCONFIG(TAG, "  Init:         True");
           } else
-            ESP_LOGW("${project_tag}", "  Init:        False");
+            ESP_LOGW(TAG, "  Init:         False");
           if (id(version_tft).empty())
-            ESP_LOGW("${project_tag}", "  TFT:         UNKNOWN");
+            ESP_LOGW(TAG, "  TFT:          UNKNOWN");
           else
-            ESP_LOGCONFIG("${project_tag}", "  TFT:         %s", id(version_tft).c_str());
+            ESP_LOGCONFIG(TAG, "  TFT:          %s", id(version_tft).c_str());
 
   - id: event_from_display
-    mode: queued
+    mode: parallel
     parameters:
       json: DynamicJsonDocument
       page: string
     then:
       - lambda: |-
+          static const char *const TAG = "script.event_from_display";
           const std::string event = json["event"];
           const std::string component = json["component"];
           const std::string value = json["value"];
@@ -417,10 +448,11 @@ script:
               {"command", event.c_str()}
             });
           } else if (event == "params") {
+              ESP_LOGI(TAG, "Display parameters received:");
               id(display_mode) = json["display_mode"].as<uint8_t>();
               id(display_charset) = json["charset"].as<uint8_t>();
-              ESP_LOGI("script.event_from_display", "Display mode:    %" PRIu8, id(display_mode));
-              ESP_LOGI("script.event_from_display", "Display charset: %" PRIu8, id(display_charset));
+              ESP_LOGI(TAG, "  Display mode:    %" PRIu8, id(display_mode));
+              ESP_LOGI(TAG, "  Display charset: %" PRIu8, id(display_charset));
               send_command->execute("tm_esphome.en=0");
               boot_progress->execute(${BOOT_STEP_HW_DISPLAY}, "HW Display");
           } else {
@@ -471,6 +503,17 @@ script:
       - lambda: |-
           if (id(nextion_queue) > 0)
             id(nextion_queue)--;
+
+  - id: nextion_queue_delay_factor_increment
+    mode: restart
+    then:
+      - delay: 15s
+      - lambda: |-
+          ESP_LOGE("script.nextion_queue_delay_factor_increment", "Nextion reported a buffer overflow");
+          ESP_LOGE("script.nextion_queue_delay_factor_increment", "Increasing the delay factor...");
+      - number.increment:
+          id: nextion_queue_delay_factor
+          cycle: false
 
   - id: nextion_queue_reset
     mode: restart
@@ -577,8 +620,8 @@ script:
     parameters:
       brightness: uint8_t
     then:
-      - script.execute: nextion_queue_add
       - lambda: |-
+          nextion_queue_add->execute();
           disp1->set_backlight_brightness(brightness / 100.0f);
           current_brightness->update();
           nextion_queue_del->execute();
@@ -597,7 +640,7 @@ script:
                 id: current_page
                 state: !lambda return page.c_str();
           timeout: 2s
-      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+      - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
           disp1->set_component_font(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), font);
           nextion_queue_del->execute();
@@ -616,9 +659,10 @@ script:
                 id: current_page
                 state: !lambda return page.c_str();
           timeout: 2s
-      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+      - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          disp1->set_component_font_color(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), color);
+          if (page == "home" or page == current_page->state)
+            disp1->set_component_font_color(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), color);
           nextion_queue_del->execute();
 
   - id: set_component_picc
@@ -635,9 +679,10 @@ script:
                 id: current_page
                 state: !lambda return page.c_str();
           timeout: 2s
-      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+      - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          disp1->set_component_picc(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), picc);
+          if (page == "home" or page == current_page->state)
+            disp1->set_component_picc(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), picc);
           nextion_queue_del->execute();
 
   - id: set_component_foreground_color
@@ -663,9 +708,10 @@ script:
                 id: current_page
                 state: !lambda return page.c_str();
           timeout: 2s
-      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+      - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          disp1->set_component_pic(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), pic);
+          if (page == "home" or page == current_page->state)
+            disp1->set_component_pic(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), pic);
           nextion_queue_del->execute();
 
   - id: set_component_text
@@ -682,9 +728,10 @@ script:
                 id: current_page
                 state: !lambda return page.c_str();
           timeout: 2s
-      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+      - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          disp1->set_component_text(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), text.c_str());
+          if (page == "home" or page == current_page->state)
+            disp1->set_component_text(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), text.c_str());
           nextion_queue_del->execute();
 
   - id: set_component_value
@@ -701,9 +748,10 @@ script:
                 id: current_page
                 state: !lambda return page.c_str();
           timeout: 2s
-      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+      - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          disp1->set_component_value(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), val);
+          if (page == "home" or page == current_page->state)
+            disp1->set_component_value(current_page->state == page ? component.c_str() : (page + "." + component).c_str(), val);
           nextion_queue_del->execute();
 
   - id: set_component_visibility
@@ -724,15 +772,16 @@ script:
           condition:
             - lambda: return (page == current_page->state);
           then:
-            - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+            - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
             - lambda: |-
                 disp1->send_command_printf("vis %s,%i", component.c_str(), show ? 1 : 0);
       - script.execute: nextion_queue_del
 
-  - id: !extend set_var_int
+  - id: !extend set_var_number
     then:
       - lambda: |-
-          if (component == "bytes_per_char") id(mui_bytes_per_char) = val;
+          if (component == "bytes_per_char")
+            id(mui_bytes_per_char) = static_cast<uint8_t>(val);
 
   - id: !extend set_var_string
     then:
@@ -747,7 +796,7 @@ script:
       val: int
     then:
       - script.execute: nextion_queue_add
-      - delay: !lambda return (10*(id(nextion_queue)+disp1->queue_size()+tf_uart->available()));
+      - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
           disp1->send_command_printf("%s=%i", variable.c_str(), val);
           nextion_queue_del->execute();

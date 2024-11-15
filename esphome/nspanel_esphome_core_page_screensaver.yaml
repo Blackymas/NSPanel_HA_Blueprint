@@ -9,7 +9,6 @@
 substitutions:
   BOOT_STEP_PAGE_SCREENSAVER: '1UL << 23'
   PAGE_ID_SCREENSAVER: '9'
-  screensaver_timeformat_override: ""
 
 globals:
   ##### Screensaver #####
@@ -17,6 +16,11 @@ globals:
     type: bool
     restore_value: true
     initial_value: 'false'
+  - id: screensaver_display_time_format
+    type: std::string
+    restore_value: true
+    max_restore_data_length: 15
+    initial_value: '""'
   - id: screensaver_display_time_font
     type: uint8_t
     restore_value: true
@@ -25,11 +29,6 @@ globals:
     type: uint16_t
     restore_value: true
     initial_value: '16904'
-  - id: mui_time_format_screensaver
-    type: std::string
-    restore_value: true
-    max_restore_data_length: 15
-    initial_value: '"${screensaver_timeformat_override}"'
 
 script:
   - id: !extend boot_progress_dump
@@ -63,8 +62,11 @@ script:
     then:
       - lambda: |-
           if (id(current_page_id) == ${PAGE_ID_SCREENSAVER} and id(screensaver_display_time)) {
-            std::string time_format_str = process_time_format(id(mui_time_format).c_str(), id(time_provider).now().hour,
-                                                              id(mui_meridiem_am).c_str(), id(mui_meridiem_pm).c_str());
+            std::string time_format_str = process_time_format(
+                          (id(screensaver_display_time_format) == "same" or id(screensaver_display_time_format).empty())
+                                            ? id(mui_time_format).c_str() : id(screensaver_display_time_format).c_str(),
+                          id(time_provider).now().hour,
+                          id(mui_meridiem_am).c_str(), id(mui_meridiem_pm).c_str());
             std::string meridiem_text = (id(time_provider).now().hour<12) ? id(mui_meridiem_am) : id(mui_meridiem_pm);
             if (time_format_str.find("%p") != std::string::npos)
               time_format_str.replace(time_format_str.find("%p"), sizeof("%p")-1, meridiem_text.c_str());
@@ -86,12 +88,21 @@ script:
             page_screensaver->execute();
           }
 
-  - id: !extend set_var_int
+  - id: !extend set_var_number
     then:
       - lambda: |-
           if (component == "screensaver_display_time_font" and val >= 0 and val <= 255) {
-            id(screensaver_display_time_font) = val;
+            id(screensaver_display_time_font) = static_cast<uint8_t>(val);
             boot_progress->execute(${BOOT_STEP_PAGE_SCREENSAVER}, "Page Screensaver - Display time font");
+            page_screensaver->execute();
+          }
+
+  - id: !extend set_var_string
+    then:
+      - lambda: |-
+          if (component == "screensaver_display_time_format") {
+            id(screensaver_display_time_format) = val;
+            boot_progress->execute(${BOOT_STEP_PAGE_SCREENSAVER}, "Page Screensaver - Display time format");
             page_screensaver->execute();
           }
 
