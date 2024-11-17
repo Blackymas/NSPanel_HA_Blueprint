@@ -7308,6 +7308,7 @@ actions:
             icon: !input chip07_icon
             icon_color_rgb: !input chip07_icon_color
             component: chip07
+        chip_font_size: !input chip_font_size
         custom_buttons:
           - entity: !input home_custom_button01
             icon: !input home_custom_button01_icon
@@ -8996,38 +8997,105 @@ actions:
                                     txt: '{{ entity.icon if entity.icon is defined else all_icons.blank }}'
                                   continue_on_error: true
 
-                          - alias: Home page Status / Chips bar
+                          ###### Status / Chips bar ######
+                          - alias: Home page - Status / Chips bar
                             repeat:
-                              for_each: >
-                                {{
-                                  home_page.chips
-                                  | selectattr("entity", "defined")
-                                  | rejectattr("entity", "eq", [])
-                                  | selectattr("icon_color_rgb", "defined")
-                                  | rejectattr("icon_color_rgb", "eq", [])
-                                  | rejectattr("icon_color_rgb", "eq", [0, 0, 0])
-                                  | list
-                                }}
+                              for_each: {{ home_page.chips | list }}
                               sequence:
-                                - *delay_default
-                                - action: 'esphome.{{ nspanel_name }}_component_color'
-                                  data:
-                                    page: home
-                                    component: '{{ repeat.item.component }}'
-                                    color: '{{ repeat.item.icon_color_rgb }}'
-                                  continue_on_error: true
-
-                          - alias: Home page - Chip icon size
-                            sequence:
-                              - variables:
-                                  chip_font_size: !input chip_font_size
-                              - *delay_default
-                              - alias: chip_font
-                                action: 'esphome.{{ nspanel_name }}_set_number'
-                                data:
-                                  component: chip_font
-                                  val: '{{ chip_font_size }}'
-                                continue_on_error: true
+                                - &display_home_page_status_bar
+                                  if: >
+                                    {{
+                                      repeat.item.entity is defined and
+                                      repeat.item.entity is string and
+                                      repeat.item.entity.split(".") | count == 2
+                                    }}
+                                  then:
+                                    - *delay_default
+                                    - variables:
+                                        entity_id: '{{ repeat.item.entity }}'
+                                        overlap:
+                                          icon: >
+                                            {{
+                                              repeat.item.icon
+                                              if
+                                                repeat.item.icon is defined and
+                                                repeat.item.icon is string and
+                                                repeat.item.icon.split("mdi:")[1] in all_icons
+                                              else None
+                                            }}
+                                          icon_color: >
+                                            {{
+                                              repeat.item.icon_color_rgb
+                                              if
+                                                repeat.item.icon_color_rgb is defined and
+                                                repeat.item.icon_color_rgb is sequence and
+                                                repeat.item.icon_color_rgb | count == 3 and
+                                                repeat.item.icon_color_rgb != [0, 0, 0]
+                                              else None
+                                            }}
+                                    - *variable_entity
+                                    - condition: '{{ entity_has_value }}'
+                                    - variables:
+                                        entity_hvac_action: >
+                                          {{
+                                            state_attr(entity_id, "hvac_action") | default("")
+                                            if entity_domain == "climate"
+                                            else "unknown"
+                                          }}
+                                        entity_state: >
+                                          {{
+                                            (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state)
+                                            if entity_domain == "climate"
+                                            else entity_state
+                                          }}
+                                        chip_visible: >
+                                          {{
+                                            (
+                                              (not repeat.item.inverted) and
+                                              (
+                                                (entity_state in enum.states.on) or
+                                                (entity_domain != "climate" and entity_domain in enum.states and entity_state in enum.states[entity_domain].on) or
+                                                (entity_domain == "climate" and entity_state in ["heating", "cooling", "drying", "fan_only"])
+                                              )
+                                            ) or
+                                            (
+                                              (repeat.item.inverted) and
+                                              (
+                                                (entity_state in enum.states.off) or
+                                                (entity_domain in enum.states and entity_state in enum.states[entity_domain].off) or
+                                                (entity_domain == "climate" and entity_state not in ["heating", "cooling", "drying", "fan_only"])
+                                              )
+                                            )
+                                          }}
+                                    - *delay_default
+                                    - action: 'esphome.{{ nspanel_name }}_icon'
+                                      data:
+                                        page: home
+                                        component: '{{ repeat.item.component }}'
+                                        icon: '{{ entity.icon if chip_visible and entity.icon is defined else "" }}'
+                                        icon_font: '{{ home_page.chip_font_size }}'
+                                        icon_color: >
+                                          {{
+                                            entity.icon_color
+                                            if
+                                              chip_visible and
+                                              entity.icon_color is defined and
+                                              icon_color is not sequence
+                                            else []
+                                          }}
+                                        visible: '{{ chip_visible }}'
+                                      continue_on_error: true
+                                  else:
+                                    - *delay_default
+                                    - action: 'esphome.{{ nspanel_name }}_icon'
+                                      data:
+                                        page: home
+                                        component: '{{ repeat.item.component }}'
+                                        icon: ''
+                                        icon_font: '{{ home_page.chip_font_size }}'
+                                        icon_color: [0, 0,0]
+                                        visible: false
+                                      continue_on_error: true
 
                           - alias: Home page - Custom buttons icon size
                             sequence:
@@ -9509,6 +9577,7 @@ actions:
                                   component: bt_notific
                                   icon: '{{ notification_icon }}'
                                   icon_color: '{{ notification_icon_color_unread if notification_unread_state else notification_icon_color_normal }}'
+                                  icon_font: -1
                                   visible: '{{ notification_visible }}'
                                 continue_on_error: true
 
@@ -9534,6 +9603,7 @@ actions:
                                         component: '{{ repeat.item.component }}'
                                         icon: '{{ entity.icon if entity.icon is defined else all_icons.blank }}'
                                         icon_color: '{{ entity.icon_color if entity.icon_color is defined else [0, 0, 0] }}'
+                                        icon_font: -1
                                         visible: true
                                       continue_on_error: true
                                   else:
@@ -9543,6 +9613,7 @@ actions:
                                         component: '{{ repeat.item.component }}'
                                         icon: '{{ all_icons.blank }}'
                                         icon_color: '{{ [0, 0, 0] }}'
+                                        icon_font: -1
                                         visible: false
                                       continue_on_error: true
 
@@ -9564,6 +9635,7 @@ actions:
                                   component: chip_climate
                                   icon: '{{ entity.icon if entity.icon is defined else "" }}'
                                   icon_color: '{{ entity.icon_color if entity.icon_color is defined else [] }}'
+                                  icon_font: -1
                                   visible: >
                                     {{
                                       entity_has_value and
@@ -9588,69 +9660,7 @@ actions:
                                   | list
                                 }}
                               sequence:
-                                - &display_home_page_status_bar
-                                  if: '{{ repeat.item.entity is defined and repeat.item.entity is string and repeat.item.entity.split(".") | count == 2 }}'
-                                  then:
-                                    - *delay_default
-                                    - variables:
-                                        entity_id: '{{ repeat.item.entity }}'
-                                        overlap:
-                                          icon: '{{ repeat.item.icon if repeat.item.icon is defined and repeat.item.icon is string and repeat.item.icon.split("mdi:")[1] in all_icons else None }}'
-                                          icon_color: >
-                                            {{
-                                              repeat.item.icon_color_rgb
-                                              if
-                                                repeat.item.icon_color_rgb is defined and
-                                                repeat.item.icon_color_rgb is sequence and
-                                                repeat.item.icon_color_rgb | count == 3 and
-                                                repeat.item.icon_color_rgb != [0, 0, 0]
-                                              else None
-                                            }}
-                                    - *variable_entity
-                                    - condition: '{{ entity_has_value }}'
-                                    - variables:
-                                        entity_hvac_action: '{{ state_attr(entity_id, "hvac_action") | default("") if entity_domain == "climate" else "unknown" }}'
-                                        entity_state: >
-                                          {{
-                                            (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state)
-                                            if entity_domain == "climate" else entity_state
-                                          }}
-                                        chip_visible: >
-                                          {{
-                                            (
-                                              (not repeat.item.inverted) and
-                                              (
-                                                (entity_state in enum.states.on) or
-                                                (entity_domain != "climate" and entity_domain in enum.states and entity_state in enum.states[entity_domain].on) or
-                                                (entity_domain == "climate" and entity_state in ["heating", "cooling", "drying", "fan_only"])
-                                              )
-                                            ) or
-                                            (
-                                              (repeat.item.inverted) and
-                                              (
-                                                (entity_state in enum.states.off) or
-                                                (entity_domain in enum.states and entity_state in enum.states[entity_domain].off) or
-                                                (entity_domain == "climate" and entity_state not in ["heating", "cooling", "drying", "fan_only"])
-                                              )
-                                            )
-                                          }}
-                                    - *delay_default
-                                    - action: 'esphome.{{ nspanel_name }}_icon'
-                                      data:
-                                        page: home
-                                        component: '{{ repeat.item.component }}'
-                                        icon: '{{ entity.icon if chip_visible and entity.icon is defined else "" }}'
-                                        icon_color: >
-                                          {{
-                                            entity.icon_color
-                                            if
-                                              chip_visible and
-                                              entity.icon_color is defined and
-                                              icon_color is not sequence
-                                            else []
-                                          }}
-                                        visible: '{{ chip_visible }}'
-                                      continue_on_error: true
+                                - *display_home_page_status_bar
 
                           ##### Home page - Values 01 - 04
                           - repeat:
@@ -11242,6 +11252,7 @@ actions:
                                         component: '{{ repeat.item.name }}_icon'
                                         icon: '{{ all_icons[icon_code] if icon_code in all_icons else "" }}'
                                         icon_color: '{{ repeat.item.color }}'
+                                        icon_font: -1
                                         visible: '{{ icon_code in all_icons }}'
                                       continue_on_error: true
                                 - alias: Utilities - Label

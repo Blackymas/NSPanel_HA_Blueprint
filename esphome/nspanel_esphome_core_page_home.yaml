@@ -11,12 +11,6 @@ substitutions:
   PAGE_ID_HOME: '1'
 
 globals:
-  ##### Chips #####
-  - id: home_chip_font_id
-    type: uint8_t
-    restore_value: true
-    initial_value: '7'
-
   #### Custom buttons ####
   - id: home_custom_buttons_font_id
     type: uint8_t
@@ -64,29 +58,6 @@ script:
       - lambda: |-
           boot_progress_dump_item->execute(${BOOT_STEP_PAGE_HOME}, "Page Home");
 
-  - id: chip_font
-    mode: restart
-    parameters:
-      chip_font: uint8_t
-      boot: bool
-    then:
-      - lambda: |-
-          if (boot or chip_font != id(home_chip_font_id))
-            id(home_chip_font_id) = chip_font;
-          set_component_font->execute("home", "wifi_icon", chip_font);
-          set_component_font->execute("home", "chip_relay1", chip_font);
-          set_component_font->execute("home", "chip_relay2", chip_font);
-          set_component_font->execute("home", "chip_climate", chip_font);
-      - repeat:
-          count: 7
-          then:
-            - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
-            - lambda: |-
-                disp1->send_command_printf("home.chip%02" PRIu32 ".font=%" PRIu8, iteration+1, chip_font);
-      - script.execute:
-          id: page_home_boot_progress
-          sub_step_name: Chip font
-
   - id: custom_buttons_font
     mode: restart
     parameters:
@@ -114,7 +85,6 @@ script:
       - lambda: |-
           boot_log->execute("Boot", "Set Home page elements");
           id(page_home_boot_steps_count) = 0;
-          chip_font->execute(id(home_chip_font_id), true);
           custom_buttons_font->execute(id(home_custom_buttons_font_id), true);
 
   - id: !extend page_changed
@@ -126,6 +96,7 @@ script:
   - id: page_home
     mode: restart
     then:
+      - script.execute: page_home_chips
     # Extended by:
     #   - nspanel_esphome_core_datetime.yaml
     #   - nspanel_esphome_core_hw_relays.yaml
@@ -139,11 +110,11 @@ script:
     then:
       - lambda: |-
           id(page_home_boot_steps_count)++;
-          boot_progress->execute(id(page_home_boot_steps_count) >= 2 ? ${BOOT_STEP_PAGE_HOME} : 0,
+          boot_progress->execute(id(page_home_boot_steps_count) >= 1 ? ${BOOT_STEP_PAGE_HOME} : 0,
                                 ("Page Home - " + sub_step_name).c_str());
       - if:
           condition:
-            - lambda: return id(page_home_boot_steps_count) >= 2;
+            - lambda: return id(page_home_boot_steps_count) >= 1;
             - lambda: return id(current_page_id) == ${PAGE_ID_BOOT};
             - lambda: return wakeup_page_name->state == "home";
           then:
@@ -156,12 +127,26 @@ script:
                 goto_page_id->execute(${PAGE_ID_HOME}, true);
                 set_variable_value->execute("wakeup_page_id", ${PAGE_ID_HOME});
 
+  - id: page_home_chips
+    mode: restart
+    then:
+      - repeat:
+          count: 8
+          then:
+            - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
+            - lambda: |-
+                char component[8];
+                sprintf(component, "chip%02d", iteration+1);
+                PageIcon* chip = get_icon("home", component);
+                if (chip->initiated) {
+                  ESP_LOGD("script.page_home_chips", "Updating %s", component);
+                  icon_set->execute(chip);
+                }
+
   - id: !extend set_var_number
     then:
       - lambda: |-
-          if (component == "chip_font")
-            chip_font->execute(val, false);
-          else if (component == "custom_buttons_font")
+          if (component == "custom_buttons_font")
             custom_buttons_font->execute(val, false);
 
   - id: !extend refresh_datetime  # Defined by nspanel_esphome_core_datetime.yaml
@@ -178,8 +163,8 @@ script:
   - id: !extend stop_all
     then:
       - lambda: |-
-          chip_font->stop();
           custom_buttons_font->stop();
           page_home->stop();
           page_home_boot_progress->stop();
+          page_home_chips->stop();
 ...
