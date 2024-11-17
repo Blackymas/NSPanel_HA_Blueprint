@@ -8,7 +8,7 @@
 
 namespace nspanel_ha_blueprint {
 
-    bool PageIconInitilized = false;
+    bool PageIconInitialized = false;
 
     // Structure representing an icon on a Nextion page
     struct PageIcon {
@@ -18,7 +18,7 @@ namespace nspanel_ha_blueprint {
         uint16_t icon_color;     // RGB565 color value for the icon
         uint8_t icon_font;       // Font identifier for the icon
         bool visible;            // Visibility flag for the icon
-        bool initiated;          // Has the icon being initiated?
+        bool initiated;          // Has the icon been initiated?
 
         PageIcon(const char* page, const char* component, const char* icon_code,
                 uint16_t color, uint8_t font, bool visibility)
@@ -34,22 +34,30 @@ namespace nspanel_ha_blueprint {
     };
 
     // Vector for managing pointers to icons, allocated dynamically in PSRAM
-    std::vector<PageIcon*>* icons;
+    using IconVector = std::vector<PageIcon*, esphome::ExternalRAMAllocator<PageIcon*>>;
+    IconVector* icons;
 
     // Function to set up the icons management structure
     void setup_icons() {
-        if (!PageIconInitilized) {
+        if (!PageIconInitialized) {
             // Allocate memory for the icons vector in PSRAM
             esphome::ESP_LOGD("nspanel_ha_blueprint.icons", "Allocating memory for icons vector");
-            esphome::ExternalRAMAllocator<std::vector<PageIcon*>>
-                                            allocator(esphome::ExternalRAMAllocator<std::vector<PageIcon*>>::ALLOW_FAILURE);
-            std::vector<PageIcon*>* icons = allocator.allocate(sizeof(std::vector<PageIcon*>));
-            if (!icons or icons == nullptr) {
-                esphome::ESP_LOGE("nspanel_ha_blueprint.icons",
-                                    "Failed to allocate memory for icons vector.");
+
+            esphome::ExternalRAMAllocator<IconVector> vector_allocator(
+                esphome::ExternalRAMAllocator<IconVector>::ALLOW_FAILURE);
+
+            icons = vector_allocator.allocate(1);  // Allocate memory for 1 vector object
+
+            if (!icons) {
+                esphome::ESP_LOGE("nspanel_ha_blueprint.icons", "Failed to allocate memory for icons vector.");
                 return;  // Memory allocation failed, do not proceed
             }
-            esphome::ESP_LOGD("nspanel_ha_blueprint.icons", "Memory allocated");
+
+            // Use placement new to initialize the vector in allocated memory
+            new (icons) IconVector(esphome::ExternalRAMAllocator<PageIcon*>());
+
+            PageIconInitialized = true;
+            esphome::ESP_LOGD("nspanel_ha_blueprint.icons", "Memory allocated for icons vector in PSRAM");
         }
     }
 
@@ -69,8 +77,9 @@ namespace nspanel_ha_blueprint {
     // Function to add a new icon or update an existing one, and return a pointer to the icon
     PageIcon* add_icon(const char* page, const char* component, const char* icon_code,
                         uint16_t color, uint8_t font, bool visibility) {
-        if (!PageIconInitilized)
+        if (!PageIconInitialized)
             setup_icons();
+
         PageIcon* existing_icon = find_icon(page, component);
         if (existing_icon != nullptr) {
             // Update the existing icon
@@ -83,17 +92,23 @@ namespace nspanel_ha_blueprint {
             return existing_icon;
         } else {
             // Allocate memory for the new icon in PSRAM
-            esphome::ESP_LOGD("nspanel_ha_blueprint.icons", "Allocating memory for new icon");
-            esphome::ExternalRAMAllocator<PageIcon> allocator(esphome::ExternalRAMAllocator<PageIcon>::ALLOW_FAILURE);
-            PageIcon* new_icon = allocator.allocate(sizeof(PageIcon));
-            if (!new_icon or new_icon == nullptr) {
-                esphome::ESP_LOGE("nspanel_ha_blueprint.icons",
-                                    "Failed to allocate memory for new icon vector.");
+            esphome::ESP_LOGD("nspanel_ha_blueprint.icons",
+                                "Allocating memory for new icon %s on page %s", component, page);
+            
+            esphome::ExternalRAMAllocator<PageIcon> icon_allocator(esphome::ExternalRAMAllocator<PageIcon>::ALLOW_FAILURE);
+            PageIcon* new_icon = icon_allocator.allocate(1);  // Allocate memory for 1 PageIcon in PSRAM
+
+            if (!new_icon) {
+                esphome::ESP_LOGE("nspanel_ha_blueprint.icons", "Failed to allocate memory for new icon.");
                 return nullptr;  // Memory allocation failed
             }
-            esphome::ESP_LOGD("nspanel_ha_blueprint.icons", "Memory allocated");
-            // Use placement new to construct the icon in allocated memory
+
+            esphome::ESP_LOGD("nspanel_ha_blueprint.icons", "Memory allocated for new icon in PSRAM");
+
+            // Use placement new to construct the icon in the allocated memory
             new (new_icon) PageIcon(page, component, icon_code, color, font, visibility);
+
+            // Add the newly created icon pointer (stored in PSRAM) to the vector
             icons->push_back(new_icon);
             return new_icon; // Return a pointer to the newly added icon
         }
@@ -103,7 +118,7 @@ namespace nspanel_ha_blueprint {
     PageIcon* get_icon(const char* page, const char* component) {
         PageIcon* icon = find_icon(page, component);
         if (icon == nullptr) {
-            if (!PageIconInitilized)
+            if (!PageIconInitialized)
                 setup_icons();
             // Add a new icon with default values
             icon = add_icon(page, component, "\uFFFF", 0, 8, false);
@@ -119,8 +134,8 @@ namespace nspanel_ha_blueprint {
                 icon->~PageIcon(); // Explicitly call the destructor
                 free(icon);        // Free the allocated memory for each icon
             }
-            icons->~vector(); // Explicitly call the destructor for the vector
-            free(icons);      // Free the allocated memory for the vector
+            icons->~IconVector(); // Explicitly call the destructor for the vector
+            free(icons);          // Free the allocated memory for the vector
             icons = nullptr;
         }
     }
