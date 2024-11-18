@@ -5,10 +5,17 @@
 #include "esphome/core/log.h"          // Ensure the correct logging functionality is included
 #include "esphome/components/api/api_server.h"
 #include "text.h"
+#include "esp_heap_caps.h"
+
+#ifndef PSRAM_ATTR
+#define PSRAM_ATTR __attribute__((section(".external_ram")))
+#endif
 
 namespace nspanel_ha_blueprint {
 
-    uint64_t callback_counter = 0;
+    static const char* TAG_HA_TO_NEXTION = "nspanel_ha_blueprint.ha_to_nextion";
+
+    PSRAM_ATTR uint64_t callback_counter = 0;
 
     struct EntityTarget {
         char entity_id[256];       // The Home Assistant entity_id to subscribe to
@@ -29,33 +36,29 @@ namespace nspanel_ha_blueprint {
         // Method to add a subscription pair to the list
         void addSubscription(const std::string &entity_id, const std::string &page,
                                                 const std::string &component, bool is_global) {
-            esphome::ESP_LOGD("nspanel_ha_blueprint.ha_to_nextion",
-                                "New subscription requested to '%s', page '%s', and component '%s'",
-                                entity_id.c_str(), page.c_str(), component.c_str());
+            esphome::ESP_LOGD(TAG_HA_TO_NEXTION, "New subscription requested to '%s', page '%s', and component '%s'",
+                                                entity_id.c_str(), page.c_str(), component.c_str());
             // Check if subscription already exists
             if (findSubscription(page, component) != nullptr) {
-                esphome::ESP_LOGW("nspanel_ha_blueprint.ha_to_nextion",
-                                "Subscription for page '%s', and component '%s' already exists!",
-                                page.c_str(), component.c_str());
+                esphome::ESP_LOGW(TAG_HA_TO_NEXTION, "Subscription for page '%s', and component '%s' already exists!",
+                                                    page.c_str(), component.c_str());
                 return;
             }
-            esphome::ESP_LOGD("nspanel_ha_blueprint.ha_to_nextion", "No previous subscription found");
+            esphome::ESP_LOGD(TAG_HA_TO_NEXTION, "No previous subscription found");
 
             // Create a new EntityTarget dynamically using PSRAM
-            esphome::ESP_LOGD("nspanel_ha_blueprint.ha_to_nextion", "Allocating memory");
+            esphome::ESP_LOGD(TAG_HA_TO_NEXTION, "Allocating memory");
             // Allocate the buffer dynamically
             esphome::ExternalRAMAllocator<EntityTarget> allocator(esphome::ExternalRAMAllocator<EntityTarget>::ALLOW_FAILURE);
             EntityTarget *new_entity_target = allocator.allocate(sizeof(EntityTarget));
             if (!new_entity_target or new_entity_target == nullptr) {
-                esphome::ESP_LOGE("nspanel_ha_blueprint.ha_to_nextion",
-                                    "Failed to allocate memory for new EntityTarget.");
+                esphome::ESP_LOGE(TAG_HA_TO_NEXTION, "Failed to allocate memory for new EntityTarget.");
                 return;  // Memory allocation failed, do not proceed
             }
-            esphome::ESP_LOGD("nspanel_ha_blueprint.ha_to_nextion", "Memory allocated");
+            esphome::ESP_LOGD(TAG_HA_TO_NEXTION, "Memory allocated");
 
             // Initialize the new entity target with the provided data
-            esphome::ESP_LOGD("nspanel_ha_blueprint.ha_to_nextion",
-                                "Initialize the new entity target with the provided data");
+            esphome::ESP_LOGD(TAG_HA_TO_NEXTION, "Initialize the new entity target with the provided data");
             copyStringToCharArray(new_entity_target->entity_id, entity_id);
             copyStringToCharArray(new_entity_target->page, page);
             copyStringToCharArray(new_entity_target->component, component);
@@ -64,20 +67,18 @@ namespace nspanel_ha_blueprint {
             copyStringToCharArray(new_entity_target->last_state_sent, "");  // Initial state is empty
 
             // Add the newly created subscription to the list
-            esphome::ESP_LOGD("nspanel_ha_blueprint.ha_to_nextion",
-                                "Add the newly created subscription to the list");
+            esphome::ESP_LOGD(TAG_HA_TO_NEXTION, "Add the newly created subscription to the list");
             if (subscriptions_.max_size() == subscriptions_.size()) {
-                esphome::ESP_LOGE("nspanel_ha_blueprint.ha_to_nextion",
-                                    "Subscription list capacity reached. Failed to add new subscription.");
+                esphome::ESP_LOGE(TAG_HA_TO_NEXTION, "Subscription list capacity reached. Failed to add new subscription.");
                 free(new_entity_target);
                 return;
             }
 
-            esphome::ESP_LOGD("nspanel_ha_blueprint.ha_to_nextion", "Pushing the newly created subscription to the list");
+            esphome::ESP_LOGD(TAG_HA_TO_NEXTION, "Pushing the newly created subscription to the list");
             subscriptions_.push_back(new_entity_target);
 
-            esphome::ESP_LOGI("nspanel_ha_blueprint.ha_to_nextion", "Successfully added subscription: entity_id='%s', page='%s', component='%s', global=%s",
-                            entity_id.c_str(), page.c_str(), component.c_str(), is_global ? "true" : "false");
+            esphome::ESP_LOGI(TAG_HA_TO_NEXTION, "Successfully added subscription: entity_id='%s', page='%s', component='%s', global=%s",
+                                                entity_id.c_str(), page.c_str(), component.c_str(), is_global ? "true" : "false");
         }
 
         // Method to set up all subscriptions for the current client connection
@@ -92,8 +93,8 @@ namespace nspanel_ha_blueprint {
 
                         // Check if the new state is different from the last one sent
                         if (state == subscription->last_state_sent) {
-                            esphome::ESP_LOGD("nspanel_ha_blueprint.ha_to_nextion", "State for entity '%s' has not changed, no update sent.",
-                                              subscription->entity_id);
+                            esphome::ESP_LOGD(TAG_HA_TO_NEXTION, "State for entity '%s' has not changed, no update sent.",
+                                                                    subscription->entity_id);
                             return;
                         }
 
@@ -104,14 +105,14 @@ namespace nspanel_ha_blueprint {
                         if (subscription->is_global || isCurrentPage(subscription->page)) {
                             updateNextionDisplay(subscription, state);
                         } else {
-                            esphome::ESP_LOGD("nspanel_ha_blueprint.ha_to_nextion", "Skipping update for entity '%s' as current page does not match target page '%s'.",
-                                              subscription->entity_id, subscription->page);
+                            esphome::ESP_LOGD(TAG_HA_TO_NEXTION, "Skipping update for entity '%s' as current page does not match target page '%s'.",
+                                                                    subscription->entity_id, subscription->page);
                         }
                     });
 
-                esphome::ESP_LOGI("nspanel_ha_blueprint.ha_to_nextion", "Subscribed to entity: %s for target component '%s' on page '%s'",
-                                  subscription->entity_id, subscription->component,
-                                  subscription->page);
+                esphome::ESP_LOGI(TAG_HA_TO_NEXTION, "Subscribed to entity: %s for target component '%s' on page '%s'",
+                                                        subscription->entity_id, subscription->component,
+                                                        subscription->page);
             }
         }
 
@@ -126,7 +127,7 @@ namespace nspanel_ha_blueprint {
             // Clear the subscription list
             subscriptions_.clear();
 
-            esphome::ESP_LOGI("nspanel_ha_blueprint.ha_to_nextion", "All subscriptions have been reset. You can now add new subscriptions.");
+            esphome::ESP_LOGI(TAG_HA_TO_NEXTION, "All subscriptions have been reset. You can now add new subscriptions.");
         }
 
     private:
@@ -136,8 +137,7 @@ namespace nspanel_ha_blueprint {
             resetSubscriptions();
         }
 
-        EntityTarget* findSubscription(const std::string &page,
-                                       const std::string &component) {
+        EntityTarget* findSubscription(const std::string &page, const std::string &component) {
             for (auto* subscription : subscriptions_) {
                 if (subscription &&
                     subscription->page == page &&
@@ -160,11 +160,11 @@ namespace nspanel_ha_blueprint {
         void updateNextionDisplay(EntityTarget* subscription, const std::string &state) {
             // Placeholder: Replace with actual logic to send data to the Nextion display
             if (subscription->is_global) {
-                esphome::ESP_LOGI("nspanel_ha_blueprint.ha_to_nextion", "Global Component: Sending update to Nextion for entity '%s' with value: %s",
-                                  subscription->entity_id, state.c_str());
+                esphome::ESP_LOGI(TAG_HA_TO_NEXTION, "Global Component: Sending update to Nextion for entity '%s' with value: %s",
+                                                        subscription->entity_id, state.c_str());
             } else {
-                esphome::ESP_LOGI("nspanel_ha_blueprint.ha_to_nextion", "Component '%s' on page '%s': Sending update to Nextion with value: %s",
-                                  subscription->component, subscription->page, state.c_str());
+                esphome::ESP_LOGI(TAG_HA_TO_NEXTION, "Component '%s' on page '%s': Sending update to Nextion with value: %s",
+                                                        subscription->component, subscription->page, state.c_str());
             }
 
             // Example Nextion command to update the component value (pseudo-code)

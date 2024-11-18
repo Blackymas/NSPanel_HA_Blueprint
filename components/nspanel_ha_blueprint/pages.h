@@ -6,6 +6,11 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include "esp_heap_caps.h"
+
+#ifndef PSRAM_ATTR
+#define PSRAM_ATTR __attribute__((section(".external_ram")))
+#endif
 
 namespace nspanel_ha_blueprint {
 
@@ -20,7 +25,7 @@ namespace nspanel_ha_blueprint {
     * These names correspond to various pages of the Nextion TFT file in use,
     * such as settings, home, weather information, and more.
     */
-    constexpr std::array<const char*, 29> page_names = {
+    IRAM_ATTR constexpr std::array<const char*, 29> page_names = {
         "boot",
         "home",
         "weather01",

@@ -1,25 +1,26 @@
 // utilities.cpp
 
 #include "utilities.h"
-#include <cstdlib> // For malloc/free
-#ifdef USE_ESP_IDF
-#include "esp_heap_caps.h"
-#elif defined(USE_ARDUINO)
-#include "esp32-hal-psram.h"
-#endif
+#include "esphome/core/log.h"
+#include "esphome/core/helpers.h"
 
 namespace nspanel_ha_blueprint {
+
+    static const char* TAG_UTILITIES = "nspanel_ha_blueprint.utilities";
 
     UtilitiesGroupValues *UtilitiesGroups = nullptr;
 
     void resetUtilitiesGroups() {
-        // Dynamically allocate the UtilitiesGroups array in PSRAM
-        #ifdef USE_ESP_IDF
-        UtilitiesGroups = static_cast<UtilitiesGroupValues*>(heap_caps_malloc(8 * sizeof(UtilitiesGroupValues), MALLOC_CAP_SPIRAM));
-        #elif defined(USE_ARDUINO)
-        UtilitiesGroups = static_cast<UtilitiesGroupValues*>(ps_malloc(8 * sizeof(UtilitiesGroupValues)));
-        #endif
-        
+        esphome::ESP_LOGD(TAG_UTILITIES, "Dynamically allocate the UtilitiesGroups array in PSRAM");
+        // Allocate PageButtonsButton dynamically
+        esphome::ExternalRAMAllocator<UtilitiesGroupValues> allocator(esphome::ExternalRAMAllocator<UtilitiesGroupValues>::ALLOW_FAILURE);
+        UtilitiesGroups = allocator.allocate(sizeof(UtilitiesGroupValues));
+        if (!UtilitiesGroups or UtilitiesGroups == nullptr) {
+            esphome::ESP_LOGE(TAG_UTILITIES, "Failed to allocate memory for UtilitiesGroups.");
+            return;  // Memory allocation failed, do not proceed
+        }
+        esphome::ESP_LOGD(TAG_UTILITIES, "Memory allocated");
+
         if (!UtilitiesGroups) UtilitiesGroups = new UtilitiesGroupValues[8];  // Fallback to internal SRAM if PSRAM is not available or not supported
         if (!UtilitiesGroups) return;                                         // Fail nicely if no memory is available
 

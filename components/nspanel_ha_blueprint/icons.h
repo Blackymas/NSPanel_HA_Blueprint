@@ -8,6 +8,8 @@
 
 namespace nspanel_ha_blueprint {
 
+    static const char* TAG_ICONS = "nspanel_ha_blueprint.icons";
+
     bool PageIconInitialized = false;
 
     // Structure representing an icon on a Nextion page
@@ -41,7 +43,7 @@ namespace nspanel_ha_blueprint {
     void setup_icons() {
         if (!PageIconInitialized) {
             // Allocate memory for the icons vector in PSRAM
-            esphome::ESP_LOGD("nspanel_ha_blueprint.icons", "Allocating memory for icons vector");
+            esphome::ESP_LOGD(TAG_ICONS, "Allocating memory for icons vector");
 
             esphome::ExternalRAMAllocator<IconVector> vector_allocator(
                 esphome::ExternalRAMAllocator<IconVector>::ALLOW_FAILURE);
@@ -49,7 +51,7 @@ namespace nspanel_ha_blueprint {
             icons = vector_allocator.allocate(1);  // Allocate memory for 1 vector object
 
             if (!icons) {
-                esphome::ESP_LOGE("nspanel_ha_blueprint.icons", "Failed to allocate memory for icons vector.");
+                esphome::ESP_LOGE(TAG_ICONS, "Failed to allocate memory for icons vector.");
                 return;  // Memory allocation failed, do not proceed
             }
 
@@ -57,7 +59,7 @@ namespace nspanel_ha_blueprint {
             new (icons) IconVector(esphome::ExternalRAMAllocator<PageIcon*>());
 
             PageIconInitialized = true;
-            esphome::ESP_LOGD("nspanel_ha_blueprint.icons", "Memory allocated for icons vector in PSRAM");
+            esphome::ESP_LOGD(TAG_ICONS, "Memory allocated for icons vector in PSRAM");
         }
     }
 
@@ -92,18 +94,17 @@ namespace nspanel_ha_blueprint {
             return existing_icon;
         } else {
             // Allocate memory for the new icon in PSRAM
-            esphome::ESP_LOGD("nspanel_ha_blueprint.icons",
-                                "Allocating memory for new icon %s on page %s", component, page);
+            esphome::ESP_LOGD(TAG_ICONS, "Allocating memory for new icon %s on page %s", component, page);
             
             esphome::ExternalRAMAllocator<PageIcon> icon_allocator(esphome::ExternalRAMAllocator<PageIcon>::ALLOW_FAILURE);
             PageIcon* new_icon = icon_allocator.allocate(1);  // Allocate memory for 1 PageIcon in PSRAM
 
             if (!new_icon) {
-                esphome::ESP_LOGE("nspanel_ha_blueprint.icons", "Failed to allocate memory for new icon.");
+                esphome::ESP_LOGE(TAG_ICONS, "Failed to allocate memory for new icon.");
                 return nullptr;  // Memory allocation failed
             }
 
-            esphome::ESP_LOGD("nspanel_ha_blueprint.icons", "Memory allocated for new icon in PSRAM");
+            esphome::ESP_LOGD(TAG_ICONS, "Memory allocated for new icon in PSRAM");
 
             // Use placement new to construct the icon in the allocated memory
             new (new_icon) PageIcon(page, component, icon_code, color, font, visibility);
