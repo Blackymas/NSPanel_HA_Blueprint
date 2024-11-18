@@ -12,13 +12,13 @@ namespace nspanel_ha_blueprint {
 
     // Structure representing an icon on a Nextion page
     struct PageIcon {
-        char page[15];           // The page this icon belongs to
-        char component[15];      // Component identifier for the icon
-        char icon[5];            // Icon codepoint (e.g., "\uE6E8" for mdi:lightbulb-on-outline)
-        uint16_t icon_color;     // RGB565 color value for the icon
-        uint8_t icon_font;       // Font identifier for the icon
-        bool visible;            // Visibility flag for the icon
-        bool initiated;          // Has the icon been initiated?
+        char page[15];        // The page this icon belongs to
+        char component[15];   // Component identifier for the icon
+        char icon[5];         // Icon codepoint (e.g., "\uE6E8" for mdi:lightbulb-on-outline)
+        uint16_t icon_color;  // RGB565 color value for the icon
+        uint8_t icon_font;    // Font identifier for the icon
+        bool visible;         // Visibility flag for the icon
+        bool initiated;       // Has the icon been initiated?
 
         PageIcon(const char* page, const char* component, const char* icon_code,
                 uint16_t color, uint8_t font, bool visibility)

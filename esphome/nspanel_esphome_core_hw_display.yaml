@@ -115,49 +115,7 @@ api:
         - lambda: |-
             ESP_LOGD("api.actions.icon", "New value for icon %s on page %s", component.c_str(), page.c_str());
             if (not page.empty() and not component.empty()) {
-              PageIcon* new_icon = get_icon(page.c_str(), component.c_str());
-
-              bool initializing = not new_icon->initiated;
-              new_icon->initiated = true;
-
-              bool changed_visibility = (new_icon->visible != visible);
-
-              // Icon codepoint
-              if (initializing or changed_visibility or icon != new_icon->icon) {
-                copyStringToCharArray(new_icon->icon, icon);
-                if (current_page->state == page)
-                  icon_set_icon->execute(new_icon);
-                }
-
-              // Icon color
-              if (icon_color.size() == 3 and
-                  icon_color[0] >= 0 and icon_color[0] <= UINT8_MAX and
-                  icon_color[1] >= 0 and icon_color[1] <= UINT8_MAX and
-                  icon_color[2] >= 0 and icon_color[2] <= UINT8_MAX) {
-                uint16_t new_icon_color = ((icon_color[0] & 0xF8) << 8) |
-                                          ((icon_color[1] & 0xFC) << 3) |
-                                          (icon_color[2] >> 3);
-                if (initializing or changed_visibility or new_icon->icon_color != new_icon_color) {
-                  new_icon->icon_color = new_icon_color;
-                  if (current_page->state == page)
-                    icon_set_color->execute(new_icon);
-                }
-              }
-
-              // Icon font
-              if (icon_font >= 0 and icon_font <= UINT8_MAX and
-                  (initializing or changed_visibility or new_icon->icon_font != icon_font)) {
-                new_icon->icon_font = icon_font;
-                if (current_page->state == page)
-                  icon_set_font->execute(new_icon);
-              }
-
-              // Icon visibility
-              if (initializing or changed_visibility) {
-                new_icon->visible = visible;
-                if (current_page->state == page)
-                  icon_set_visibility->execute(new_icon);
-              }
+              icon_action->execute(page.c_str(), component.c_str(), icon.c_str(), icon_color, icon_font, visible);
             }
 
     # Updates an entity to display specific values with dynamic icons, names, and color codes.
@@ -533,6 +491,61 @@ script:
       # Extended by:
       #   - nspanel_esphome_core_hw_display_timers.yaml
 
+  - id: icon_action
+    mode: parallel
+    parameters:
+      page: string       # Page name
+      component: string  # Identifier of the component. See "Screen components" in the documentation.
+      icon: string       # Icon codepoint, e.g., "/uE6E8" for `mdi:lightbulb-on-outline`.
+      icon_color: int[]  # RGB color array for the icon, e.g., [0, 255, 0] for green.
+      icon_font: int     # font size for icon
+      visible: bool      # Set to `true` for visible or `false` for hidden.
+    then:
+      # Extended by:
+      #   nspanel_esphome_core_hw_relays.yaml
+      - lambda: |-
+              PageIcon* new_icon = get_icon(page.c_str(), component.c_str());
+
+              const bool initializing = not new_icon->initiated;
+              new_icon->initiated = true;
+
+              const bool changed_visibility = (new_icon->visible != visible);
+
+              // Icon codepoint
+              if (initializing or changed_visibility or icon != new_icon->icon) {
+                copyStringToCharArray(new_icon->icon, icon);
+                if (current_page->state == page)
+                  icon_set_icon->execute(new_icon);
+                }
+
+              // Icon color
+              if (icon_color.size() == 3 and
+                  icon_color[0] >= 0 and icon_color[0] <= UINT8_MAX and
+                  icon_color[1] >= 0 and icon_color[1] <= UINT8_MAX and
+                  icon_color[2] >= 0 and icon_color[2] <= UINT8_MAX) {
+                uint16_t new_icon_color = color565(icon_color);
+                if (initializing or changed_visibility or new_icon->icon_color != new_icon_color) {
+                  new_icon->icon_color = new_icon_color;
+                  if (current_page->state == page)
+                    icon_set_color->execute(new_icon);
+                }
+              }
+
+              // Icon font
+              if (icon_font >= 0 and icon_font <= UINT8_MAX and
+                  (initializing or changed_visibility or new_icon->icon_font != icon_font)) {
+                new_icon->icon_font = icon_font;
+                if (current_page->state == page)
+                  icon_set_font->execute(new_icon);
+              }
+
+              // Icon visibility
+              if (initializing or changed_visibility) {
+                new_icon->visible = visible;
+                if (current_page->state == page)
+                  icon_set_visibility->execute(new_icon);
+              }
+
   - id: icon_set
     mode: parallel
     parameters:
@@ -895,6 +908,7 @@ script:
           display_wrapped_text->stop();
           event_from_display->stop();
           goto_page_id->stop();
+          icon_action->stop();
           icon_set->stop();
           icon_set_color->stop();
           icon_set_font->stop();

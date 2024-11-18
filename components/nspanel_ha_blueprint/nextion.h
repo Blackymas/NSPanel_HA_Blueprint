@@ -68,4 +68,8 @@ namespace nspanel_ha_blueprint {
         return (index % 8) + 1;  // Calculate the button ID within the page (1-based button numbering)
     }
 
+    inline uint16_t color565(const std::vector<int> &color888) {
+        return ((color888[0] & 0xF8) << 8) | ((color888[1] & 0xFC) << 3) | (color888[2] >> 3);
+    }
+
 }  // namespace nspanel_ha_blueprint
