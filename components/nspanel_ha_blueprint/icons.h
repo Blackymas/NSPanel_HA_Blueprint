@@ -2,7 +2,7 @@
 
 #include <string>
 #include <vector>
-#include "esphome/core/log.h"          // Ensure the correct logging functionality is included
+#include "esphome/core/log.h"
 #include "esphome/components/api/api_server.h"
 #include "text.h"
 

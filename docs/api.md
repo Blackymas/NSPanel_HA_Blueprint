@@ -267,8 +267,8 @@ This action is ideal for dynamically updating icons on your Panel, allowing for 
 - `component` (string): Identifier of the chip or button component. Refer to "[Screen components](#screen-components)" for more details.
 - `icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html).
 Example: "\uE6E8" for `mdi:lightbulb-on-outline`.
-- `icon_color` (int[]): RGB color array for the icon. Example: `[0, 255, 0]` for green.
-- `icon_font` (int): The Nextion font id to be used. Select `-1` to not change the current font.
+- `color` (int[]): RGB color array for the icon. Example: `[0, 255, 0]` for green.
+- `font` (int): The Nextion font id to be used. Select `-1` to not change the current font.
 - `visible` (bool): Flag indicating whether the icon should be visible (`true`) or hidden (`false`).
 
 **Home Assistant Example:**
@@ -277,9 +277,9 @@ action: esphome.<your_panel_name>_icon
 data:
   page: home
   component: chip03
-  icon: "\uE6E8"           # Example for mdi:lightbulb-on-outline
-  icon_color: [0, 255, 0]  # Green
-  icon_font: 8
+  icon: "\uE6E8"      # Example for mdi:lightbulb-on-outline
+  color: [0, 255, 0]  # Green
+  font: 8
   visible: true
 ```
 > [!NOTE]
