@@ -127,6 +127,21 @@ namespace nspanel_ha_blueprint {
         return icon;
     }
 
+    // Function to list all icons on a specific page
+    std::vector<PageIcon*> list_icons_by_page(const char* page) {
+        std::vector<PageIcon*> page_icons;
+
+        if (icons != nullptr) {
+            for (auto* icon : *icons) {
+                if (strncmp(icon->page, page, sizeof(icon->page)) == 0) {
+                    page_icons.push_back(icon);
+                }
+            }
+        }
+
+        return page_icons;
+    }
+
     // Destructor for cleanup, if needed
     void cleanup_icons() {
         if (icons != nullptr) {

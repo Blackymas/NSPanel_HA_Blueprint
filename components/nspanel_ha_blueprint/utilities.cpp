@@ -21,7 +21,7 @@ namespace nspanel_ha_blueprint {
         }
         esphome::ESP_LOGD(TAG_UTILITIES, "Memory allocated");
 
-        if (!UtilitiesGroups) UtilitiesGroups = new UtilitiesGroupValues[8];  // Fallback to internal SRAM if PSRAM is not available or not supported
+        if (!UtilitiesGroups) UtilitiesGroups = new (std::nothrow) UtilitiesGroupValues[8];  // Fallback to internal SRAM if PSRAM is not available or not supported
         if (!UtilitiesGroups) return;                                         // Fail nicely if no memory is available
 
         // Initialize UtilitiesGroups with default values
