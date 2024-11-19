@@ -6,6 +6,8 @@
 
 namespace nspanel_ha_blueprint {
 
+    static const char* TAG_NEXTION = "nspanel_ha_blueprint.nextion";
+
     bool PageButtonsButtonInitilized = false;
 
     // Structure representing a button on a Nextion page
@@ -36,24 +38,25 @@ namespace nspanel_ha_blueprint {
 
     // Function to set up all buttons in the PSRAM
     void setup_pagebuttons_buttons() {
-        // Allocate memory for 32 buttons, placing them in PSRAM if available
-        esphome::ESP_LOGD("nspanel_ha_blueprint.nextion.setup_buttons", "Allocating memory");
-        // Allocate PageButtonsButton dynamically
-        esphome::ExternalRAMAllocator<PageButtonsButton> allocator(esphome::ExternalRAMAllocator<PageButtonsButton>::ALLOW_FAILURE);
-        buttonpage_buttons = allocator.allocate(32 * sizeof(PageButtonsButton));
-        if (!buttonpage_buttons or buttonpage_buttons == nullptr) {
-            esphome::ESP_LOGE("nspanel_ha_blueprint.nextion.setup_buttons",
-                                "Failed to allocate memory for buttonpage_buttons.");
-            return;  // Memory allocation failed, do not proceed
-        }
-        esphome::ESP_LOGD("nspanel_ha_blueprint.nextion.setup_buttons", "Memory allocated");
+        if (!PageButtonsButtonInitilized) {
+            // Allocate memory for 32 buttons, placing them in PSRAM if available
+            esphome::ESP_LOGD(TAG_NEXTION, "Allocating memory");
+            // Allocate PageButtonsButton dynamically
+            esphome::ExternalRAMAllocator<PageButtonsButton> allocator(esphome::ExternalRAMAllocator<PageButtonsButton>::ALLOW_FAILURE);
+            buttonpage_buttons = allocator.allocate(32 * sizeof(PageButtonsButton));
+            if (!buttonpage_buttons or buttonpage_buttons == nullptr) {
+                esphome::ESP_LOGE(TAG_NEXTION, "Failed to allocate memory for buttonpage_buttons.");
+                return;  // Memory allocation failed, do not proceed
+            }
+            esphome::ESP_LOGD(TAG_NEXTION, "Memory allocated");
 
-        // Initialize each button with default settings
-        for (uint8_t i = 0; i < 32; ++i) {
-            new (&buttonpage_buttons[i]) PageButtonsButton(); // Placement new to call the constructor
-        }
+            // Initialize each button with default settings
+            for (uint8_t i = 0; i < 32; ++i) {
+                new (&buttonpage_buttons[i]) PageButtonsButton(); // Placement new to call the constructor
+            }
 
-        PageButtonsButtonInitilized = true;
+            PageButtonsButtonInitilized = true;
+        }
     }
 
     // Example of how to calculate page and button ID within the page based on index
@@ -63,6 +66,16 @@ namespace nspanel_ha_blueprint {
 
     inline uint8_t get_button_id_from_index(uint8_t index) {
         return (index % 8) + 1;  // Calculate the button ID within the page (1-based button numbering)
+    }
+
+    inline uint16_t color565(const std::vector<int8_t> &color888) {
+        return ((color888[0] & 0xF8) << 8) | ((color888[1] & 0xFC) << 3) | (color888[2] >> 3);
+    }
+    inline uint16_t color565(const std::vector<int16_t> &color888) {
+        return ((color888[0] & 0xF8) << 8) | ((color888[1] & 0xFC) << 3) | (color888[2] >> 3);
+    }
+    inline uint16_t color565(const std::vector<int32_t> &color888) {
+        return ((color888[0] & 0xF8) << 8) | ((color888[1] & 0xFC) << 3) | (color888[2] >> 3);
     }
 
 }  // namespace nspanel_ha_blueprint

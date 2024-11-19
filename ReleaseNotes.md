@@ -25,26 +25,30 @@ but also trying to reduce the communication between ESPHome and Nextion, prevent
 We highly recommend visiting our [API documentation](docs/api.md) for the latest syntax for the different actions.
 
 In addition to this standardization, there are some noteworth changes to the API:
+1. Action `components_visibility` is deprecated
 
-#### Action `components_visibility` is deprecated
-It was replaced by [`component_visibility` action](docs/api.md#component-visibility-action-component_visibility).
+    It was replaced by [`component_visibility` action](docs/api.md#component-visibility-action-component_visibility).
 
-#### Action `icon` now requires page name as a parameter
-More info at [API doc - Icon action](docs/api.md#icon-action-icon).
+1. Action `icon` now requires page name as a parameter
 
-#### Actions `init_global`, `init_hardware`, `init_page_home`, `set_timezone` and `hw_button_state` are deprecated
-It was replaced by a few `set_` var actions during the boot or automation reloaded.
+    More info at [API doc - Icon action](docs/api.md#icon-action-icon).
 
-### Sensor `blueprint_status` was removed
-The boot process was totally rebuilt.
+1. Actions `init_global`, `init_hardware`, `init_page_home`, `set_timezone` and `hw_button_state` are deprecated
+
+    They have been replaced by `set_number` and `set_string` which are used only during the boot or automation reloaded.
+
+1. Sensor `blueprint_status` was removed
+
+    The boot process was totally rebuilt and this info is now transferred via events.
+
+1. Notification unread sensor
+
+    The former "**Notification unread**" switch is now a binary sensor.
 
 ### Customizations
 We made improvements in some scripts, so the customizations using those scripts must be updated:
 - [Sleep & Wake-up buttons](docs/customization.md#sleep--wake-up-buttons)
 - [Set display as a light (deprecated)](docs/customization.md#set-display-as-a-light)
-
-### Notification unread sensor
-The former "**Notification unread**" switch is now a binary sensor.
 
 ## Noteworthy Changes
 

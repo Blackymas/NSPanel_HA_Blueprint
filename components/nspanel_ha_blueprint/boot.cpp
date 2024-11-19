@@ -11,7 +11,7 @@ namespace nspanel_ha_blueprint {
     // Function to mark a boot step as completed.
     // Parameters:
     //   step - The boot step constant representing the step to be marked as completed.
-    bool complete_boot_step(uint32_t step) {
+    bool complete_boot_step(const uint32_t step) {
         // Validate that the step is a power of two (i.e., only one bit is set).
         // This ensures that only valid boot step constants are accepted.
         if (step == 0 || (step & (step - 1)) != 0) {

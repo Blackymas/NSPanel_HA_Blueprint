@@ -98,6 +98,11 @@ script:
     mode: restart
     then:
       - lambda: |-
+          static PageIcon* wifi_icon = get_icon("home", "wifi_icon");
+          if (!wifi_icon or wifi_icon == nullptr)
+            return;
+          if (!wifi_icon->initiated)
+            wifi_icon->initiated = true;
           static bool blueprint_is_connected = false;
           static bool api_is_connected = false;
           static bool wifi_is_connected = false;
@@ -110,22 +115,26 @@ script:
             api_is_connected = api_server->is_connected();
             wifi_is_connected = wifi_component->is_connected();
             // Update Wi-Fi icon
-            char new_wifi_icon[8];  // Allocate sufficient space to store UTF-8 icon
+            char new_wifi_icon[5] = "\0";  // Allocate sufficient space to store UTF-8 icon
             if (wifi_is_connected) {
                 if (api_is_connected) {
                     if (blueprint_is_connected) {
-                        strncpy(new_wifi_icon, "${MDI_ICON_WIFI}", sizeof(new_wifi_icon));
+                        copyStringToCharArray(new_wifi_icon, "${MDI_ICON_WIFI}");
                     } else {
-                        strncpy(new_wifi_icon, "${MDI_ICON_HOME_ASSISTANT}", sizeof(new_wifi_icon));
+                        copyStringToCharArray(new_wifi_icon, "${MDI_ICON_HOME_ASSISTANT}");
                     }
                 } else {
-                    strncpy(new_wifi_icon, "${MDI_ICON_API_OFF}", sizeof(new_wifi_icon));
+                    copyStringToCharArray(new_wifi_icon, "${MDI_ICON_API_OFF}");
                 }
             } else {
-                strncpy(new_wifi_icon, "${MDI_ICON_WIFI_OFF}", sizeof(new_wifi_icon));
+                copyStringToCharArray(new_wifi_icon, "${MDI_ICON_WIFI_OFF}");
             }
 
-            set_component_text->execute("home", "wifi_icon", new_wifi_icon);
+            if (new_wifi_icon[0] != '\0' and strcmp(wifi_icon->icon, new_wifi_icon) != 0) {
+              copyStringToCharArray(wifi_icon->icon, new_wifi_icon);
+              if (id(current_page_id) == ${PAGE_ID_HOME})
+                icon_set_icon->execute(wifi_icon);
+            }
             if (blueprint_is_connected and api_is_connected and wifi_is_connected) {
               ESP_LOGI("script.refresh_wifi_icon", "Wi-Fi icon changed to %s (\\u%04X)",
                         new_wifi_icon, decode_utf8(new_wifi_icon));
@@ -136,12 +145,18 @@ script:
               set_variable_value->execute("api", 0);
             }
           }
+
           // Update Wi-Fi icon color
           if (status_has_changed or (wifi_rssi_warning != (wifi_rssi->state <= -70))) {
             wifi_rssi_warning = (wifi_rssi->state <= -70);
-            set_component_font_color->execute("home", "wifi_icon",
-                      (blueprint_is_connected and wifi_is_connected and api_is_connected) ?
-                      (wifi_rssi_warning ? 64992 : 33808) : 63488);
+            uint16_t new_wifi_icon_color = (blueprint_is_connected and wifi_is_connected and api_is_connected)
+                                            ? (wifi_rssi_warning ? 64992 : 33808)
+                                            : 63488;
+            if (wifi_icon->icon_color != new_wifi_icon_color) {
+              wifi_icon->icon_color = new_wifi_icon_color;
+              if (id(current_page_id) == ${PAGE_ID_HOME})
+                icon_set_color->execute(wifi_icon);
+            }
           }
 
   - id: !extend stop_all

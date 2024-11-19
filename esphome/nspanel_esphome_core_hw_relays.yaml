@@ -29,16 +29,23 @@ globals:
     initial_value: 'false'
 
   ##### Relay icons #####
+  - id: relay1_icon
+    type: PageIcon*
+    restore_value: false
   - id: home_relay1_icon
-    type: char[4]
+    type: char[5]
     restore_value: true
     initial_value: ''
   - id: home_relay1_icon_color
     type: uint16_t
     restore_value: true
     initial_value: '65535'
+
+  - id: relay2_icon
+    type: PageIcon*
+    restore_value: false
   - id: home_relay2_icon
-    type: char[4]
+    type: char[5]
     restore_value: true
     initial_value: ''
   - id: home_relay2_icon_color
@@ -55,8 +62,38 @@ script:
   - id: !extend boot_sequence
     then:
       - lambda: |-
-          set_component_font_color->execute("home", "chip_relay1", id(home_relay1_icon_color));
-          set_component_font_color->execute("home", "chip_relay2", id(home_relay2_icon_color));
+          id(relay1_icon) = get_icon("home", "chip_relay1");
+          if (!id(relay1_icon)->initiated) {
+            id(relay1_icon)->initiated = true;
+            copyStringToCharArray(id(relay1_icon)->icon, id(home_relay1_icon));
+            id(relay1_icon)->icon_color = id(home_relay1_icon_color);
+            id(relay1_icon)->visible = relay_1->state;
+            if (id(current_page_id) == ${PAGE_ID_HOME})
+              icon_set->execute(id(relay1_icon));
+          }
+          id(relay2_icon) = get_icon("home", "chip_relay2");
+          if (!id(relay2_icon)->initiated) {
+            id(relay2_icon)->initiated = true;
+            copyStringToCharArray(id(relay2_icon)->icon, id(home_relay2_icon));
+            id(relay2_icon)->icon_color = id(home_relay2_icon_color);
+            id(relay2_icon)->visible = relay_2->state;
+            if (id(current_page_id) == ${PAGE_ID_HOME})
+              icon_set->execute(id(relay2_icon));
+          }
+
+  - id: !extend icon_action  # Defined by nspanel_esphome_core_hw_display.yaml
+    then:
+      - lambda: |-
+          if (page == "home") {
+            if (component == "chip_relay1") {
+              id(home_relay1_icon_color) = color565(icon_color);
+              copyStringToCharArray(id(home_relay1_icon), icon);
+            }
+            else if (component == "chip_relay2") {
+              id(home_relay2_icon_color) = color565(icon_color);
+              copyStringToCharArray(id(home_relay2_icon), icon);
+            }
+          }
 
   - id: !extend page_home
     then:
@@ -70,17 +107,15 @@ script:
       relay_mask: uint8_t
     then:
       - lambda: |-
-          if (relay_mask & 1)
-            set_component_text->execute("home", "chip_relay1", relay_1->state ? id(home_relay1_icon) : "\uFFFF");
-          if (relay_mask & 2)
-            set_component_text->execute("home", "chip_relay2", relay_2->state ? id(home_relay2_icon) : "\uFFFF");
-
-  - id: !extend set_component_font_color  # Defined by nspanel_esphome_core_hw_display.yaml
-    then:
-      - lambda: |-
-          if (page == "home") {
-            if (component == "chip_relay1") id(home_relay1_icon_color) = color;
-            else if (component == "chip_relay2") id(home_relay2_icon_color) = color;
+          if ((relay_mask & 1) and id(relay1_icon)->visible != relay_1->state) {
+            id(relay1_icon)->visible = relay_1->state;
+            if (id(current_page_id) != ${PAGE_ID_HOME})
+              icon_set_visibility->execute(id(relay1_icon));
+          }
+          if ((relay_mask & 2) and id(relay2_icon)->visible != relay_2->state) {
+            id(relay2_icon)->visible = relay_2->state;
+            if (id(current_page_id) != ${PAGE_ID_HOME})
+              icon_set_visibility->execute(id(relay2_icon));
           }
 
   - id: !extend set_var_bool
@@ -114,14 +149,6 @@ script:
 
             boot_progress->execute(${BOOT_STEP_HW_RELAYS}, "HW Relays");
           }
-
-  - id: !extend set_var_string
-    then:
-      - lambda: |-
-          if (component == "relay1_icon")
-            copyStringToCharArray(id(home_relay1_icon), val);
-          else if (component == "relay2_icon")
-            copyStringToCharArray(id(home_relay2_icon), val);
 
   - id: !extend stop_all
     then:
