@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 #include "esphome/core/log.h"
-#include "esphome/components/api/api_server.h"
 
 namespace nspanel_ha_blueprint {
 
@@ -17,12 +16,13 @@ namespace nspanel_ha_blueprint {
         char component[15];   // Component identifier for the text
         char text[101];       // The text content (max 100 characters + null terminator)
         uint16_t text_color;  // RGB565 color value for the text
+        uint8_t text_font;    // Font identifier for the text
         bool visible;         // Visibility flag for the text
         bool initiated;       // Has the text component been initiated?
 
         PageText(const char* page, const char* component, const char* text_content,
-                    uint16_t color, bool visibility)
-            : text_color(color), visible(visibility), initiated(false) {
+                    uint16_t color, uint8_t font, bool visibility)
+            : text_color(color), text_font(font), visible(visibility), initiated(false) {
             // Copy the page, component, and text content safely
             strncpy(this->page, page, sizeof(this->page) - 1);
             this->page[sizeof(this->page) - 1] = '\0';
@@ -76,7 +76,7 @@ namespace nspanel_ha_blueprint {
 
     // Function to add a new text component or update an existing one, and return a pointer to the text
     PageText* add_text(const char* page, const char* component, const char* text_content,
-                        uint16_t color, bool visibility) {
+                        uint16_t color, uint8_t font, bool visibility) {
         if (!PageTextInitialized)
             setup_texts();
 
@@ -86,6 +86,7 @@ namespace nspanel_ha_blueprint {
             strncpy(existing_text->text, text_content, sizeof(existing_text->text) - 1);
             existing_text->text[sizeof(existing_text->text) - 1] = '\0';
             existing_text->text_color = color;
+            existing_text->text_font = font;
             existing_text->visible = visibility;
             existing_text->initiated = false;
             return existing_text;
@@ -104,7 +105,7 @@ namespace nspanel_ha_blueprint {
             esphome::ESP_LOGD(TAG_TEXTS, "Memory allocated for new text in PSRAM");
 
             // Use placement new to construct the text in the allocated memory
-            new (new_text) PageText(page, component, text_content, color, visibility);
+            new (new_text) PageText(page, component, text_content, color, font, visibility);
 
             // Add the newly created text pointer (stored in PSRAM) to the vector
             texts->push_back(new_text);
@@ -119,7 +120,7 @@ namespace nspanel_ha_blueprint {
             if (!PageTextInitialized)
                 setup_texts();
             // Add a new text with default values
-            text = add_text(page, component, "Default Text", 0xFFFF, false);
+            text = add_text(page, component, "Default Text", 0xFFFF, 8, false);
         }
         return text;
     }

@@ -118,6 +118,22 @@ api:
               icon_action->execute(page.c_str(), component.c_str(), icon.c_str(), color, font, visible);
             }
 
+    # Text action
+    - action: text
+      variables:
+        page: string       # Page name
+        component: string  # Identifier of the component. See "Screen components" in the documentation.
+        txt: string        # The text to display
+        color: int[]       # RGB color array for the text, e.g., [0, 255, 0] for green.
+        font: int          # font size for text
+        visible: bool      # Set to `true` for visible or `false` for hidden.
+      then:
+        - lambda: |-
+            ESP_LOGD("api.actions.text", "New value for text %s on page %s", component.c_str(), page.c_str());
+            if (not page.empty() and not component.empty()) {
+              text_action->execute(page.c_str(), component.c_str(), txt.c_str(), color, font, visible);
+            }
+
     # Updates an entity to display specific values with dynamic icons, names, and color codes.
     - action: value
       variables:
@@ -675,6 +691,7 @@ script:
                 {"entity", detailed_entity->state.c_str()}
               });
             }
+            page_changed_rendering_text->execute();
             page_changed_rendering_icons->execute();
 
   - id: page_changed_rendering_icons
@@ -685,6 +702,16 @@ script:
           std::vector<PageIcon*> page_icons = list_icons_by_page(page_names[id(current_page_id)]);
           for (PageIcon* icon : page_icons) {
               icon_set->execute(icon);
+          }
+
+  - id: page_changed_rendering_texts
+    mode: restart
+    then:
+      - lambda: |-
+          // Plot page's texts
+          std::vector<PageText*> page_texts = list_text_by_page(page_names[id(current_page_id)]);
+          for (PageText* txt : page_texts) {
+              text_set->execute(txt);
           }
 
   - id: send_command
@@ -936,6 +963,112 @@ script:
           set_component_picc->stop();
           set_component_text->stop();
           set_component_visibility->stop();
+          text_action->stop();
+          text_set->stop();
+          text_set_color->stop();
+          text_set_font->stop();
+          text_set_txt->stop();
+          text_set_visibility->stop();
+
+  - id: text_action
+    mode: parallel
+    parameters:
+      page: string       # Page name
+      component: string  # Identifier of the component. See "Screen components" in the documentation.
+      txt: string        # Text to display.
+      color: int32_t[]   # RGB color array for the text, e.g., [0, 255, 0] for green.
+      font: int          # font size for text
+      visible: bool      # Set to `true` for visible or `false` for hidden.
+    then:
+      # Extended by:
+      #   nspanel_esphome_core_hw_relays.yaml
+      - lambda: |-
+              PageText* new_text = get_text(page.c_str(), component.c_str());
+
+              const bool initializing = not new_text->initiated;
+              new_text->initiated = true;
+
+              const bool changed_visibility = (new_text->visible != visible);
+
+              // Text
+              if (!txt.empty() and (initializing or changed_visibility or txt != new_text->text)) {
+                copyStringToCharArray(new_text->text, txt);
+                if (current_page->state == page)
+                  text_set_txt->execute(new_text);
+                }
+
+              // Text color
+              if (color.size() == 3 and
+                  color[0] >= 0 and color[0] <= UINT8_MAX and
+                  color[1] >= 0 and color[1] <= UINT8_MAX and
+                  color[2] >= 0 and color[2] <= UINT8_MAX) {
+                uint16_t new_text_color = color565(color);
+                if (initializing or changed_visibility or new_text->text_color != new_text_color) {
+                  new_text->text_color = new_text_color;
+                  if (current_page->state == page)
+                    text_set_color->execute(new_text);
+                }
+              }
+
+              // Text font
+              if (font >= 0 and font <= UINT8_MAX and
+                  (initializing or changed_visibility or new_text->text_font != font)) {
+                new_text->text_font = font;
+                if (current_page->state == page)
+                  text_set_font->execute(new_text);
+              }
+
+              // Icon visibility
+              if (initializing or changed_visibility) {
+                new_text->visible = visible;
+                if (current_page->state == page)
+                  text_set_visibility->execute(new_text);
+              }
+
+  - id: text_set
+    mode: parallel
+    parameters:
+      txt: PageText*
+    then:
+      - lambda: |-
+          ESP_LOGD("script.text_set", "Rendering page %s, component %s", txt->page, txt->component);
+          text_set_txt->execute(txt);
+          text_set_color->execute(txt);
+          text_set_font->execute(txt);
+          text_set_visibility->execute(txt);
+
+  - id: text_set_color
+    mode: parallel
+    parameters:
+      txt: PageText*
+    then:
+      - lambda: |-
+          set_component_font_color->execute(txt->page, txt->component, txt->text_color);
+
+  - id: text_set_font
+    mode: parallel
+    parameters:
+      txt: PageText*
+    then:
+      - lambda: |-
+          if (txt->text_font != UINT8_MAX)
+            set_component_font->execute(txt->page, txt->component, txt->text_font);
+
+  - id: text_set_txt
+    mode: parallel
+    parameters:
+      txt: PageText*
+    then:
+      - lambda: |-
+          set_component_text->execute(txt->page, txt->component, txt->text);
+
+  - id: text_set_visibility
+    mode: parallel
+    parameters:
+      txt: PageText*
+    then:
+      - lambda: |-
+          set_component_visibility->execute(txt->page, txt->component, txt->visible);
 
 select:
   - id: baud_rate
