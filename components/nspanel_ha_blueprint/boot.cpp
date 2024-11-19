@@ -1,17 +1,12 @@
 // boot.cpp
 
 #include "boot.h"  // Include the header file for function and variable declarations.
-#include "esp_heap_caps.h"
-
-#ifndef PSRAM_ATTR
-#define PSRAM_ATTR __attribute__((section(".external_ram")))
-#endif
 
 namespace nspanel_ha_blueprint {
 
     // Definition of the global variable to track completed boot steps.
     // Each bit in this variable represents whether a boot step has been completed.
-    PSRAM_ATTR uint32_t completed_boot_steps = 0;
+    uint32_t completed_boot_steps = 0;
 
     // Function to mark a boot step as completed.
     // Parameters:

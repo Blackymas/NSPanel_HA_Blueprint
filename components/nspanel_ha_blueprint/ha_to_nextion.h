@@ -5,17 +5,12 @@
 #include "esphome/core/log.h"          // Ensure the correct logging functionality is included
 #include "esphome/components/api/api_server.h"
 #include "text.h"
-#include "esp_heap_caps.h"
-
-#ifndef PSRAM_ATTR
-#define PSRAM_ATTR __attribute__((section(".external_ram")))
-#endif
 
 namespace nspanel_ha_blueprint {
 
     static const char* TAG_HA_TO_NEXTION = "nspanel_ha_blueprint.ha_to_nextion";
 
-    PSRAM_ATTR uint64_t callback_counter = 0;
+    uint64_t callback_counter = 0;
 
     struct EntityTarget {
         char entity_id[256];       // The Home Assistant entity_id to subscribe to
