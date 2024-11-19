@@ -57,7 +57,7 @@ We made improvements in some scripts, so the customizations using those scripts 
   Introduces the ability to assign an entity (supports input text or sensors) to a QR code. 
   The QR code will automatically update on the panel when the entity's value changes.
 
-  In addition, the limit for a QRcode was extended to 96 chars (or bytes), giving more room for complex codes.
+  In addition, the limit for a QRcode was extended to 96 chars (or bytes), giving more room for complex codes.  
 
   This feature is useful in cases where you have dynamic content, such as a Wi-Fi password, and 
   want the panel to display the updated value in real-time.
@@ -68,6 +68,18 @@ We made improvements in some scripts, so the customizations using those scripts 
   - #452
   - #2282
   - #2283
+
+### Full support to 921600bps
+- **Description:**
+  The default baud rate for the communication between ESP32 (ESPHome) and the Nextion Display was changed from 115200bps to 921600bps, multiplying by 8 the transfer rate.
+  This may increase the responsiveness and user experience, and will allow for future development of features which requires more of this communication.
+- **Criticality:** Enhancement
+- **Issue Numbers:**
+  - #2230
+- **Issues and discussions that could benefit from this in the future:**
+  - #1270
+  - #2328
+  - #2357
 
 ### Swipe Functionality Improvement and Bug Fix (#2244)
 - **Criticality:** Medium
