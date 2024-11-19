@@ -52,17 +52,22 @@ We made improvements in some scripts, so the customizations using those scripts 
 
 ## Noteworthy Changes
 
-### Dynamic QR Code (#452 & #2283)
-- **Criticality:** Enhancement
-- **Issue Numbers:**
-  - #452
-  - #2283
+### Dynamic QR Code
 - **Description:**
   Introduces the ability to assign an entity (supports input text or sensors) to a QR code. 
   The QR code will automatically update on the panel when the entity's value changes.
 
+  In addition, the limit for a QRcode was extended to 96 chars (or bytes), giving more room for complex codes.
+
   This feature is useful in cases where you have dynamic content, such as a Wi-Fi password, and 
   want the panel to display the updated value in real-time.
+
+  Your current selection for QRcode still working, as it will be used as a fallback value when an entity is not used or is used, but it is unavailable.
+- **Criticality:** Enhancement
+- **Issue Numbers:**
+  - #452
+  - #2282
+  - #2283
 
 ### Swipe Functionality Improvement and Bug Fix (#2244)
 - **Criticality:** Medium
