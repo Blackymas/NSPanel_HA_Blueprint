@@ -100,7 +100,7 @@ namespace nspanel_ha_blueprint {
             PageIcon* new_icon = icon_allocator.allocate(1);  // Allocate memory for 1 PageIcon in PSRAM
 
             if (!new_icon) {
-                esphome::ESP_LOGE(TAG_ICONS, "Failed to allocate memory for new icon.");
+                esphome::ESP_LOGE(TAG_ICONS, "Failed to allocate memory for new icon %s on page %s", component, page);
                 return nullptr;  // Memory allocation failed
             }
 
