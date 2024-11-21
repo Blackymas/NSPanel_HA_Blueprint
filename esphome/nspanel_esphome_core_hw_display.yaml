@@ -139,34 +139,36 @@ esphome:
 
     - priority: 600.5
       then:
-        - wait_until:
-            - lambda: return not id(is_safe_mode);
-        - wait_until:
-            condition:
-              - lambda: return (not isnan(stoi(baud_rate->state)));
-            timeout: 60s
-        - script.execute:
-            id: boot_log
-            category: on_boot
-            log_message: Set baud rate
-        - lambda: |-
-            if (stoi(baud_rate->state) != tf_uart->get_baud_rate())
-              set_baud_rate->execute(stoi(baud_rate->state), true);
-        - wait_until:
-            condition:
-              - lambda: return disp1->is_setup();
-            timeout: 60s
         - if:
             condition:
-              - lambda: return (not disp1->is_detected());
+              - lambda: return not id(is_safe_mode);
             then:
+              - wait_until:
+                  condition:
+                    - lambda: return (not isnan(stoi(baud_rate->state)));
+                  timeout: 60s
               - script.execute:
                   id: boot_log
                   category: on_boot
-                  log_message: Restart Nextion
-              - switch.turn_off: screen_power
-              - delay: 2s
-              - switch.turn_on: screen_power
+                  log_message: Set baud rate
+              - lambda: |-
+                  if (stoi(baud_rate->state) != tf_uart->get_baud_rate())
+                    set_baud_rate->execute(stoi(baud_rate->state), true);
+              - wait_until:
+                  condition:
+                    - lambda: return disp1->is_setup();
+                  timeout: 60s
+              - if:
+                  condition:
+                    - lambda: return (not disp1->is_detected());
+                  then:
+                    - script.execute:
+                        id: boot_log
+                        category: on_boot
+                        log_message: Restart Nextion
+                    - switch.turn_off: screen_power
+                    - delay: 2s
+                    - switch.turn_on: screen_power
 
   on_shutdown:
     - priority: 600.5
@@ -334,6 +336,10 @@ script:
     parameters:
       display_component: DisplayComponent*
     then:
+      - wait_until:
+          condition:
+            - lambda: return (display_component->page_id == current_page_id);
+          timeout: 2s
       - lambda: |-
           ESP_LOGD("script.display_component_send", "Rendering page %s, component %s",
                     page_names[display_component->page_id], display_component->component);
@@ -347,41 +353,84 @@ script:
     parameters:
       display_component: DisplayComponent*
     then:
+      - wait_until:
+          condition:
+            - lambda: return (display_component->page_id == current_page_id);
+          timeout: 2s
+      - script.execute: nextion_queue_add
+      - if:
+          condition:
+            - lambda: return (display_component->page_id == current_page_id);
+          then:
+            - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          set_component_font_color->execute(display_component->page_id,
-                                            display_component->component,
-                                            display_component->color);
-
+          if (display_component->page_id == current_page_id)
+            disp1->set_component_font_color(display_component->component, display_component->color);
+          nextion_queue_del->execute();
+  
   - id: display_component_send_font
     mode: parallel
     parameters:
       display_component: DisplayComponent*
     then:
-      - lambda: |-
-          if (display_component->font != UINT8_MAX)
-            set_component_font->execute(display_component->page_id,
-                                        display_component->component,
-                                        display_component->font);
+      - if:
+          condition:
+            - lambda: return (display_component->font != UINT8_MAX);
+          then:
+            - wait_until:
+                condition:
+                  - lambda: return (display_component->page_id == current_page_id);
+                timeout: 2s
+            - script.execute: nextion_queue_add
+            - if:
+                condition:
+                  - lambda: return (display_component->page_id == current_page_id);
+                then:
+                  - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
+            - lambda: |-
+                if (display_component->page_id == current_page_id)
+                  disp1->set_component_font(display_component->component, display_component->font);
+                nextion_queue_del->execute();
 
   - id: display_component_send_text
     mode: parallel
     parameters:
       display_component: DisplayComponent*
     then:
+      - wait_until:
+          condition:
+            - lambda: return (display_component->page_id == current_page_id);
+          timeout: 2s
+      - script.execute: nextion_queue_add
+      - if:
+          condition:
+            - lambda: return (display_component->page_id == current_page_id);
+          then:
+            - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          set_component_text->execute(display_component->page_id,
-                                      display_component->component,
-                                      display_component->text);
+          if (display_component->page_id == current_page_id)
+            disp1->set_component_text(display_component->component, display_component->text);
+          nextion_queue_del->execute();
 
   - id: display_component_send_visibility
     mode: parallel
     parameters:
       display_component: DisplayComponent*
     then:
+      - wait_until:
+          condition:
+            - lambda: return (display_component->page_id == current_page_id);
+          timeout: 2s
+      - script.execute: nextion_queue_add
+      - if:
+          condition:
+            - lambda: return (display_component->page_id == current_page_id);
+          then:
+            - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          set_component_visibility->execute(display_component->page_id,
-                                            display_component->component,
-                                            display_component->visible);
+          if (display_component->page_id == current_page_id)
+            disp1->send_command_printf("vis %s,%i", display_component->component, display_component->visible ? 1 : 0);
+          nextion_queue_del->execute();
 
   - id: display_component_update_color
     mode: parallel
