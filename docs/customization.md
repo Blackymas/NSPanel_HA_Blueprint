@@ -299,7 +299,7 @@ binary_sensor:
     id: display_state
     platform: template
     lambda: |-
-      return (id(current_page_id) != ${PAGE_ID_SCREENSAVER});
+      return (current_page_id != ${PAGE_ID_SCREENSAVER});
 ```
 
 You can easily invert the meaning to have a sensor for display sleeping:
@@ -311,7 +311,7 @@ binary_sensor:
     id: display_sleeping
     platform: template
     lambda: |-
-      return (id(current_page_id) == ${PAGE_ID_SCREENSAVER});
+      return (current_page_id == ${PAGE_ID_SCREENSAVER});
 ```
 
 ### Deep sleep
@@ -396,7 +396,7 @@ button:
       then:
         - lambda: |-
             ESP_LOGI("button.force_wake_up.on_press", "Button Wake-up pressed");
-            if (id(current_page_id) == ${PAGE_ID_SCREENSAVER})
+            if (current_page_id == ${PAGE_ID_SCREENSAVER})
               goto_page_id->execute(get_page_id(id(wakeup_page_name).state.c_str()), true);
 ```
 
