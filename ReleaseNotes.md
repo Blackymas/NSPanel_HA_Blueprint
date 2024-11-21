@@ -25,17 +25,16 @@ but also trying to reduce the communication between ESPHome and Nextion, prevent
 We highly recommend visiting our [API documentation](docs/api.md) for the latest syntax for the different actions.
 
 In addition to this standardization, there are some noteworth changes to the API:
-1. Action `components_visibility` is deprecated
+1. Deprecated actions:
 
-    It was replaced by [`component_visibility` action](docs/api.md#component-visibility-action-component_visibility).
-
-1. Action `icon` now requires page name as a parameter
-
-    More info at [API doc - Icon action](docs/api.md#icon-action-icon).
-
-1. Actions `init_global`, `init_hardware`, `init_page_home`, `set_timezone` and `hw_button_state` are deprecated
-
-    They have been replaced by `set_number` and `set_string` which are used only during the boot or automation reloaded.
+    <!-- markdownlint-disable MD033 -->
+    | Deprecated action | Replacement | Previous use |
+    | :--: | :--: | :-- |
+    | `init_global`<br>`init_hardware`<br>`hw_button_state` | `set_number`<br>`set_string` | Used to send settings at boot |
+    | `init_page_home` | [`component`](docs/api.md#component-action-component) | Used to send global values to page Home |
+    | `set_timezone` | `set_string` | Used to send time zone settings at boot |
+    | `component_text`<br>`component_color`<br>`component_visibility`<br>`icon`| [`component`](docs/api.md#component-action-component) | Used to set a component on the display |
+    <!-- markdownlint-enable MD033 -->
 
 1. Sensor `blueprint_status` was removed
 
@@ -57,7 +56,7 @@ We made improvements in some scripts, so the customizations using those scripts 
   Introduces the ability to assign an entity (supports input text or sensors) to a QR code. 
   The QR code will automatically update on the panel when the entity's value changes.
 
-  In addition, the limit for a QRcode was extended to 96 chars (or bytes), giving more room for complex codes.
+  In addition, the limit for a QRcode was extended to 96 chars (or bytes), giving more room for complex codes.  
 
   This feature is useful in cases where you have dynamic content, such as a Wi-Fi password, and 
   want the panel to display the updated value in real-time.
@@ -68,6 +67,18 @@ We made improvements in some scripts, so the customizations using those scripts 
   - #452
   - #2282
   - #2283
+
+### Full support to 921600bps
+- **Description:**
+  The default baud rate for the communication between ESP32 (ESPHome) and the Nextion Display was changed from 115200bps to 921600bps, multiplying by 8 the transfer rate.
+  This may increase the responsiveness and user experience, and will allow for future development of features which requires more of this communication.
+- **Criticality:** Enhancement
+- **Issue Numbers:**
+  - #2230
+- **Issues and discussions that could benefit from this in the future:**
+  - #1270
+  - #2328
+  - #2357
 
 ### Swipe Functionality Improvement and Bug Fix (#2244)
 - **Criticality:** Medium

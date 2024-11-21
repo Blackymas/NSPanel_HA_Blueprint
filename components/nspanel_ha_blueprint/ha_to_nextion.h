@@ -2,7 +2,7 @@
 
 #include <string>
 #include <vector>
-#include "esphome/core/log.h"          // Ensure the correct logging functionality is included
+#include "esphome/core/log.h"
 #include "esphome/components/api/api_server.h"
 #include "text.h"
 
@@ -32,11 +32,11 @@ namespace nspanel_ha_blueprint {
         void addSubscription(const std::string &entity_id, const std::string &page,
                                                 const std::string &component, bool is_global) {
             esphome::ESP_LOGD(TAG_HA_TO_NEXTION, "New subscription requested to '%s', page '%s', and component '%s'",
-                                                entity_id.c_str(), page.c_str(), component.c_str());
+                                                    entity_id.c_str(), page.c_str(), component.c_str());
             // Check if subscription already exists
             if (findSubscription(page, component) != nullptr) {
                 esphome::ESP_LOGW(TAG_HA_TO_NEXTION, "Subscription for page '%s', and component '%s' already exists!",
-                                                    page.c_str(), component.c_str());
+                                                        page.c_str(), component.c_str());
                 return;
             }
             esphome::ESP_LOGD(TAG_HA_TO_NEXTION, "No previous subscription found");
@@ -155,10 +155,10 @@ namespace nspanel_ha_blueprint {
         void updateNextionDisplay(EntityTarget* subscription, const std::string &state) {
             // Placeholder: Replace with actual logic to send data to the Nextion display
             if (subscription->is_global) {
-                esphome::ESP_LOGI(TAG_HA_TO_NEXTION, "Global Component: Sending update to Nextion for entity '%s' with value: %s",
+                esphome::ESP_LOGD(TAG_HA_TO_NEXTION, "Global Component: Sending update to Nextion for entity '%s' with value: %s",
                                                         subscription->entity_id, state.c_str());
             } else {
-                esphome::ESP_LOGI(TAG_HA_TO_NEXTION, "Component '%s' on page '%s': Sending update to Nextion with value: %s",
+                esphome::ESP_LOGD(TAG_HA_TO_NEXTION, "Component '%s' on page '%s': Sending update to Nextion with value: %s",
                                                         subscription->component, subscription->page, state.c_str());
             }
 
