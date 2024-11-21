@@ -22,6 +22,23 @@ api:
         - lambda: |-
             send_command->execute(cmd.c_str());
 
+    # Component action
+    - action: component
+      variables:
+        page: string       # Page name
+        component: string  # Identifier of the component. See "Screen components" in the documentation.
+        txt: string        # The text to display
+        color: int[]       # RGB color array for the text, e.g., [0, 255, 0] for green.
+        font: int          # font size for text
+        visible: bool      # Set to `true` for visible or `false` for hidden.
+      then:
+        - lambda: |-
+            ESP_LOGD("api.actions.component", "New value for component '%s' on page '%s'",
+                      component.c_str(), page.c_str());
+            if (not page.empty() and not component.empty())
+              display_component_action->execute(get_page_id(page.c_str()), component.c_str(),
+                                                txt.c_str(), color, font, visible);
+
     # Changes the foreground color of a specified component on the display.
     - action: component_color
       variables:
@@ -31,8 +48,7 @@ api:
       then:
         - lambda: |-
             if (color.size() == 3)
-              set_component_font_color->execute(page.c_str(), component.c_str(),
-                                                (((color[0] & 0xF8) << 8) | ((color[1] & 0xFC) << 3) |(color[2] >> 3)));
+              set_component_font_color->execute(get_page_id(page.c_str()), component.c_str(), color565(color));
 
     # Updates the text of a specified component on the display.
     - action: component_text
@@ -43,7 +59,7 @@ api:
       then:
         - script.execute:
             id: set_component_text
-            page: !lambda return page;
+            page_id: !lambda return get_page_id(page.c_str());
             component: !lambda return component;
             text: !lambda return txt;
 
@@ -56,7 +72,7 @@ api:
       then:
         - script.execute:
             id: set_component_value
-            page: !lambda return page;
+            page_id: !lambda return get_page_id(page.c_str());
             component: !lambda return component;
             val: !lambda return val;
 
@@ -69,7 +85,7 @@ api:
       then:
         - script.execute:
             id: set_component_visibility
-            page: !lambda return page;
+            page_id: !lambda return get_page_id(page.c_str());
             component: !lambda return component;
             show: !lambda return show;
 
@@ -100,40 +116,9 @@ api:
                 goto_page_id->execute(get_page_id(new_page.c_str()), true);
                 set_variable_value->execute("back_page_id", get_page_id(back_page.c_str()));
                 if (new_page == "climate")
-                  set_component_value->execute("climate", "embedded", entity_id == "embedded_climate" ? 1 : 0);
+                  set_component_value->execute(${PAGE_ID_CLIMATE}, "embedded",
+                                                entity_id == "embedded_climate" ? 1 : 0);
               }
-            }
-
-    # Icon action
-    - action: icon
-      variables:
-        page: string       # Page name
-        component: string  # Identifier of the component. See "Screen components" in the documentation.
-        icon: string       # Icon codepoint, e.g., "/uE6E8" for `mdi:lightbulb-on-outline`.
-        color: int[]       # RGB color array for the icon, e.g., [0, 255, 0] for green.
-        font: int          # font size for icon
-        visible: bool      # Set to `true` for visible or `false` for hidden.
-      then:
-        - lambda: |-
-            ESP_LOGD("api.actions.icon", "New value for icon %s on page %s", component.c_str(), page.c_str());
-            if (not page.empty() and not component.empty()) {
-              icon_action->execute(page.c_str(), component.c_str(), icon.c_str(), color, font, visible);
-            }
-
-    # Text action
-    - action: text
-      variables:
-        page: string       # Page name
-        component: string  # Identifier of the component. See "Screen components" in the documentation.
-        txt: string        # The text to display
-        color: int[]       # RGB color array for the text, e.g., [0, 255, 0] for green.
-        font: int          # font size for text
-        visible: bool      # Set to `true` for visible or `false` for hidden.
-      then:
-        - lambda: |-
-            ESP_LOGD("api.actions.text", "New value for text %s on page %s", component.c_str(), page.c_str());
-            if (not page.empty() and not component.empty()) {
-              text_action->execute(page.c_str(), component.c_str(), txt.c_str(), color, font, visible);
             }
 
     # Updates an entity to display specific values with dynamic icons, names, and color codes.
@@ -149,17 +134,19 @@ api:
       then:
         - lambda: |-
             if (not component.empty()) {
+              const uint8_t page_id = get_page_id(page.c_str());
               if (not icon.empty())
-                set_component_text->execute(page.c_str(), (component + "_icon").c_str(), icon.c_str());
+                set_component_text->execute(page_id, (component + "_icon").c_str(), icon.c_str());
               if (icon_color.size() == 3)
-                set_component_font_color->execute(page.c_str(), (component + "_icon").c_str(), rgb565(icon_color));
+                set_component_font_color->execute(page_id, (component + "_icon").c_str(),
+                                                  color565(icon_color));
               if (not name.empty())
-                set_component_text->execute(page.c_str(), (component + "_label").c_str(), name.c_str());
+                set_component_text->execute(page_id, (component + "_label").c_str(), name.c_str());
               if (not value.empty())
-                set_component_text->execute(page.c_str(), component.c_str(),
+                set_component_text->execute(page_id, component.c_str(),
                                             adjustDecimalSeparator(value, id(mui_decimal_separator)).c_str());
               if (value_color.size() == 3)
-                set_component_font_color->execute(page.c_str(), component.c_str(), rgb565(value_color));
+                set_component_font_color->execute(page_id, component.c_str(), color565(value_color));
             }
 
 binary_sensor:
@@ -211,7 +198,7 @@ esphome:
   on_boot:
     - priority: 1000.5
       then:
-        - lambda: setup_icons();
+        - lambda: setup_components();
 
     - priority: 600.5
       then:
@@ -375,11 +362,156 @@ script:
       - lambda: |-
           boot_progress_dump_item->execute(${BOOT_STEP_HW_DISPLAY}, "HW Display");
 
+  - id: display_component_action
+    mode: parallel
+    parameters:
+      page_id: uint8_t       # Page name
+      component: string  # Identifier of the component. See "Screen components" in the documentation.
+      txt: string        # Text to display.
+      color: int32_t[]   # RGB color array for the text, e.g., [0, 255, 0] for green.
+      font: int          # font size for text
+      visible: bool      # Set to `true` for visible or `false` for hidden.
+    then:
+      # Extended by:
+      #   nspanel_esphome_core_hw_relays.yaml
+      - lambda: |-
+          DisplayComponent* display_component = get_component(page_id, component.c_str());
+
+          const bool initializing = not display_component->initialized;
+          display_component->initialized = true;
+
+          const bool changed_visibility = (display_component->visible != visible);
+
+          // Text
+          if (!txt.empty())
+            display_component_update_text->execute(display_component, txt, initializing or changed_visibility);
+
+          // Text color
+          if (color.size() == 3 and
+              color[0] >= 0 and color[0] <= UINT8_MAX and
+              color[1] >= 0 and color[1] <= UINT8_MAX and
+              color[2] >= 0 and color[2] <= UINT8_MAX)
+            display_component_update_color->execute(display_component, color565(color),
+                                                    initializing or changed_visibility);
+
+          // Text font
+          if (font >= 0 and font <= UINT8_MAX)
+            display_component_update_font->execute(display_component, font, initializing or changed_visibility);
+
+          // Text visibility
+          display_component_update_visibility->execute(display_component, visible, initializing or changed_visibility);
+
+  - id: display_component_send
+    mode: parallel
+    parameters:
+      display_component: DisplayComponent*
+    then:
+      - lambda: |-
+          ESP_LOGD("script.display_component_send", "Rendering page %s, component %s",
+                    page_names[display_component->page_id], display_component->component);
+          display_component_send_text->execute(display_component);
+          display_component_send_color->execute(display_component);
+          display_component_send_font->execute(display_component);
+          display_component_send_visibility->execute(display_component);
+
+  - id: display_component_send_color
+    mode: parallel
+    parameters:
+      display_component: DisplayComponent*
+    then:
+      - lambda: |-
+          set_component_font_color->execute(display_component->page_id,
+                                            display_component->component,
+                                            display_component->color);
+
+  - id: display_component_send_font
+    mode: parallel
+    parameters:
+      display_component: DisplayComponent*
+    then:
+      - lambda: |-
+          if (display_component->font != UINT8_MAX)
+            set_component_font->execute(display_component->page_id,
+                                        display_component->component,
+                                        display_component->font);
+
+  - id: display_component_send_text
+    mode: parallel
+    parameters:
+      display_component: DisplayComponent*
+    then:
+      - lambda: |-
+          set_component_text->execute(display_component->page_id,
+                                      display_component->component,
+                                      display_component->text);
+
+  - id: display_component_send_visibility
+    mode: parallel
+    parameters:
+      display_component: DisplayComponent*
+    then:
+      - lambda: |-
+          set_component_visibility->execute(display_component->page_id,
+                                            display_component->component,
+                                            display_component->visible);
+
+  - id: display_component_update_color
+    mode: parallel
+    parameters:
+      display_component: DisplayComponent*
+      new_color: uint16_t
+      force_show: bool
+    then:
+      - lambda: |-
+          if (force_show or new_color != display_component->color) {
+            display_component->color = new_color;
+            display_component_send_color->execute(display_component);
+          }
+
+  - id: display_component_update_font
+    mode: parallel
+    parameters:
+      display_component: DisplayComponent*
+      new_font: uint8_t
+      force_show: bool
+    then:
+      - lambda: |-
+          if (force_show or new_font != display_component->font) {
+            display_component->font = new_font;
+            display_component_send_font->execute(display_component);
+          }
+
+  - id: display_component_update_text
+    mode: parallel
+    parameters:
+      display_component: DisplayComponent*
+      new_text: string
+      force_show: bool
+    then:
+      - lambda: |-
+          if (force_show or new_text != display_component->text) {
+            copyStringToCharArray(display_component->text, new_text);
+            display_component_send_text->execute(display_component);
+          }
+
+  - id: display_component_update_visibility
+    mode: parallel
+    parameters:
+      display_component: DisplayComponent*
+      new_visibility: bool
+      force_show: bool
+    then:
+      - lambda: |-
+          if (force_show or new_visibility != display_component->visible) {
+            display_component->visible = new_visibility;
+            display_component_send_visibility->execute(display_component);
+          }
+
   - id: display_wrapped_text
     mode: queued
     max_runs: 15
     parameters:
-      page: string
+      page_id: uint8_t
       component: string
       text_to_display: string
       line_length_limit: uint
@@ -411,7 +543,7 @@ script:
               while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
             }
           }
-          set_component_text->execute(page.c_str(), component.c_str(), wrappedText.c_str());
+          set_component_text->execute(page_id, component.c_str(), wrappedText.c_str());
 
   - id: !extend dump_config
     then:
@@ -508,106 +640,6 @@ script:
       # Extended by:
       #   - nspanel_esphome_core_hw_display_timers.yaml
 
-  - id: icon_action
-    mode: parallel
-    parameters:
-      page: string           # Page name
-      component: string      # Identifier of the component. See "Screen components" in the documentation.
-      icon: string           # Icon codepoint, e.g., "/uE6E8" for `mdi:lightbulb-on-outline`.
-      color: int32_t[]  # RGB color array for the icon, e.g., [0, 255, 0] for green.
-      font: int         # font size for icon
-      visible: bool          # Set to `true` for visible or `false` for hidden.
-    then:
-      # Extended by:
-      #   nspanel_esphome_core_hw_relays.yaml
-      - lambda: |-
-              PageIcon* new_icon = get_icon(page.c_str(), component.c_str());
-
-              const bool initializing = not new_icon->initiated;
-              new_icon->initiated = true;
-
-              const bool changed_visibility = (new_icon->visible != visible);
-
-              // Icon codepoint
-              if (!icon.empty() and (initializing or changed_visibility or icon != new_icon->icon)) {
-                copyStringToCharArray(new_icon->icon, icon);
-                if (current_page->state == page)
-                  icon_set_icon->execute(new_icon);
-                }
-
-              // Icon color
-              if (color.size() == 3 and
-                  color[0] >= 0 and color[0] <= UINT8_MAX and
-                  color[1] >= 0 and color[1] <= UINT8_MAX and
-                  color[2] >= 0 and color[2] <= UINT8_MAX) {
-                uint16_t new_icon_color = color565(color);
-                if (initializing or changed_visibility or new_icon->icon_color != new_icon_color) {
-                  new_icon->icon_color = new_icon_color;
-                  if (current_page->state == page)
-                    icon_set_color->execute(new_icon);
-                }
-              }
-
-              // Icon font
-              if (font >= 0 and font <= UINT8_MAX and
-                  (initializing or changed_visibility or new_icon->icon_font != font)) {
-                new_icon->icon_font = font;
-                if (current_page->state == page)
-                  icon_set_font->execute(new_icon);
-              }
-
-              // Icon visibility
-              if (initializing or changed_visibility) {
-                new_icon->visible = visible;
-                if (current_page->state == page)
-                  icon_set_visibility->execute(new_icon);
-              }
-
-  - id: icon_set
-    mode: parallel
-    parameters:
-      icon: PageIcon*
-    then:
-      - lambda: |-
-          ESP_LOGD("script.icon_set", "Rendering page %s, component %s", icon->page, icon->component);
-          icon_set_icon->execute(icon);
-          icon_set_color->execute(icon);
-          icon_set_font->execute(icon);
-          icon_set_visibility->execute(icon);
-
-  - id: icon_set_color
-    mode: parallel
-    parameters:
-      icon: PageIcon*
-    then:
-      - lambda: |-
-          set_component_font_color->execute(icon->page, icon->component, icon->icon_color);
-
-  - id: icon_set_font
-    mode: parallel
-    parameters:
-      icon: PageIcon*
-    then:
-      - lambda: |-
-          if (icon->icon_font != UINT8_MAX)
-            set_component_font->execute(icon->page, icon->component, icon->icon_font);
-
-  - id: icon_set_icon
-    mode: parallel
-    parameters:
-      icon: PageIcon*
-    then:
-      - lambda: |-
-          set_component_text->execute(icon->page, icon->component, icon->icon);
-
-  - id: icon_set_visibility
-    mode: parallel
-    parameters:
-      icon: PageIcon*
-    then:
-      - lambda: |-
-          set_component_visibility->execute(icon->page, icon->component, icon->visible);
-
   - id: nextion_queue_add
     mode: queued
     then:
@@ -692,27 +724,16 @@ script:
                 {"entity", detailed_entity->state.c_str()}
               });
             }
-            page_changed_rendering_texts->execute();
-            page_changed_rendering_icons->execute();
+            page_changed_rendering_components->execute();
 
-  - id: page_changed_rendering_icons
+  - id: page_changed_rendering_components
     mode: restart
     then:
       - lambda: |-
           // Plot page's icons
-          std::vector<PageIcon*> page_icons = list_icons_by_page(page_names[id(current_page_id)]);
-          for (PageIcon* icon : page_icons) {
-              icon_set->execute(icon);
-          }
-
-  - id: page_changed_rendering_texts
-    mode: restart
-    then:
-      - lambda: |-
-          // Plot page's texts
-          std::vector<PageText*> page_texts = list_texts_by_page(page_names[id(current_page_id)]);
-          for (PageText* txt : page_texts) {
-              text_set->execute(txt);
+          std::vector<DisplayComponent*> display_components = list_components_by_page(id(current_page_id));
+          for (DisplayComponent* display_component : display_components) {
+              display_component_send->execute(display_component);
           }
 
   - id: send_command
@@ -772,160 +793,134 @@ script:
   - id: set_component_font
     mode: parallel
     parameters:
-      page: string
+      page_id: uint8_t
       component: string
       font: uint8_t
     then:
       - script.execute: nextion_queue_add
       - wait_until:
           condition:
-            - text_sensor.state:
-                id: current_page
-                state: !lambda return page.c_str();
+            - lambda: return (page_id == id(current_page_id));
           timeout: 2s
       - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          disp1->set_component_font(current_page->state == page ?
-                                    component.c_str() :
-                                    (page + "." + component).c_str(), font);
+          disp1->set_component_font(component.c_str(), font);
           nextion_queue_del->execute();
 
   - id: set_component_font_color
     mode: parallel
     parameters:
-      page: string
+      page_id: uint8_t
       component: string
       color: uint16_t
     then:
       - script.execute: nextion_queue_add
       - wait_until:
           condition:
-            - text_sensor.state:
-                id: current_page
-                state: !lambda return page.c_str();
+            - lambda: return (page_id == id(current_page_id));
           timeout: 2s
       - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          if (page == "home" or page == current_page->state)
-            disp1->set_component_font_color(current_page->state == page ?
-                                            component.c_str() :
-                                            (page + "." + component).c_str(), color);
+          if (page_id == id(current_page_id))
+            disp1->set_component_font_color(component.c_str(), color);
           nextion_queue_del->execute();
 
   - id: set_component_picc
     mode: parallel
     parameters:
-      page: string
+      page_id: uint8_t
       component: string
       picc: uint8_t
     then:
       - script.execute: nextion_queue_add
       - wait_until:
           condition:
-            - text_sensor.state:
-                id: current_page
-                state: !lambda return page.c_str();
+            - lambda: return (page_id == id(current_page_id));
           timeout: 2s
       - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          if (page == "home" or page == current_page->state)
-            disp1->set_component_picc(current_page->state == page ?
-                                      component.c_str() :
-                                      (page + "." + component).c_str(), picc);
+          if (page_id == id(current_page_id))
+            disp1->set_component_picc(component.c_str(), picc);
           nextion_queue_del->execute();
 
   - id: set_component_foreground_color
     mode: parallel
     parameters:
-      page: string
+      page_id: uint8_t
       component: string
       color: int
     then:
-      - lambda: set_component_font_color->execute(page.c_str(), component.c_str(), color);
+      - lambda: set_component_font_color->execute(page_id, component.c_str(), color);
 
   - id: set_component_pic
     mode: parallel
     parameters:
-      page: string
+      page_id: uint8_t
       component: string
       pic: uint8_t
     then:
       - script.execute: nextion_queue_add
       - wait_until:
           condition:
-            - text_sensor.state:
-                id: current_page
-                state: !lambda return page.c_str();
+            - lambda: return (page_id == id(current_page_id));
           timeout: 2s
       - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          if (page == "home" or page == current_page->state)
-            disp1->set_component_pic(current_page->state == page ?
-                                      component.c_str() :
-                                      (page + "." + component).c_str(), pic);
+          if (page_id == id(current_page_id))
+            disp1->set_component_pic(component.c_str(), pic);
           nextion_queue_del->execute();
 
   - id: set_component_text
     mode: parallel
     parameters:
-      page: string
+      page_id: uint8_t
       component: string
       text: string
     then:
       - script.execute: nextion_queue_add
       - wait_until:
           condition:
-            - text_sensor.state:
-                id: current_page
-                state: !lambda return page.c_str();
+            - lambda: return (page_id == id(current_page_id));
           timeout: 2s
       - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          if (page == "home" or page == current_page->state)
-            disp1->set_component_text(current_page->state == page ?
-                                      component.c_str() :
-                                      (page + "." + component).c_str(), text.c_str());
+          if (page_id == id(current_page_id))
+            disp1->set_component_text(component.c_str(), text.c_str());
           nextion_queue_del->execute();
 
   - id: set_component_value
     mode: parallel
     parameters:
-      page: string
+      page_id: uint8_t
       component: string
       val: int
     then:
       - script.execute: nextion_queue_add
       - wait_until:
           condition:
-            - text_sensor.state:
-                id: current_page
-                state: !lambda return page.c_str();
+            - lambda: return (page_id == id(current_page_id));
           timeout: 2s
       - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          if (page == "home" or page == current_page->state)
-            disp1->set_component_value(current_page->state == page ?
-                                        component.c_str() :
-                                        (page + "." + component).c_str(), val);
+          if (page_id == id(current_page_id))
+            disp1->set_component_value(component.c_str(), val);
           nextion_queue_del->execute();
 
   - id: set_component_visibility
     mode: parallel
     parameters:
-      page: string
+      page_id: uint8_t
       component: string
       show: bool
     then:
       - script.execute: nextion_queue_add
       - wait_until:
           condition:
-            - text_sensor.state:
-                id: current_page
-                state: !lambda return page.c_str();
+            - lambda: return (page_id == id(current_page_id));
           timeout: 2s
       - if:
           condition:
-            - lambda: return (page == current_page->state);
+            - lambda: return (page_id == id(current_page_id));
           then:
             - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
             - lambda: |-
@@ -959,17 +954,16 @@ script:
   - id: !extend stop_all
     then:
       - lambda: |-
+          display_component_action->stop();
+          display_component_send->stop();
+          display_component_send_color->stop();
+          display_component_send_font->stop();
+          display_component_send_text->stop();
+          display_component_send_visibility->stop();
           display_wrapped_text->stop();
           event_from_display->stop();
           goto_page_id->stop();
-          icon_action->stop();
-          icon_set->stop();
-          icon_set_color->stop();
-          icon_set_font->stop();
-          icon_set_icon->stop();
-          icon_set_visibility->stop();
           page_changed->stop();
-          page_changed_rendering_icons->stop();
           send_command->stop();
           set_baud_rate->stop();
           set_brightness->stop();
@@ -978,112 +972,6 @@ script:
           set_component_picc->stop();
           set_component_text->stop();
           set_component_visibility->stop();
-          text_action->stop();
-          text_set->stop();
-          text_set_color->stop();
-          text_set_font->stop();
-          text_set_txt->stop();
-          text_set_visibility->stop();
-
-  - id: text_action
-    mode: parallel
-    parameters:
-      page: string       # Page name
-      component: string  # Identifier of the component. See "Screen components" in the documentation.
-      txt: string        # Text to display.
-      color: int32_t[]   # RGB color array for the text, e.g., [0, 255, 0] for green.
-      font: int          # font size for text
-      visible: bool      # Set to `true` for visible or `false` for hidden.
-    then:
-      # Extended by:
-      #   nspanel_esphome_core_hw_relays.yaml
-      - lambda: |-
-              PageText* new_text = get_text(page.c_str(), component.c_str());
-
-              const bool initializing = not new_text->initiated;
-              new_text->initiated = true;
-
-              const bool changed_visibility = (new_text->visible != visible);
-
-              // Text
-              if (!txt.empty() and (initializing or changed_visibility or txt != new_text->text)) {
-                copyStringToCharArray(new_text->text, txt);
-                if (current_page->state == page)
-                  text_set_txt->execute(new_text);
-                }
-
-              // Text color
-              if (color.size() == 3 and
-                  color[0] >= 0 and color[0] <= UINT8_MAX and
-                  color[1] >= 0 and color[1] <= UINT8_MAX and
-                  color[2] >= 0 and color[2] <= UINT8_MAX) {
-                uint16_t new_text_color = color565(color);
-                if (initializing or changed_visibility or new_text->text_color != new_text_color) {
-                  new_text->text_color = new_text_color;
-                  if (current_page->state == page)
-                    text_set_color->execute(new_text);
-                }
-              }
-
-              // Text font
-              if (font >= 0 and font <= UINT8_MAX and
-                  (initializing or changed_visibility or new_text->text_font != font)) {
-                new_text->text_font = font;
-                if (current_page->state == page)
-                  text_set_font->execute(new_text);
-              }
-
-              // Icon visibility
-              if (initializing or changed_visibility) {
-                new_text->visible = visible;
-                if (current_page->state == page)
-                  text_set_visibility->execute(new_text);
-              }
-
-  - id: text_set
-    mode: parallel
-    parameters:
-      txt: PageText*
-    then:
-      - lambda: |-
-          ESP_LOGD("script.text_set", "Rendering page %s, component %s", txt->page, txt->component);
-          text_set_txt->execute(txt);
-          text_set_color->execute(txt);
-          text_set_font->execute(txt);
-          text_set_visibility->execute(txt);
-
-  - id: text_set_color
-    mode: parallel
-    parameters:
-      txt: PageText*
-    then:
-      - lambda: |-
-          set_component_font_color->execute(txt->page, txt->component, txt->text_color);
-
-  - id: text_set_font
-    mode: parallel
-    parameters:
-      txt: PageText*
-    then:
-      - lambda: |-
-          if (txt->text_font != UINT8_MAX)
-            set_component_font->execute(txt->page, txt->component, txt->text_font);
-
-  - id: text_set_txt
-    mode: parallel
-    parameters:
-      txt: PageText*
-    then:
-      - lambda: |-
-          set_component_text->execute(txt->page, txt->component, txt->text);
-
-  - id: text_set_visibility
-    mode: parallel
-    parameters:
-      txt: PageText*
-    then:
-      - lambda: |-
-          set_component_visibility->execute(txt->page, txt->component, txt->visible);
 
 select:
   - id: baud_rate

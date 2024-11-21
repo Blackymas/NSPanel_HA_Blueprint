@@ -5,17 +5,16 @@ This document provides details on custom actions designed for integration with H
 - [Action Documentation](#action-documentation)
   - [Button Action (`button`)](#button-action-button): Configures properties and state of buttons on a specified button page.
   - [Command Action (`command`)](#command-action-command): Sends a custom command directly to the display.
+  - [Component Action (`component`)](#component-action-component): Updates a display component text/icon, color, font and visibility.
   - [Component Color Action (`component_color`)](#component-color-action-component_color): Changes the foreground color of a specified component on the display.
   - [Component Text Action (`component_text`)](#component-text-action-component_text): Updates the text of a specified component on the display.
   - [Component Value Action (`component_val`)](#component-value-action-component_val): Updates the value of a specified component on the display.
   - [Component Visibility Action (`component_visibility`)](#component-visibility-action-component_visibility): Hides or shows a specified component on the display.
   - [Entity Details Show Action (`entity_details_show`)](#entity-details-show-action-entity_details_show): Displays detailed information for a specific entity.
-  - [Icon Action (`icon`)](#icon-action-icon): Updates a chip or custom button's icon, color, and visibility.
   - [Notification Clear Action (`notification_clear`)](#notification-clear-action-notification_clear): Clears the current notification from the screen.
   - [Notification Show Action (`notification_show`)](#notification-show-action-notification_show): Displays a notification-message on the screen.
   - [QR Code Action (`qrcode`)](#qr-code-action-qrcode): Displays a QR code on the panel or updates the QR code information for local control.
   - [RTTTL Play Action (`rtttl_play`)](#rtttl-play-action-rtttl_play): Plays melodies encoded in the RTTTL format.
-  - [Text Action (`text`)](#text-action-text): Updates a text field's content, font, color, and visibility.
   - [Upload TFT Action (`upload_tft`)](#tft-file-update-action-upload_tft): Enables TFT file updates from a URL, requiring the "Upload TFT" add-on.
   - [Utilities Group Refresh Action (`utilities_group_refresh`)](#utilities-group-refresh-action-utilities_group_refresh): Updates utility group display values and direction indicators.
   - [Value Action (`value`)](#value-action-value): Updates an entity to display specific values.
@@ -47,12 +46,12 @@ If you send anything different, the conversion to the RGB565 used by Nextion wil
 |------------|--------------|-------------|
 | [`button`](#button-action-button) | [Button Action](#button-action-button) | Configures properties and state of buttons on a specified button page. |
 | [`command`](#command-action-command) | [Command Action](#command-action-command) | Sends a custom command directly to the display. |
+| [`component`](#component-action-component) | [Component Action](#component-action-component) | Updates a display component text/icon, color, font and visibility. |
 | [`component_color`](#component-color-action-component_color) | [Component Color Action](#component-color-action-component_color) | Changes the foreground color of a specified component on the display. |
 | [`component_text`](#component-text-action-component_text) | [Component Text Action](#component-text-action-component_text) | Updates the text of a specified component on the display. |
 | [`component_val`](#component-value-action-component_val) | [Component Value Action](#component-value-action-component_val) | Updates the value of a specified component on the display. |
 | [`component_visibility`](#component-visibility-action-component_visibility) | [Component Visibility Action](#component-visibility-action-component_visibility) | Hides or shows a specified component on the display. |
 | [`entity_details_show`](#entity-details-show-action-entity_details_show) | [Entity Details Show Action](#entity-details-show-action-entity_details_show) | Displays detailed information for a specific entity. |
-| [`icon`](#icon-action-icon) | [Icon Action](#icon-action-icon) | Updates a chip or custom button's icon, color, and visibility. |
 | [`notification_clear`](#notification-clear-action-notification_clear) | [Notification Clear Action](#notification-clear-action-notification_clear) | Clears the current notification from the screen. |
 | [`notification_show`](#notification-show-action-notification_show) | [Notification Show Action](#notification-show-action-notification_show) | Displays a notification-message on the screen. |
 | [`page_alarm`](#alarm-settings-page-action-page_alarm) | [Alarm Settings Page Action](#alarm-settings-page-action-page_alarm) | Updates the Alarm page with current state information. |
@@ -60,7 +59,6 @@ If you send anything different, the conversion to the RGB565 used by Nextion wil
 | [`page_media_player`](#media-player-page-action-page_media_player) | [Media Player Page Action](#media-player-page-action-page_media_player) | Updates the Media Player page with current state information. |
 | [`qrcode`](#qr-code-action-qrcode) | [QR Code Action](#qr-code-action-qrcode) | Displays a QR code on the panel or update the QR code information for local control. |
 | [`rtttl_play`](#rtttl-play-action-rtttl_play) | [RTTTL Play Action](#rtttl-play-action-rtttl_play) | Plays melodies encoded in the RTTTL format. |
-| [`text`](#text-action-text) | [Text Action](#text-action-text) | Updates a text fiels, it's font, color, and visibility. |
 | [`upload_tft`](#tft-file-update-action-upload_tft) | [Upload TFT Action](#tft-file-update-action-upload_tft) | Enables TFT file updates from a URL, requiring the "Upload TFT" add-on. |
 | [`utilities_group_refresh`](#utilities-group-refresh-action-utilities_group_refresh) | [Utilities Group Refresh Action](#utilities-group-refresh-action-utilities_group_refresh) | Updates utility group display values and direction indicators. |
 | [`value`](#value-action-value) | [Value Action](#value-action-value) | Updates an entity to display specific values. |
@@ -124,6 +122,35 @@ data:
 > Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant to ensure correct action execution.
 >
 > Ensure the command string (`cmd`) is properly formatted according to your display's command processing capabilities.
+
+### Icon Action: `component`
+Updates a display component text (or icon), color, font size, and visibility within Home Assistant.
+
+**Usage:**
+This action is ideal for dynamically updating icons on your Panel, allowing for a customizable and interactive user interface.
+
+**Parameters:**
+- `page` (string): Identifies the page where the component belongs to.
+- `component` (string): Identifier of the chip or button component. Refer to "[Screen components](#screen-components)" for more details.
+- `txt` (string): Text to display or icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html).
+Example: "\uE6E8" for `mdi:lightbulb-on-outline`.
+- `color` (int[]): RGB color array for the icon. Example: `[0, 255, 0]` for green.
+- `font` (int): The Nextion font id to be used. Select `-1` to not change the current font.
+- `visible` (bool): Flag indicating whether the icon should be visible (`true`) or hidden (`false`).
+
+**Home Assistant Example:**
+```yaml
+action: esphome.<your_panel_name>_component
+data:
+  page: home
+  component: chip03
+  txt: "\uE6E8"      # Example for mdi:lightbulb-on-outline
+  color: [0, 255, 0]  # Green
+  font: 8
+  visible: true
+```
+> [!NOTE]
+> Ensure the placeholder `<your_panel_name>` is replaced with the specific panel name you will need to reference in your Home Assistant configuration.
 
 ### Component Color Action: `component_color`
 Changes the foreground color of a specified component on the display, enabling dynamic color updates for user interface customization.
@@ -255,35 +282,6 @@ data:
 > [!NOTE]
 > Ensure to replace <your_panel_name> with the specific name of your panel configured in Home Assistant.
 > This setup provides a direct and user-friendly way to access and return from detailed entity information, enhancing the interface's usability.
-
-### Icon Action: `icon`
-Updates a chip or custom button's icon, color, font size, and visibility within Home Assistant.
-
-**Usage:**
-This action is ideal for dynamically updating icons on your Panel, allowing for a customizable and interactive user interface.
-
-**Parameters:**
-- `page` (string): Identifies the page where the component belongs to.
-- `component` (string): Identifier of the chip or button component. Refer to "[Screen components](#screen-components)" for more details.
-- `icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html).
-Example: "\uE6E8" for `mdi:lightbulb-on-outline`.
-- `color` (int[]): RGB color array for the icon. Example: `[0, 255, 0]` for green.
-- `font` (int): The Nextion font id to be used. Select `-1` to not change the current font.
-- `visible` (bool): Flag indicating whether the icon should be visible (`true`) or hidden (`false`).
-
-**Home Assistant Example:**
-```yaml
-action: esphome.<your_panel_name>_icon
-data:
-  page: home
-  component: chip03
-  icon: "\uE6E8"      # Example for mdi:lightbulb-on-outline
-  color: [0, 255, 0]  # Green
-  font: 8
-  visible: true
-```
-> [!NOTE]
-> Ensure the placeholder `<your_panel_name>` is replaced with the specific panel name you will need to reference in your Home Assistant configuration.
 
 ### Notification Clear Action: `notification_clear`
 Removes any displayed notification from the screen, allowing the display to return to its normal state or view.
@@ -512,34 +510,6 @@ data:
 > Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant to ensure correct action execution.
 >
 > Ensure the `tone` parameter contains a valid RTTTL string to successfully play the melody.
-
-### Text Action: `text`
-Updates a text fiels, with it's color, font, and visibility within Home Assistant.
-
-**Usage:**
-This action is ideal for dynamically updating text fields on your Panel, allowing for a customizable and interactive user interface.
-
-**Parameters:**
-- `page` (string): Identifies the page where the component belongs to.
-- `component` (string): Identifier of the chip or button component. Refer to "[Screen components](#screen-components)" for more details.
-- `txt` (string): The text to be shown.
-- `color` (int[]): RGB color array for the text. Example: `[0, 255, 0]` for green.
-- `font` (int): The Nextion font id to be used. Select `-1` to not change the current font.
-- `visible` (bool): Flag indicating whether the text should be visible (`true`) or hidden (`false`).
-
-**Home Assistant Example:**
-```yaml
-action: esphome.<your_panel_name>_text
-data:
-  page: home
-  component: date
-  txt: "Monday, April 1st"  # Example for mdi:lightbulb-on-outline
-  color: [0, 255, 0]        # Green
-  font: 3
-  visible: true
-```
-> [!NOTE]
-> Ensure the placeholder `<your_panel_name>` is replaced with the specific panel name you will need to reference in your Home Assistant configuration.
 
 ### TFT File Update Action: `upload_tft`
 Enables the remote update of the panel's TFT file from a specified URL or a default location, available exclusively with the "Upload TFT" add-on installed.
