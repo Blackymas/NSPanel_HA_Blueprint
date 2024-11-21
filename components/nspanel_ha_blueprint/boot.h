@@ -3,6 +3,7 @@
 #pragma once  // Include guard to prevent multiple inclusions of this header file
 
 #include <stdint.h>  // Include standard integer types
+#include "esp_attr.h"  // Include for PSRAM attributes
 
 namespace nspanel_ha_blueprint {
     // Total number of defined boot steps.

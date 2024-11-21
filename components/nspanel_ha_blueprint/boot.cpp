@@ -6,7 +6,7 @@ namespace nspanel_ha_blueprint {
 
     // Definition of the global variable to track completed boot steps.
     // Each bit in this variable represents whether a boot step has been completed.
-    uint32_t completed_boot_steps = 0;
+    DRAM_ATTR uint32_t completed_boot_steps = 0;
 
     // Function to mark a boot step as completed.
     // Parameters:
