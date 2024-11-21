@@ -27,12 +27,14 @@ We highly recommend visiting our [API documentation](docs/api.md) for the latest
 In addition to this standardization, there are some noteworth changes to the API:
 1. Deprecated actions:
 
+    <!-- markdownlint-disable MD033 -->
     | Deprecated action | Replacement | Previous use |
     | :--: | :--: | :-- |
     | `init_global`<br>`init_hardware`<br>`hw_button_state` | `set_number`<br>`set_string` | Used to send settings at boot |
     | `init_page_home` | [`component`](docs/api.md#component-action-component) | Used to send global values to page Home |
     | `set_timezone` | `set_string` | Used to send time zone settings at boot |
     | `component_text`<br>`component_color`<br>`component_visibility`<br>`icon`| [`component`](docs/api.md#component-action-component) | Used to set a component on the display |
+    <!-- markdownlint-enable MD033 -->
 
 1. Sensor `blueprint_status` was removed
 

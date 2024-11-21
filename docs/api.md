@@ -560,5 +560,3 @@ where `value01_icon` to `value03_icon` supports the icons.
 Just like in "[Home Page - Values](#home-page---values)", this is a multi-component system, with names `value01` to `value08` containing the state of the entity,
 where `value01_icon` to `value08_icon` supports the icons and, exclusivelly in the Entities pages, `value01_label` to `value08_label`,
 which will contain the friendly name or some alternative label for the entities.
-
-Each to these sets are sent using the [Value Action (`value`)](#value-action-value), with up to 8 individual calls to this action for each page construction.
