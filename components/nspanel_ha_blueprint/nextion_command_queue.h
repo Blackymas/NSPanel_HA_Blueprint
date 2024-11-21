@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
 namespace nspanel_ha_blueprint {
