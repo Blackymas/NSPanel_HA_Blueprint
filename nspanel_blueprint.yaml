@@ -8363,7 +8363,8 @@ actions:
             delay:
               milliseconds: !input delay
           - &refresh_date
-            action: 'esphome.{{ nspanel_name }}_component_text'
+            alias: Home page - date
+            action: 'esphome.{{ nspanel_name }}_component'
             data:
               page: home
               component: date
@@ -8379,6 +8380,9 @@ actions:
                     | replace("%b", (dict.values(mui[language].months_short) | list)[now().month-1])
                   )
                 }}
+              color: !input date_label_color
+              font: -1
+              visible: true
             continue_on_error: true
 
       ##### NSPanel event #####
@@ -8580,45 +8584,29 @@ actions:
                                     hold_select: !input 'right_button_hold_select'
                                     bar_always_visible: !input hw_button_bar_right_always_show
 
+                          - *delay_default
                           - alias: Left button label
-                            if: '{{ hardware.buttons.left.name | length > 0 }}'
-                            then:
-                              - *delay_default
-                              - alias: Label font color
-                                action: 'esphome.{{ nspanel_name }}_component_color'
-                                data:
-                                  page: home
-                                  component: left_bt_text
-                                  color: !input left_button_color
-                                continue_on_error: true
-                              - *delay_default
-                              - alias: Label font
-                                action: 'esphome.{{ nspanel_name }}_component_text'
-                                data:
-                                  page: home
-                                  component: left_bt_text
-                                  txt: '{{ hardware.buttons.left.name }}'
-                                continue_on_error: true
+                            action: 'esphome.{{ nspanel_name }}_component'
+                            data:
+                              page: home
+                              component: left_bt_text
+                              txt: '{{ hardware.buttons.left.name }}'
+                              color: !input left_button_color
+                              font: -1
+                              visible: '{{ hardware.buttons.left.name | length > 0 }}'
+                            continue_on_error: true
 
+                          - *delay_default
                           - alias: Right button label
-                            if: '{{ hardware.buttons.right.name | length > 0 }}'
-                            then:
-                              - *delay_default
-                              - alias: Label font color
-                                action: 'esphome.{{ nspanel_name }}_component_color'
-                                data:
-                                  page: home
-                                  component: right_bt_text
-                                  color: !input right_button_color
-                                continue_on_error: true
-                              - *delay_default
-                              - alias: Label font
-                                action: 'esphome.{{ nspanel_name }}_component_text'
-                                data:
-                                  page: home
-                                  component: right_bt_text
-                                  txt: '{{ hardware.buttons.right.name }}'
-                                continue_on_error: true
+                            action: 'esphome.{{ nspanel_name }}_component'
+                            data:
+                              page: home
+                              component: right_bt_text
+                              txt: '{{ hardware.buttons.right.name }}'
+                              color: !input right_button_color
+                              font: -1
+                              visible: '{{ hardware.buttons.right.name | length > 0 }}'
+                            continue_on_error: true
 
                           - alias: HW buttons bars colors
                             sequence:
@@ -9235,33 +9223,102 @@ actions:
                           - *boot_delay
 
                           - *delay_default
-                          - alias: Home page - date
-                            action: 'esphome.{{ nspanel_name }}_component_color'
-                            data:
-                              page: home
-                              component: date
-                              color: !input date_label_color
-                            continue_on_error: true
+                          - *refresh_date  # Home page - date
 
                           - *delay_default
                           - alias: Home page - time
-                            action: 'esphome.{{ nspanel_name }}_component_color'
+                            action: 'esphome.{{ nspanel_name }}_component'
                             data:
                               page: home
                               component: time
+                              text: ''
                               color: !input time_label_color
+                              font: -1
+                              visible: true
                             continue_on_error: true
 
-                          - alias: Home page indoor temperature
+                          - &refresh_page_home_indoor_temp
+                            alias: Home page indoor temperature
                             sequence:
-                              - *delay_default
-                              - alias: indr_temp color
-                                action: 'esphome.{{ nspanel_name }}_component_color'
-                                data:
-                                  page: home
-                                  component: indr_temp
-                                  color: !input home_indoor_temp_label_color
-                                continue_on_error: true
+                              - variables:
+                                  home_indoor_temp_visible: !input home_indoor_temp_visible
+                              - if:
+                                  - or:
+                                      - '{{ home_indoor_temp_visible }}'
+                                      - '{{ is_boot }}'
+                                      - '{{ page_constructor is defined and page_constructor }}'
+                                then:
+                                  - *delay_default
+                                  - if: '{{ home_indoor_temp_visible }}'
+                                    then:
+                                      - if:
+                                          - '{{ embedded_indoor_temperature }}'
+                                          - or:
+                                              - '{{ is_boot }}'
+                                              - '{{ page_constructor is defined and page_constructor }}'
+                                        then:
+                                          - alias: Embedded indoor temperature
+                                            action: 'esphome.{{ nspanel_name }}_component'
+                                            data:
+                                              page: home
+                                              component: indr_temp
+                                              txt: ''
+                                              color: !input home_indoor_temp_label_color
+                                              font: -1
+                                              visible: true
+                                            continue_on_error: true
+                                        else:
+                                          - condition: '{{ not embedded_indoor_temperature }}'
+                                          - variables:
+                                              temperature_sensor: '{{ indoor_temperature_sensor }}'
+                                              indoor_temp:
+                                                state: >
+                                                  {{
+                                                    states(temperature_sensor, rounded=true)
+                                                    | default("unavailable")
+                                                  }}
+                                                sensor_uom: >
+                                                  {{ state_attr(temperature_sensor, "unit_of_measurement") }}
+                                                nspaneltemp_uom: >
+                                                  {{ state_attr(nspaneltemp, "unit_of_measurement") }}
+                                              indoor_temp_units: >
+                                                  {{
+                                                    indoor_temp.sensor_uom
+                                                    if
+                                                      indoor_temp.sensor_uom is string and
+                                                      indoor_temp.sensor_uom | length > 0
+                                                    else
+                                                      (
+                                                        indoor_temp.nspaneltemp_uom
+                                                        if
+                                                          indoor_temp.nspaneltemp_uom is string and
+                                                          indoor_temp.nspaneltemp_uom | length > 0
+                                                        else temperature_units
+                                                      )
+                                                  }}
+                                          - condition: '{{ is_number(indoor_temp.state) }}'
+                                          - alias: Send indoor temperature
+                                            action: 'esphome.{{ nspanel_name }}_component'
+                                            data:
+                                              page: home
+                                              component: indr_temp
+                                              txt: '{{ indoor_temp.state | round(1) ~ indoor_temp_units }}'
+                                              color: !input home_indoor_temp_label_color
+                                              font: -1
+                                              visible: true
+                                            continue_on_error: true
+                                    else:  # Indoor temp is NOT visible
+                                      - alias: Hide indoor temperature
+                                        action: 'esphome.{{ nspanel_name }}_component'
+                                        data:
+                                          page: home
+                                          component: indr_temp
+                                          txt: ''
+                                          color: !input home_indoor_temp_label_color
+                                          font: -1
+                                          visible: false
+                                        continue_on_error: true
+
                               - &indr_temp_icon_update
                                 alias: Update indoor temp icon
                                 sequence:
@@ -9286,27 +9343,38 @@ actions:
                                       visible: !input home_indoor_temp_visible
                                     continue_on_error: true
 
-                          - alias: Home page outdoor temperature
+                          - &refresh_page_home_outdoor_temp  # NSPanel Outdoor Temperature
+                            alias: Home page outdoor temperature
                             sequence:
+                              - variables:
+                                  outdoor_temp_entity: !input outdoortemp
+                                  outdoor_temp_state: >
+                                    {{
+                                      states(outdoor_temp_entity, rounded=true) | default("unavailable")
+                                      if
+                                        outdoor_temp_entity is string and
+                                        outdoor_temp_entity is match "sensor." and
+                                        has_value(outdoor_temp_entity)
+                                      else "unavailable"
+                                    }}
+                                  outdoor_temp: >
+                                    {{
+                                      outdoor_temp_state if is_number(outdoor_temp_state)
+                                      else state_attr(weather_entity, "temperature") | default("unavailable")
+                                      if weather_entity is string else "unavailable"
+                                    }}
+                                  outdoor_temp_font: !input home_outdoor_temp_font
+                              - condition: '{{ is_number(outdoor_temp) }}'
                               - *delay_default
-                              - alias: outdoor_temp color
-                                action: 'esphome.{{ nspanel_name }}_component_color'
+                              - action: 'esphome.{{ nspanel_name }}_component'
                                 data:
                                   page: home
                                   component: outdoor_temp
+                                  txt: '{{ outdoor_temp | round(1) ~ temperature_units }}'
                                   color: !input home_outdoor_temp_label_color
+                                  font: '{{ outdoor_temp_font | int(4) }}'
+                                  visible: true
                                 continue_on_error: true
-
-                              - alias: Home page outdoor temperature font
-                                sequence:
-                                  - variables:
-                                      outdoor_temp_font: !input home_outdoor_temp_font
-                                  - *delay_default
-                                  - alias: home.outdoor_temp.font
-                                    action: 'esphome.{{ nspanel_name }}_command'
-                                    data:
-                                      cmd: 'home.outdoor_temp.font={{ outdoor_temp_font | int(4) }}'
-                                    continue_on_error: true
 
                           ##### Home page - Values 01 - 04
                           - &home_page_values_01_to_04
@@ -9390,7 +9458,7 @@ actions:
 
                                         - *delay_default
                                         - alias: Display value itself
-                                          action: 'esphome.{{ nspanel_name }}_component_text'
+                                          action: 'esphome.{{ nspanel_name }}_component'
                                           data:
                                             page: '{{ repeat.item.page }}'
                                             component: '{{ repeat.item.component }}'
@@ -9412,6 +9480,17 @@ actions:
                                                 if entity_id_valid and entity_has_value
                                                 else mui[language].unavailable
                                               }}
+                                            color: >
+                                              {{
+                                                repeat.item.label_color_rgb
+                                                if
+                                                  repeat.item.label_color_rgb is defined and
+                                                  repeat.item.label_color_rgb is sequence and
+                                                  repeat.item.label_color_rgb | count == 3
+                                                else [200, 204, 200]
+                                              }}
+                                            font: -1
+                                            visible: true
                                           continue_on_error: true
                                   else:
                                     - *delay_default
@@ -9421,6 +9500,17 @@ actions:
                                         page: '{{ repeat.item.page }}'
                                         component: '{{ repeat.item.component }}_icon'
                                         txt: '{{ all_icons.blank }}'
+                                        font: -1
+                                        color: [0, 0, 0]
+                                        visible: false
+                                      continue_on_error: true
+                                    - *delay_default
+                                    - alias: Clear value itself
+                                      action: 'esphome.{{ nspanel_name }}_component'
+                                      data:
+                                        page: '{{ repeat.item.page }}'
+                                        component: '{{ repeat.item.component }}'
+                                        txt: ''
                                         font: -1
                                         color: [0, 0, 0]
                                         visible: false
@@ -9714,11 +9804,14 @@ actions:
                                 sequence:
                                   - *delay_default
                                   - alias: screensaver.text color
-                                    action: 'esphome.{{ nspanel_name }}_component_color'
+                                    action: 'esphome.{{ nspanel_name }}_component'
                                     data:
                                       page: screensaver
                                       component: text
+                                      txt: ''
                                       color: !input screensaver_display_time_font_color
+                                      font: -1
+                                      visible: true
                                     continue_on_error: true
 
                       - alias: BOOT_STEP_PAGE_SETTINGS
@@ -9727,20 +9820,26 @@ actions:
                           - *boot_delay
                           - *delay_default
                           - alias: lbl_reboot
-                            action: 'esphome.{{ nspanel_name }}_component_text'
+                            action: 'esphome.{{ nspanel_name }}_component'
                             data:
                               page: settings
                               component: lbl_reboot
                               txt: '{{ mui[language].settings.reboot }}'
+                              color: []
+                              font: -1
+                              visible: true
                             continue_on_error: true
 
                           - *delay_default
                           - alias: lbl_brightness
-                            action: 'esphome.{{ nspanel_name }}_component_text'
+                            action: 'esphome.{{ nspanel_name }}_component'
                             data:
                               page: settings
                               component: lbl_brightness
                               txt: '{{ mui[language].settings.brightness }}'
+                              color: []
+                              font: -1
+                              visible: true
                             continue_on_error: true
 
                           - *delay_default
@@ -9845,7 +9944,7 @@ actions:
                   - '{{ nspanel_event.entity is defined }}'
                   - '{{ nspanel_event.entity is string }}'
                   - '{{ nspanel_event.entity | length > 0 }}'
-                sequence:
+                sequence:  # NSPanel action call
                   - if: >
                       {{
                         nspanel_event.key is defined and
@@ -9952,7 +10051,7 @@ actions:
               - alias: Page changed
                 conditions:
                   - '{{ nspanel_event.type == "page_changed"}}'
-                sequence:
+                sequence:  # Page changed
                   - choose:
                       ## PAGE HOME ##
                       - alias: Home page
@@ -9960,85 +10059,8 @@ actions:
                         sequence: &refresh_page_home
                           - variables:
                               page_constructor: true
-                          ##### NSPanel Outdoor Temp #####
-                          - &refresh_page_home_outdoor_temp
-                            sequence:
-                              - variables:
-                                  outdoor_temp_entity: !input outdoortemp
-                                  outdoor_temp_state: >
-                                    {{
-                                      states(outdoor_temp_entity, rounded=true) | default("unavailable")
-                                      if
-                                        outdoor_temp_entity is string and
-                                        outdoor_temp_entity is match "sensor." and
-                                        has_value(outdoor_temp_entity)
-                                      else "unavailable"
-                                    }}
-                                  outdoor_temp: >
-                                    {{
-                                      outdoor_temp_state if is_number(outdoor_temp_state)
-                                      else state_attr(weather_entity, "temperature") | default("unavailable")
-                                      if weather_entity is string else "unavailable"
-                                    }}
-                              - condition: '{{ is_number(outdoor_temp) }}'
-                              - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_text'
-                                data:
-                                  page: home
-                                  component: outdoor_temp
-                                  txt: '{{ outdoor_temp | round(1) ~ temperature_units }}'
-                                continue_on_error: true
-
-                          ##### NSPanel Indoor Temp #####
-                          - &refresh_page_home_indoor_temp
-                            sequence:
-                              - variables:
-                                  home_indoor_temp_visible: !input home_indoor_temp_visible
-                              - if: '{{ page_constructor is defined and page_constructor }}'
-                                then:
-                                  - *delay_default
-                                  - action: 'esphome.{{ nspanel_name }}_component_visibility'
-                                    data:
-                                      page: home
-                                      component: indr_temp
-                                      show: '{{ home_indoor_temp_visible }}'
-                                    continue_on_error: true
-                                  - *indr_temp_icon_update
-                              - condition: '{{ home_indoor_temp_visible and not embedded_indoor_temperature }}'
-                              - variables:
-                                  temperature_sensor: '{{ indoor_temperature_sensor }}'
-                                  indoor_temp:
-                                    state: '{{ states(temperature_sensor, rounded=true) | default("unavailable") }}'
-                                    sensor_uom: '{{ state_attr(temperature_sensor, "unit_of_measurement") }}'
-                                    nspaneltemp_uom: '{{ state_attr(nspaneltemp, "unit_of_measurement") }}'
-                                  indoor_temp_units: >
-                                      {{
-                                        indoor_temp.sensor_uom
-                                        if
-                                          indoor_temp.sensor_uom is string and
-                                          indoor_temp.sensor_uom | length > 0
-                                        else
-                                          (
-                                            indoor_temp.nspaneltemp_uom
-                                            if
-                                              indoor_temp.nspaneltemp_uom is string and
-                                              indoor_temp.nspaneltemp_uom | length > 0
-                                            else temperature_units
-                                          )
-                                      }}
-                              - condition: '{{ is_number(indoor_temp.state) }}'
-                              - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_text'
-                                data:
-                                  page: home
-                                  component: indr_temp
-                                  txt: >
-                                    {{
-                                      indoor_temp.state | round(1) ~ indoor_temp_units
-                                      if not embedded_indoor_temperature
-                                      else ""
-                                    }}
-                                continue_on_error: true
+                          - *refresh_page_home_outdoor_temp  # Outdoor Temperature
+                          - *refresh_page_home_indoor_temp   # Indoor Temperature
 
                           ###### Notification button ######
                           - &refresh_page_home_notification_button
@@ -10156,11 +10178,14 @@ actions:
                                   }}
                                 then:
                                   - *delay_default
-                                  - action: 'esphome.{{ nspanel_name }}_component_text'
+                                  - action: 'esphome.{{ nspanel_name }}_component'
                                     data:
                                       page: '{{ event_page }}'
                                       component: page_label
                                       txt: '{{ buttons_pages.labels[event_page] | string }}'
+                                      color: []
+                                      font: -1
+                                      visible: true
                                     continue_on_error: true
 
                               - *delay_default
@@ -10265,19 +10290,25 @@ actions:
                             continue_on_error: true
                           - *delay_default
                           - alias: Light brightness value
-                            action: 'esphome.{{ nspanel_name }}_component_text'
+                            action: 'esphome.{{ nspanel_name }}_component'
                             data:
                               page: light
                               component: light_value
                               txt: '{{ curr_brightness }}%'
+                              color: []
+                              font: -1
+                              visible: true
                             continue_on_error: true
                           - *delay_default
                           - alias: Light brightness value 2
-                            action: 'esphome.{{ nspanel_name }}_component_text'
+                            action: 'esphome.{{ nspanel_name }}_component'
                             data:
                               page: light
                               component: light_value_2
                               txt: '{{ curr_brightness }}%'
+                              color: []
+                              font: -1
+                              visible: true
                             continue_on_error: true
 
                           - alias: Light color temperature
@@ -10296,18 +10327,24 @@ actions:
                                     }}
                               - condition: '{{ is_number(curr_color_temp) }}'
                               - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_text'
+                              - action: 'esphome.{{ nspanel_name }}_component'
                                 data:
                                   page: light
                                   component: temp_value
                                   txt: '{{ curr_color_temp }}'
+                                  color: []
+                                  font: -1
+                                  visible: true
                                 continue_on_error: true
                               - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_text'
+                              - action: 'esphome.{{ nspanel_name }}_component'
                                 data:
                                   page: light
                                   component: temp_value_2
                                   txt: '{{ curr_color_temp }}'
+                                  color: []
+                                  font: -1
+                                  visible: true
                                 continue_on_error: true
                               - *delay_default
                               - action: 'esphome.{{ nspanel_name }}_component_val'
@@ -10327,50 +10364,58 @@ actions:
                                   cmd: tempslider.maxval={{ max_mireds }}
                                 continue_on_error: true
                               - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_color'
+                              - action: 'esphome.{{ nspanel_name }}_component'
                                 data:
                                   page: light
                                   component: power_button
+                                  txt: ''
                                   color: [192, 192, 192]
+                                  font: -1
+                                  visible: true
                                 continue_on_error: true
                               - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_visibility'
+                              - action: 'esphome.{{ nspanel_name }}_component'
                                 data:
                                   page: light
                                   component: temp_button
-                                  show: true
+                                  txt: ''
+                                  color: []
+                                  font: -1
+                                  visible: true
                                 continue_on_error: true
                               - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_visibility'
-                                data:
-                                  page: light
-                                  component: temp_value_2
-                                  show: true
-                                continue_on_error: true
-                              - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_visibility'
+                              - action: 'esphome.{{ nspanel_name }}_component'
                                 data:
                                   page: light
                                   component: temp_touch
-                                  show: true
+                                  txt: ''
+                                  color: []
+                                  font: -1
+                                  visible: true
                                 continue_on_error: true
 
                           - alias: Light color button show
                             if: '{{ color_mode_color }}'
                             then:
                               - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_visibility'
+                              - action: 'esphome.{{ nspanel_name }}_component'
                                 data:
                                   page: light
                                   component: color_button
-                                  show: true
+                                  txt: ''
+                                  color: []
+                                  font: -1
+                                  visible: true
                                 continue_on_error: true
                               - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_visibility'
+                              - action: 'esphome.{{ nspanel_name }}_component'
                                 data:
                                   page: light
                                   component: color_touch
-                                  show: true
+                                  txt: ''
+                                  color: []
+                                  font: -1
+                                  visible: true
                                 continue_on_error: true
 
                       - alias: Cover settings page  # PAGE COVER
@@ -10414,19 +10459,25 @@ actions:
                                   }}
                           - *delay_default
                           - alias: Cover open icon
-                            action: 'esphome.{{ nspanel_name }}_component_text'
+                            action: 'esphome.{{ nspanel_name }}_component'
                             data:
                               page: cover
                               component: cover_open
                               txt: '{{ cover_icons.open }}'
+                              color: []
+                              font: -1
+                              visible: true
                             continue_on_error: true
                           - *delay_default
                           - alias: Cover close icon
-                            action: 'esphome.{{ nspanel_name }}_component_text'
+                            action: 'esphome.{{ nspanel_name }}_component'
                             data:
                               page: cover
                               component: cover_close
                               txt: '{{ cover_icons.close }}'
+                              color: []
+                              font: -1
+                              visible: true
                             continue_on_error: true
 
                           - *delay_default
@@ -10439,11 +10490,14 @@ actions:
                             continue_on_error: true
                           - *delay_default
                           - alias: Cover position text
-                            action: 'esphome.{{ nspanel_name }}_component_text'
+                            action: 'esphome.{{ nspanel_name }}_component'
                             data:
                               page: cover
                               component: cover_value
                               txt: '{{ (state_attr(cover_entity, "current_position") | int ) | round(0) }} %'
+                              color: []
+                              font: -1
+                              visible: true
                             continue_on_error: true
 
                           - variables:  # COVER Battery ICON Yes / NO
@@ -10496,27 +10550,25 @@ actions:
                                       battery-outline
                                     {% endif %}
                               - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_text'
+                              - action: 'esphome.{{ nspanel_name }}_component'
                                 data:
                                   page: cover
                                   component: battery_value
                                   txt: '{{ battery_level }} %'
-                                continue_on_error: true
-                              - *delay_default
-                              - alias: Cover battery icon font color
-                                action: 'esphome.{{ nspanel_name }}_component_color'
-                                data:
-                                  page: cover
-                                  component: battery_icon
-                                  color: '{{ nextion.color.grey_super_light }}'
+                                  color: []
+                                  font: -1
+                                  visible: true
                                 continue_on_error: true
                               - *delay_default
                               - alias: Cover battery icon font
-                                action: 'esphome.{{ nspanel_name }}_component_text'
+                                action: 'esphome.{{ nspanel_name }}_component'
                                 data:
                                   page: cover
                                   component: battery_icon
                                   txt: '{{ all_icons[battery_icon] }}'
+                                  color: '{{ nextion.color.grey_super_light }}'
+                                  font: -1
+                                  visible: true
                                 continue_on_error: true
 
                       - alias: Fan settings page  # PAGE FAN
@@ -10552,7 +10604,7 @@ actions:
                           - if: '{{ fan.steps > 0 and fan.supported_features | bitwise_and(2) > 0 }}'  # Oscillate
                             then:
                               - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_text'
+                              - action: 'esphome.{{ nspanel_name }}_component'
                                 data:
                                   page: fan
                                   component: bt_oscillate
@@ -10562,20 +10614,9 @@ actions:
                                       if state_attr(fan_entity, "oscillating") | default(false)
                                       else all_icons["autorenew-off"]
                                     }}
-                                continue_on_error: true
-                              - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_color'
-                                data:
-                                  page: fan
-                                  component: bt_oscillate
                                   color: '{{ nextion.color.grey_white }}'
-                                continue_on_error: true
-                              - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_visibility'
-                                data:
-                                  page: fan
-                                  component: bt_oscillate
-                                  show: true
+                                  font: -1
+                                  visible: true
                                 continue_on_error: true
                           - condition:
                               - '{{ fan.steps > 0 }}'
@@ -10593,42 +10634,54 @@ actions:
                               cmd: fanslider.maxval={{ fan.steps }}
                             continue_on_error: true
                           - *delay_default
-                          - action: 'esphome.{{ nspanel_name }}_component_text'
+                          - action: 'esphome.{{ nspanel_name }}_component'
                             data:
                               page: fan
                               component: fan_value
                               txt: '{{ fan.percentage }}%'
+                              color: []
+                              font: -1
+                              visible: true
                             continue_on_error: true
                           - *delay_default
-                          - action: 'esphome.{{ nspanel_name }}_component_color'
+                          - action: 'esphome.{{ nspanel_name }}_component'
                             data:
                               page: fan
                               component: button_up
+                              txt: ''
                               color: >
                                 {{
                                   nextion.color.grey_white
                                   if fan.percentage < 100
                                   else nextion.color.grey_dark
                                 }}
+                              font: -1
+                              visible: true
                             continue_on_error: true
                           - *delay_default
-                          - action: 'esphome.{{ nspanel_name }}_component_color'
+                          - action: 'esphome.{{ nspanel_name }}_component'
                             data:
                               page: fan
                               component: button_down
+                              txt: ''
                               color: >
                                 {{
                                   nextion.color.grey_white
                                   if fan.percentage > 0
                                   else nextion.color.grey_dark
                                 }}
+                              font: -1
+                              visible: true
                             continue_on_error: true
                           - *delay_default
-                          - action: 'esphome.{{ nspanel_name }}_component_color'
+                          - action: 'esphome.{{ nspanel_name }}_component'
                             data:
                               page: fan
                               component: power_button
+                              txt: ''
                               color: [192, 192, 192]
+                              font: -1
+                              visible: true
                             continue_on_error: true
 
                       ## PAGE MEDIA PLAYER ##
@@ -10810,25 +10863,24 @@ actions:
                                   mui_alarm: '{{ dict.values(mui[language].alarm) | list }}'
                                 continue_on_error: true
                               - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_text'
+                              - action: 'esphome.{{ nspanel_name }}_component'
                                 data:
                                   page: alarm
                                   component: icon_state
                                   txt: '{{ entity.icon }}'
-                                continue_on_error: true
-                              - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_color'
-                                data:
-                                  page: alarm
-                                  component: icon_state
                                   color: '{{ entity.icon_color }}'
+                                  font: -1
+                                  visible: true
                                 continue_on_error: true
                               - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_text'
+                              - action: 'esphome.{{ nspanel_name }}_component'
                                 data:
                                   page: alarm
                                   component: page_label
                                   txt: '{{ entity.name | replace("\\r", " ") }}'
+                                  color: []
+                                  font: -1
+                                  visible: true
                                 continue_on_error: true
 
                       ## PAGE CLIMATE ##
@@ -10870,11 +10922,14 @@ actions:
                                 {{ state_attr(climate_entity, "hvac_modes") if settings_entity_domain == "climate" }}
                           - condition: '{{ settings_entity_domain == "climate" }}'
                           - *delay_default
-                          - action: 'esphome.{{ nspanel_name }}_component_text'
+                          - action: 'esphome.{{ nspanel_name }}_component'
                             data:
                               page: climate
                               component: page_label
                               txt: '{{ state_attr(climate_entity, "friendly_name") }}'
+                              color: []
+                              font: -1
+                              visible: true
                             continue_on_error: true
 
                           ##### Values #####
@@ -10928,21 +10983,25 @@ actions:
                                 - if: '{{ var_icon != False }}'
                                   then:
                                     - *delay_default
-                                    - action: 'esphome.{{ nspanel_name }}_component_text'
+                                    - action: 'esphome.{{ nspanel_name }}_component'
                                       data:
                                         page: '{{ repeat.item.page }}'
                                         component: '{{ repeat.item.component }}_icon'
                                         txt: '{{ var_icon }}'
+                                        color: []
+                                        font: -1
+                                        visible: true
                                       continue_on_error: true
-                                - if: '{{ repeat.item.label_color_rgb != [200, 204, 200] }}'
-                                  then:
-                                    - *delay_default
-                                    - action: 'esphome.{{ nspanel_name }}_component_color'
-                                      data:
-                                        page: '{{ repeat.item.page }}'
-                                        component: '{{ repeat.item.component }}'
-                                        color: '{{ repeat.item.label_color_rgb }}'
-                                      continue_on_error: true
+                                - *delay_default
+                                - action: 'esphome.{{ nspanel_name }}_component'
+                                  data:
+                                    page: '{{ repeat.item.page }}'
+                                    component: '{{ repeat.item.component }}'
+                                    txt: ''
+                                    color: '{{ repeat.item.label_color_rgb }}'
+                                    font: -1
+                                    visible: true
+                                  continue_on_error: true
 
                           ##### Slider & climate values #####
                           - &climate-update_slider
@@ -11066,35 +11125,21 @@ actions:
                                   for_each: '{{ page_climate.buttons.hvac_mode }}'
                                   sequence:
                                     - condition: '{{ repeat.item.mode in hvac_modes }}'
+                                    ### Shown ICON ###
                                     - *delay_default
-                                    ### ICON Font Color ###
-                                    - *delay_default
-                                    - action: 'esphome.{{ nspanel_name }}_component_color'
+                                    - action: 'esphome.{{ nspanel_name }}_component'
                                       data:
                                         page: climate
                                         component: '{{ repeat.item.component }}'
+                                        txt: '{{ all_icons[repeat.item.icon] }}'
                                         color: >
                                           {{
                                             nextion.color[repeat.item.color]
                                             if states(climate_entity) == repeat.item.mode
                                             else nextion.color.disabled
                                           }}
-                                      continue_on_error: true
-                                    ### ICON Font ###
-                                    - *delay_default
-                                    - action: 'esphome.{{ nspanel_name }}_component_text'
-                                      data:
-                                        page: climate
-                                        component: '{{ repeat.item.component }}'
-                                        txt: '{{ all_icons[repeat.item.icon] }}'
-                                      continue_on_error: true
-                                    ### Enable button click ###
-                                    - *delay_default
-                                    - action: 'esphome.{{ nspanel_name }}_component_visibility'
-                                      data:
-                                        page: climate
-                                        component: '{{ repeat.item.component }}'
-                                        show: true
+                                        font: -1
+                                        visible: true
                                       continue_on_error: true
 
                           ##### Climate custom buttons #####
@@ -11133,29 +11178,16 @@ actions:
                                           icon: '{{ repeat.item.icon }}'
                                           icon_color: '{{ repeat.item.icon_color_rgb }}'
                                     - *variable_entity
-                                    ### ICON Font Color ###
+                                    ### Show ICON ###
                                     - *delay_default
-                                    - action: 'esphome.{{ nspanel_name }}_component_color'
-                                      data:
-                                        page: climate
-                                        component: '{{ repeat.item.component }}'
-                                        color: '{{ entity.icon_color }}'
-                                      continue_on_error: true
-                                    ### ICON Font ###
-                                    - *delay_default
-                                    - action: 'esphome.{{ nspanel_name }}_component_text'
+                                    - action: 'esphome.{{ nspanel_name }}_component'
                                       data:
                                         page: climate
                                         component: '{{ repeat.item.component }}'
                                         txt: '{{ entity.icon }}'
-                                      continue_on_error: true
-                                    ### Enable button click ###
-                                    - *delay_default
-                                    - action: 'esphome.{{ nspanel_name }}_component_visibility'
-                                      data:
-                                        page: climate
-                                        component: '{{ repeat.item.component }}'
-                                        show: true
+                                        color: '{{ entity.icon_color }}'
+                                        font: -1
+                                        visible: true
                                       continue_on_error: true
 
                       ## ENTITY PAGES 01 - 04 ##
@@ -11175,11 +11207,14 @@ actions:
                           - if: '{{ entities_pages.labels[event_page] | length > 0 }}'
                             then:
                               - *delay_default
-                              - action: 'esphome.{{ nspanel_name }}_component_text'
+                              - action: 'esphome.{{ nspanel_name }}_component'
                                 data:
                                   page: '{{ event_page }}'
                                   component: page_label
                                   txt: '{{ entities_pages.labels[event_page] }}'
+                                  color: []
+                                  font: -1
+                                  visible: true
                                 continue_on_error: true
                           ##### Entities #####
                           - repeat:
@@ -11212,15 +11247,34 @@ actions:
                                       {{ state_attr(entity_id, "unit_of_measurement") | default("") }}
                                 - *variable_entity
                                 - *delay_default
-                                - action: 'esphome.{{ nspanel_name }}_value'
+                                - action: 'esphome.{{ nspanel_name }}_component'
                                   data:
                                     page: '{{ repeat.item.page }}'
                                     component: '{{ repeat.item.component }}'
-                                    icon: '{{ entity.icon if entitypages_show_entities_icons else "" }}'
-                                    icon_color: []
-                                    name: '{{ entity.name }}'
-                                    value: *value_with_unit_and_translations
-                                    value_color: []
+                                    txt: *value_with_unit_and_translations
+                                    color: []
+                                    font: -1
+                                    visible: true
+                                  continue_on_error: true
+                                - *delay_default
+                                - action: 'esphome.{{ nspanel_name }}_component'
+                                  data:
+                                    page: '{{ repeat.item.page }}'
+                                    component: '{{ repeat.item.component }}_icon'
+                                    txt: '{{ entity.icon if entitypages_show_entities_icons else "" }}'
+                                    color: []
+                                    font: -1
+                                    visible: true
+                                  continue_on_error: true
+                                - *delay_default
+                                - action: 'esphome.{{ nspanel_name }}_component'
+                                  data:
+                                    page: '{{ repeat.item.page }}'
+                                    component: '{{ repeat.item.component }}_label'
+                                    txt: '{{ entity.name }}'
+                                    color: []
+                                    font: -1
+                                    visible: true
                                   continue_on_error: true
 
                       ## PAGE WEATHER (WEATHER01 to WEATHER05) ##
@@ -11299,16 +11353,19 @@ actions:
 
                           ##### Display relative day #####
                           - *delay_default
-                          - action: 'esphome.{{ nspanel_name }}_component_text'
+                          - action: 'esphome.{{ nspanel_name }}_component'
                             data:
                               page: '{{ page_name }}'
                               component: day
                               txt: '{{ (dict.values(mui[language].relative_day) | list)[page_index] }}'
+                              color: []
+                              font: -1
+                              visible: true
                             continue_on_error: true
 
                           ##### Display date (long) #####
                           - *delay_default
-                          - action: 'esphome.{{ nspanel_name }}_component_text'
+                          - action: 'esphome.{{ nspanel_name }}_component'
                             data:
                               page: '{{ page_name }}'
                               component: date
@@ -11328,6 +11385,9 @@ actions:
                                         (now() + timedelta(days= (page_index))).month-1])
                                     )
                                 }}
+                              color: []
+                              font: -1
+                              visible: true
                             continue_on_error: true
 
                           ##### Display weather data only when available #####
@@ -11973,11 +12033,14 @@ actions:
                                       }}
                                     then:
                                       - *delay_default
-                                      - action: 'esphome.{{ nspanel_name }}_component_text'
+                                      - action: 'esphome.{{ nspanel_name }}_component'
                                         data:
                                           page: '{{ page_name }}'
                                           component: temperature  ### Temperature MIN/MAX ###
                                           txt: '{{ temperature_string }}'
+                                          color: []
+                                          font: -1
+                                          visible: true
                                         continue_on_error: true
 
                                   ##### fields 1 to 5 (Parameters) #####
@@ -11985,26 +12048,35 @@ actions:
                                       for_each: '{{ (parameters | selectattr("visibility", "eq", true) | list)[:5] }}'
                                       sequence:
                                         - *delay_default
-                                        - action: 'esphome.{{ nspanel_name }}_component_text'
+                                        - action: 'esphome.{{ nspanel_name }}_component'
                                           data:
                                             page: '{{ page_name }}'
                                             component: 'value0{{ repeat.index }}'
                                             txt: '{{ repeat.item.value }}'
+                                            color: []
+                                            font: -1
+                                            visible: true
                                           continue_on_error: true
                                         - *delay_default
-                                        - action: 'esphome.{{ nspanel_name }}_component_text'
+                                        - action: 'esphome.{{ nspanel_name }}_component'
                                           data:
                                             page: '{{ page_name }}'
                                             component: 'value0{{ repeat.index }}_icon'
                                             txt: '{{ repeat.item.icon }}'
+                                            color: []
+                                            font: -1
+                                            visible: true
                                           continue_on_error: true
                                 else: &forecast_unavailable
                                   - *delay_default
-                                  - action: 'esphome.{{ nspanel_name }}_component_text'
+                                  - action: 'esphome.{{ nspanel_name }}_component'
                                     data:
                                       page: '{{ page_name }}'
                                       component: value01
                                       txt: '{{ mui[language].unavailable }}'
+                                      color: []
+                                      font: -1
+                                      visible: true
                                     continue_on_error: true
                             else: *forecast_unavailable
 
@@ -12022,16 +12094,26 @@ actions:
                                     pages_utilities.title.icon is string and
                                     pages_utilities.title.icon.split("mdi:") | count == 2
                                 }}
+                            continue_on_error: true
                           - *delay_default
-                          - action: 'esphome.{{ nspanel_name }}_value'
+                          - action: 'esphome.{{ nspanel_name }}_component'
                             data:
                               page: utilities
                               component: title
-                              icon: '{{ all_icons[page_icon] if page_icon in all_icons else all_icons.gauge }}'
-                              icon_color: []
-                              name: ''
-                              value: '{{ pages_utilities.title.label }}'
-                              value_color: []
+                              txt: '{{ pages_utilities.title.label }}'
+                              color: []
+                              font: -1
+                              visible: true
+                            continue_on_error: true
+                          - *delay_default
+                          - action: 'esphome.{{ nspanel_name }}_component'
+                            data:
+                              page: utilities
+                              component: title_icon
+                              txt: '{{ all_icons[page_icon] if page_icon in all_icons else all_icons.gauge }}'
+                              color: []
+                              font: -1
+                              visible: true
                             continue_on_error: true
                           ## Groups
                           - repeat:
@@ -12087,25 +12169,14 @@ actions:
                                   if: '{{ label_enabled }}'
                                   then:
                                     - *delay_default
-                                    - action: 'esphome.{{ nspanel_name }}_component_text'
+                                    - action: 'esphome.{{ nspanel_name }}_component'
                                       data:
                                         page: utilities
                                         component: '{{ repeat.item.name }}_label'
                                         txt: '{{ repeat.item.label }}'
-                                      continue_on_error: true
-                                    - *delay_default
-                                    - action: 'esphome.{{ nspanel_name }}_component_color'
-                                      data:
-                                        page: utilities
-                                        component: '{{ repeat.item.name }}_label'
                                         color: '{{ repeat.item.color }}'
-                                      continue_on_error: true
-                                    - *delay_default
-                                    - action: 'esphome.{{ nspanel_name }}_component_visibility'
-                                      data:
-                                        page: utilities
-                                        component: '{{ repeat.item.name ~ "_label" }}'
-                                        show: true
+                                        font: -1
+                                        visible: true
                                       continue_on_error: true
 
                                 - variables:
@@ -12186,34 +12257,26 @@ actions:
                                         - if: '{{ value1_enabled }}'
                                           then:
                                             - *delay_default
-                                            - action: 'esphome.{{ nspanel_name }}_component_color'
+                                            - action: 'esphome.{{ nspanel_name }}_component'
                                               data:
                                                 page: utilities
                                                 component: '{{ repeat.item.name }}'
+                                                text: ''
                                                 color: '{{ repeat.item.color }}'
-                                              continue_on_error: true
-                                            - *delay_default
-                                            - action: 'esphome.{{ nspanel_name }}_component_visibility'
-                                              data:
-                                                page: utilities
-                                                component: '{{ repeat.item.name }}'
-                                                show: true
+                                                font: -1
+                                                visible: true
                                               continue_on_error: true
                                         - if: '{{ value2_enabled }}'
                                           then:
                                             - *delay_default
-                                            - action: 'esphome.{{ nspanel_name }}_component_color'
+                                            - action: 'esphome.{{ nspanel_name }}_component'
                                               data:
                                                 page: utilities
                                                 component: '{{ repeat.item.name }}b'
+                                                text: ''
                                                 color: '{{ repeat.item.color }}'
-                                              continue_on_error: true
-                                            - *delay_default
-                                            - action: 'esphome.{{ nspanel_name }}_component_visibility'
-                                              data:
-                                                page: utilities
-                                                component: '{{ repeat.item.name ~ "b" }}'
-                                                show: true
+                                                font: -1
+                                                visible: true
                                               continue_on_error: true
                                 - alias: Utilities - Line
                                   if:
@@ -12248,18 +12311,21 @@ actions:
                                             cmd: '{{ repeat.item.name }}_line.wid={{ pages_utilities.cursor.width }}'
                                           continue_on_error: true
                                     - *delay_default
-                                    - action: 'esphome.{{ nspanel_name }}_component_visibility'
+                                    - action: 'esphome.{{ nspanel_name }}_component'
                                       data:
                                         page: utilities
                                         component: '{{ repeat.item.name ~ "_line" }}'
-                                        show: true
+                                        txt: ''
+                                        color: []
+                                        font: -1
+                                        visible: true
                                       continue_on_error: true
 
               ##### Button click #####
               - alias: Button click
                 conditions:
                   - '{{ nspanel_event.type == "button_click" }}'
-                sequence:
+                sequence:  # Button click
                   - choose:
                       - alias: Hardware buttons
                         conditions:
@@ -12317,11 +12383,14 @@ actions:
                                                   }}
                                                 then:
                                                   - *delay_default
-                                                  - action: 'esphome.{{ nspanel_name }}_component_text'
+                                                  - action: 'esphome.{{ nspanel_name }}_component'
                                                     data:
                                                       page: '{{ entity.domain }}'
                                                       component: icon_state
                                                       txt: '{{ entity.icon }}'
+                                                      color: []
+                                                      font: -1
+                                                      visible: true
                                                     continue_on_error: true
                                               - if: >
                                                   {{
@@ -12332,11 +12401,14 @@ actions:
                                                   }}
                                                 then:
                                                   - *delay_default
-                                                  - action: 'esphome.{{ nspanel_name }}_component_text'
+                                                  - action: 'esphome.{{ nspanel_name }}_component'
                                                     data:
                                                       page: '{{ entity.domain }}'
                                                       component: page_label
                                                       txt: '{{ entity.name }}'
+                                                      color: []
+                                                      font: -1
+                                                      visible: true
                                                     continue_on_error: true
                                       - alias: Custom action - Left
                                         conditions: >
@@ -12565,7 +12637,7 @@ actions:
               - alias: Versions
                 conditions:
                   - '{{ nspanel_event.type == "version"}}'
-                sequence:
+                sequence:  # Versions
                   - variables:
                       versions:
                         blueprint: >
@@ -12784,14 +12856,14 @@ actions:
               - alias: Notification changed
                 conditions:
                   - '{{ nspanel_event.type == "notification_changed"}}'
-                sequence:
+                sequence:  # Notification changed
                   - *refresh_page_home_notification_button
 
               ##### Other events #####
               - alias: Other events
                 conditions:
                   - '{{ nspanel_event.type == "generic"}}'
-                sequence:
+                sequence:  # Other events
                   - choose:
                       # rgb_color, brightness, color_temp
                       # This was kept until we find a solution to call with rgb_color directly from ESPHome

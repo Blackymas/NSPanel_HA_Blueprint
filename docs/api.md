@@ -6,10 +6,7 @@ This document provides details on custom actions designed for integration with H
   - [Button Action (`button`)](#button-action-button): Configures properties and state of buttons on a specified button page.
   - [Command Action (`command`)](#command-action-command): Sends a custom command directly to the display.
   - [Component Action (`component`)](#component-action-component): Updates a display component text/icon, color, font and visibility.
-  - [Component Color Action (`component_color`)](#component-color-action-component_color): Changes the foreground color of a specified component on the display.
-  - [Component Text Action (`component_text`)](#component-text-action-component_text): Updates the text of a specified component on the display.
   - [Component Value Action (`component_val`)](#component-value-action-component_val): Updates the value of a specified component on the display.
-  - [Component Visibility Action (`component_visibility`)](#component-visibility-action-component_visibility): Hides or shows a specified component on the display.
   - [Entity Details Show Action (`entity_details_show`)](#entity-details-show-action-entity_details_show): Displays detailed information for a specific entity.
   - [Notification Clear Action (`notification_clear`)](#notification-clear-action-notification_clear): Clears the current notification from the screen.
   - [Notification Show Action (`notification_show`)](#notification-show-action-notification_show): Displays a notification-message on the screen.
@@ -17,7 +14,6 @@ This document provides details on custom actions designed for integration with H
   - [RTTTL Play Action (`rtttl_play`)](#rtttl-play-action-rtttl_play): Plays melodies encoded in the RTTTL format.
   - [Upload TFT Action (`upload_tft`)](#tft-file-update-action-upload_tft): Enables TFT file updates from a URL, requiring the "Upload TFT" add-on.
   - [Utilities Group Refresh Action (`utilities_group_refresh`)](#utilities-group-refresh-action-utilities_group_refresh): Updates utility group display values and direction indicators.
-  - [Value Action (`value`)](#value-action-value): Updates an entity to display specific values.
   - [Wake Up Action (`wake_up`)](#wake-up-action-wake_up): Activates the display from a screensaver or low-brightness state.
   - [Alarm Settings Page Action (`page_alarm`)](#alarm-settings-page-action-page_alarm): Updates the Alarm page with current state information.
   - [Climate Page Action (`page_climate`)](#climate-page-action-page_climate): Updates the Climate page with current state information.
@@ -47,10 +43,7 @@ If you send anything different, the conversion to the RGB565 used by Nextion wil
 | [`button`](#button-action-button) | [Button Action](#button-action-button) | Configures properties and state of buttons on a specified button page. |
 | [`command`](#command-action-command) | [Command Action](#command-action-command) | Sends a custom command directly to the display. |
 | [`component`](#component-action-component) | [Component Action](#component-action-component) | Updates a display component text/icon, color, font and visibility. |
-| [`component_color`](#component-color-action-component_color) | [Component Color Action](#component-color-action-component_color) | Changes the foreground color of a specified component on the display. |
-| [`component_text`](#component-text-action-component_text) | [Component Text Action](#component-text-action-component_text) | Updates the text of a specified component on the display. |
 | [`component_val`](#component-value-action-component_val) | [Component Value Action](#component-value-action-component_val) | Updates the value of a specified component on the display. |
-| [`component_visibility`](#component-visibility-action-component_visibility) | [Component Visibility Action](#component-visibility-action-component_visibility) | Hides or shows a specified component on the display. |
 | [`entity_details_show`](#entity-details-show-action-entity_details_show) | [Entity Details Show Action](#entity-details-show-action-entity_details_show) | Displays detailed information for a specific entity. |
 | [`notification_clear`](#notification-clear-action-notification_clear) | [Notification Clear Action](#notification-clear-action-notification_clear) | Clears the current notification from the screen. |
 | [`notification_show`](#notification-show-action-notification_show) | [Notification Show Action](#notification-show-action-notification_show) | Displays a notification-message on the screen. |
@@ -61,7 +54,6 @@ If you send anything different, the conversion to the RGB565 used by Nextion wil
 | [`rtttl_play`](#rtttl-play-action-rtttl_play) | [RTTTL Play Action](#rtttl-play-action-rtttl_play) | Plays melodies encoded in the RTTTL format. |
 | [`upload_tft`](#tft-file-update-action-upload_tft) | [Upload TFT Action](#tft-file-update-action-upload_tft) | Enables TFT file updates from a URL, requiring the "Upload TFT" add-on. |
 | [`utilities_group_refresh`](#utilities-group-refresh-action-utilities_group_refresh) | [Utilities Group Refresh Action](#utilities-group-refresh-action-utilities_group_refresh) | Updates utility group display values and direction indicators. |
-| [`value`](#value-action-value) | [Value Action](#value-action-value) | Updates an entity to display specific values. |
 | [`wake_up`](#wake-up-action-wake_up) | [Wake Up Action](#wake-up-action-wake_up) | Activates the display from a screensaver or low-brightness state. |
 <!-- markdownlint-enable MD013 -->
 
@@ -123,7 +115,7 @@ data:
 >
 > Ensure the command string (`cmd`) is properly formatted according to your display's command processing capabilities.
 
-### Icon Action: `component`
+### Component Action: `component`
 Updates a display component text (or icon), color, font size, and visibility within Home Assistant.
 
 **Usage:**
@@ -152,55 +144,6 @@ data:
 > [!NOTE]
 > Ensure the placeholder `<your_panel_name>` is replaced with the specific panel name you will need to reference in your Home Assistant configuration.
 
-### Component Color Action: `component_color`
-Changes the foreground color of a specified component on the display, enabling dynamic color updates for user interface customization.
-
-**Usage:**
-This action is ideal for creating visually dynamic interfaces, allowing elements to change color based on conditions,
-events, or user actions, such as indicating status changes or highlighting specific UI components.
-
-**Parameters:**
-- `page` (string): The page identifier where the component is located.
-- `component` (string): Identifier of the component whose color will be updated. It is essential that this matches the component's ID in your display layout to ensure the correct element is targeted.
-- `color` (int[]): The new color for the component, specified as an RGB array (e.g., `[255, 0, 0]` for red).
-
-**Home Assistant Example:**
-```yaml
-action: esphome.<your_panel_name>_component_color
-data:
-  page: home
-  component: time
-  color: [255, 0, 0]  # Changes the component's color to red
-```
-> [!NOTE]
-> Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant to ensure correct action execution.
->
-> Ensure the `component` and color parameters accurately target and define the new color for the component.
-
-### Component Text Action: `component_text`
-Updates the text of a specified component on the display, enabling dynamic text content updates.
-
-**Usage:**
-Ideal for user interfaces that require real-time text updates, such as status messages, labels, or any text-based information display.
-
-**Parameters:**
-- `page` (string): The page identifier where the component is located.
-- `component` (string): Identifier of the component whose text will be updated. Ensure this matches the component's ID in your display layout.
-- `txt` (string): The new text content to display. This can include static text or dynamic information passed at runtime.
-
-**Home Assistant Example:**
-```yaml
-action: esphome.<your_panel_name>_component_text
-data:
-  page: home
-  component: time
-  txt: "12:34"
-```
-> [!NOTE]
-> Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant to ensure correct action execution.
->
-> Make sure the `component` corresponds to the correct component on your display for the text update to work as intended.
-
 ### Component Value Action: `component_val`
 Updates the value of a specified component on the display, enabling dynamic value updates.
 
@@ -224,37 +167,6 @@ data:
 > Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant to ensure correct action execution.
 >
 > Ensure the `component` accurately matches the component on your display to successfully update its value.
-
-### Component Visibility Action: `component_visibility`
-Hides or shows a component on the display, allowing for dynamic interface changes.
-
-**Usage:**
-This action is ideal for creating interactive user interfaces that adapt by hiding or showing certain elements based on user actions, conditions, or events.
-
-**Parameters:**
-- `page` (string): Identifies the page where the component belongs to.
-- `component` (string): Identifiers of the components to be hidden/shown. It is crucial that this matches the component's ID in your display layout to ensure the correct element is hidden/shown.
-- `show` (bool): Set to true to show the component, or false to hide it.
-
-**Home Assistant Example:**
-```yaml
-action: esphome.<your_panel_name>_component_hide
-data:
-  page: home
-  component: "date" # Hides the date display on Home page
-  show: false
-```
-<!-- markdownlint-disable MD028 -->
-> [!NOTE]
-> Replace <your_panel_name> with your specific panel name as configured in Home Assistant to ensure correct action execution.
->
-> Ensure the ids matches the component on your display you wish to hide or show.
-
-> [!IMPORTANT]
-> This command only works when the page is visible.
-> 
-> If a component being hidden/shown is not part of the current page, the command will fail and an error message will be logged.
-<!-- markdownlint-enable MD028 -->
 
 ### Entity Details Show Action: `entity_details_show`
 This action is designed to display detailed information about a specific entity within the panel's interface.
@@ -565,35 +477,6 @@ data:
 > Replace `<your_panel_name>` with the specific name of your panel configured in Home Assistant to ensure correct action execution.
 
 This action updates utility group display elements with the specified values and direction indicators dynamically.
-
-### Value Action: `value`
-Updates an entity to display specific values, allowing for dynamic updates of icons, names, and value colors within Home Assistant.
-
-**Usage:**
-This action is intended for entities that need to display information dynamically, such as sensor readings or state values, with customized icons, names, and color coding for both icon and value.
-
-**Parameters:**
-- `component` (string): Identifier of the entity being updated. For details on entity identifiers, refer to "[Screen components](#screen-components)".
-- `icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html).
-Indicates the icon displayed next to the value.
-- `icon_color` (int[]): RGB color array for the icon, allowing for custom icon colors.
-- `name` (string): The display name for the entity, useful for labeling the value displayed.
-- `value` (string): The actual value to be displayed next to the icon and name.
-- `value_color` (int[]): RGB color array for the value text, enabling custom coloring of the displayed value.
-
-**Home Assistant Example:**
-```yaml
-action: esphome.<your_panel_name>_value
-data:
-  component: "sensor.temperature"
-  icon: "\uE6E8"           # Example for mdi:thermometer
-  icon_color: [255, 0, 0]  # Red
-  name: "Temperature"
-  value: "75°F"
-  value_color: [255, 255, 0] # Yellow
-```
-> [!NOTE]
-> Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant to ensure correct action execution.
 
 ### Wake Up Action: `wake_up`
 Activates the display from a screensaver or low-power state, enabling dynamic interface adjustments based on user interactions or automated triggers.
