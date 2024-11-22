@@ -6,7 +6,7 @@ simplifying the update process and ensuring your panel always runs the latest di
 
 ## Breaking Changes and Guidance
 
-### Home Assistant v2024.10.0 and ESPHome v2024.8.0 are required
+### Home Assistant v2024.11.0 and ESPHome v2024.11.0 are required
 Please refer to our [Version Compatibility Matrix](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/version_compatibility.md) for a full list.
 
 ### Changes on the versioning requires updating all the three components
@@ -62,8 +62,7 @@ We made improvements in some scripts, so the customizations using those scripts 
   want the panel to display the updated value in real-time.
 
   Your current selection for QRcode still working, as it will be used as a fallback value when an entity is not used or is used, but it is unavailable.
-- **Criticality:** Enhancement
-- **Issue Numbers:**
+- **Related Issue Numbers:**
   - #452
   - #2282
   - #2283
@@ -72,88 +71,54 @@ We made improvements in some scripts, so the customizations using those scripts 
 - **Description:**
   The default baud rate for the communication between ESP32 (ESPHome) and the Nextion Display was changed from 115200bps to 921600bps, multiplying by 8 the transfer rate.
   This may increase the responsiveness and user experience, and will allow for future development of features which requires more of this communication.
-- **Criticality:** Enhancement
-- **Issue Numbers:**
+- **Related Issue Numbers:**
   - #2230
 - **Issues and discussions that could benefit from this in the future:**
   - #1270
   - #2328
   - #2357
 
-### Swipe Functionality Improvement and Bug Fix (#2244)
-- **Criticality:** Medium
-- **Issue Number:** #2244
-- **Description:** Resolved an issue where swipe functionality would intermittently stop working under specific conditions.
-  The swipe timer is now properly stopped on touch release before checking API status, preventing the timer from running indefinitely.
-  The swipe engine has been removed from pages where swipe is not available, enhancing system performance and reliability.
+### Buzzer volume control
+- **Description:**
+  Now you can set the volume level of your panel's buzzer, allowing to better experience when using your panel for sounds.
 
-### Fix for Climate Page Access with Embedded Thermostat Without Blueprint (#2190)
-- **Criticality:** Minor
-- **Issue Number:** #2190
-- **Description:** Resolved an issue preventing access to the climate page from the home page when using the embedded thermostat without blueprint connection
-  (e.g., when Home Assistant or Wi-Fi is unavailable).
-  This fix ensures that the NSPanel can still navigate correctly to the climate page when the internal temperature sensor is displayed, even if the blueprint connection is lost.
+> [!NOTE]
+> You can disable the sound on changing volume by adding the following to your panel's substitutions:
+> ```yaml
+> substitutions:
+>   tone_volume_change: "none"  # Or choose your own RTTTL tone
 
-### Keep Display Off with Button Press While Sleeping (#2194)
-- **Criticality:** Minor
-- **Issue Number:** #2194
-- **Description:** Implemented a fix that allows the display to remain off when a button is pressed while the panel is sleeping.
-  This update addresses a reported problem and enhances the overall behavior of the display during sleep mode.
-
-### Fix for Missing Default Icon After Manual Deletion (#2200)
-- **Criticality:** Minor
-- **Issue Number:** #2200
-- **Description:** Fixed an issue where default icons were not displayed after manually deleting a previously set custom icon on the home page.
-  Once a custom icon is removed and the field is left blank, the system now correctly reverts to displaying the default icon.
-
-### Custom UART Compilation Issue Resolved (#2265)
-- **Criticality:** Minor
-- **Issue Number:** #2265
-- **Description:** Fixed a compilation issue when using a custom UART with the advanced package by specifying the Nextion UART ID during command execution.
-  This fix ensures compatibility and prevents build failures, allowing advanced UART configurations.
-
-### Screen Wake-Up on Hardware Button Press Configurable (#2194)
-- **Criticality:** Enhancement
-- **Issue Number:** #2194
+### Screen Wake-Up on Hardware Button Press Configurable
 - **Description:** Added a new switch to configure whether the panel should wake up when a hardware button is pressed.
   This switch is available under **Settings** > **Devices & services** > **ESPHome** in Home Assistant.
   It provides users with flexibility to control display wake-up behavior via hardware buttons.
+- **Issue Number:** #2194
 
-### TFT Update Automatically (#2227)
-- **Criticality:** Enhancement
-- **Issue Number:** #2227
+### TFT Update Automatically
 - **Description:** Introduced an automatic TFT update mechanism that triggers whenever the system detects an outdated TFT version.
   This enhancement streamlines the process of keeping your NSPanel display firmware up to date, minimizing manual intervention.
+- **Issue Number:** #2227
 
 ### Versioning Engine Updated to Enforce Patch-Level Consistency
-- **Criticality:** Enhancement
 - **Description:** Updated the versioning engine to require all components (Blueprint, ESPHome, and TFT) to match at the patch level,
   enhancing reliability by ensuring all parts are fully synchronized. This supports the new automatic TFT update feature.
 
-### Panel Display Control via Light Entity (#2091)
-- **Criticality:** Enhancement
-- **Affected Components:** ESPHome
-- **Issue Number:** #2091
+### Panel Display Control via Light Entity
 - **Description:** Introduced a light entity to represent the NSPanel's display, allowing users to control the panel’s brightness, wake it up,
   or put it to sleep through third-party automations designed for lights.
   Users with existing customizations should remove them from their YAML configuration.
+- **Issue Number:** #2091
 
-### Updated CLIMATE_MODE_AUTO Icon on Climate Page (#2243)
-- **Criticality:** Enhancement
-- **Affected Components:** ESPHome
-- **Issue Number:** #2243
+### Updated CLIMATE_MODE_AUTO Icon on Climate Page
 - **Description:** Updated the CLIMATE_MODE_AUTO icon on the Climate page from “mdi:calendar-sync” to “mdi:refresh-auto.”
   This change provides a clearer representation of the automatic mode.
+- **Issue Number:** #2243
 
 ### Updated References from `service` to `action` for Compatibility with New Standards
-- **Criticality:** Enhancement
-- **Affected Components:** Blueprint, ESPHome
 - **Description:** Updated all references from `service` to `action` to comply with Home Assistant v2024.8.0 and ESPHome v2024.8.0 standards,
   ensuring full compatibility with the latest versions.
 
 ### Reduced Logging to Enhance Focus on Critical Information
-- **Criticality:** Enhancement, Breaking Change
-- **Affected Components:** ESPHome, Blueprint
 - **Description:** Logging has been streamlined to focus on the most critical information, reducing noise and improving the clarity of logs.
   While this change enhances readability and allows users to quickly identify important messages,
   it may alter the behavior of existing troubleshooting processes that relied on more verbose logs.

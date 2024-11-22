@@ -84,10 +84,10 @@ script:
       - wait_until:
           condition:
             - lambda: return wifi_component->is_connected();
-            - lambda: return id(current_page_id) == ${PAGE_ID_BOOT};
+            - lambda: return current_page_id == ${PAGE_ID_BOOT};
           timeout: 20s
       - lambda: |-
-          if (id(current_page_id) == ${PAGE_ID_BOOT})
+          if (current_page_id == ${PAGE_ID_BOOT})
             disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());
 
   - id: !extend page_home
@@ -101,12 +101,6 @@ script:
           static const char* TAG = "script.refresh_wifi_icon";
           ESP_LOGV(TAG, "Refreshing Wi-Fi icon");
           static DisplayComponent* wifi_icon = get_component(${PAGE_ID_HOME}, "wifi_icon");
-          if (!wifi_icon or wifi_icon == nullptr) {
-            ESP_LOGE(TAG, "No icon pointer available");
-            return;
-          }
-          wifi_icon->initialized = true;
-          wifi_icon->visible = true;
           static bool blueprint_is_connected = false;
           static bool api_is_connected = false;
           static bool wifi_is_connected = false;
@@ -135,11 +129,9 @@ script:
                 copyStringToCharArray(new_wifi_icon, "${MDI_ICON_WIFI_OFF}");
             }
 
-            if (new_wifi_icon[0] != '\0' and strcmp(wifi_icon->text, new_wifi_icon) != 0) {
-              copyStringToCharArray(wifi_icon->text, new_wifi_icon);
-              if (id(current_page_id) == ${PAGE_ID_HOME})
-                display_component_send_text->execute(wifi_icon);
-            }
+            if (new_wifi_icon[0] != '\0' and strcmp(wifi_icon->text, new_wifi_icon) != 0)
+              display_component_update_text->execute(wifi_icon, new_wifi_icon);
+
             if (blueprint_is_connected and api_is_connected and wifi_is_connected) {
               ESP_LOGI(TAG, "Wi-Fi icon changed to %s (\\u%04X)", new_wifi_icon, decode_utf8(new_wifi_icon));
               set_variable_value->execute("api", 1);
@@ -154,16 +146,10 @@ script:
           if (status_has_changed or (wifi_rssi_warning != (wifi_rssi->state <= -70))) {
             ESP_LOGV(TAG, "RSSI changed");
             wifi_rssi_warning = (wifi_rssi->state <= -70);
-            uint16_t new_wifi_icon_color = (blueprint_is_connected and wifi_is_connected and api_is_connected)
-                                            ? (wifi_rssi_warning ? 64992 : 33808)
-                                            : 63488;
-            if (wifi_icon->color != new_wifi_icon_color) {
-              wifi_icon->color = new_wifi_icon_color;
-              if (id(current_page_id) == ${PAGE_ID_HOME}) {
-                ESP_LOGD(TAG, "Wi-Fi icon color changed to %" PRIu16, new_wifi_icon_color);
-                display_component_send_color->execute(wifi_icon);
-              }
-            }
+            display_component_update_color->execute(wifi_icon,
+                                                    (blueprint_is_connected and wifi_is_connected and api_is_connected)
+                                                    ? (wifi_rssi_warning ? 64992 : 33808)
+                                                    : 63488);
           }
 
   - id: !extend stop_all

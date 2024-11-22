@@ -8,6 +8,8 @@
 ---
 substitutions:
   BOOT_STEP_HW_DISPLAY: '1UL << 5'
+  DISPLAY_CHARSET_INTERNATIONAL: '1'
+  DISPLAY_CHARSET_CJK: '2'
 
 api:
   id: !extend api_server
@@ -137,34 +139,36 @@ esphome:
 
     - priority: 600.5
       then:
-        - wait_until:
-            - lambda: return not id(is_safe_mode);
-        - wait_until:
-            condition:
-              - lambda: return (not isnan(stoi(baud_rate->state)));
-            timeout: 60s
-        - script.execute:
-            id: boot_log
-            category: on_boot
-            log_message: Set baud rate
-        - lambda: |-
-            if (stoi(baud_rate->state) != tf_uart->get_baud_rate())
-              set_baud_rate->execute(stoi(baud_rate->state), true);
-        - wait_until:
-            condition:
-              - lambda: return disp1->is_setup();
-            timeout: 60s
         - if:
             condition:
-              - lambda: return (not disp1->is_detected());
+              - lambda: return not id(is_safe_mode);
             then:
+              - wait_until:
+                  condition:
+                    - lambda: return (not isnan(stoi(baud_rate->state)));
+                  timeout: 60s
               - script.execute:
                   id: boot_log
                   category: on_boot
-                  log_message: Restart Nextion
-              - switch.turn_off: screen_power
-              - delay: 2s
-              - switch.turn_on: screen_power
+                  log_message: Set baud rate
+              - lambda: |-
+                  if (stoi(baud_rate->state) != tf_uart->get_baud_rate())
+                    set_baud_rate->execute(stoi(baud_rate->state), true);
+              - wait_until:
+                  condition:
+                    - lambda: return disp1->is_setup();
+                  timeout: 60s
+              - if:
+                  condition:
+                    - lambda: return (not disp1->is_detected());
+                  then:
+                    - script.execute:
+                        id: boot_log
+                        category: on_boot
+                        log_message: Restart Nextion
+                    - switch.turn_off: screen_power
+                    - delay: 2s
+                    - switch.turn_on: screen_power
 
   on_shutdown:
     - priority: 600.5
@@ -195,15 +199,6 @@ globals:
     type: uint8_t
     restore_value: false
     initial_value: '0'  # 1 = EU, 2 = US, 3 = US landscape, 4 = blank, 5 = US landscape (inverted)
-
-  - id: current_page_id
-    type: uint8_t
-    restore_value: false
-    initial_value: '0'
-  - id: previous_page_id
-    type: uint8_t
-    restore_value: false
-    initial_value: '0'
 
   - id: mui_bytes_per_char
     type: uint8_t
@@ -256,7 +251,7 @@ number:
       then:
         - lambda: |-
             set_variable_value->execute("brightness_dim", static_cast<uint8_t>(x));
-            if (id(current_page_id) != ${PAGE_ID_SCREENSAVER} and current_brightness->state != x)
+            if (current_page_id != ${PAGE_ID_SCREENSAVER} and current_brightness->state != x)
               set_brightness->execute(static_cast<uint8_t>(x));
 
   - id: display_sleep_brightness  # SCREEN BRIGHTNESS SLEEP
@@ -284,7 +279,7 @@ number:
     entity_category: config
     min_value: 0
     max_value: 25
-    initial_value: 0
+    initial_value: 3
     step: 1
     restore_value: true
     optimistic: true
@@ -309,38 +304,37 @@ script:
     then:
       # Extended by:
       #   nspanel_esphome_core_hw_relays.yaml
+      #   nspanel_esphome_core_page_home.yaml
       - lambda: |-
           DisplayComponent* display_component = get_component(page_id, component.c_str());
 
-          const bool initializing = not display_component->initialized;
-          display_component->initialized = true;
-
-          const bool changed_visibility = (display_component->visible != visible);
-
           // Text
           if (!txt.empty())
-            display_component_update_text->execute(display_component, txt, initializing or changed_visibility);
+            display_component_update_text->execute(display_component, txt);
 
           // Text color
           if (color.size() == 3 and
               color[0] >= 0 and color[0] <= UINT8_MAX and
               color[1] >= 0 and color[1] <= UINT8_MAX and
               color[2] >= 0 and color[2] <= UINT8_MAX)
-            display_component_update_color->execute(display_component, color565(color),
-                                                    initializing or changed_visibility);
+            display_component_update_color->execute(display_component, color565(color));
 
           // Text font
           if (font >= 0 and font <= UINT8_MAX)
-            display_component_update_font->execute(display_component, font, initializing or changed_visibility);
+            display_component_update_font->execute(display_component, font);
 
           // Text visibility
-          display_component_update_visibility->execute(display_component, visible, initializing or changed_visibility);
+          display_component_update_visibility->execute(display_component, visible);
 
   - id: display_component_send
     mode: parallel
     parameters:
       display_component: DisplayComponent*
     then:
+      - wait_until:
+          condition:
+            - lambda: return (display_component->page_id == current_page_id);
+          timeout: 2s
       - lambda: |-
           ESP_LOGD("script.display_component_send", "Rendering page %s, component %s",
                     page_names[display_component->page_id], display_component->component);
@@ -354,93 +348,153 @@ script:
     parameters:
       display_component: DisplayComponent*
     then:
+      - wait_until:
+          condition:
+            - lambda: return (display_component->page_id == current_page_id or display_component->color_is_updated);
+          timeout: 2s
+      - script.execute: nextion_queue_add
+      - if:
+          condition:
+            - lambda: return (display_component->page_id == current_page_id and !display_component->color_is_updated);
+          then:
+            - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          set_component_font_color->execute(display_component->page_id,
-                                            display_component->component,
-                                            display_component->color);
+          if (display_component->page_id == current_page_id and !display_component->color_is_updated) {
+            disp1->set_component_font_color(display_component->component, display_component->color);
+            display_component->color_is_updated = true;
+          }
+          nextion_queue_del->execute();
 
   - id: display_component_send_font
     mode: parallel
     parameters:
       display_component: DisplayComponent*
     then:
-      - lambda: |-
-          if (display_component->font != UINT8_MAX)
-            set_component_font->execute(display_component->page_id,
-                                        display_component->component,
-                                        display_component->font);
+      - if:
+          condition:
+            - lambda: return (display_component->font != UINT8_MAX or display_component->font_is_updated);
+          then:
+            - wait_until:
+                condition:
+                  - lambda: |-
+                      return (display_component->page_id == current_page_id and !display_component->font_is_updated);
+                timeout: 2s
+            - script.execute: nextion_queue_add
+            - if:
+                condition:
+                  - lambda: |-
+                      return (display_component->page_id == current_page_id and !display_component->font_is_updated);
+                then:
+                  - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
+            - lambda: |-
+                if (display_component->page_id == current_page_id and !display_component->font_is_updated) {
+                  disp1->set_component_font(display_component->component, display_component->font);
+                  display_component->font_is_updated = true;
+                }
+                nextion_queue_del->execute();
 
   - id: display_component_send_text
     mode: parallel
     parameters:
       display_component: DisplayComponent*
     then:
+      - wait_until:
+          condition:
+            - lambda: return (display_component->page_id == current_page_id or display_component->text_is_updated);
+          timeout: 2s
+      - script.execute: nextion_queue_add
+      - if:
+          condition:
+            - lambda: return (display_component->page_id == current_page_id and !display_component->text_is_updated);
+          then:
+            - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          set_component_text->execute(display_component->page_id,
-                                      display_component->component,
-                                      display_component->text);
+          if (display_component->page_id == current_page_id and !display_component->text_is_updated) {
+            disp1->set_component_text(display_component->component, display_component->text);
+            display_component->text_is_updated = true;
+          }
+          nextion_queue_del->execute();
 
   - id: display_component_send_visibility
     mode: parallel
     parameters:
       display_component: DisplayComponent*
     then:
+      - wait_until:
+          condition:
+            - lambda: |-
+                return (display_component->page_id == current_page_id) or display_component->visible_is_updated;
+          timeout: 2s
+      - script.execute: nextion_queue_add
+      - if:
+          condition:
+            - lambda: |-
+                return (display_component->page_id == current_page_id and !display_component->visible_is_updated);
+          then:
+            - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          set_component_visibility->execute(display_component->page_id,
-                                            display_component->component,
-                                            display_component->visible);
+          if (display_component->page_id == current_page_id and !display_component->visible_is_updated) {
+            disp1->send_command_printf("vis %s,%i", display_component->component,
+                                        display_component->visible ? 1 : 0);
+            display_component->visible_is_updated = true;
+          }
+          nextion_queue_del->execute();
 
   - id: display_component_update_color
     mode: parallel
     parameters:
       display_component: DisplayComponent*
       new_color: uint16_t
-      force_show: bool
     then:
       - lambda: |-
-          if (force_show or new_color != display_component->color) {
+          if (new_color != display_component->color) {
             display_component->color = new_color;
-            display_component_send_color->execute(display_component);
+            display_component->color_is_updated = false;
           }
+          if (!display_component->color_is_updated)
+            display_component_send_color->execute(display_component);
 
   - id: display_component_update_font
     mode: parallel
     parameters:
       display_component: DisplayComponent*
       new_font: uint8_t
-      force_show: bool
     then:
       - lambda: |-
-          if (force_show or new_font != display_component->font) {
+          if (new_font != display_component->font) {
             display_component->font = new_font;
-            display_component_send_font->execute(display_component);
+            display_component->font_is_updated = false;
           }
+          if (!display_component->font_is_updated)
+            display_component_send_font->execute(display_component);
 
   - id: display_component_update_text
     mode: parallel
     parameters:
       display_component: DisplayComponent*
       new_text: string
-      force_show: bool
     then:
       - lambda: |-
-          if (force_show or new_text != display_component->text) {
+          if (new_text != display_component->text) {
             copyStringToCharArray(display_component->text, new_text);
-            display_component_send_text->execute(display_component);
+            display_component->text_is_updated = false;
           }
+          if (!display_component->text_is_updated)
+            display_component_send_text->execute(display_component);
 
   - id: display_component_update_visibility
     mode: parallel
     parameters:
       display_component: DisplayComponent*
       new_visibility: bool
-      force_show: bool
     then:
       - lambda: |-
-          if (force_show or new_visibility != display_component->visible) {
+          if (new_visibility != display_component->visible) {
             display_component->visible = new_visibility;
-            display_component_send_visibility->execute(display_component);
+            display_component->visible_is_updated = false;
           }
+          if (!display_component->visible_is_updated)
+            display_component_send_visibility->execute(display_component);
 
   - id: display_wrapped_text
     mode: queued
@@ -621,29 +675,23 @@ script:
     then:
       # This is extended by most of the page's yaml files.
       - lambda: |-
-            const bool is_new_page = (new_page_id != id(current_page_id));
+            const bool is_new_page = (new_page_id != current_page_id);
             if (is_new_page) {
-              id(previous_page_id) = id(current_page_id);
-              id(current_page_id) = new_page_id;
-              current_page->publish_state(page_names[id(current_page_id)]);
+              reset_updates_by_page(new_page_id);
+              previous_page_id = current_page_id;
+              current_page_id = new_page_id;
+              current_page->publish_state(page_names[current_page_id]);
             }
             if (is_new_page or new_page_id == ${PAGE_ID_BOOT}) {
               // Report new page to logs
-              ESP_LOGI("display.disp1.on_page", "Page changed from \"%s\" to \"%s\"", page_names[id(previous_page_id)],
+              ESP_LOGI("display.disp1.on_page", "Page changed from \"%s\" to \"%s\"", page_names[previous_page_id],
                         page_names[new_page_id]);
 
               // Clear the buffer when a new page opens
               nextion_queue_reset->execute();
 
               // Reset entity_id when it does not apply
-              if (new_page_id != ${PAGE_ID_ALARM} and
-                  new_page_id != ${PAGE_ID_CLIMATE} and
-                  new_page_id != ${PAGE_ID_COVER} and
-                  new_page_id != ${PAGE_ID_FAN} and
-                  new_page_id != ${PAGE_ID_LIGHT} and
-                  new_page_id != ${PAGE_ID_MEDIA_PLAYER} and
-                  new_page_id != ${PAGE_ID_CONFIRM} and
-                  new_page_id != ${PAGE_ID_KEYB_NUM}) {
+              if (not is_page_in_group(ENTITY_ID_PAGE_MASK, new_page_id)) {
                 detailed_entity->publish_state("");
                 set_variable_value->execute("back_page_id", ${PAGE_ID_HOME});
               }
@@ -655,7 +703,7 @@ script:
                 {"esphome_version", "${version}"},
                 {"type", "page_changed"},
                 {"page", page_names[new_page_id]},
-                {"from", page_names[id(previous_page_id)]},
+                {"from", page_names[previous_page_id]},
                 {"entity", detailed_entity->state.c_str()}
               });
             }
@@ -664,11 +712,13 @@ script:
   - id: page_changed_rendering_components
     mode: restart
     then:
+    # Extended by:
+    #   - nspanel_esphome_core_page_home.yaml
       - lambda: |-
           // Plot page's icons
-          std::vector<DisplayComponent*> display_components = list_components_by_page(id(current_page_id));
+          std::vector<DisplayComponent*> display_components = list_components_by_page(current_page_id);
           for (DisplayComponent* display_component : display_components) {
-              display_component_send->execute(display_component);
+            display_component_send->execute(display_component);
           }
 
   - id: send_command
@@ -735,7 +785,7 @@ script:
       - script.execute: nextion_queue_add
       - wait_until:
           condition:
-            - lambda: return (page_id == id(current_page_id));
+            - lambda: return (page_id == current_page_id);
           timeout: 2s
       - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
@@ -752,11 +802,11 @@ script:
       - script.execute: nextion_queue_add
       - wait_until:
           condition:
-            - lambda: return (page_id == id(current_page_id));
+            - lambda: return (page_id == current_page_id);
           timeout: 2s
       - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          if (page_id == id(current_page_id))
+          if (page_id == current_page_id)
             disp1->set_component_font_color(component.c_str(), color);
           nextion_queue_del->execute();
 
@@ -770,11 +820,11 @@ script:
       - script.execute: nextion_queue_add
       - wait_until:
           condition:
-            - lambda: return (page_id == id(current_page_id));
+            - lambda: return (page_id == current_page_id);
           timeout: 2s
       - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          if (page_id == id(current_page_id))
+          if (page_id == current_page_id)
             disp1->set_component_picc(component.c_str(), picc);
           nextion_queue_del->execute();
 
@@ -797,11 +847,11 @@ script:
       - script.execute: nextion_queue_add
       - wait_until:
           condition:
-            - lambda: return (page_id == id(current_page_id));
+            - lambda: return (page_id == current_page_id);
           timeout: 2s
       - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          if (page_id == id(current_page_id))
+          if (page_id == current_page_id)
             disp1->set_component_pic(component.c_str(), pic);
           nextion_queue_del->execute();
 
@@ -815,11 +865,11 @@ script:
       - script.execute: nextion_queue_add
       - wait_until:
           condition:
-            - lambda: return (page_id == id(current_page_id));
+            - lambda: return (page_id == current_page_id);
           timeout: 2s
       - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          if (page_id == id(current_page_id))
+          if (page_id == current_page_id)
             disp1->set_component_text(component.c_str(), text.c_str());
           nextion_queue_del->execute();
 
@@ -833,11 +883,11 @@ script:
       - script.execute: nextion_queue_add
       - wait_until:
           condition:
-            - lambda: return (page_id == id(current_page_id));
+            - lambda: return (page_id == current_page_id);
           timeout: 2s
       - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
       - lambda: |-
-          if (page_id == id(current_page_id))
+          if (page_id == current_page_id)
             disp1->set_component_value(component.c_str(), val);
           nextion_queue_del->execute();
 
@@ -851,11 +901,11 @@ script:
       - script.execute: nextion_queue_add
       - wait_until:
           condition:
-            - lambda: return (page_id == id(current_page_id));
+            - lambda: return (page_id == current_page_id);
           timeout: 2s
       - if:
           condition:
-            - lambda: return (page_id == id(current_page_id));
+            - lambda: return (page_id == current_page_id);
           then:
             - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
             - lambda: |-
@@ -990,7 +1040,7 @@ text_sensor:
     internal: false
     disabled_by_default: false
     filters:
-      - lambda: return {page_names[id(current_page_id)]};
+      - lambda: return {page_names[current_page_id]};
 
   - id: disp1_local_event  # NSPanel event - Execute actions from ESPHome - NO directly push to HA
     name: NSPanel local event

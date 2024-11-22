@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <array>
+#include <cstring>
 #include <string>
 
 namespace nspanel_ha_blueprint {
@@ -16,6 +18,11 @@ namespace nspanel_ha_blueprint {
      */
     template <unsigned int N>
     void copyStringToCharArray(char (&dest)[N], const std::string& src);
+
+    // Function to compare the beginning of the string
+    inline bool starts_with(const char* str, const char* prefix) {
+        return std::strncmp(str, prefix, std::strlen(prefix)) == 0;
+    }
 
     /**
      * Determines if a character is part of a numeric string. This includes digits,
@@ -75,14 +82,14 @@ namespace nspanel_ha_blueprint {
         } else if ((byte & 0xF0) == 0xE0 && bytes[1] != '\0' && bytes[2] != '\0') {
             // 3-byte UTF-8 character, 1110xxxx 10xxxxxx 10xxxxxx
             code_point = ((byte & 0x0F) << 12) |
-                          ((static_cast<unsigned char>(bytes[1]) & 0x3F) << 6) |
-                          (static_cast<unsigned char>(bytes[2]) & 0x3F);
+                        ((static_cast<unsigned char>(bytes[1]) & 0x3F) << 6) |
+                        (static_cast<unsigned char>(bytes[2]) & 0x3F);
         } else if ((byte & 0xF8) == 0xF0 && bytes[1] != '\0' && bytes[2] != '\0' && bytes[3] != '\0') {
             // 4-byte UTF-8 character, 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
             code_point = ((byte & 0x07) << 18) |
-                          ((static_cast<unsigned char>(bytes[1]) & 0x3F) << 12) |
-                          ((static_cast<unsigned char>(bytes[2]) & 0x3F) << 6) |
-                          (static_cast<unsigned char>(bytes[3]) & 0x3F);
+                        ((static_cast<unsigned char>(bytes[1]) & 0x3F) << 12) |
+                        ((static_cast<unsigned char>(bytes[2]) & 0x3F) << 6) |
+                        (static_cast<unsigned char>(bytes[3]) & 0x3F);
         } else {
             // Invalid UTF-8 sequence, return 0 to indicate an error
             code_point = 0;

@@ -11,7 +11,7 @@ substitutions:
   tone_boot: "two short:d=4,o=5,b=100:16e6,16e6"
   tone_touch_press: "Touch:d=16,o=5,b=180:g"
   tone_touch_release: "Release:d=32,o=5,b=180:g,g"
-  tone_volume_change: "none"  # Default to "none" for no sound
+  tone_volume_change: "scale_up:d=32,o=5,b=100:c,c#,d#,e,f#,g#,a#,b"  # Use to "none" for no sound
 
 api:
   id: !extend api_server
@@ -25,8 +25,10 @@ api:
       then:
         - lambda: |-
             buzzer->stop();
-            if (buzzer_gain->state > 0)
+            if (buzzer_gain->state > 0) {
+              ESP_LOGI("api.actions.rtttl_play", "Play tone: '%s'", tone.c_str());
               buzzer->play(tone.c_str());
+            }
 
 display:
   - id: !extend disp1
@@ -50,7 +52,7 @@ esphome:
 
 number:
   - id: buzzer_gain
-    name: Buzzer - Gain
+    name: Sound - Volume
     platform: template
     max_value: 100
     min_value: 0
@@ -93,18 +95,34 @@ script:
     then:
       - lambda: |-
           if (
-              notification_sound->state and
-              buzzer_gain->state > 0 and
-              previous_page_id == ${PAGE_ID_BOOT}
-            ) {
+              previous_page_id == ${PAGE_ID_BOOT} and
+              current_page_id != ${PAGE_ID_BOOT} and
+              buzzer_boot_sound->state and
+              buzzer_gain->state > 0) {
             boot_log->execute("Boot", "Play boot sound");
-            buzzer->play("{tone_boot}");
+            buzzer->play("${tone_boot}");
           }
+
+  - id: !extend notification_show_action  # Defined by nspanel_esphome_core_page_notification.yaml
+    then:
+      - lambda: |-
+          if (notification_sound->state and buzzer_gain->state > 0)
+            buzzer->play("${tone_notification}");
 
 switch:
   - id: buzzer_touch_feedback
-    name: Touch screen feedback sound
+    name: Sound - Touch screen feedback
     platform: template
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    internal: false
+    icon: mdi:volume-high
+    disabled_by_default: true
+
+  - id: buzzer_boot_sound
+    platform: template
+    name: Sound - Boot
     entity_category: config
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF

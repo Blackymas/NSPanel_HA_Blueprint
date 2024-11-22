@@ -51,7 +51,7 @@ script:
     then:
       - if:
           condition:
-            - lambda: return id(current_page_id) == ${PAGE_ID_BOOT};
+            - lambda: return current_page_id == ${PAGE_ID_BOOT};
             - lambda: return wakeup_page_name->state == "home";
           then:
             - wait_until:
@@ -64,23 +64,35 @@ script:
                 set_variable_value->execute("wakeup_page_id", ${PAGE_ID_HOME});
       - wait_until:
           condition:
-            - lambda: return (id(current_page_id) != ${PAGE_ID_BOOT});
+            - lambda: return (current_page_id != ${PAGE_ID_BOOT});
           timeout: 2s
       - lambda: |-
           boot_progress->execute(${BOOT_STEP_PAGE_HOME}, "Page Home");
 
+  - id: !extend display_component_action  # Defined by nspanel_esphome_core_hw_display.yaml
+    then:
+      - lambda: |-
+          if (id(display_mode) == 3 and page_id == ${PAGE_ID_HOME} and
+              (component == "left_bt_text" or component == "right_bt_text"))
+            display_component_update_visibility->execute(get_component(page_id, component.c_str()), false);
+
   - id: !extend page_changed
     then:
       - lambda: |-
-          if (id(current_page_id) == ${PAGE_ID_HOME})
+          if (current_page_id == ${PAGE_ID_HOME})
             page_home->execute();
+
+  - id: !extend page_changed_rendering_components  # Defined by nspanel_esphome_core_hw_display.yaml
+    then:
+      - lambda: |-
+          if (current_page_id == ${PAGE_ID_HOME} and id(display_mode) == 3) {
+            display_component_update_visibility->execute(get_component(${PAGE_ID_HOME}, "left_bt_text"), false);
+            display_component_update_visibility->execute(get_component(${PAGE_ID_HOME}, "right_bt_text"), false);
+          }
 
   - id: page_home
     mode: restart
     then:
-    #  - lambda: |-
-    #      page_home_chips->execute();
-    #      page_home_custom_buttons->execute();
     # Extended by:
     #   - nspanel_esphome_core_datetime.yaml
     #   - nspanel_esphome_core_hw_relays.yaml
@@ -89,41 +101,6 @@ script:
     #   - nspanel_esphome_core_page_notification.yaml
     #   - nspanel_esphome_core_page_qrcode.yaml
     #   - nspanel_esphome_core_page_weather.yaml
-
-  - id: page_home_chips
-    mode: restart
-    then:
-      - lambda: |-
-          ESP_LOGD("script.page_home_chips", "Rendering chips");
-          char component[7] = "\0";
-
-          for (uint8_t component_id = 1; component_id <= 7; component_id++) {
-              sprintf(component, "chip%02d", component_id); // Constructing "chip01" to "chip07"
-
-              ESP_LOGD("script.page_home_chips", "Getting %s", component);
-              DisplayComponent* icon = get_component(${PAGE_ID_HOME}, component);
-              if (icon && icon->initialized) {
-                  ESP_LOGD("script.page_home_chips", "Updating %s", component);
-                  display_component_send->execute(icon);
-              }
-          }
-
-  - id: page_home_custom_buttons
-    mode: restart
-    then:
-      - lambda: |-
-          ESP_LOGD("script.page_home_chips", "Rendering custom buttons");
-          char component[9] = "\0";
-
-          for (uint8_t component_id = 1; component_id <= 7; component_id++) {
-              sprintf(component, "button%02d", component_id); // Constructing "button01" to "button08"
-
-              DisplayComponent* icon = get_component(${PAGE_ID_HOME}, component);
-              if (icon && icon->initialized) {
-                  ESP_LOGD("script.page_home_custom_buttons", "Updating %s", component);
-                  display_component_send->execute(icon);
-              }
-          }
 
   - id: !extend refresh_datetime  # Defined by nspanel_esphome_core_datetime.yaml
     mode: restart
@@ -141,6 +118,4 @@ script:
     then:
       - lambda: |-
           page_home->stop();
-          page_home_chips->stop();
-          page_home_custom_buttons->stop();
 ...
