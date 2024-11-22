@@ -19,7 +19,10 @@ namespace nspanel_ha_blueprint {
         uint16_t color = UINT16_MAX;   // RGB565 color value, default to MAX_UINT16
         uint8_t font = UINT8_MAX;      // Font identifier, default to MAX_UINT8
         bool visible = true;           // Visibility flag, default to true
-        bool initialized = false;      // Indicates if the component has been properly initialized
+        bool text_is_updated = true;   // Indicates if text content has been updated, default to true
+        bool color_is_updated = true;  // Indicates if color has been updated, default to true
+        bool font_is_updated = true;   // Indicates if font has been updated, default to true
+        bool visible_is_updated = true;// Indicates if visibility has been updated, default to true
 
         DisplayComponent(uint8_t page_id, const char* component, const char* content,
                             uint16_t color, uint8_t font, bool visibility);
@@ -32,6 +35,10 @@ namespace nspanel_ha_blueprint {
                                     uint16_t color, uint8_t font, bool visibility);
     DisplayComponent* get_component(uint8_t page_id, const char* component);
     std::vector<DisplayComponent*> list_components_by_page(uint8_t page_id);
+
+    // Function to flag all attributes as not updated for all components on a specific page
+    void reset_updates_by_page(uint8_t page_id);
+
     void cleanup_components();
 
 }  // namespace nspanel_ha_blueprint

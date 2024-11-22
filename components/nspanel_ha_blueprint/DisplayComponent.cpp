@@ -13,7 +13,7 @@ namespace nspanel_ha_blueprint {
     // Constructor for DisplayComponent
     DisplayComponent::DisplayComponent(uint8_t page_id, const char* component, const char* content,
                                         uint16_t color, uint8_t font, bool visibility)
-        : page_id(page_id), color(color), font(font), visible(visibility), initialized(false) {
+        : page_id(page_id), color(color), font(font), visible(visibility) {
         // Copy the component name safely
         strncpy(this->component, component, sizeof(this->component) - 1);
         this->component[sizeof(this->component) - 1] = '\0';
@@ -80,7 +80,6 @@ namespace nspanel_ha_blueprint {
             existing_component->color = color;
             existing_component->font = font;
             existing_component->visible = visibility;
-            existing_component->initialized = false;  // Mark as needing re-initialization
             return existing_component;
         } else {
             // Allocate memory for the new component in PSRAM
@@ -108,9 +107,6 @@ namespace nspanel_ha_blueprint {
             // Use placement new to construct the component in the allocated memory
             new (new_component) DisplayComponent(page_id, component, content, color, font, visibility);
 
-            // Mark the component as initialized
-            new_component->initialized = false;
-
             // Add the newly created component pointer (stored in PSRAM) to the vector
             components->push_back(new_component);
             return new_component; // Return a pointer to the newly added component
@@ -127,6 +123,20 @@ namespace nspanel_ha_blueprint {
             comp = add_component(page_id, component, "", UINT16_MAX, UINT8_MAX, true);
         }
         return comp;
+    }
+
+    // Function to flag all attributes as not updated for all components on a specific page by page ID
+    void reset_updates_by_page(uint8_t page_id) {
+        if (components != nullptr) {
+            for (auto* comp : *components) {
+                if (comp->page_id == page_id) {
+                    comp->text_is_updated = false;
+                    comp->color_is_updated = false;
+                    comp->font_is_updated = false;
+                    comp->visible_is_updated = false;
+                }
+            }
+        }
     }
 
     // Function to list all components on a specific page by page ID
