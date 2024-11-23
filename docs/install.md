@@ -111,13 +111,8 @@ Follow these steps to add a new device in the ESPHome Dashboard:
      friendly_name: "Your panel's friendly name"
      wifi_ssid: !secret wifi_ssid
      wifi_password: !secret wifi_password
-     nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"  # Optional
      # Add-on configuration (if needed)
      # heater_relay: "1"  # Possible values: "1" or "2"
-
-   # Customization area
-   ##### My customization - Start #####
-   ##### My customization - End #####
 
    # Core and optional configurations
    packages:
@@ -145,16 +140,19 @@ Follow these steps to add a new device in the ESPHome Dashboard:
 10. For Wi-Fi credentials, use `!secret` for added security or input them directly.
 Learn about secrets in ESPHome: [Home Assistant Secrets in ESPHome](https://www.youtube.com/watch?v=eW4vKDeHh7Y).
 
-11. (Optional) Adjust `nextion_update_url` to the URL of a TFT file hosted on an HTTP or HTTPS server,
-    ensuring that the file is accessible to the NSPanel.
-    This URL will be used by ESPHome to download the TFT file to your panel.
+11. (Optional) Adjust `nextion_update_base_url` to the base URL of a directory hosted on an HTTP or HTTPS server,  
+    ensuring the directory is accessible to the NSPanel. The system will automatically append the version and  
+    model name to this URL to determine the TFT file location.
+
+    For example, if your base URL is `http://homeassistant.local:8234/local/nspanel/`, and the panel is running  
+    version `v4.4.0`, the system will look for the TFT file in `http://homeassistant.local:8234/local/nspanel/v4.4.0/`.  
     For more information on hosting the TFT file and setting up the URL, see the [Upload TFT](#upload-tft) section.
+
     > [!CAUTION]
     > **Prefer HTTP over HTTPS for File Transfer**  
-    > While you might encounter examples using HTTPS in URLs for file transfer,
-    > it is strongly recommended to use HTTP, especially when employing the `arduino` framework.
-    > The support for HTTPS in this context can be unstable,
-    > often leading to issues with file transfers.
+    > While you might encounter examples using HTTPS in URLs for file transfer,  
+    > it is strongly recommended to use HTTP, especially when employing the `arduino` framework.  
+    > The support for HTTPS in this context can be unstable, often leading to issues with file transfers.
 
 12. (Optional) Enhance security with API encryption by adding the copied key from step 6 to the **My Customization** area.
     > [!TIP]
@@ -341,39 +339,45 @@ Make sure to select and upload the correct TFT file corresponding to your specif
 > [!TIP]
 > For troubleshooting TFT transfer issues, consult our [TFT Transfer Troubleshooting Guide](tft_upload.md).
 
-### Select the right file
-Open the device's page under [ESPHome integration's page](https://my.home-assistant.io/redirect/integration/?domain=esphome)
+### Select the Right File
+Open the device's page under [ESPHome integration's page](https://my.home-assistant.io/redirect/integration/?domain=esphome)  
 and look for **Update TFT display** and **Update TFT display - Model** under the **Configuration** area.
 
 ![image](pics/ha_device_configuration_tft_upload_controls.png)
 
-Expand the **Update TFT display - Model** control and find the model that better fits your panel:
+Expand the **Update TFT display - Model** control and find the model that best fits your panel:
 
 ![image](pics/ha_device_configuration_tft_upload_model.png)
 
-The options are:
-- **Use `nextion_update_url`:** This will indicate ESPHome to download the TFT file from the URL
-you specified in your panel's yaml setting under the ESPHome dashboard and is typically used
-when your device have issues to transfer a TFT file directly from the GitHub repository or when
-you want to use a custom TFT file hosted in your local server.
-This is the default option and this keeps the compatibility with legacy installations when this was the only option.
-- **NSPanel Blank:** This is a very small TFT file which just shows a pre-formatted QR code on the screen with a link to the instructions.
-Although it's not a functional TFT for controlling your panel, it can be usefull when you have
-issues in your first TFT upload, as it will remove the *Nextion Active Reparse Mode* used when
-a Sonoff's TFT and also when some other custom implementations are installed.
-- **NSPanel EU:** This should be used when you are using a Sonoff NSPanel EU model.
-- **NSPanel US:** This should be used when you are using a Sonoff NSPanel US model installed on
-it's normal (portrait) position with the buttons bellow the screen.
-- **NSPanel US Landscape:** This should be used when you are using a Sonoff NSPanel US model
-installed on the landscape position with the buttons at the right side of the screen.
-- **NSPanel EU (CJK languages):** This should be used when you are using a Sonoff NSPanel EU model
-and want to use the CJK (Chinese/Japanese/Korean) languages.
-- **NSPanel US (CJK languages):** This should be used when you are using a Sonoff NSPanel US model
-installed on it's normal (portrait) position with the buttons bellow the screen,
-and want to use the CJK (Chinese/Japanese/Korean) languages.
-- **NSPanel US Landscape (CJK languages):** This should be used when you are using a Sonoff NSPanel US model
-installed on the landscape position with the buttons at the right side of the screen,
-and want to use the CJK (Chinese/Japanese/Korean) languages.
+The options are:  
+- **Use `nextion_update_base_url`:**  
+  This instructs ESPHome to download the TFT file from the base URL specified in your panel's YAML configuration.  
+  The system appends the version and model name to the base URL to locate the TFT file.  
+  Use this option when hosting custom TFT files on a local server or when experiencing transfer issues  
+  from the GitHub repository. This option replaces the legacy `nextion_update_url` and ensures full compatibility.
+
+- **NSPanel Blank:**  
+  A very small TFT file that displays a pre-formatted QR code linking to setup instructions.  
+  While not functional for controlling your panel, it can be useful during initial setup or when  
+  resolving issues caused by the *Nextion Active Reparse Mode* from Sonoff's original TFT or other custom installations.
+
+- **NSPanel EU:**  
+  Use this for a Sonoff NSPanel EU model.
+
+- **NSPanel US:**  
+  Use this for a Sonoff NSPanel US model installed in portrait orientation (buttons below the screen).
+
+- **NSPanel US Landscape:**  
+  Use this for a Sonoff NSPanel US model installed in landscape orientation (buttons on the right).
+
+- **NSPanel EU (CJK languages):**  
+  Use this for a Sonoff NSPanel EU model requiring CJK (Chinese/Japanese/Korean) language support.
+
+- **NSPanel US (CJK languages):**  
+  Use this for a Sonoff NSPanel US model in portrait orientation (buttons below the screen) with CJK language support.
+
+- **NSPanel US Landscape (CJK languages):**  
+  Use this for a Sonoff NSPanel US model in landscape orientation (buttons on the right) with CJK language support.
 
 ### Uploading to Nextion
 Once the right model is selected, please press the button **Update TFT display**.
@@ -452,7 +456,7 @@ Before customizing your system, we encourage you to share any enhancements you m
 Consider creating a [Pull Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/pulls) to the `dev` branch to share your discoveries with the community.
 
 ### Advanced ESPHome Configuration
-For advanced customization with ESPHome, start with "Customizations."
+For advanced customization with ESPHome, start with "Customizations."  
 We have a dedicated page for this, and your contributions are welcome: [Customization](customization.md).
 
 To use a local copy of `nspanel_esphome.yaml`, copy the file from GitHub to your local file system and include it in your ESPHome settings as follows:
@@ -464,9 +468,9 @@ substitutions:
   friendly_name: "Your panel's friendly name"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
-  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"  # Optional
+  nextion_update_base_url: "http://homeassistant.local:8123/local/nspanel/"  # For TFT files under `/www/nspanel/vX.X.X/`
   # Add-on configuration
-  # heater_relay: "1" - possible values: 1/2
+  # heater_relay: "1"  # Possible values: 1/2
 
 ##### My customization - Start #####
 ##### My customization - End #####
@@ -474,10 +478,6 @@ substitutions:
 packages:
   local_package: !include packages/nspanel_esphome.yaml
 ```
-
-> [!NOTE]
-> A sub-folder is recommended to prevent the file from being added as an additional device in the ESPHome dashboard.
-> Alternatively, you can name the file starting with `.` to exclude it from the device list.
 
 ### Advanced Blueprint Configuration
 The Blueprint file `nspanel_blueprint.yaml` can be installed manually.
