@@ -42,8 +42,11 @@ api:
 
 binary_sensor:
   - id: notification_unread
-    name: Notification unread
+    name: Notification Unread
     platform: template
+    internal: false
+    icon: mdi:bell-alert-outline
+    disabled_by_default: true
 
 display:
   - id: !extend disp1
@@ -73,8 +76,11 @@ display:
             }
 
 esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_CORE_PAGE_NOTIFICATION
   on_boot:
-    - priority: 600.3
+    - priority: 600.21
       then:
         - lambda: |-
             notification_label->publish_state("");
@@ -111,8 +117,6 @@ script:
       label: string
       message: string
     then:
-      # Extended by:
-      #   nspanel_esphome_core_hw_buzzer.yaml
       - lambda: |-
           set_component_visibility->execute(${PAGE_ID_HOME}, "bt_notific", true);
           goto_page_id->execute(${PAGE_ID_NOTIFICATION}, true);
@@ -122,10 +126,25 @@ script:
           notification_label->publish_state(label.c_str());
           notification_text->publish_state(message.c_str());
           notification_unread->publish_state(true);
+          // Only when buzzer is available
+          #ifdef NSPANEL_HA_BLUEPRINT_CORE_HW_BUZZER
+          notification_play_sound->execute();
+          #endif
+
+  - id: notification_play_sound
+    mode: single
+    then:
+      - lambda: |-
+          // Only when buzzer is available
+          #ifdef NSPANEL_HA_BLUEPRINT_CORE_HW_BUZZER
+          if (notification_sound->state and buzzer_gain->state > 0)
+            buzzer->play("${tone_notification}");
+          #endif
 
   - id: !extend stop_all
     then:
       - lambda: |-
+          notification_play_sound->stop();
           page_notification->stop();
 
 switch:
@@ -135,11 +154,31 @@ switch:
     entity_category: config
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      then:
+        - lambda: |-
+            // Only when buzzer is available
+            #ifdef NSPANEL_HA_BLUEPRINT_CORE_HW_BUZZER
+            if (notification_unread->state)
+              notification_play_sound->execute();
+            #endif
+    on_turn_off:
+      then:
+        - lambda: |-
+            notification_play_sound->stop();
+            // Only when buzzer is available
+            #ifdef NSPANEL_HA_BLUEPRINT_CORE_HW_BUZZER
+            if (buzzer->is_playing())
+              buzzer->stop();
+            #endif
 
 text_sensor:
   - id: notification_label
     name: Notification Label
     platform: template
+    internal: false
+    icon: mdi:bell-outline
+    disabled_by_default: true
     on_value:
       then:
         - homeassistant.event:
@@ -154,6 +193,9 @@ text_sensor:
   - id: notification_text
     name: Notification Text
     platform: template
+    internal: false
+    icon: mdi:message-text-outline
+    disabled_by_default: true
     on_value:
       then:
         - homeassistant.event:
