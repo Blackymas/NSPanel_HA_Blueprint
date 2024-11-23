@@ -339,7 +339,7 @@ script:
           display_component_update_visibility->execute(display_component, visible);
 
   - id: display_component_send
-    mode: parallel
+    mode: queued
     parameters:
       display_component: DisplayComponent*
     then:
@@ -348,56 +348,47 @@ script:
             - lambda: return (display_component->page_id == current_page_id);
           timeout: 2s
       - lambda: |-
-          ESP_LOGD("script.display_component_send", "Rendering page %s, component %s",
-                    page_names[display_component->page_id], display_component->component);
-          display_component_send_text->execute(display_component);
-          display_component_send_color->execute(display_component);
-          display_component_send_font->execute(display_component);
-          display_component_send_visibility->execute(display_component);
+          if (display_component->page_id == current_page_id) {
+            ESP_LOGD("script.display_component_send", "Rendering page %s, component %s",
+                      page_names[display_component->page_id], display_component->component);
+            display_component_send_text->execute(display_component);
+            display_component_send_color->execute(display_component);
+            display_component_send_font->execute(display_component);
+            display_component_send_visibility->execute(display_component);
+          }
 
   - id: display_component_send_color
-    mode: parallel
+    mode: queued
     parameters:
       display_component: DisplayComponent*
     then:
-      - wait_until:
-          condition:
-            - lambda: return (display_component->page_id == current_page_id or display_component->color_is_updated);
-          timeout: 2s
-      - script.execute: nextion_queue_add
       - if:
           condition:
-            - lambda: return (display_component->page_id == current_page_id and !display_component->color_is_updated);
+            - lambda: return display_component->page_id == current_page_id;
+            - lambda: return not display_component->color_is_updated;
           then:
+            - script.execute: nextion_queue_add
             - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
-      - lambda: |-
-          if (display_component->page_id == current_page_id and !display_component->color_is_updated) {
-            disp1->set_component_font_color(display_component->component, display_component->color);
-            display_component->color_is_updated = true;
-          }
-          nextion_queue_del->execute();
+            - lambda: |-
+                if (display_component->page_id == current_page_id and !display_component->color_is_updated) {
+                  disp1->set_component_font_color(display_component->component, display_component->color);
+                  display_component->color_is_updated = true;
+                }
+                nextion_queue_del->execute();
 
   - id: display_component_send_font
-    mode: parallel
+    mode: queued
     parameters:
       display_component: DisplayComponent*
     then:
       - if:
           condition:
-            - lambda: return (display_component->font != UINT8_MAX or display_component->font_is_updated);
+            - lambda: return display_component->page_id == current_page_id;
+            - lambda: return display_component->font != UINT8_MAX;
+            - lambda: return not display_component->font_is_updated;
           then:
-            - wait_until:
-                condition:
-                  - lambda: |-
-                      return (display_component->page_id == current_page_id and !display_component->font_is_updated);
-                timeout: 2s
             - script.execute: nextion_queue_add
-            - if:
-                condition:
-                  - lambda: |-
-                      return (display_component->page_id == current_page_id and !display_component->font_is_updated);
-                then:
-                  - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
+            - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
             - lambda: |-
                 if (display_component->page_id == current_page_id and !display_component->font_is_updated) {
                   disp1->set_component_font(display_component->component, display_component->font);
@@ -406,51 +397,43 @@ script:
                 nextion_queue_del->execute();
 
   - id: display_component_send_text
-    mode: parallel
+    mode: queued
     parameters:
       display_component: DisplayComponent*
     then:
-      - wait_until:
-          condition:
-            - lambda: return (display_component->page_id == current_page_id or display_component->text_is_updated);
-          timeout: 2s
-      - script.execute: nextion_queue_add
       - if:
           condition:
-            - lambda: return (display_component->page_id == current_page_id and !display_component->text_is_updated);
+            - lambda: return display_component->page_id == current_page_id;
+            - lambda: return not display_component->text_is_updated;
           then:
+            - script.execute: nextion_queue_add
             - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
-      - lambda: |-
-          if (display_component->page_id == current_page_id and !display_component->text_is_updated) {
-            disp1->set_component_text(display_component->component, display_component->text);
-            display_component->text_is_updated = true;
-          }
-          nextion_queue_del->execute();
+            - lambda: |-
+                if (display_component->page_id == current_page_id and !display_component->text_is_updated) {
+                  disp1->set_component_text(display_component->component, display_component->text);
+                  display_component->text_is_updated = true;
+                }
+                nextion_queue_del->execute();
 
   - id: display_component_send_visibility
-    mode: parallel
+    mode: queued
     parameters:
       display_component: DisplayComponent*
     then:
-      - wait_until:
-          condition:
-            - lambda: |-
-                return (display_component->page_id == current_page_id) or display_component->visible_is_updated;
-          timeout: 2s
-      - script.execute: nextion_queue_add
       - if:
           condition:
-            - lambda: |-
-                return (display_component->page_id == current_page_id and !display_component->visible_is_updated);
+            - lambda: return display_component->page_id == current_page_id;
+            - lambda: return not display_component->visible_is_updated;
           then:
+            - script.execute: nextion_queue_add
             - delay: !lambda return nextion_queue_delay_factor->state*id(nextion_queue);
-      - lambda: |-
-          if (display_component->page_id == current_page_id and !display_component->visible_is_updated) {
-            disp1->send_command_printf("vis %s,%i", display_component->component,
-                                        display_component->visible ? 1 : 0);
-            display_component->visible_is_updated = true;
-          }
-          nextion_queue_del->execute();
+            - lambda: |-
+                if (display_component->page_id == current_page_id and !display_component->visible_is_updated) {
+                  disp1->send_command_printf("vis %s,%i", display_component->component,
+                                              display_component->visible ? 1 : 0);
+                  display_component->visible_is_updated = true;
+                }
+                nextion_queue_del->execute();
 
   - id: display_component_update_color
     mode: parallel
@@ -659,18 +642,32 @@ script:
   - id: nextion_queue_delay_factor_increment
     mode: restart
     then:
-      - delay: 15s
       - lambda: |-
+          screen_power->turn_off();
           ESP_LOGE("script.nextion_queue_delay_factor_increment", "Nextion reported a buffer overflow");
           ESP_LOGE("script.nextion_queue_delay_factor_increment", "Increasing the delay factor...");
       - number.increment:
           id: nextion_queue_delay_factor
           cycle: false
+      - if:
+          condition:
+            - lambda: return global_preferences->sync();
+          then:
+            - lambda: |-
+                ESP_LOGE("script.nextion_queue_delay_factor_increment",
+                          "Restarting ESP to avoid getting out of sync with Nextion");
+            - delay: 2s
+            - lambda: arch_restart();
 
   - id: nextion_queue_reset
     mode: restart
     then:
       - lambda: |-
+          display_component_send->stop();
+          display_component_send_color->stop();
+          display_component_send_font->stop();
+          display_component_send_text->stop();
+          display_component_send_visibility->stop();
           set_component_font->stop();
           set_component_font_color->stop();
           set_component_pic->stop();
