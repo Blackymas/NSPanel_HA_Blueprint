@@ -37,7 +37,7 @@ For troubleshooting, refer to the following sections:
 > ![Image](pics/eu_reset_button.png)
 
 ### If using manual IP, make sure you have a DNS server configured
-At least one DNS server is required to enable TFT transfer direcly from GitHub, otherwise use `nextion_update_url`.
+At least one DNS server is required to enable TFT transfer direcly from GitHub, otherwise use `nextion_update_base_url`.
 If you are setting up a manual IP as a customization, please remember to add a valid DNS server for your panel.
 
 ### Using the `nspanel_blank.tft` File to Assist
@@ -67,18 +67,30 @@ If you haven't installed any TFT yet, look for Nextion related messages on ESPHo
 Observe any changes in the display or logs indicators to ensure the device is ready.
 
 ### Using a Local Source (Home Assistant)
-- **Issue**: Problems with downloading the TFT from GitHub.
-- **Solution**: Host the TFT file on your Home Assistant and change the `nextion_update_url` accordingly.
-- **Step-by-Step Guide**: Here's how you can change your `nextion_update_url`:
-    1. Locate your panel's ESPHome configuration file.
-    2. Find the line with `nextion_update_url`.
-    3. Replace the URL with the local address where your TFT file is hosted.
+- **Issue**: Problems with downloading the TFT from GitHub.  
+- **Solution**: Host the TFT files locally on your Home Assistant and adjust `nextion_update_base_url` accordingly.  
+
+#### Step-by-Step Guide:
+1. Locate your panel's ESPHome configuration file.  
+2. Find the line with `nextion_update_base_url`.  
+3. Replace the base URL with the local address where your TFT files are hosted.  
+   - Example: If your files are in `/www/nspanel/vX.X.X/` on your Home Assistant, use:  
+     ```yaml
+     substitutions:
+       nextion_update_base_url: "http://homeassistant.local:8123/local/nspanel/"
+     ```  
+4. Ensure your files are organized by version in sub-folders (e.g., `/v4.4.0/`), as the system appends the version  
+   to the base URL automatically.
 
 ### HTTP Instead of HTTPS
-- **Issue**: HTTPS connections may be problematic with ESP, especially when using `arduino` as framework.
-- **Solution**: Use HTTP for hosting the TFT file and updating the `nextion_update_url`.
-- **Why HTTP?**: HTTP can be more stable for these connections.
-To switch, simply replace 'https' with 'http' in your URLs and make sure your http server supports non-secure connections.
+- **Issue**: HTTPS connections may be problematic with ESP, especially when using the `arduino` framework.  
+- **Solution**: Use HTTP to host TFT files and update the `nextion_update_base_url` accordingly.  
+
+#### Why HTTP?
+- HTTP provides more stable connections for ESP devices in this context.  
+- Replace `https` with `http` in your URLs, and ensure your server supports non-secure connections.  
+
+By following these steps, you can avoid issues with GitHub downloads and enjoy a more reliable file transfer process.
 
 ### Remove Customizations
 - **Issue**: Customizations like `bluetooth_proxy` and `ble_tracker` may interfere with the upload.
