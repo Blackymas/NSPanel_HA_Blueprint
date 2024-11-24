@@ -25,6 +25,16 @@ This is another case where the message sounds more alarming than it actually is.
 > [!TIP]
 > If the TFT transfer has started, your panel might not respond to the reset button on the device's page in Home Assistant or to holding the hardware button for 15 seconds. In such cases, you can either power cycle your device using the room's relay on your electrical plate or use a pin to press the hardware restart button in a small hole behind the device. ![Image](pics/eu_reset_button.png)
 
+### DNS Issues Causing Crashes
+If the DNS server fails to resolve the file URL, the device may crash during the TFT upload process. To prevent this, ensure that a reliable DNS server is configured in your network settings. Alternatively, you can use a local HTTP server to host the TFT file, which can be set up using the `nextion_update_base_url`.
+
+- **Solution**: Check your router settings and change the DNS server to a more reliable one, such as Google DNS (`8.8.8.8`) or Cloudflare (`1.1.1.1`). Hosting the file locally will also reduce dependency on external DNS resolution.
+
+### Baud Rate Mismatch Issues
+A baud rate mismatch can prevent ESPHome from sending the update command to the Nextion display, resulting in the message "Nextion is not connected!" in the logs.
+
+- **Solution**: Try each available baud rate until you find the correct one. The baud rate can be configured under the device's page in Home Assistant (Settings > Devices & services > ESPHome). It is listed as a hidden entity under "Configuration" and named "Baud rate".
+
 ### If Using Manual IP, Ensure DNS Server is Configured
 At least one DNS server is required to enable TFT transfer directly from GitHub; otherwise, use `nextion_update_base_url`. If you are setting up a manual IP as a customization, please remember to add a valid DNS server for your panel.
 
@@ -138,3 +148,4 @@ Please share as much info as possible, like:
 
 ## Important Note
 Remember, these steps are a guideline and might vary slightly based on your specific setup and previously installed system.
+

@@ -65,6 +65,10 @@ between ESPHome and Nextion. Visit the updated [API documentation](docs/api.md) 
 3. **Notification unread switch replaced**  
    The "**Notification unread**" switch is now a binary sensor.
 
+4. **Selector "Update TFT display - Baud rate" removed**  
+   The baud rate selector has been removed as full support for all baud rates used by Nextion makes it redundant.  
+   Communication now adapts automatically to the required baud rate, simplifying configuration.
+
 ### Customizations
 Updated scripts require adjustments to these customizations:  
 - [Sleep & Wake-up buttons](docs/customization.md#sleep--wake-up-buttons)  
