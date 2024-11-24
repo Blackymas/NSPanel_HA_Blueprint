@@ -1,30 +1,34 @@
 # Troubleshooting TFT Transfer
 
 > [!IMPORTANT]  
-> If you have already installed the version "nspanel-lovelace-ui" from joBr99 on your NSPanel, an intermediate step is necessary - otherwise, it is not possible to install this or any other version.
+> If you have already installed the version "nspanel-lovelace-ui" from joBr99 on your NSPanel, an intermediate step is necessary - otherwise,
+> it is not possible to install this or any other version.
 >
 > See [Common Issues | TFT Upload when NSPanel Lovelace UI has been installed](howto.md)
 
 ## Common Issues and Troubleshooting
-The following is a list of common issues affecting the TFT upload, along with suggested solutions. These issues are not specific to the NSPanel HA Blueprint project but are common to Nextion displays and ESPHome.
+The following is a list of common issues affecting the TFT upload, along with suggested solutions.
+These issues are not specific to the NSPanel HA Blueprint project but are common to Nextion displays and ESPHome.
 
 ### Resolving "System data ERROR!" on Display
 ![System Data ERROR](pics/us_system_data_error_upside_down.jpg)
 
 #### Don't Panic!
-The "System data ERROR!" message, sometimes displayed upside-down, appears when a TFT upload is incomplete. While it may seem alarming, this message simply indicates that the TFT file on the display is invalid. A successful TFT upload will resolve this issue.
+The "System data ERROR!" message, sometimes displayed upside-down, appears when a TFT upload is incomplete.
+While it may seem alarming, this message simply indicates that the TFT file on the display is invalid. A successful TFT upload will resolve this issue.
 
 ### Resolving "Model does not match" on Display
 ![Model Does Not Match](pics/model_does_not_match.jpg)
 
-This is another case where the message sounds more alarming than it actually is. Often, a simple reboot of the panel is enough to restore the previous TFT file. This issue typically arises from a corrupt TFT file or server response issues. For troubleshooting, refer to the following sections:
+This is another case where the message sounds more alarming than it actually is. Often, a simple reboot of the panel is enough to restore the previous TFT file.
+This issue typically arises from a corrupt TFT file or server response issues. For troubleshooting, refer to the following sections:
 - [Using a Local Source (Home Assistant)](#using-a-local-source-home-assistant)
 - [HTTP Instead of HTTPS](#http-instead-of-https) - Especially important when using the `arduino` framework.
 - [Check the File Size by Downloading to Your Computer](#check-the-file-size-by-downloading-to-your-computer)
 
 > [!TIP]
 > If the TFT transfer has started, your panel might not respond to the reset button on the device's page in Home Assistant or to holding the hardware button for 15 seconds.
-In such cases, you can either power cycle your device using the room's relay on your electrical plate or use a pin to press the hardware restart button in a small hole behind the device.
+> In such cases, you can either power cycle your device using the room's relay on your electrical plate or use a pin to press the hardware restart button in a small hole behind the device.
 >
 >![Image](pics/eu_reset_button.png)
 
