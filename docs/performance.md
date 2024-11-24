@@ -9,7 +9,7 @@ Below, we'll discuss the two primary performance settings: one on the blueprint 
 On the blueprint side, the performance setting is used to define a delay before each service call is sent to the display.
 This delay helps prevent consecutive calls from overloading both the WLAN and the NSPanel.
 
-### Where to Find It
+### Where to Find It - Automations
 - **Location:** This setting is found in the automation created with the Blueprint to control your panel.
 - **Advanced Settings:** Scroll down to the "Advanced Settings" section of the configuration list.
 - **Name:** The setting is named **"Command Delay to Prevent Overload"**.
@@ -34,7 +34,7 @@ allowing the NSPanel and WLAN to process them without being overwhelmed.
 On the ESPHome side, the performance setting involves configuring a delay when sending commands to the Nextion display.
 This delay is critical in preventing the "Buffer overload" issue that can occur on the Nextion display.
 
-### Where to Find It
+### Where to Find It - Integrations
 - **Location:** This setting can be found on the ESPHome device's page under `Settings > Devices & Services > ESPHome`.
 - **Configuration Group:** Look for the setting under the "Configuration" group.
 - **Name:** The setting is named **"Display delay"**.
