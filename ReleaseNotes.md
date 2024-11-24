@@ -49,7 +49,7 @@ All actions now use a unified method to transfer information, reducing overhead 
 between ESPHome and Nextion. Visit the updated [API documentation](docs/api.md) for details.
 
 #### Key API Changes:
-1. **Deprecated actions**  
+1. **Deprecated actions**
    <!-- markdownlint-disable MD033 -->  
    | Deprecated action                  | Replacement              | Previous use                    |  
    | :--------------------------------- | :----------------------- | :----------------------------- |  
@@ -59,11 +59,20 @@ between ESPHome and Nextion. Visit the updated [API documentation](docs/api.md) 
    | `component_text`, `icon`, etc.     | [`component`](docs/api.md#component-action-component) | Set display components |  
    <!-- markdownlint-enable MD033 -->
 
-2. **Sensor `blueprint_status` removed**  
+2. **Sensor `blueprint_status` removed**
    Boot info is now transferred via events.
 
-3. **Notification unread switch replaced**  
+3. **Notification unread switch replaced**
    The "**Notification unread**" switch is now a binary sensor.
+
+4. **Selector "Update TFT display - Baud rate" removed**
+   The baud rate selector has been removed as full support for all baud rates used by Nextion makes it redundant.  
+   Communication now adapts automatically to the required baud rate, simplifying configuration.
+
+5. **New "Display delay" control**
+   A new control called **Display delay** has been introduced to manage the delay between commands sent to the Nextion display.
+   This helps avoid buffer overflows, which can lead to a device restart if not managed properly.
+   You can find more details in the [Performance Settings for NSPanel Project](docs/performance.md#2-esphome-performance-setting-display-delay).
 
 ### Customizations
 Updated scripts require adjustments to these customizations:  

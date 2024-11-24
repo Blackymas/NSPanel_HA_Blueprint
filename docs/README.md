@@ -3,6 +3,7 @@
 - [First Steps | Installation and Setup](install.md)
 - [Blueprint | Setup and explanation of the Blueprint](blueprint.md)
 - [HowTo | All important things you should know](howto.md)
+- [Performance Guide](performance.md)
 - [Version compatibility matrix](version_compatibility.md)
 
 ## Common issues
