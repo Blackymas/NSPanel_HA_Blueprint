@@ -1,8 +1,7 @@
 # Performance Settings for NSPanel Project
 
 This document provides an overview of the performance settings available in the NSPanel project.
-Proper tuning of these settings can enhance the responsiveness of the system while avoiding issues like WLAN overload or
-buffer overflow in the Nextion display.
+Proper tuning of these settings can enhance the responsiveness of the system while avoiding issues like WLAN overload or buffer overflow in the Nextion display.
 Below, we'll discuss the two primary performance settings: one on the blueprint side and another on the ESPHome side.
 
 ## 1. Blueprint Performance Setting: Command Delay to Prevent Overload
@@ -14,6 +13,18 @@ This delay helps prevent consecutive calls from overloading both the WLAN and th
 - **Location:** This setting is found in the automation created with the Blueprint to control your panel.
 - **Advanced Settings:** Scroll down to the "Advanced Settings" section of the configuration list.
 - **Name:** The setting is named **"Command Delay to Prevent Overload"**.
+
+### Input Details
+- **Name:** Command Delay to Prevent Overload
+- **Description:** Sets the time delay between sequential commands sent to the Nextion display.
+    This delay prevents overload and synchronization issues, which could cause system instability.
+    Increasing the delay improves stability but may slow down page rendering. Adjust carefully to balance stability and responsiveness.
+- **Default Value:** 5 milliseconds
+- **Selector Settings:**
+  - **Range:** Minimum of 0 milliseconds, maximum of 250 milliseconds.
+  - **Step Size:** 5 milliseconds per step.
+  - **Unit of Measurement:** Milliseconds
+  - **Mode:** Box
 
 Adjusting this delay can help manage the network load and ensure that the commands are spaced out properly,
 allowing the NSPanel and WLAN to process them without being overwhelmed.
@@ -31,9 +42,8 @@ This delay is critical in preventing the "Buffer overload" issue that can occur 
 Note that this setting may be hidden or disabled in some systems. You may need to enable it before you can adjust its value.
 
 ### Purpose
-The **Display Delay** setting prevents buffer overload on the Nextion display,
-which occurs when too many commands are received and cannot be processed in time. If the buffer overloads,
-the Nextion queue will fall out of sync, leading to a device restart.
+The **Display Delay** setting prevents buffer overload on the Nextion display, which occurs when too many commands are received and cannot be processed in time.
+If the buffer overloads, the Nextion queue will fall out of sync, leading to a device restart.
 Each time this restart occurs, the delay will automatically increase one step in the delay interval (measured in milliseconds).
 
 ## Combining Delays: Impact on Responsiveness
