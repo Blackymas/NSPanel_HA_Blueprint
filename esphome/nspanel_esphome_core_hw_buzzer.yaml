@@ -42,16 +42,6 @@ esphome:
   platformio_options:
     build_flags:
       - -D NSPANEL_HA_BLUEPRINT_CORE_HW_BUZZER
-  on_boot:
-    - priority: -100.44
-      then:
-        - wait_until:
-            condition:
-              - lambda: return not isnan(buzzer_gain->state);
-        - lambda: |-
-            if (not isnan(buzzer_gain->state))
-              buzzer->set_gain((100-(buzzer_gain->state/10.0f))/100.0f);
-            boot_progress->execute(${BOOT_STEP_HW_BUZZER}, "HW Buzzer");
 
 number:
   - id: buzzer_gain
@@ -96,6 +86,24 @@ script:
       - lambda: |-
           boot_progress_dump_item->execute(${BOOT_STEP_HW_BUZZER}, "HW Buzzer");
 
+  - id: !extend boot_sequence
+    then:
+      - script.execute: boot_sequence_buzzer
+
+  - id: boot_sequence_buzzer
+    mode: restart
+    then:
+      - wait_until:
+          condition:
+            - lambda: return not isnan(buzzer_gain->state);
+          timeout: 600s
+      - lambda: |-
+          if (not isnan(buzzer_gain->state))
+            buzzer->set_gain((100-(buzzer_gain->state/10.0f))/100.0f);
+          else
+            ESP_LOGE("script.boot_sequence_buzzer", "Buzzer gain not set");
+          boot_progress->execute(${BOOT_STEP_HW_BUZZER}, "HW Buzzer");
+
   - id: !extend page_changed
     then:
       - lambda: |-
@@ -107,6 +115,10 @@ script:
             boot_log->execute("Boot", "Play boot sound");
             buzzer->play("${tone_boot}");
           }
+
+  - id: !extend stop_all
+    then:
+      - script.stop: boot_sequence_buzzer
 
 switch:
   - id: buzzer_touch_feedback

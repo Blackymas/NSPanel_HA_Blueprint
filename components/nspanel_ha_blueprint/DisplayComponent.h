@@ -19,6 +19,7 @@ namespace nspanel_ha_blueprint {
         uint16_t color = UINT16_MAX;   // RGB565 color value, default to MAX_UINT16
         uint8_t font = UINT8_MAX;      // Font identifier, default to MAX_UINT8
         bool visible = true;           // Visibility flag, default to true
+        bool global = false;           // Is it a global variable from Nextion perspective
         bool text_is_updated = true;   // Indicates if text content has been updated, default to true
         bool color_is_updated = true;  // Indicates if color has been updated, default to true
         bool font_is_updated = true;   // Indicates if font has been updated, default to true

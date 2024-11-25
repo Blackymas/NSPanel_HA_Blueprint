@@ -130,9 +130,11 @@ namespace nspanel_ha_blueprint {
         if (components != nullptr) {
             for (auto* comp : *components) {
                 if (comp->page_id == page_id) {
-                    comp->text_is_updated = false;
-                    comp->color_is_updated = false;
-                    comp->font_is_updated = false;
+                    if (not comp->global) {
+                        comp->text_is_updated = false;
+                        comp->color_is_updated = false;
+                        comp->font_is_updated = false;
+                    }
                     comp->visible_is_updated = false;
                 }
             }

@@ -136,10 +136,6 @@ esphome:
     build_flags:
       - -D NSPANEL_HA_BLUEPRINT_CORE_HW_DISPLAY
   on_boot:
-    - priority: 1000.5
-      then:
-        - lambda: setup_components();
-
     - priority: 600.5
       then:
         - if:
@@ -213,6 +209,10 @@ globals:
     initial_value: "'.'"
 
 json:  # Can be replaced by web_server
+
+logger:
+  logs:
+    script.display_component_send: INFO
 
 number:
   - id: display_brightness  # SCREEN BRIGHTNESS
@@ -300,6 +300,10 @@ script:
       - lambda: |-
           boot_progress_dump_item->execute(${BOOT_STEP_HW_DISPLAY}, "HW Display");
 
+  - id: !extend boot_initialize
+    then:
+      - lambda: setup_components();
+
   - id: display_component_action
     mode: parallel
     parameters:
@@ -334,6 +338,17 @@ script:
           // Text visibility
           display_component_update_visibility->execute(display_component, visible);
 
+  - id: display_component_initialize
+    mode: parallel
+    parameters:
+      page_id: uint8_t
+      component: string
+      global: bool
+    then:
+      - lambda: |-
+          DisplayComponent* component_to_initialize = get_component(page_id, component.c_str());
+          component_to_initialize->global = global;
+
   - id: display_component_send
     mode: queued
     parameters:
@@ -344,13 +359,16 @@ script:
             - lambda: return (display_component->page_id == current_page_id);
           timeout: 2s
       - lambda: |-
-          if (display_component->page_id == current_page_id) {
+          if (display_component->page_id == current_page_id or display_component->global) {
             ESP_LOGD("script.display_component_send", "Rendering page %s, component %s",
                       page_names[display_component->page_id], display_component->component);
-            display_component_send_text->execute(display_component);
-            display_component_send_color->execute(display_component);
-            display_component_send_font->execute(display_component);
-            display_component_send_visibility->execute(display_component);
+            if (not display_component->global) {
+              display_component_send_text->execute(display_component);
+              display_component_send_color->execute(display_component);
+              display_component_send_font->execute(display_component);
+            }
+            if (display_component->page_id == current_page_id)
+              display_component_send_visibility->execute(display_component);
           }
 
   - id: display_component_send_color
@@ -360,13 +378,18 @@ script:
     then:
       - if:
           condition:
-            - lambda: return display_component->page_id == current_page_id;
+            - lambda: return (display_component->page_id == current_page_id or display_component->global);
             - lambda: return not display_component->color_is_updated;
           then:
             - delay: !lambda return display_delay->state;
             - lambda: |-
-                if (display_component->page_id == current_page_id and !display_component->color_is_updated) {
-                  disp1->set_component_font_color(display_component->component, display_component->color);
+                if ((display_component->global or display_component->page_id == current_page_id) and
+                    !display_component->color_is_updated) {
+                  disp1->set_component_font_color(
+                      (display_component->page_id == current_page_id) ? display_component->component :
+                      get_page_and_component(page_names[display_component->page_id],
+                                              display_component->component).c_str(),
+                      display_component->color);
                   display_component->color_is_updated = true;
                 }
 
@@ -377,14 +400,19 @@ script:
     then:
       - if:
           condition:
-            - lambda: return display_component->page_id == current_page_id;
+            - lambda: return (display_component->page_id == current_page_id or display_component->global);
             - lambda: return display_component->font != UINT8_MAX;
             - lambda: return not display_component->font_is_updated;
           then:
             - delay: !lambda return display_delay->state;
             - lambda: |-
-                if (display_component->page_id == current_page_id and !display_component->font_is_updated) {
-                  disp1->set_component_font(display_component->component, display_component->font);
+                if ((display_component->global or display_component->page_id == current_page_id) and
+                    !display_component->font_is_updated) {
+                  disp1->set_component_font(
+                      (display_component->page_id == current_page_id) ? display_component->component :
+                      get_page_and_component(page_names[display_component->page_id],
+                                              display_component->component).c_str(),
+                      display_component->font);
                   display_component->font_is_updated = true;
                 }
 
@@ -395,13 +423,18 @@ script:
     then:
       - if:
           condition:
-            - lambda: return display_component->page_id == current_page_id;
+            - lambda: return (display_component->page_id == current_page_id or display_component->global);
             - lambda: return not display_component->text_is_updated;
           then:
             - delay: !lambda return display_delay->state;
             - lambda: |-
-                if (display_component->page_id == current_page_id and !display_component->text_is_updated) {
-                  disp1->set_component_text(display_component->component, display_component->text);
+                if ((display_component->global or display_component->page_id == current_page_id) and
+                    !display_component->text_is_updated) {
+                  disp1->set_component_text(
+                      (display_component->page_id == current_page_id) ? display_component->component :
+                      get_page_and_component(page_names[display_component->page_id],
+                                              display_component->component).c_str(),
+                      display_component->text);
                   display_component->text_is_updated = true;
                 }
 
