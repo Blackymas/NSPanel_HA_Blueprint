@@ -97,4 +97,8 @@ namespace nspanel_ha_blueprint {
         return code_point;  // Return the decoded Unicode code point
     }
 
+    inline std::string get_page_and_component(const std::string& page, const std::string& component) {
+        return page + "." + component;
+    }
+
 }  // namespace nspanel_ha_blueprint
