@@ -35,7 +35,7 @@ namespace nspanel_ha_blueprint {
     // Entity Pages: IDs 18, 19, 20, 21 (entitypage01 to entitypage04)
     extern uint32_t ENTITY_PAGE_MASK;
     // Button Pages: IDs 12, 13, 14, 15 (buttonpage01 to buttonpage04)
-    extern uint32_t BUTTON_PAGE_MASK;
+    extern uint32_t BUTTONS_PAGE_MASK;
     // Weather Pages: IDs 2, 3, 4, 5, 6 (weather01 to weather05)
     extern uint32_t WEATHER_PAGE_MASK;
     // Pages using `entity_id`: Alarm, Climate, Cover, Fan, Light, Media Player, Confirm, Keyb Num
