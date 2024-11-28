@@ -1,8 +1,8 @@
-// addon_upload_tft.h
+// standard_upload_tft.h
 
 #pragma once
 
-#ifdef NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
+#ifdef NSPANEL_HA_BLUEPRINT_STANDARD_UPLOAD_TFT
 
 #include <string>
 
@@ -29,4 +29,4 @@ namespace nspanel_ha_blueprint {
 
 }  // namespace nspanel_ha_blueprint
 
-#endif  // NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
+#endif  // NSPANEL_HA_BLUEPRINT_STANDARD_UPLOAD_TFT

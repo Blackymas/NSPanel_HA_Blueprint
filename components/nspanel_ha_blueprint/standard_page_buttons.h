@@ -1,8 +1,8 @@
-// core_page_buttons.h
+// standard_page_buttons.h
 
 #pragma once
 
-#ifdef NSPANEL_HA_BLUEPRINT_CORE_PAGE_BUTTONS
+#ifdef NSPANEL_HA_BLUEPRINT_STANDARD_PAGE_BUTTONS
 
 #include <string>
 #include <vector>
@@ -11,7 +11,7 @@
 
 namespace nspanel_ha_blueprint {
 
-    static const char* TAG_NEXTION = "nspanel_ha_blueprint.nextion";
+    static const char* TAG_NEXTION = "nspanel_ha_blueprint.standard_page_buttons";
 
     bool PageButtonsButtonInitilized = false;
     uint32_t PageButtonsMaskEnabled = 0;
@@ -40,7 +40,7 @@ namespace nspanel_ha_blueprint {
             // Allocate PageButtonsButton dynamically
             esphome::ExternalRAMAllocator<PageButtonsButton>
                 allocator(esphome::ExternalRAMAllocator<PageButtonsButton>::ALLOW_FAILURE);
-            buttonpage_buttons = allocator.allocate(32);
+            buttonpage_buttons = allocator.allocate(32*sizeof(PageButtonsButton));
             if (!buttonpage_buttons || buttonpage_buttons == nullptr) {
                 esphome::ESP_LOGE(TAG_NEXTION, "Failed to allocate memory for buttonpage_buttons.");
                 return;  // Memory allocation failed, do not proceed
@@ -119,4 +119,4 @@ namespace nspanel_ha_blueprint {
 
 }  // namespace nspanel_ha_blueprint
 
-#endif // NSPANEL_HA_BLUEPRINT_CORE_PAGE_BUTTONS
+#endif // NSPANEL_HA_BLUEPRINT_STANDARD_PAGE_BUTTONS

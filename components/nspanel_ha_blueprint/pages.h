@@ -14,6 +14,10 @@ namespace nspanel_ha_blueprint {
     // Updated by Nextion `on_page` on nspanel_esphome_core_hw_display.yaml
     extern uint8_t current_page_id;
 
+    // Used to register the next page id
+    // Updated by script `goto_page` on nspanel_esphome_core_hw_display.yaml
+    extern uint8_t next_page_id;
+
     // Used to register the previous page id
     // Updated by script `page_changed` on nspanel_esphome_core_hw_display.yaml
     extern uint8_t previous_page_id;
@@ -40,6 +44,8 @@ namespace nspanel_ha_blueprint {
     extern uint32_t WEATHER_PAGE_MASK;
     // Pages using `entity_id`: Alarm, Climate, Cover, Fan, Light, Media Player, Confirm, Keyb Num
     extern uint32_t ENTITY_ID_PAGE_MASK;
+    // Pages not requiring API to be connected: Blank, Boot, Confirm, Home, Screen saver, Settings
+    extern uint32_t NON_API_ID_PAGE_MASK;
 
     // Generic function to check if a page ID belongs to a specific group, based on the provided mask
     bool is_page_in_group(uint32_t group_mask, uint8_t page_id = current_page_id);

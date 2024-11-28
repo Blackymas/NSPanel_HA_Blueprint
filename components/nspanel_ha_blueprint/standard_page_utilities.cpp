@@ -1,12 +1,14 @@
-// core_page_utilities.cpp
+// standard_page_utilities.cpp
 
-#include "core_page_utilities.h"
+#ifdef NSPANEL_HA_BLUEPRINT_STANDARD_PAGE_UTILITIES
+
+#include "standard_page_utilities.h"
 #include "esphome/core/log.h"
 #include "esphome/core/helpers.h"
 
 namespace nspanel_ha_blueprint {
 
-    static const char* TAG_UTILITIES = "nspanel_ha_blueprint.core_page_utilities";
+    static const char* TAG_UTILITIES = "nspanel_ha_blueprint.standard_page_utilities";
 
     UtilitiesGroupValues *UtilitiesGroups = nullptr;
 
@@ -72,3 +74,5 @@ namespace nspanel_ha_blueprint {
     }
 
 }  // namespace nspanel_ha_blueprint
+
+#endif  // NSPANEL_HA_BLUEPRINT_STANDARD_PAGE_UTILITIES

@@ -1,0 +1,157 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - API                                                                        #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+substitutions:
+  ##############################
+  ## Change only in your      ##
+  ## local yaml substitutions ##
+  device_name: nspanel
+  name: ${device_name}
+  friendly_name: ${device_name}
+  ota_password: ${wifi_password}
+  project_tag: nspanel_ha_blueprint
+  ##############################
+  BOOT_STEP_API: '1UL << 30'
+
+api:
+  id: api_server
+  reboot_timeout: 60min
+
+  on_client_connected:
+    then:
+      - lambda: |-
+          boot_log->execute("API", (client_info + " connected (" + client_address + ")").c_str());
+          if (client_info.find("Home Assistant ") == 0)
+            id(api_is_updated) = true;
+          else
+            dump_config->execute();
+
+  actions:
+    - action: set_bool
+      variables:
+        component: string
+        val: bool
+      then:
+        - script.execute:
+            id: set_var_bool
+            component: !lambda return component;
+            val: !lambda return val;
+
+    - action: set_int
+      variables:
+        component: string
+        val: int
+      then:
+        - script.execute:
+            id: set_var_int
+            component: !lambda return component;
+            val: !lambda return val;
+
+    - action: set_string
+      variables:
+        component: string
+        val: string
+      then:
+        - script.execute:
+            id: set_var_string
+            component: !lambda return component;
+            val: !lambda return val;
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_CORE_API
+
+globals:
+  - id: api_is_updated
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+
+script:
+  - id: api_reset
+    mode: restart
+    then:
+      - lambda: id(api_is_updated) = false;
+      - wait_until:
+          condition:
+            - lambda: return id(api_is_updated);
+          timeout: 10s
+      - if:
+          condition:
+            - lambda: return not id(api_is_updated);
+          then:
+            - logger.log: Resetting API
+            - delay: 2s
+            - lambda: api_server->on_shutdown();
+
+  - id: ha_button
+    mode: parallel
+    parameters:
+      page_id: uint8_t
+      component: string
+      command: string
+    then:
+      - homeassistant.event:
+          event: esphome.nspanel_ha_blueprint
+          data:
+            device_name: !lambda return device_name->state.c_str();
+            esphome_version: ${version}
+            type: button_click
+            page: !lambda return page_names[page_id];
+            component: !lambda return component.c_str();
+            command: !lambda return command.c_str();
+
+  - id: ha_call_action
+    mode: parallel
+    parameters:
+      action: string
+      key: string
+      value: string
+      entity: string
+    then:
+      - homeassistant.event:
+          event: esphome.nspanel_ha_blueprint
+          data:
+            device_name: !lambda return device_name->state.c_str();
+            esphome_version: ${version}
+            type: action_call
+            action: !lambda return action.c_str();
+            key: !lambda return key.c_str();
+            value: !lambda return value.c_str();
+            entity: !lambda return entity.c_str();
+
+  - id: set_var_bool
+    mode: queued
+    parameters:
+      component: string
+      val: bool
+    then:  # There's nothing here so far
+
+  - id: set_var_int
+    mode: queued
+    parameters:
+      component: string
+      val: float
+    then:  # There's nothing here so far
+
+  - id: set_var_string
+    mode: queued
+    parameters:
+      component: string
+      val: string
+    then:  # There's nothing here so far
+
+  - id: stop_all
+    mode: restart
+    then:
+      - lambda: |-
+          api_reset->stop();
+          ha_button->stop();
+          ha_call_action->stop();
+...

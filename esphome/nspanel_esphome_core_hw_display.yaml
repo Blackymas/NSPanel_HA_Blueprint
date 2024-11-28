@@ -12,7 +12,6 @@ substitutions:
   DISPLAY_CHARSET_CJK: '2'
 
 api:
-  id: !extend api_server
   actions:
     # Sends custom commands directly to the display for dynamic interactions and updates.
     - action: command
@@ -61,30 +60,8 @@ api:
         back_page: string  # Specifies the page to return to. Accepts "home" or "buttonpage01" to "buttonpage04".
       then:
         - lambda: |-
-            if (not entity_id.empty() and not back_page.empty()) {
-              size_t dotPos = entity_id.find(".");
-              std::string domain;  // The domain part of the entity, like "light" or "switch".
-              std::string id;
-              if (dotPos != std::string::npos) {
-                // Extract domain and id from the entity_id string
-                domain = entity_id.substr(0, dotPos);
-                id = entity_id.substr(dotPos + 1);
-              } else {
-                // No dot found, the entire entity_id is considered as id.
-                domain = "invalid";
-                id = entity_id;
-              }
-              if (entity_id == "embedded_climate" or domain != "invalid") {
-                detailed_entity->publish_state(entity_id.c_str());
-                std::string new_page = (entity_id == "embedded_climate" ? "climate" :
-                                        (domain == "alarm_control_panel" ? "alarm" : domain));
-                goto_page_id->execute(get_page_id(new_page.c_str()), true);
-                set_variable_value->execute("back_page_id", get_page_id(back_page.c_str()));
-                if (new_page == "climate")
-                  set_component_value->execute(${PAGE_ID_CLIMATE}, "embedded",
-                                                entity_id == "embedded_climate" ? 1 : 0);
-              }
-            }
+            if (not entity_id.empty() and not back_page.empty())
+              entity_details_show_action->execute(entity_id.c_str(), get_page_id(back_page.c_str()));
 
 binary_sensor:
   ## Delays initial info from HA to the display #####
@@ -113,11 +90,11 @@ display:
     on_setup:
       then:
         - lambda: |-
-            page_changed->execute(${PAGE_ID_BOOT});
             // Set the current baud rate into the display
             disp1->send_command_printf("bauds=%" PRIu32, tf_uart->get_baud_rate());
     # Extended by:
     # - nspanel_esphome_core_boot.yaml
+    # - nspanel_esphome_core_page_boot.yaml
 
     on_touch:
       then:
@@ -302,7 +279,8 @@ script:
 
   - id: !extend boot_initialize
     then:
-      - lambda: setup_components();
+      - lambda: |-
+          setup_components();
 
   - id: display_component_action
     mode: parallel
@@ -601,6 +579,33 @@ script:
           else
             ESP_LOGCONFIG(TAG, "  TFT:          %s", id(version_tft).c_str());
 
+  - id: entity_details_show_action
+    mode: restart
+    parameters:
+      entity_id: string      # The ID of the entity for which details are shown ("embedded_climate" for built-in climate).
+      back_page_id: uint8_t  # Specifies the page to return to. Accepts "home" or "buttonpage01" to "buttonpage04".
+    then:
+      - lambda: |-
+          size_t dotPos = entity_id.find(".");
+          std::string domain;  // The domain part of the entity, like "light" or "switch".
+          std::string id;
+          if (dotPos != std::string::npos) {
+            // Extract domain and id from the entity_id string
+            domain = entity_id.substr(0, dotPos);
+            id = entity_id.substr(dotPos + 1);
+          } else {
+            // No dot found, the entire entity_id is considered as id.
+            domain = "invalid";
+            id = entity_id;
+          }
+          if (entity_id == "embedded_climate" or domain != "invalid") {
+            detailed_entity->publish_state(entity_id.c_str());
+            std::string new_page = (entity_id == "embedded_climate" ? "climate" :
+                                    (domain == "alarm_control_panel" ? "alarm" : domain));
+            goto_page_id->execute(get_page_id(new_page.c_str()), true);
+            set_variable_value->execute("back_page_id", back_page_id);
+          }
+
   - id: event_from_display
     mode: parallel
     parameters:
@@ -661,7 +666,9 @@ script:
       page_id: uint8_t
       reset_timers: bool
     then:
-      - lambda: disp1->goto_page(page_id);
+      - lambda: |-
+          next_page_id = page_id;
+          disp1->goto_page(page_id);
       # Extended by:
       #   - nspanel_esphome_core_hw_display_timers.yaml
 
@@ -678,6 +685,7 @@ script:
               previous_page_id = current_page_id;
               current_page_id = new_page_id;
               current_page->publish_state(page_names[current_page_id]);
+              next_page_id = UINT8_MAX;
             }
             if (is_new_page or new_page_id == ${PAGE_ID_BOOT}) {
               // Report new page to logs
@@ -889,6 +897,7 @@ script:
           display_component_send_text->stop();
           display_component_send_visibility->stop();
           display_wrapped_text->stop();
+          entity_details_show_action->stop();
           event_from_display->stop();
           goto_page_id->stop();
           page_changed->stop();

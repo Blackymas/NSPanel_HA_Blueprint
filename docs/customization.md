@@ -232,7 +232,7 @@ api:
 ### Manual IP
 Set IP address manually.
 
-> [!ATTENTION]
+> [!IMPORTANT]
 > At least one DNS server is required to enable TFT transfer direcly from GitHub, otherwise use `nextion_update_base_url`.
 
 ```yaml

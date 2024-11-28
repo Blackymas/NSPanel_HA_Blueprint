@@ -81,6 +81,51 @@ Updated scripts require adjustments to these customizations:
 
 ## Noteworthy Changes
 
+### Core and Standard Functionality Split
+In this release, we are introducing a new split between "Core" and "Standard" functionalities.  
+This change is aimed at advanced users who wish to customize their panel by selectively removing  
+certain functionalities to free up resources for other uses.
+
+> [!IMPORTANT]
+> Unless you want to remove some functionality, no changes are needed on your panel's yaml.
+
+#### Background
+Previously, we introduced the concept of `add-ons`, which allowed your panel to act as a Bluetooth proxy,  
+local thermostat, or cover control, extending its capabilities beyond the core functionality.  
+Now, we’re taking a step further by splitting the core functionality into "Core" and "Standard" categories:  
+- **Core Functionality:** Essential features required for any panel installation.  
+- **Standard Functionality:** Common features included by default in regular installations, but optional for advanced users.
+
+#### Benefits of the Split
+1. **Resource Optimization:**  
+   Advanced users can remove unused functionalities, freeing up memory for custom uses unrelated to this project.  
+   - Example: If you’re not using hardware relays, you can remove the package for Hardware Relays to free up resources.  
+   - Similarly, if cover control is not used, you can exclude the related code.
+
+2. **Improved Code Management:**  
+   Each feature is now encapsulated in a dedicated package, making it easier to locate and customize specific functionality.  
+   Developers and troubleshooters can focus on isolated areas of the code without interfering with unrelated parts.
+
+3. **Future Accessibility:**  
+   While currently targeted at advanced users, this split lays the groundwork for making functionality selection  
+   more accessible for all users, including entry-level users, in future releases.
+
+#### Example Use Case
+To customize your installation and include only the functionalities you need:
+```yaml
+packages:
+  # Include only the features you need:
+  standard_relay: !include packages/standard_relay.yaml  # Remove this line if relays are not needed
+  standard_cover: !include packages/standard_cover.yaml  # Remove this line if cover control is not needed
+  core: !include packages/core.yaml  # Core functionality (mandatory)
+```
+This split not only optimizes resources but also simplifies customization, troubleshooting, and development,
+making it easier to focus on specific areas of the code without affecting others.
+
+#### What's Next
+While this change is currently focused on advanced users, we are working towards making it easier for all users,
+allowing everyone to select what functionalities they want during installation in a more intuitive way.
+
 ### Dynamic QR Code
 Assign an entity (input text or sensor) to a QR code. The QR code updates dynamically with entity value changes.  
 QR code length limit extended to 96 chars for more complex codes.  

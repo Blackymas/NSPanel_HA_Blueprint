@@ -176,7 +176,7 @@ trigger:
 ```
 
 ## Climate control with Relays
-> [!ATTENTION]
+> [!IMPORTANT]
 > Although these instructions are still valid, since v4.0 there is a better way to setup a climate control using the panel's relays an the [add-on climate](addon_climate.md), 
 > which will continue to work even if Home Assistant and/or WiFi are not available. 
 > You probably only want to use this approach, if you are not using the build-in thermometer. 
