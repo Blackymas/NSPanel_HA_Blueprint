@@ -126,6 +126,10 @@ making it easier to focus on specific areas of the code without affecting others
 While this change is currently focused on advanced users, we are working towards making it easier for all users,
 allowing everyone to select what functionalities they want during installation in a more intuitive way.
 
+#### How to Get More Information
+For detailed guidance, visit our Installation documentation in the  
+"[Advanced Configuration for ESPHome and Home Assistant Experts](docs/install.md#advanced-configuration-for-esphome-and-home-assistant-experts)" section.
+
 ### Dynamic QR Code
 Assign an entity (input text or sensor) to a QR code. The QR code updates dynamically with entity value changes.  
 QR code length limit extended to 96 chars for more complex codes.  
