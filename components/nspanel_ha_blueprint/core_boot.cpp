@@ -5,77 +5,150 @@
 #include "core_boot.h"  // Include the header file for function and variable declarations.
 
 namespace nspanel_ha_blueprint {
+    BootStepVector* boot_steps = nullptr;
 
-    // Total number of defined boot steps.
-    uint8_t total_boot_steps = 0;
-    uint32_t completed_boot_steps = 0;
-    uint32_t registered_applications = 0;
+    // Function to set up the boot steps vector
+    void setup_boot_steps() {
+        if (!boot_steps) {
+            #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_DEBUG
+                esphome::ESP_LOGD("boot_steps", "Allocating memory for boot steps vector in PSRAM");
+            #endif
 
-    // Function to mark a boot step as completed.
-    bool complete_boot_step(const uint32_t step) {
-        // Validate that the step is a power of two (i.e., only one bit is set).
-        if (step == 0 || (step & (step - 1)) != 0) {
-            return false;
+            esphome::ExternalRAMAllocator<BootStepVector> vector_allocator(
+                esphome::ExternalRAMAllocator<BootStepVector>::ALLOW_FAILURE);
+            boot_steps = vector_allocator.allocate(1);
+
+            if (!boot_steps) {
+                #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_ERROR
+                    esphome::ESP_LOGE("boot_steps", "Failed to allocate memory for boot steps vector.");
+                #endif
+                return;
+            }
+
+            // Use placement new to initialize the vector in allocated memory
+            new (boot_steps) BootStepVector(esphome::ExternalRAMAllocator<BootStep>());
+
+            #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_DEBUG
+                esphome::ESP_LOGD("boot_steps", "Memory allocated for boot steps vector in PSRAM");
+            #endif
         }
-        // Use bitwise OR to set the corresponding bit in completed_boot_steps.
-        completed_boot_steps |= step;
-        return true;
     }
 
     // Function to register an application for boot.
-    bool register_application(const uint32_t app_bit) {
-        // Validate that the app_bit is a power of two (i.e., only one bit is set).
-        if (app_bit == 0 || (app_bit & (app_bit - 1)) != 0) {
+    bool register_application(uint8_t id, const char* name) {
+        if (!boot_steps) {
+            setup_boot_steps();
+        }
+
+        // Validate that the id is a power of two (i.e., only one bit is set)
+        if (id == 0 || (id & (id - 1)) != 0) {
             return false;
         }
-        // Check if the application is already registered, if not, increment total_boot_steps.
-        if ((registered_applications & app_bit) == 0) {
-            total_boot_steps++;
+        // Check if the application is already registered
+        for (const auto& step : *boot_steps) {
+            if (step.id == id) {
+                return false; // Already registered
+            }
         }
-        // Use bitwise OR to set the corresponding bit in registered_applications.
-        registered_applications |= app_bit;
+        // Add new boot step to the list
+        boot_steps->emplace_back(id, name);
         return true;
     }
 
-    // Helper function to count the number of bits set to '1' in a uint32_t value.
-    uint8_t count_bits_set(uint32_t value) {
-        uint8_t count = 0;
-        while (value) {
-            count += value & 1;
-            value >>= 1;
+    // Function to mark a boot step as completed.
+    bool complete_boot_step(uint8_t id) {
+        for (auto& step : *boot_steps) {
+            if (step.id == id) {
+                step.completed = true;
+                return true;
+            }
         }
-        return count;
-    }
-
-    // Function to get the number of unique boot steps that have been completed.
-    uint8_t get_boot_steps_completed() {
-        return count_bits_set(completed_boot_steps);
+        return false; // Step not found
     }
 
     // Function to calculate the boot progress percentage with rounding.
     uint8_t get_boot_progress_percentage() {
-        if (total_boot_steps == 0) {
+        if (boot_steps == nullptr || boot_steps->empty()) {
             return 0;
         }
-        return static_cast<uint8_t>((get_boot_steps_completed() * 100 + total_boot_steps / 2) / total_boot_steps);
+        uint8_t completed_steps = 0;
+        for (const auto& step : *boot_steps) {
+            if (step.completed) {
+                completed_steps++;
+            }
+        }
+        return static_cast<uint8_t>((completed_steps * 100 + boot_steps->size() / 2) / boot_steps->size());
     }
 
     // Function to check if all registered applications have completed boot.
     bool is_boot_complete() {
-        // Boot is complete if all bits set in registered_applications are also set in completed_boot_steps.
-        return (registered_applications & completed_boot_steps) == registered_applications;
+        if (boot_steps == nullptr) {
+            return false;
+        }
+        for (const auto& step : *boot_steps) {
+            if (!step.completed) {
+                return false;
+            }
+        }
+        return true;
     }
 
-    // Function to reset the completed boot steps and registered applications to zero.
+    // Function to reset the completed boot steps to the initial state.
     void reset_boot_steps() {
-        total_boot_steps = 0;
-        completed_boot_steps = 0;
-        registered_applications = 0;
+        if (boot_steps == nullptr) {
+            return;  // No boot steps to reset
+        }
+        for (auto& step : *boot_steps) {
+            step.completed = false;
+        }
     }
 
     // Function to check if a specific boot step has been completed.
-    bool is_boot_step_completed(uint32_t step) {
-        return (completed_boot_steps & step) != 0;
+    bool is_boot_step_completed(uint8_t id) {
+        if (boot_steps == nullptr) {
+            return false;
+        }
+        for (const auto& step : *boot_steps) {
+            if (step.id == id) {
+                return step.completed;
+            }
+        }
+        return false;
+    }
+
+    // Function to get the total number of registered boot steps
+    uint8_t get_total_registered_boot_steps() {
+        if (boot_steps == nullptr) {
+            return 0;
+        }
+        return static_cast<uint8_t>(boot_steps->size());
+    }
+
+    // Function to get the total number of completed boot steps
+    uint8_t get_completed_boot_steps() {
+        if (boot_steps == nullptr) {
+            return 0;
+        }
+        uint8_t completed_steps = 0;
+        for (const auto& step : *boot_steps) {
+            if (step.completed) {
+                completed_steps++;
+            }
+        }
+        return completed_steps;
+    }
+
+    // Function to get a pointer to a specific boot step by its ID
+    BootStep* get_boot_step(uint8_t id) {
+        if (boot_steps == nullptr) {
+            return nullptr;
+        }
+        for (auto& step : *boot_steps) {
+            if (step.id == id) {
+                return &step;
+            }
+        }
+        return nullptr; // Step not found
     }
 
 }  // namespace nspanel_ha_blueprint

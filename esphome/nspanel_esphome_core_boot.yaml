@@ -7,7 +7,7 @@
 
 ---
 substitutions:
-  BOOT_STEP_BOOT: '1UL << 1'
+  BOOT_STEP_BOOT: '1'
 
 api:
   on_client_connected:
@@ -46,6 +46,10 @@ esphome:
   on_boot:
     - priority: 1000.1
       then:
+        - script.execute: boot_package_register
+
+    - priority: 900.1
+      then:
         - script.execute: boot_initialize
 
     - priority: 600.1
@@ -68,7 +72,7 @@ script:
                   esphome_version: ${version}
                   type: boot
                   step: timeout
-                  completed_boot_steps: !lambda return completed_boot_steps;
+                  get_completed_boot_steps(): !lambda return get_completed_boot_steps();
             - delay: 120s
 
   - id: boot_initialize
@@ -77,17 +81,32 @@ script:
     # Extended by:
     #   nspanel_esphome_core_hw_display.yaml
 
+  - id: boot_package_register
+    mode: restart
+    then:
+      - lambda: boot_package_register_add->execute(${BOOT_STEP_BOOT}, "Boot");
+
+  - id: boot_package_register_add
+    mode: queued
+    parameters:
+      package_id: uint8_t
+      package_name: string
+    then:
+      - lambda: |-
+          const bool package_registered = register_application(package_id, package_name.c_str());
+          ESP_LOGI("script.boot_package_register", "Package '%s' (id %" PRIu32 ") %s.", package_name.c_str(),
+                    package_id, package_registered ? "registered" : "FAILED TO REGISTER");
+
   - id: boot_progress
     mode: restart
     parameters:
-      step: uint32_t
-      step_name: string
+      step: uint8_t
     then:
       - lambda: |-
           boot_progress_dump_timer->execute();
           complete_boot_step(step);
-          ESP_LOGI("script.boot_progress", "Boot step completed: %s (step %i of %i - %i%%)", step_name.c_str(),
-                    get_boot_steps_completed(), total_boot_steps, get_boot_progress_percentage());
+          ESP_LOGI("script.boot_progress", "Boot step completed: %s (step %i of %i - %i%%)", get_boot_step(step)->name,
+                    get_completed_boot_steps(), get_total_registered_boot_steps(), get_boot_progress_percentage());
           if (is_boot_complete())
             ESP_LOGI("script.boot_progress", "Progress: Boot sequence completed");
 
@@ -96,19 +115,16 @@ script:
     then:
       - lambda: |-
           ESP_LOGCONFIG("script.boot_progress_dump", "Boot progress: %" PRIu8 "%% (%" PRIu32 ")",
-                        get_boot_progress_percentage(), completed_boot_steps);
-          boot_progress_dump_item->execute(${BOOT_STEP_BOOT}, "Boot");
-
-  - id: boot_progress_dump_item
-    mode: queued
-    parameters:
-      step: uint32_t
-      step_name: string
-    then:
-      - lambda: |-
-          int8_t padding = std::max(0, 21 - static_cast<int>(step_name.length())); // Calculate dynamic padding
-          ESP_LOGCONFIG("script.boot_progress_dump", " - %s:%*s%s", step_name.c_str(), padding, "",
-                        is_boot_step_completed(step) ? "Completed" : "PENDING");
+                        get_boot_progress_percentage(), get_completed_boot_steps());
+          if (boot_steps != nullptr) {
+              for (const auto& step : *(boot_steps)) {
+                const int8_t padding = std::max(0, 21 - static_cast<int>(sizeof(step.name))); // Dynamic padding
+                ESP_LOGCONFIG("script.boot_progress_dump", " - %s:%*s%s", step.name, padding, "",
+                              step.completed ? "Completed" : "PENDING");
+              }
+          } else {
+              ESP_LOGE("script.boot_progress_dump", "Boot steps have not been initialized.");
+          }
 
   - id: boot_progress_dump_timer
     mode: restart
@@ -163,7 +179,7 @@ script:
             esphome_version: ${version}
             type: boot
             step: start
-            completed_boot_steps: !lambda return completed_boot_steps;
+            get_completed_boot_steps(): !lambda return get_completed_boot_steps();
       - lambda: |-
           boot_log->execute("Boot", "Display settings");
       - script.execute:
@@ -174,7 +190,7 @@ script:
           set_variable_value->execute("brightness_dim", static_cast<uint8_t>(display_dim_brightness->state));
           set_variable_value->execute("brightness", static_cast<uint8_t>(display_brightness->state));
           set_brightness->execute(display_brightness->state);
-          boot_progress->execute(${BOOT_STEP_BOOT}, "Boot");
+          boot_progress->execute(${BOOT_STEP_BOOT});
           boot_event->execute();
 
   - id: !extend dump_config
@@ -182,11 +198,11 @@ script:
       - lambda: |-
           if (is_boot_complete())
             ESP_LOGCONFIG("${project_tag}", "Boot steps: %" PRIu8 "/%" PRIu8 " (100%%)",
-                          get_boot_steps_completed(), total_boot_steps);
+                          get_completed_boot_steps(), get_total_registered_boot_steps());
           else {
             ESP_LOGW("${project_tag}", "Boot steps: %" PRIu8 "/%" PRIu8 " (%" PRIu8 "%% - %" PRIu32 ")",
-                      get_boot_steps_completed(), total_boot_steps,
-                      get_boot_progress_percentage(), completed_boot_steps);
+                      get_completed_boot_steps(), get_total_registered_boot_steps(),
+                      get_boot_progress_percentage(), get_completed_boot_steps());
             ESP_LOGW("${project_tag}", "  State:    %s",
                       ((wifi_component->is_connected()) and api_server->is_connected()) ? "Pending" : "DISCONNECTED");
             boot_progress_dump->execute();
@@ -194,11 +210,18 @@ script:
             boot_event->execute();
           }
 
+  - id: !extend set_var_int
+    then:
+      - lambda: |-
+          if (component == "BOOT_STEP")
+            boot_progress->execute(static_cast<uint8_t>(val));
+
   - id: !extend stop_all
     then:
       - lambda: |-
           boot_event->stop();
           boot_initialize->stop();
+          boot_package_register->stop();
           boot_progress->stop();
           boot_progress_dump_timer->stop();
 ...
