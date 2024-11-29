@@ -500,6 +500,7 @@ packages:
       - esphome/nspanel_esphome_standard_page_blank.yaml         # Blank Page
       - esphome/nspanel_esphome_standard_page_buttons.yaml       # Button Pages
       - esphome/nspanel_esphome_standard_page_climate.yaml       # Climate Page
+      - esphome/nspanel_esphome_standard_page_confirm.yaml       # Confirm Page
       - esphome/nspanel_esphome_standard_page_cover.yaml         # Cover Page
       - esphome/nspanel_esphome_standard_page_entities.yaml      # Entity Pages
       - esphome/nspanel_esphome_standard_page_fan.yaml           # Fan Page
