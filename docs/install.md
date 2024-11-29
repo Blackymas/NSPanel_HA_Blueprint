@@ -491,7 +491,7 @@ packages:
     ref: main
     refresh: 300s
     files:
-      - esphome/nspanel_esphome_advanced.yaml  # Core configuration required for basic functionality
+      - esphome/nspanel_esphome_core.yaml  # Core configuration required for basic functionality
       # Optional (and recommended) packages    
       - esphome/nspanel_esphome_standard_hw_buzzer.yaml          # Hardware - Buzzer
       - esphome/nspanel_esphome_standard_hw_relays.yaml          # Hardware - Relays
