@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
-#include "esp_attr.h"  // Include for PSRAM attributes
 
 namespace nspanel_ha_blueprint {
 
@@ -29,11 +28,41 @@ namespace nspanel_ha_blueprint {
 
     // Constants
     /**
-    * A runtime array containing the names of pages, stored in PSRAM to save internal SRAM.
+    * A runtime array containing the names of pages.
     * These names correspond to various pages of the Nextion TFT file in use,
     * such as settings, home, weather information, and more.
     */
-    extern char page_names[29][15];
+    constexpr std::array<const char*, 29> page_names = {
+        "boot",
+        "home",
+        "weather01",
+        "weather02",
+        "weather03",
+        "weather04",
+        "weather05",
+        "climate",
+        "settings",
+        "screensaver",
+        "light",
+        "cover",
+        "buttonpage01",
+        "buttonpage02",
+        "buttonpage03",
+        "buttonpage04",
+        "notification",
+        "qrcode",
+        "entitypage01",
+        "entitypage02",
+        "entitypage03",
+        "entitypage04",
+        "fan",
+        "alarm",
+        "keyb_num",
+        "media_player",
+        "confirm",
+        "utilities",
+        "home_smpl"
+    };
 
     // Define bitmasks for the different groups of repeating pages
     // Entity Pages: IDs 18, 19, 20, 21 (entitypage01 to entitypage04)

@@ -117,13 +117,16 @@ script:
           ESP_LOGCONFIG("script.boot_progress_dump", "Boot progress: %" PRIu8 "%% (%" PRIu32 ")",
                         get_boot_progress_percentage(), get_completed_boot_steps());
           if (boot_steps != nullptr) {
-              for (const auto& step : *(boot_steps)) {
-                const int8_t padding = std::max(0, 21 - static_cast<int>(sizeof(step.name))); // Dynamic padding
-                ESP_LOGCONFIG("script.boot_progress_dump", " - %s:%*s%s", step.name, padding, "",
-                              step.completed ? "Completed" : "PENDING");
+            for (size_t i = 0; i < MAX_BOOT_STEPS; ++i) {
+              if (boot_steps[i].included) {
+                const int8_t padding =
+                  std::max(0, 21 - static_cast<int>(sizeof(boot_steps[i].name))); // Dynamic padding
+                ESP_LOGCONFIG("script.boot_progress_dump", " - %s:%*s%s", boot_steps[i].name, padding, "",
+                              boot_steps[i].completed ? "Completed" : "PENDING");
               }
+            }
           } else {
-              ESP_LOGE("script.boot_progress_dump", "Boot steps have not been initialized.");
+            ESP_LOGE("script.boot_progress_dump", "Boot steps have not been initialized.");
           }
 
   - id: boot_progress_dump_timer
@@ -138,6 +141,7 @@ script:
   - id: boot_sequence
     mode: single
     then:
+      - script.execute: boot_progress_dump
       - lambda: |-
           if (!disp1->is_setup())
             page_boot_log->execute("Boot", "Waiting for Nextion");
@@ -181,15 +185,6 @@ script:
             step: start
             get_completed_boot_steps(): !lambda return get_completed_boot_steps();
       - lambda: |-
-          page_boot_log->execute("Boot", "Display settings");
-      - script.execute:
-          id: set_variable_value
-          variable: brightness_sleep
-          val: !lambda return static_cast<uint8_t>(display_sleep_brightness->state);
-      - lambda: |-
-          set_variable_value->execute("brightness_dim", static_cast<uint8_t>(display_dim_brightness->state));
-          set_variable_value->execute("brightness", static_cast<uint8_t>(display_brightness->state));
-          set_brightness->execute(display_brightness->state);
           boot_progress->execute(${BOOT_STEP_BOOT});
           boot_event->execute();
 
