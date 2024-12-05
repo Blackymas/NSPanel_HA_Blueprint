@@ -26,7 +26,7 @@ namespace nspanel_ha_blueprint {
     };
 
     // Fixed array to store the boot steps
-    static constexpr size_t MAX_BOOT_STEPS = 32;
+    static constexpr size_t MAX_BOOT_STEPS = 35;
     extern BootStep boot_steps[MAX_BOOT_STEPS];
 
     // Function to set up the boot steps array
