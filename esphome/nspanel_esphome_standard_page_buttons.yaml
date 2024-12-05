@@ -1,0 +1,256 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - BUTTONS PAGES                                                              #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+##### External references #####
+###############################
+
+---
+substitutions:
+  BOOT_STEP_PAGE_BUTTONS: '11'
+  PAGE_ID_BUTTONPAGE01: '12'
+  PAGE_ID_BUTTONPAGE02: '13'
+  PAGE_ID_BUTTONPAGE03: '14'
+  PAGE_ID_BUTTONPAGE04: '15'
+  BUTTON_LONG_PRESS_DELAY: 800ms
+
+api:
+  actions:
+    # Dynamically configures button properties on a specified page,
+    # enhancing UI interactivity by allowing updates to button appearance and behavior based on given parameters.
+    - action: button
+      variables:
+        id: int            # Button index (0 to 32)
+        page: string       # Identifier of the page where the button is located.
+        component: string  # Unique identifier for the button.
+        state: bool        # Determines the button's state, influencing background and other visual aspects.
+        icon: string       # Codepoint from HASwitchPlate Material Design Icons. "\uE6E8" for mdi:lightbulb-on-outline.
+        icon_color: int[]  # RGB color array for the icon.
+        icon_font: int     # Nextion font identifier for the icon, default is 8.
+        bri: string        # Brightness level or other dynamic info to be displayed close to the icon.
+        label: string      # Main text label for the button.
+      then:
+        - lambda: |-
+            ESP_LOGD("api.actions.button", "Received data for button %i", id);
+            if (id >= 1 and id <= 32) {
+              const uint8_t index = static_cast<uint8_t>(id) - 1;
+
+              // Button state
+              buttonpage_buttons[index].state = state;
+
+              // Icon font
+              display_component_update_font->execute(buttonpage_buttons[index].icon, icon_font);
+
+              // Icon color
+              if (icon_color.size() == 3)
+                display_component_update_color->execute(buttonpage_buttons[index].icon, color565(icon_color));
+
+              // Icon
+              if (!icon.empty())
+                display_component_update_text->execute(buttonpage_buttons[index].icon, icon);
+
+              // Label
+              if (!label.empty())
+                display_component_update_text->execute(buttonpage_buttons[index].label, label);
+
+              // Bri
+              if (!bri.empty())
+                display_component_update_text->execute(buttonpage_buttons[index].bri, bri == "0" ? "" : bri);
+
+              // Button visibility
+              display_component_update_visibility->execute(buttonpage_buttons[index].bri, true);
+              display_component_update_visibility->execute(buttonpage_buttons[index].icon, true);
+              display_component_update_visibility->execute(buttonpage_buttons[index].label, true);
+
+              // Rendering button
+              const uint8_t page_id = get_page_id(page.c_str());
+              page_buttonpage_button_renderer->execute(index, page_id, component.c_str());
+            }
+
+display:
+  - id: !extend disp1
+    on_touch:
+      then:
+        - lambda: |-
+            if (is_page_in_group(BUTTONS_PAGE_MASK, page_id)) {  // Button's pages
+              if (component_id >= 42 and component_id <= 49) {  // Buttons
+                const uint8_t button_id = (8*(page_id-${PAGE_ID_BUTTONPAGE01}))+(component_id-41);
+                ESP_LOGI("display", "Button %" PRIu8 " %s", button_id, touch_event ? "pressed" : "released");
+                if (touch_event)
+                  button_press->execute(button_id);
+                else
+                  button_release->execute(button_id);
+              }
+            }
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_STANDARD_PAGE_BUTTONS
+
+script:
+  - id: !extend boot_initialize
+    then:
+      - lambda: |-
+          setup_pagebuttons_buttons();
+
+  - id: button_click_long
+    mode: parallel
+    parameters:
+      button_id: uint8_t
+    then:
+
+  - id: button_click_short
+    mode: parallel
+    parameters:
+      button_id: uint8_t
+    then:
+
+  - id: button_press
+    mode: restart
+    parameters:
+      button_id: uint8_t
+    then:
+      - delay: ${BUTTON_LONG_PRESS_DELAY}
+      - script.execute:
+          id: button_click_long
+          button_id: !lambda return button_id;
+
+  - id: button_release
+    mode: parallel
+    parameters:
+      button_id: uint8_t
+    then:
+      - if:
+          condition:
+            - script.is_running: button_press
+          then:
+            - script.stop: button_press
+            - script.execute:
+                id: button_click_short
+                button_id: !lambda return button_id;
+
+  - id: !extend boot_package_register
+    then:
+      - lambda: boot_package_register_add->execute(${BOOT_STEP_PAGE_BUTTONS}, "PAGE_BUTTONS", "Page Buttons");
+
+  - id: page_buttonpage
+    mode: restart
+    then:
+      - repeat:
+          count: 8
+          then:
+            - delay: !lambda return display_delay->state;
+            - lambda: |-
+                const uint8_t index = (current_page_id-${PAGE_ID_BUTTONPAGE01})*8 + iteration;
+                if (buttonpage_buttons[index].icon->visible) {
+                  char component[10];
+                  sprintf(component, "button%02d", iteration+1);
+                  ESP_LOGD("script.page_buttonpage", "Updating state of %s - %s",
+                            current_page->state.c_str(), component);
+                  page_buttonpage_button_renderer->execute(index, current_page_id, component);
+                }
+
+  - id: page_buttonpage_button_renderer
+    mode: parallel
+    parameters:
+      index: uint8_t
+      page_id: uint8_t
+      component: string
+    then:
+      - lambda: |-
+          page_buttonpage_button_renderer_state->execute(index, page_id, component.c_str());
+          page_buttonpage_button_renderer_visibility->execute(index, page_id, component.c_str());
+
+  - id: page_buttonpage_button_renderer_state
+    mode: parallel
+    parameters:
+      index: uint8_t
+      page_id: uint8_t
+      component: string
+    then:
+      - lambda: |-
+          if (page_id == current_page_id) {
+            set_component_picc->execute(page_id, (component + "pic").c_str(),
+                                        buttonpage_buttons[index].state ? 47 : 46);
+            set_component_picc->execute(page_id, (component + "bri").c_str(),
+                                        buttonpage_buttons[index].state ? 47 : 46);
+            set_component_picc->execute(page_id, (component + "text").c_str(),
+                                        buttonpage_buttons[index].state ? 47 : 46);
+            set_component_picc->execute(page_id, (component + "icon").c_str(),
+                                        buttonpage_buttons[index].state ? 47 : 46);
+          }
+          display_component_update_color->execute(buttonpage_buttons[index].bri,
+                                                  buttonpage_buttons[index].state ? 10597 : 65535);
+          display_component_update_color->execute(buttonpage_buttons[index].label,
+                                                  buttonpage_buttons[index].state ? 10597 : 65535);
+
+  - id: page_buttonpage_button_renderer_visibility
+    mode: parallel
+    parameters:
+      index: uint8_t
+      page_id: uint8_t
+      component: string
+    then:
+      - lambda: |-
+          if (page_id == current_page_id) {
+            set_component_visibility->execute(page_id, (component + "pic").c_str(),
+                                              buttonpage_buttons[index].icon->visible);
+            set_component_visibility->execute(page_id, component.c_str(),
+                                              buttonpage_buttons[index].icon->visible);
+          }
+
+  - id: !extend page_changed
+    then:
+      - lambda: |-
+          if (is_page_in_group(BUTTONS_PAGE_MASK))
+            page_buttonpage->execute();
+
+  - id: !extend set_var_int
+    then:
+      - lambda: |-
+          if (component == "buttonpage01MaskEnabled") {
+            PageButtonsMaskEnabled &= 0xFFFFFF00; // Clear bits 0-7
+            PageButtonsMaskEnabled |= static_cast<uint32_t>(val) << 0; // Set bits 0-7 with Page 1 value
+            ESP_LOGD("script", "Got buttons enabled settings for buttonpage01: %" PRIu8, val);
+          } else if (component == "buttonpage02MaskEnabled") {
+            PageButtonsMaskEnabled &= 0xFFFF00FF; // Clear bits 8-15
+            PageButtonsMaskEnabled |= static_cast<uint32_t>(val) << 8; // Set bits 8-15 with Page 2 value
+            ESP_LOGD("script", "Got buttons enabled settings for buttonpage02: %" PRIu8, val);
+          } else if (component == "buttonpage03MaskEnabled") {
+            PageButtonsMaskEnabled &= 0xFF00FFFF; // Clear bits 16-23
+            PageButtonsMaskEnabled |= static_cast<uint32_t>(val) << 16; // Set bits 16-23 with Page 3 value
+            ESP_LOGD("script", "Got buttons enabled settings for buttonpage03: %" PRIu8, val);
+          } else if (component == "buttonpage04MaskEnabled") {
+            PageButtonsMaskEnabled &= 0x00FFFFFF; // Clear bits 24-31
+            PageButtonsMaskEnabled |= static_cast<uint32_t>(val) << 24; // Set bits 24-31 with Page 4 value
+            ESP_LOGD("script", "Got buttons enabled settings for buttonpage04: %" PRIu8, val);
+          } else if (component == "buttonpage01MaskConfirm") {
+            PageButtonsMaskConfirm &= 0xFFFFFF00; // Clear bits 0-7
+            PageButtonsMaskConfirm |= static_cast<uint32_t>(val) << 0; // Set bits 0-7 with Page 1 value
+            ESP_LOGD("script", "Got buttons confirm settings for buttonpage01: %" PRIu8, val);
+          } else if (component == "buttonpage02MaskConfirm") {
+            PageButtonsMaskConfirm &= 0xFFFF00FF; // Clear bits 8-15
+            PageButtonsMaskConfirm |= static_cast<uint32_t>(val) << 8; // Set bits 8-15 with Page 2 value
+            ESP_LOGD("script", "Got buttons confirm settings for buttonpage02: %" PRIu8, val);
+          } else if (component == "buttonpage03MaskConfirm") {
+            PageButtonsMaskConfirm &= 0xFF00FFFF; // Clear bits 16-23
+            PageButtonsMaskConfirm |= static_cast<uint32_t>(val) << 16; // Set bits 16-23 with Page 3 value
+            ESP_LOGD("script", "Got buttons confirm settings for buttonpage03: %" PRIu8, val);
+          } else if (component == "buttonpage04MaskConfirm") {
+            PageButtonsMaskConfirm &= 0x00FFFFFF; // Clear bits 24-31
+            PageButtonsMaskConfirm |= static_cast<uint32_t>(val) << 24; // Set bits 24-31 with Page 4 value
+            ESP_LOGD("script", "Got buttons confirm settings for buttonpage04: %" PRIu8, val);
+          }
+
+  - id: !extend stop_all
+    then:
+      - lambda: |-
+          page_buttonpage->stop();
+          page_buttonpage_button_renderer->stop();
+          page_buttonpage_button_renderer_state->stop();
+          page_buttonpage_button_renderer_visibility->stop();
+...

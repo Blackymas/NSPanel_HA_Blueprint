@@ -7,12 +7,11 @@
 
 ---
 substitutions:
-  BOOT_STEP_HW_DISPLAY: '1UL << 5'
+  BOOT_STEP_HW_DISPLAY: '5'
   DISPLAY_CHARSET_INTERNATIONAL: '1'
   DISPLAY_CHARSET_CJK: '2'
 
 api:
-  id: !extend api_server
   actions:
     # Sends custom commands directly to the display for dynamic interactions and updates.
     - action: command
@@ -35,7 +34,7 @@ api:
         visible: bool      # Set to `true` for visible or `false` for hidden.
       then:
         - lambda: |-
-            ESP_LOGD("api.actions.component", "New value for component '%s' on page '%s'",
+            ESP_LOGD("api", "New value for component '%s' on page '%s'",
                       component.c_str(), page.c_str());
             if (not page.empty() and not component.empty())
               display_component_action->execute(get_page_id(page.c_str()), component.c_str(),
@@ -48,11 +47,9 @@ api:
         component: string  # Identifier of the component to update. Must match the component's ID in the display layout.
         val: int           # New integer value to set for the component.
       then:
-        - script.execute:
-            id: set_component_value
-            page_id: !lambda return get_page_id(page.c_str());
-            component: !lambda return component;
-            val: !lambda return val;
+        - lambda: |-
+            if (!page.empty() and !component.empty())
+              set_component_value->execute(get_page_id(page.c_str()), component.c_str(), val);
 
     # Displays detailed information for a specific entity.
     - action: entity_details_show
@@ -61,30 +58,8 @@ api:
         back_page: string  # Specifies the page to return to. Accepts "home" or "buttonpage01" to "buttonpage04".
       then:
         - lambda: |-
-            if (not entity_id.empty() and not back_page.empty()) {
-              size_t dotPos = entity_id.find(".");
-              std::string domain;  // The domain part of the entity, like "light" or "switch".
-              std::string id;
-              if (dotPos != std::string::npos) {
-                // Extract domain and id from the entity_id string
-                domain = entity_id.substr(0, dotPos);
-                id = entity_id.substr(dotPos + 1);
-              } else {
-                // No dot found, the entire entity_id is considered as id.
-                domain = "invalid";
-                id = entity_id;
-              }
-              if (entity_id == "embedded_climate" or domain != "invalid") {
-                detailed_entity->publish_state(entity_id.c_str());
-                std::string new_page = (entity_id == "embedded_climate" ? "climate" :
-                                        (domain == "alarm_control_panel" ? "alarm" : domain));
-                goto_page_id->execute(get_page_id(new_page.c_str()), true);
-                set_variable_value->execute("back_page_id", get_page_id(back_page.c_str()));
-                if (new_page == "climate")
-                  set_component_value->execute(${PAGE_ID_CLIMATE}, "embedded",
-                                                entity_id == "embedded_climate" ? 1 : 0);
-              }
-            }
+            if (not entity_id.empty() and not back_page.empty())
+              entity_details_show_action->execute(entity_id.c_str(), get_page_id(back_page.c_str()));
 
 binary_sensor:
   ## Delays initial info from HA to the display #####
@@ -113,11 +88,11 @@ display:
     on_setup:
       then:
         - lambda: |-
-            page_changed->execute(${PAGE_ID_BOOT});
             // Set the current baud rate into the display
             disp1->send_command_printf("bauds=%" PRIu32, tf_uart->get_baud_rate());
     # Extended by:
     # - nspanel_esphome_core_boot.yaml
+    # - nspanel_esphome_core_page_boot.yaml
 
     on_touch:
       then:
@@ -147,7 +122,7 @@ esphome:
                     - lambda: return (not isnan(stoi(baud_rate->state)));
                   timeout: 60s
               - script.execute:
-                  id: boot_log
+                  id: page_boot_log
                   category: on_boot
                   log_message: Set baud rate
               - lambda: |-
@@ -162,7 +137,7 @@ esphome:
                     - lambda: return (not disp1->is_detected());
                   then:
                     - script.execute:
-                        id: boot_log
+                        id: page_boot_log
                         category: on_boot
                         log_message: Restart Nextion
                     - switch.turn_off: screen_power
@@ -212,7 +187,7 @@ json:  # Can be replaced by web_server
 
 logger:
   logs:
-    script.display_component_send: INFO
+    nextion_textsensor: INFO
 
 number:
   - id: display_brightness  # SCREEN BRIGHTNESS
@@ -295,19 +270,39 @@ number:
     disabled_by_default: true
 
 script:
-  - id: !extend boot_progress_dump
+  - id: !extend boot_package_register
     then:
-      - lambda: |-
-          boot_progress_dump_item->execute(${BOOT_STEP_HW_DISPLAY}, "HW Display");
+      - lambda: boot_package_register_add->execute(${BOOT_STEP_HW_DISPLAY}, "HW_DISPLAY", "HW Display");
 
   - id: !extend boot_initialize
     then:
-      - lambda: setup_components();
+      - lambda: |-
+          setup_components();
+
+  - id: !extend boot_sequence
+    then:
+      - wait_until:
+          condition:
+            - lambda: return not isnan(display_sleep_brightness->state);
+            - lambda: return not isnan(display_dim_brightness->state);
+            - lambda: return not isnan(display_brightness->state);
+          timeout: 180s
+      - lambda: |-
+          page_boot_log->execute("Boot", "Display settings");
+          if (not isnan(display_sleep_brightness->state))
+            set_variable_value->execute("brightness_sleep", static_cast<uint8_t>(display_sleep_brightness->state));
+          if (not isnan(display_dim_brightness->state))
+            set_variable_value->execute("brightness_dim", static_cast<uint8_t>(display_dim_brightness->state));
+          if (not isnan(display_brightness->state)) {
+            set_variable_value->execute("brightness", static_cast<uint8_t>(display_brightness->state));
+            set_brightness->execute(display_brightness->state);
+          }
+          page_boot_log->execute("Boot", "Display settings completed");
 
   - id: display_component_action
     mode: parallel
     parameters:
-      page_id: uint8_t       # Page name
+      page_id: uint8_t   # Page id
       component: string  # Identifier of the component. See "Screen components" in the documentation.
       txt: string        # Text to display.
       color: int32_t[]   # RGB color array for the text, e.g., [0, 255, 0] for green.
@@ -317,6 +312,7 @@ script:
       # Extended by:
       #   nspanel_esphome_core_hw_relays.yaml
       #   nspanel_esphome_core_page_home.yaml
+      #   nspanel_esphome_core_page_screensaver.yaml
       - lambda: |-
           DisplayComponent* display_component = get_component(page_id, component.c_str());
 
@@ -360,7 +356,7 @@ script:
           timeout: 2s
       - lambda: |-
           if (display_component->page_id == current_page_id or display_component->global) {
-            ESP_LOGD("script.display_component_send", "Rendering page %s, component %s",
+            ESP_LOGD("script", "Rendering page %s, component %s",
                       page_names[display_component->page_id], display_component->component);
             if (not display_component->global) {
               display_component_send_text->execute(display_component);
@@ -517,8 +513,8 @@ script:
     then:
       - lambda: |-
           screen_power->turn_off();
-          ESP_LOGE("script.display_delay_increment", "Nextion reported a buffer overflow");
-          ESP_LOGE("script.display_delay_increment", "Increasing the delay factor...");
+          ESP_LOGE("script", "Nextion reported a buffer overflow");
+          ESP_LOGE("script", "Increasing the delay factor...");
       - number.increment:
           id: display_delay
           cycle: false
@@ -527,8 +523,7 @@ script:
             - lambda: return global_preferences->sync();
           then:
             - lambda: |-
-                ESP_LOGE("script.display_delay_increment",
-                          "Restarting ESP to avoid getting out of sync with Nextion");
+                ESP_LOGE("script", "Restarting ESP to avoid getting out of sync with Nextion");
             - delay: 2s
             - lambda: arch_restart();
 
@@ -573,32 +568,58 @@ script:
   - id: !extend dump_config
     then:
       - lambda: |-
-          static const char *const TAG = "${project_tag}";
           // Report UART
-          ESP_LOGCONFIG(TAG, "UART:");
-          ESP_LOGCONFIG(TAG, "  Baud rate:    %" PRIu32 " bps", tf_uart->get_baud_rate());
-          ESP_LOGCONFIG(TAG, "  Queue size:   %d", tf_uart->available());
+          ESP_LOGI("${project_tag}", "UART:");
+          ESP_LOGI("${project_tag}", "  Baud rate:    %" PRIu32 " bps", tf_uart->get_baud_rate());
+          ESP_LOGI("${project_tag}", "  Queue size:   %d", tf_uart->available());
 
           // Report Nextion status
           nextion_init->publish_state(nextion_init->state and disp1->is_setup());
-          ESP_LOGCONFIG(TAG, "Nextion:");
-          ESP_LOGCONFIG(TAG, "  Delay factor: %" PRIu8, static_cast<uint8_t>(display_delay->state));
-          ESP_LOGCONFIG(TAG, "  Queue size:   %d", disp1->queue_size());
+          ESP_LOGI("${project_tag}", "Nextion:");
+          ESP_LOGI("${project_tag}", "  Delay factor: %" PRIu8, static_cast<uint8_t>(display_delay->state));
+          ESP_LOGI("${project_tag}", "  Queue size:   %d", disp1->queue_size());
           if (disp1->is_setup())
-            ESP_LOGCONFIG(TAG, "  Is setup:     True");
+            ESP_LOGI("${project_tag}", "  Is setup:     True");
           else {
-            ESP_LOGW(TAG, "  Is setup:     False");
-            ESP_LOGW(TAG, "  Is detected:  %s", YESNO(disp1->is_detected()));
+            ESP_LOGW("${project_tag}", "  Is setup:     False");
+            ESP_LOGW("${project_tag}", "  Is detected:  %s", YESNO(disp1->is_detected()));
             //exit_reparse->execute();
           }
           if (nextion_init->state) {
-            ESP_LOGCONFIG(TAG, "  Init:         True");
+            ESP_LOGI("${project_tag}", "  Init:         True");
           } else
-            ESP_LOGW(TAG, "  Init:         False");
+            ESP_LOGW("${project_tag}", "  Init:         False");
           if (id(version_tft).empty())
-            ESP_LOGW(TAG, "  TFT:          UNKNOWN");
+            ESP_LOGW("${project_tag}", "  TFT:          UNKNOWN");
           else
-            ESP_LOGCONFIG(TAG, "  TFT:          %s", id(version_tft).c_str());
+            ESP_LOGI("${project_tag}", "  TFT:          %s", id(version_tft).c_str());
+
+  - id: entity_details_show_action
+    mode: restart
+    parameters:
+      entity_id: string      # ID of the entity for which details are shown ("embedded_climate" for add-on climate).
+      back_page_id: uint8_t  # Specifies the page to return to. Accepts "home" or "buttonpage01" to "buttonpage04".
+    then:
+      - lambda: |-
+          size_t dotPos = entity_id.find(".");
+          std::string domain;  // The domain part of the entity, like "light" or "switch".
+          std::string id;
+          if (dotPos != std::string::npos) {
+            // Extract domain and id from the entity_id string
+            domain = entity_id.substr(0, dotPos);
+            id = entity_id.substr(dotPos + 1);
+          } else {
+            // No dot found, the entire entity_id is considered as id.
+            domain = "invalid";
+            id = entity_id;
+          }
+          if (entity_id == "embedded_climate" or domain != "invalid") {
+            detailed_entity->publish_state(entity_id.c_str());
+            std::string new_page = (entity_id == "embedded_climate" ? "climate" :
+                                    (domain == "alarm_control_panel" ? "alarm" : domain));
+            goto_page_id->execute(get_page_id(new_page.c_str()), true);
+            set_variable_value->execute("back_page_id", back_page_id);
+          }
 
   - id: event_from_display
     mode: parallel
@@ -607,7 +628,6 @@ script:
       page: string
     then:
       - lambda: |-
-          static const char *const TAG = "script.event_from_display";
           const std::string event = json["event"];
           const std::string component = json["component"];
           const std::string value = json["value"];
@@ -624,13 +644,12 @@ script:
               {"command", event.c_str()}
             });
           } else if (event == "params") {
-              ESP_LOGI(TAG, "Display parameters received:");
+              ESP_LOGI("script", "Display parameters received:");
               id(display_mode) = json["display_mode"].as<uint8_t>();
               id(display_charset) = json["charset"].as<uint8_t>();
-              ESP_LOGI(TAG, "  Display mode:    %" PRIu8, id(display_mode));
-              ESP_LOGI(TAG, "  Display charset: %" PRIu8, id(display_charset));
+              ESP_LOGI("script", "  Display mode:    %" PRIu8, id(display_mode));
+              ESP_LOGI("script", "  Display charset: %" PRIu8, id(display_charset));
               disp1->send_command("tm_esphome.en=0");
-              boot_progress->execute(${BOOT_STEP_HW_DISPLAY}, "HW Display");
           } else {
             // Generic event
             ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
@@ -661,7 +680,9 @@ script:
       page_id: uint8_t
       reset_timers: bool
     then:
-      - lambda: disp1->goto_page(page_id);
+      - lambda: |-
+          next_page_id = page_id;
+          disp1->goto_page(page_id);
       # Extended by:
       #   - nspanel_esphome_core_hw_display_timers.yaml
 
@@ -678,10 +699,11 @@ script:
               previous_page_id = current_page_id;
               current_page_id = new_page_id;
               current_page->publish_state(page_names[current_page_id]);
+              next_page_id = UINT8_MAX;
             }
             if (is_new_page or new_page_id == ${PAGE_ID_BOOT}) {
               // Report new page to logs
-              ESP_LOGI("display.disp1.on_page", "Page changed from \"%s\" to \"%s\"", page_names[previous_page_id],
+              ESP_LOGI("display", "Page changed from \"%s\" to \"%s\"", page_names[previous_page_id],
                         page_names[new_page_id]);
 
               // Reset entity_id when it does not apply
@@ -726,27 +748,27 @@ script:
             - lambda: return (tf_uart->get_baud_rate() != baud_rate);
           then:
             - lambda: |-
-                ESP_LOGI("script.set_baud_rate", "Baud rate changing from %" PRIu32 " to %" PRIu32 " bps",
+                ESP_LOGI("script", "Baud rate changing from %" PRIu32 " to %" PRIu32 " bps",
                           tf_uart->get_baud_rate(), baud_rate);
-                ESP_LOGD("script.set_baud_rate", "Flush UART");
+                ESP_LOGD("script", "Flush UART");
             - wait_until:
                 condition:
                   - lambda: return (tf_uart->available() < 1);
                 timeout: 5s
             - lambda: |-
-                ESP_LOGD("script.set_baud_rate", "Sending instruction '%s=%" PRIu32 "' to Nextion",
+                ESP_LOGD("script", "Sending instruction '%s=%" PRIu32 "' to Nextion",
                           definitive ? "bauds" : "baud", baud_rate);
                 disp1->send_command_printf("%s=%" PRIu32, definitive ? "bauds" : "baud", baud_rate);
-                ESP_LOGD("script.set_baud_rate", "Flush UART");
+                ESP_LOGD("script", "Flush UART");
             - wait_until:
                 condition:
                   - lambda: return (tf_uart->available() < 1);
                 timeout: 5s
             - lambda: |-
-                ESP_LOGD("script.set_baud_rate", "Set ESPHome new baud rate to %" PRIu32 " bps", baud_rate);
+                ESP_LOGD("script", "Set ESPHome new baud rate to %" PRIu32 " bps", baud_rate);
                 tf_uart->set_baud_rate(baud_rate);
                 tf_uart->load_settings();
-                ESP_LOGI("script.set_baud_rate", "Current baud rate: %" PRIu32 " bps", tf_uart->get_baud_rate());
+                ESP_LOGI("script", "Current baud rate: %" PRIu32 " bps", tf_uart->get_baud_rate());
 
   - id: set_brightness
     mode: restart
@@ -851,7 +873,7 @@ script:
           if (page_id == current_page_id)
             disp1->send_command_printf("vis %s,%i", component.c_str(), show ? 1 : 0);
 
-  - id: !extend set_var_number
+  - id: !extend set_var_int
     then:
       - lambda: |-
           if (component == "bytes_per_char")
@@ -869,7 +891,11 @@ script:
       variable: string
       val: int
     then:
-      - delay: !lambda return display_delay->state;
+      - if:
+          condition:
+            - lambda: return not isnan(display_delay->state);
+          then:
+            - delay: !lambda return display_delay->state;
       - lambda: |-
           disp1->send_command_printf("%s=%i", variable.c_str(), val);
 
@@ -883,6 +909,7 @@ script:
           display_component_send_text->stop();
           display_component_send_visibility->stop();
           display_wrapped_text->stop();
+          entity_details_show_action->stop();
           event_from_display->stop();
           goto_page_id->stop();
           page_changed->stop();
@@ -990,8 +1017,8 @@ text_sensor:
             DynamicJsonDocument json(1024);
             DeserializationError error = deserializeJson(json, x.c_str());
             if (error) {
-              ESP_LOGE("text_sensor.disp1_local_event", "Error parsing json: %s", x.c_str());
-              ESP_LOGE("text_sensor.disp1_local_event", "Error: %s", error.c_str());
+              ESP_LOGE("text_sensor", "Error parsing json: %s", x.c_str());
+              ESP_LOGE("text_sensor", "Error: %s", error.c_str());
             } else {
               const std::string page = json["page"];
               event_from_display->execute(json, page.c_str());

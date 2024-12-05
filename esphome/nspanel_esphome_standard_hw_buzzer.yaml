@@ -1,0 +1,140 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - HARDWARE - BUZZER                                                          #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+substitutions:
+  BOOT_STEP_HW_BUZZER: '4'
+  tone_boot: "two short:d=4,o=5,b=100:16e6,16e6"
+  tone_touch_press: "Touch:d=16,o=5,b=180:g"
+  tone_touch_release: "Release:d=32,o=5,b=180:g,g"
+  tone_volume_change: "scale_up:d=32,o=5,b=100:c,c#,d#,e,f#,g#,a#,b"  # Use to "none" for no sound
+
+api:
+  actions:
+    - action: rtttl_play
+      variables:
+        # The RTTTL string for the melody to be played.
+        # It should follow the RTTTL format, including the melody's name,
+        # default settings, and a sequence of notes.
+        tone: string
+      then:
+        - lambda: |-
+            buzzer->stop();
+            if (buzzer_gain->state > 0) {
+              ESP_LOGI("api", "Play tone: '%s'", tone.c_str());
+              buzzer->play(tone.c_str());
+            }
+
+display:
+  - id: !extend disp1
+    on_touch:
+      then:
+        - lambda: |-
+            if (buzzer_touch_feedback->state and buzzer_gain->state > 0)
+              buzzer->play(touch_event ? "${tone_touch_press}" : "${tone_touch_release}");
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_STANDARD_HW_BUZZER
+
+number:
+  - id: buzzer_gain
+    name: Sound - Volume
+    platform: template
+    max_value: 100
+    min_value: 0
+    step: 1
+    initial_value: 100
+    unit_of_measurement: "%"
+    internal: false
+    disabled_by_default: true
+    entity_category: config
+    device_class: sound_pressure
+    restore_value: true
+    optimistic: true
+    set_action:
+      then:
+        - lambda: |-
+            buzzer->set_gain((100-(x/10.0f))/100.0f);
+            std::string tone_volume_change = "${tone_volume_change}";
+            // Play sound if tone_volume_change is not "none"
+            if (x > 0 and !tone_volume_change.empty() and tone_volume_change != "none")
+              buzzer->play(tone_volume_change);
+            buzzer->dump_config();
+
+output:
+  # Buzzer output
+  - id: buzzer_out
+    platform: ledc
+    pin:
+      number: 21
+
+##### ENABLE RINGTONE MUSIC SUPPORT #####
+rtttl:
+  id: buzzer
+  output: buzzer_out
+
+script:
+  - id: !extend boot_package_register
+    then:
+      - lambda: boot_package_register_add->execute(${BOOT_STEP_HW_BUZZER}, "HW_BUZZER", "HW Buzzer");
+
+  - id: !extend boot_sequence
+    then:
+      - script.execute: boot_sequence_buzzer
+
+  - id: boot_sequence_buzzer
+    mode: restart
+    then:
+      - wait_until:
+          condition:
+            - lambda: return not isnan(buzzer_gain->state);
+          timeout: 600s
+      - lambda: |-
+          if (not isnan(buzzer_gain->state))
+            buzzer->set_gain((100-(buzzer_gain->state/10.0f))/100.0f);
+          else
+            ESP_LOGE("script.boot_sequence_buzzer", "Buzzer gain not set");
+
+  - id: !extend page_changed
+    then:
+      - lambda: |-
+          if (
+              previous_page_id == ${PAGE_ID_BOOT} and
+              current_page_id != ${PAGE_ID_BOOT} and
+              buzzer_boot_sound->state and
+              buzzer_gain->state > 0) {
+            page_boot_log->execute("Boot", "Play boot sound");
+            buzzer->play("${tone_boot}");
+          }
+
+  - id: !extend stop_all
+    then:
+      - script.stop: boot_sequence_buzzer
+
+switch:
+  - id: buzzer_touch_feedback
+    name: Sound - Touch screen feedback
+    platform: template
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    internal: false
+    icon: mdi:volume-high
+    disabled_by_default: true
+
+  - id: buzzer_boot_sound
+    platform: template
+    name: Sound - Boot
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    internal: false
+    icon: mdi:volume-high
+    disabled_by_default: true
+...

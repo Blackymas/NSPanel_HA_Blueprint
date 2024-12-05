@@ -1,0 +1,199 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - HARDWARE - RELAYS                                                          #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+substitutions:
+  BOOT_STEP_HW_RELAYS: '7'
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_STANDARD_HW_RELAYS
+
+globals:
+  - id: relay1_local
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  - id: relay1_fallback
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+
+  - id: relay2_local
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  - id: relay2_fallback
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+
+  ##### Relay icons #####
+  - id: relay1_icon
+    type: DisplayComponent*
+    restore_value: false
+  - id: home_relay1_icon
+    type: char[5]
+    restore_value: true
+    initial_value: ''
+  - id: home_relay1_icon_color
+    type: uint16_t
+    restore_value: true
+    initial_value: '65535'
+
+  - id: relay2_icon
+    type: DisplayComponent*
+    restore_value: false
+  - id: home_relay2_icon
+    type: char[5]
+    restore_value: true
+    initial_value: ''
+  - id: home_relay2_icon_color
+    type: uint16_t
+    restore_value: true
+    initial_value: '65535'
+
+script:
+  - id: !extend boot_package_register
+    then:
+      - lambda: boot_package_register_add->execute(${BOOT_STEP_HW_RELAYS}, "HW_RELAYS", "HW Relays");
+
+  - id: !extend boot_sequence
+    then:
+      - lambda: |-
+          id(relay1_icon) = get_component(${PAGE_ID_HOME}, "chip_relay1");
+          display_component_update_text->execute(id(relay1_icon), id(home_relay1_icon));
+          display_component_update_color->execute(id(relay1_icon), id(home_relay1_icon_color));
+          display_component_update_visibility->execute(id(relay1_icon), relay_1->state);
+
+          id(relay2_icon) = get_component(${PAGE_ID_HOME}, "chip_relay2");
+          display_component_update_text->execute(id(relay2_icon), id(home_relay2_icon));
+          display_component_update_color->execute(id(relay2_icon), id(home_relay2_icon_color));
+          display_component_update_visibility->execute(id(relay2_icon), relay_2->state);
+
+  - id: !extend display_component_action  # Defined by nspanel_esphome_core_hw_display.yaml
+    then:
+      - lambda: |-
+          if (page_id == ${PAGE_ID_HOME}) {
+            if (component == "chip_relay1") {
+              id(home_relay1_icon_color) = color565(color);
+              copyStringToCharArray(id(home_relay1_icon), txt);
+              display_component_update_visibility->execute(id(relay1_icon), relay_1->state);
+            }
+            else if (component == "chip_relay2") {
+              id(home_relay2_icon_color) = color565(color);
+              copyStringToCharArray(id(home_relay2_icon), txt);
+              display_component_update_visibility->execute(id(relay2_icon), relay_2->state);
+            }
+          }
+
+  - id: !extend ha_button
+    then:
+      - lambda: |-
+          if  (component == "hw_bt_left" and command == "short_click" and
+              (id(relay1_local) or
+                (id(relay1_fallback) and (!api_server->is_connected() or !wifi_component->is_connected()))))
+            relay_1->toggle();
+          else if  (component == "hw_bt_right" and command == "short_click" and
+              (id(relay2_local) or
+                (id(relay2_fallback) and (!api_server->is_connected() or !wifi_component->is_connected()))))
+            relay_2->toggle();
+
+  - id: !extend page_home
+    then:
+      - script.execute: refresh_relays
+
+  - id: refresh_relays
+    mode: restart
+    then:
+      - lambda: |-
+          display_component_update_visibility->execute(id(relay1_icon), relay_1->state);
+          display_component_update_visibility->execute(id(relay2_icon), relay_2->state);
+
+  - id: !extend set_var_int
+    then:
+      - lambda: |-
+          if (component == "relay_settings" and val > 0) {
+            uint8_t val_uint = static_cast<uint8_t>(val);
+            ESP_LOGI("script", "HW Relay's settings: %" PRIu8, val_uint);
+
+            // Relay 1 local control enabled (Bit 0)
+            id(relay1_local) = (val_uint & (1 << 0)) != 0;
+
+            // Relay 1 fallback mode enabled (Bit 1)
+            id(relay1_fallback) = (val_uint & (1 << 1)) != 0;
+
+            // Relay 2 local control enabled (Bit 4)
+            id(relay2_local) = (val_uint & (1 << 4)) != 0;
+
+            // Relay 2 fallback mode enabled (Bit 5)
+            id(relay2_fallback) = (val_uint & (1 << 5)) != 0;
+          }
+
+  - id: !extend stop_all
+    then:
+      - lambda: |-
+          refresh_relays->stop();
+
+switch:
+  ##### PHYSICAL SWITCH 1 #####
+  - name: Relay 1
+    platform: gpio
+    id: relay_1
+    pin:
+      number: 22
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      then:
+        - lambda: |-
+            if (id(relay1_local)) {
+              id(button_left_state) = true;
+              refresh_relays->execute();
+              hw_buttons_bars_refresh->execute(1);
+            }
+    on_turn_off:
+      then:
+        - lambda: |-
+            if (id(relay1_local)) {
+              id(button_left_state) = false;
+              refresh_relays->execute();
+              hw_buttons_bars_refresh->execute(1);
+            }
+
+  ##### PHYSICAL SWITCH 2 ######
+  - name: Relay 2
+    platform: gpio
+    id: relay_2
+    pin:
+      number: 19
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      then:
+        - lambda: |-
+            if (id(relay2_local)) {
+              id(button_right_state) = true;
+              refresh_relays->execute();
+              hw_buttons_bars_refresh->execute(2);
+            }
+    on_turn_off:
+      then:
+        - lambda: |-
+            if (id(relay2_local)) {
+              id(button_right_state) = false;
+              refresh_relays->execute();
+              hw_buttons_bars_refresh->execute(2);
+            }
+
+time:
+  - id: !extend time_provider
+    on_time:
+      - seconds: 0
+        then:
+          - lambda: |-
+              refresh_relays->execute();
+...

@@ -7,7 +7,6 @@
 
 ---
 api:
-  id: !extend api_server
   actions:
     # Wake Up action
     - action: wake_up
@@ -161,22 +160,12 @@ script:
       - if:
           condition:
             - lambda: |-
-                return (timeout_page->state >= 1 and
-                        current_page_id != ${PAGE_ID_BOOT} and
-                        current_page_id != ${PAGE_ID_CONFIRM} and
-                        current_page_id != ${PAGE_ID_HOME} and
-                        current_page_id != ${PAGE_ID_NOTIFICATION} and
-                        current_page_id != ${PAGE_ID_SCREENSAVER});
+                return (timeout_page->state >= 1 and not is_page_in_group(NON_API_ID_PAGE_MASK));
           then:
             - delay: !lambda return (timeout_page->state *1000);
             - lambda: |-
-                if (timeout_page->state >= 1 and
-                    current_page_id != ${PAGE_ID_BOOT} and
-                    current_page_id != ${PAGE_ID_CONFIRM} and
-                    current_page_id != ${PAGE_ID_HOME} and
-                    current_page_id != ${PAGE_ID_NOTIFICATION} and
-                    current_page_id != ${PAGE_ID_SCREENSAVER}) {
-                  ESP_LOGI("script.timer_page", "Fallback to page Home");
+                if (timeout_page->state >= 1 and not is_page_in_group(NON_API_ID_PAGE_MASK)) {
+                  ESP_LOGI("script", "Fallback to page Home");
                   goto_page_id->execute(${PAGE_ID_HOME}, false);
                 }
 
@@ -187,7 +176,7 @@ script:
           if (current_brightness->state <= display_dim_brightness->state
               and current_page_id != ${PAGE_ID_SCREENSAVER}
               and current_page_id != ${PAGE_ID_BOOT}) {
-            ESP_LOGD("script.timer_dim", "Waking up on page: %s", page_names[current_page_id]);
+            ESP_LOGD("script", "Waking up on page: %s", page_names[current_page_id]);
             set_brightness->execute(display_brightness->state);
           }
       - if:
@@ -216,7 +205,7 @@ script:
                 if (timeout_sleep->state >= 1
                     and current_page_id != ${PAGE_ID_SCREENSAVER}
                     and current_page_id != ${PAGE_ID_BOOT}) {
-                  ESP_LOGI("script.timer_sleep", "Going to sleep from page %s", page_names[current_page_id]);
+                  ESP_LOGI("script", "Going to sleep from page %s", page_names[current_page_id]);
                   goto_page_id->execute(${PAGE_ID_SCREENSAVER}, false);
                   set_brightness->execute(display_sleep_brightness->state);
                 }
@@ -247,7 +236,9 @@ select:
     disabled_by_default: true
     on_value:
       then:
-        - script.execute: page_screensaver
+        - lambda: |-
+            set_variable_value->execute("wakeup_page_id",
+                                        get_page_id(wakeup_page_name->state.c_str()));
 
 sensor:
   - id: !extend brightslider

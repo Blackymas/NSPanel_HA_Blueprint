@@ -148,7 +148,8 @@ esp32:
 - **Issue**: Your firmware might be missing some important library, you may be using an outdated version, or the ESP may be out of memory.
 - **Solution**: Remove all add-ons and non-essential customization and flash your panel again.
 - **Step-by-Step Guide**:
-    1. Look at your yaml file and comment out all the customization (typically in a section named "My customizations") and any of the remote files other than `nspanel_esphome.yaml`.
+    1. Look at your yaml file and comment out all the customization (typically in a section named "My customizations")
+        and any of the packages/files other than `nspanel_esphome.yaml`.
     2. Flash your panel with the new cleaner yaml. You can do this over the air/wirelessly, although it is recommended to use serial when changing between frameworks.
     3. Try to update the TFT file again.
     4. Add the add-ons and removed customization back and then flash it again.

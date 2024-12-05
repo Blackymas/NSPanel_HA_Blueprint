@@ -16,50 +16,7 @@ substitutions:
   ota_password: ${wifi_password}
   project_tag: nspanel_ha_blueprint
   ##############################
-  BOOT_STEP_BASE: '1UL << 0'
-
-api:
-  id: !extend api_server
-
-  on_client_connected:
-    then:
-      - lambda: |-
-          boot_log->execute("API", (client_info + " connected (" + client_address + ")").c_str());
-          if (client_info.find("Home Assistant ") == 0)
-            id(api_is_updated) = true;
-          else
-            dump_config->execute();
-
-  actions:
-    - action: set_bool
-      variables:
-        component: string
-        val: bool
-      then:
-        - script.execute:
-            id: set_var_bool
-            component: !lambda return component;
-            val: !lambda return val;
-
-    - action: set_number
-      variables:
-        component: string
-        val: float
-      then:
-        - script.execute:
-            id: set_var_number
-            component: !lambda return component;
-            val: !lambda return val;
-
-    - action: set_string
-      variables:
-        component: string
-        val: string
-      then:
-        - script.execute:
-            id: set_var_string
-            component: !lambda return component;
-            val: !lambda return val;
+  BOOT_STEP_BASE: '0'
 
 button:
   - id: nspanel_factory_reset  # Factory Reset button - Used to clean values from flash
@@ -101,20 +58,15 @@ external_components:
     refresh: 300s
 
 globals:
-  - id: api_is_updated
-    type: bool
-    restore_value: false
-    initial_value: 'false'
-
   - id: is_safe_mode
     type: bool
     restore_value: false
     initial_value: 'false'
 
-  - id: max_loop_time
-    type: uint32_t
-    restore_value: true
-    initial_value: '0'
+#  - id: max_loop_time
+#    type: uint32_t
+#    restore_value: true
+#    initial_value: '0'
 
 logger:
   id: logger_std
@@ -124,12 +76,11 @@ logger:
     esp32.preferences: INFO
     esp-idf: INFO
     binary_sensor: INFO
-    output: INFO
+    nspanel_ha_blueprint: INFO
     script: INFO
     sensor: INFO
     switch: INFO
     text_sensor: INFO
-    time: INFO
 
 nspanel_ha_blueprint:  # Adds custom library for NSPanel HA Blueprint project
 
@@ -141,18 +92,19 @@ ota:
       then:
         - lambda: |-
             if (state == ota::OTA_STARTED) {
-              stop_all->execute();
               goto_page_id->execute(${PAGE_ID_BOOT}, true);
+              current_page_id = ${PAGE_ID_BOOT};
+              disp1->set_component_text("initializing", "Flashing...");
               set_component_value->execute(${PAGE_ID_BOOT}, "progress", 0);
-              boot_log->execute("OTA", "Started");
+              page_boot_log->execute("OTA", "Started");
             } else if (state == ota::OTA_IN_PROGRESS) {
               disp1->send_command("progress.val+=10");
-              boot_log->execute("OTA", "In progress");
+              page_boot_log->execute("OTA", "In progress");
             } else if (state == ota::OTA_COMPLETED) {
               set_component_value->execute(${PAGE_ID_BOOT}, "progress", 100);
-              boot_log->execute("OTA", "Completed");
+              page_boot_log->execute("OTA", "Completed");
             } else if (state == ota::OTA_ERROR)
-              boot_log->execute("OTA", "Error");
+              page_boot_log->execute("OTA", "Error");
 
 safe_mode:
   reboot_timeout: 15min
@@ -162,58 +114,31 @@ safe_mode:
       - script.execute: safe_mode_loop
 
 script:
-  - id: api_reset
-    mode: restart
+  - id: !extend boot_package_register
     then:
-      - lambda: id(api_is_updated) = false;
-      - wait_until:
-          condition:
-            - lambda: return id(api_is_updated);
-          timeout: 10s
-      - if:
-          condition:
-            - lambda: return not id(api_is_updated);
-          then:
-            - logger.log: Resetting API
-            - delay: 2s
-            - lambda: api_server->on_shutdown();
-
-  - id: !extend boot_progress_dump
-    then:
-      - lambda: |-
-          boot_progress_dump_item->execute(${BOOT_STEP_BASE}, "Base");
+      - lambda: boot_package_register_add->execute(${BOOT_STEP_BASE}, "BASE", "Base");
 
   - id: !extend boot_sequence
     then:
       - lambda: |-
-          boot_progress->execute(${BOOT_STEP_BASE}, "Base");
+          boot_progress->execute(${BOOT_STEP_BASE});
 
   - id: dump_config
     mode: restart
     then:
       - delay: 90s
       - lambda: |-
-          static const char *const TAG = "${project_tag}";
-          // report API status
-          if (api_server->is_connected()) {
-            ESP_LOGCONFIG(TAG, "API:           Connected");
-          } else {
-            ESP_LOGW(TAG, "API:           DISCONNECTED");
-          }
-
-          // if (!(wifi_component->is_connected()) or !api_server->is_connected()) reset_boot_steps();
-
           // Report ESPHome
-          ESP_LOGCONFIG(TAG, "ESPHome:");
-          ESP_LOGCONFIG(TAG, "  Version:     ${version}");
-          ESP_LOGCONFIG(TAG, "  Compiler:    %s", ESPHOME_VERSION);
+          ESP_LOGI("${project_tag}", "ESPHome:");
+          ESP_LOGI("${project_tag}", "  Version:     ${version}");
+          ESP_LOGI("${project_tag}", "  Compiler:    %s", ESPHOME_VERSION);
           // Report framework
           #ifdef ARDUINO
-          ESP_LOGCONFIG(TAG, "  Framework:   Arduino");
+          ESP_LOGI("${project_tag}", "  Framework:   Arduino");
           #elif defined(USE_ESP_IDF)
-          ESP_LOGCONFIG(TAG, "  Framework:   ESP-IDF");
+          ESP_LOGI("${project_tag}", "  Framework:   ESP-IDF");
           #else
-          ESP_LOGW(TAG, "  Framework:   UNKNOWN");
+          ESP_LOGW("${project_tag}", "  Framework:   UNKNOWN");
           #endif
           dump_config_packages->execute();
 
@@ -221,33 +146,32 @@ script:
     mode: restart
     then:
       - lambda: |-
-          static const char *const TAG = "${project_tag}";
-          ESP_LOGCONFIG(TAG, "Packages:");
-          ESP_LOGCONFIG(TAG, "  - Core");
+          ESP_LOGI("${project_tag}", "Packages:");
+          ESP_LOGI("${project_tag}", "  - Core");
           #if defined(USE_ESP32_BLE_SERVER) || \
               defined(USE_ESP32_BLE_CLIENT) || \
               defined(USE_BLUETOOTH_PROXY) || \
               defined(USE_CAPTIVE_PORTAL) || \
               defined(USE_IMPROV) || \
               defined(USE_WEBSERVER)
-          ESP_LOGCONFIG(TAG, "ESPHome components:");
+          ESP_LOGI("${project_tag}", "ESPHome components:");
           #ifdef USE_ESP32_BLE_SERVER
-          ESP_LOGCONFIG(TAG, "  - BLE server");
+          ESP_LOGI("${project_tag}", "  - BLE server");
           #endif
           #ifdef USE_ESP32_BLE_CLIENT
-          ESP_LOGCONFIG(TAG, "  - BLE tracker");
+          ESP_LOGI("${project_tag}", "  - BLE tracker");
           #endif
           #ifdef USE_BLUETOOTH_PROXY
-          ESP_LOGCONFIG(TAG, "  - Bluetooth proxy");
+          ESP_LOGI("${project_tag}", "  - Bluetooth proxy");
           #endif
           #ifdef USE_CAPTIVE_PORTAL
-          ESP_LOGCONFIG(TAG, "  - Captive portal");
+          ESP_LOGI("${project_tag}", "  - Captive portal");
           #endif
           #ifdef USE_IMPROV
-          ESP_LOGCONFIG(TAG, "  - Improv (BLE)");
+          ESP_LOGI("${project_tag}", "  - Improv (BLE)");
           #endif
           #ifdef USE_WEBSERVER
-          ESP_LOGCONFIG(TAG, "  - Web server");
+          ESP_LOGI("${project_tag}", "  - Web server");
           #endif
           #endif
       # Extended by:
@@ -262,42 +186,6 @@ script:
       #   - nspanel_esphome_prebuild.yaml
       #   - wall_display.yaml
 
-  - id: ha_button
-    mode: parallel
-    parameters:
-      page: string
-      component: string
-      command: string
-    then:
-      - homeassistant.event:
-          event: esphome.nspanel_ha_blueprint
-          data:
-            device_name: !lambda return device_name->state.c_str();
-            esphome_version: ${version}
-            type: button_click
-            page: !lambda return page.c_str();
-            component: !lambda return component.c_str();
-            command: !lambda return command.c_str();
-
-  - id: ha_call_action
-    mode: parallel
-    parameters:
-      action: string
-      key: string
-      value: string
-      entity: string
-    then:
-      - homeassistant.event:
-          event: esphome.nspanel_ha_blueprint
-          data:
-            device_name: !lambda return device_name->state.c_str();
-            esphome_version: ${version}
-            type: action_call
-            action: !lambda return action.c_str();
-            key: !lambda return key.c_str();
-            value: !lambda return value.c_str();
-            entity: !lambda return entity.c_str();
-
   - id: safe_mode_loop
     mode: restart
     then:
@@ -311,35 +199,11 @@ script:
             - switch.turn_off: screen_power
             - delay: 30s
 
-  - id: set_var_bool
-    mode: queued
-    parameters:
-      component: string
-      val: bool
-    then:  # There's nothing here so far
-
-  - id: set_var_number
-    mode: queued
-    parameters:
-      component: string
-      val: float
-    then:  # There's nothing here so far
-
-  - id: set_var_string
-    mode: queued
-    parameters:
-      component: string
-      val: string
-    then:  # There's nothing here so far
-
   - id: stop_all
     mode: restart
     then:
       - lambda: |-
-          api_reset->stop();
           dump_config->stop();
-          ha_button->stop();
-          ha_call_action->stop();
           safe_mode_loop->stop();
           time_watchdog->stop();
 
@@ -347,15 +211,8 @@ script:
     mode: restart
     then:
       - lambda: |-
-          if (!api_server->is_connected() and
-              current_page_id != ${PAGE_ID_BLANK} and
-              current_page_id != ${PAGE_ID_BOOT} and
-              current_page_id != ${PAGE_ID_CONFIRM} and
-              current_page_id != ${PAGE_ID_HOME} and
-              current_page_id != ${PAGE_ID_QRCODE} and
-              current_page_id != ${PAGE_ID_SCREENSAVER} and
-              current_page_id != ${PAGE_ID_SETTINGS}) {
-            ESP_LOGW("script.time_watchdog", "API disconnected. Falling back to Home page.");
+          if (!api_server->is_connected() and !is_page_in_group(NON_API_ID_PAGE_MASK)) {
+            ESP_LOGW("script", "API disconnected. Falling back to Home page.");
             goto_page_id->execute(${PAGE_ID_HOME}, false);
             reset_boot_steps();
           }
@@ -377,7 +234,7 @@ text_sensor:
               - lambda: return not x.empty();
             then:
               - lambda: |-
-                  ESP_LOGI("text_sensor.detailed_entity", "Entity shown: %s", x.c_str());
+                  ESP_LOGI("text_sensor", "Entity shown: %s", x.c_str());
 
 time:
   - id: !extend time_provider

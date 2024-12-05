@@ -456,9 +456,74 @@ Before customizing your system, we encourage you to share any enhancements you m
 Consider creating a [Pull Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/pulls) to the `dev` branch to share your discoveries with the community.
 
 ### Advanced ESPHome Configuration
-For advanced customization with ESPHome, start with "Customizations."  
-We have a dedicated page for this, and your contributions are welcome: [Customization](customization.md).
+If you want to use your panel in a non-standard way, there are some possibilities for advanced configuration.
 
+> [!WARNING]
+> Any advanced configuration listed here isn’t fully supported, so you may be on your own if you decide to use these.
+
+#### Customizations
+For advanced customization with ESPHome, start with "Customizations."  
+We have a dedicated page for customizations, and we welcome your contributions: [Customization](customization.md).
+
+#### Selecting Remote Packages
+You can edit your panel’s YAML to selectively use files from the remote packages.
+Typically, a standard installation includes both the "**Core**" and "**Standard**" packages.
+
+If needed, you can modify these packages to control exactly what is installed.
+This lets you remove or customize specific functionalities, using [local packages](#local-packages) if required.
+
+This example YAML includes the same components as the standard package, but makes it easier to remove specific functionalities:
+
+```yaml
+substitutions:
+  # Settings - Editable values
+  device_name: "YOUR_NSPANEL_NAME"
+  friendly_name: "Your panel's friendly name"
+  wifi_ssid: !secret wifi_ssid
+  wifi_password: !secret wifi_password
+  # Add-on configuration (if needed)
+  # heater_relay: "1"  # Possible values: "1" or "2"
+
+# Core and optional configurations
+packages:
+  remote_package:
+    url: https://github.com/Blackymas/NSPanel_HA_Blueprint
+    ref: main
+    refresh: 300s
+    files:
+      - esphome/nspanel_esphome_core.yaml  # Core configuration required for basic functionality
+      # Optional (and recommended) packages
+      - esphome/nspanel_esphome_standard_hw_buzzer.yaml          # Hardware - Buzzer
+      - esphome/nspanel_esphome_standard_hw_relays.yaml          # Hardware - Relays
+      - esphome/nspanel_esphome_standard_hw_temperature.yaml     # Hardware - Temperature Sensor
+      - esphome/nspanel_esphome_standard_page_alarm.yaml         # Page Alarm
+      - esphome/nspanel_esphome_standard_page_blank.yaml         # Blank Page
+      - esphome/nspanel_esphome_standard_page_buttons.yaml       # Button Pages
+      - esphome/nspanel_esphome_standard_page_climate.yaml       # Climate Page
+      - esphome/nspanel_esphome_standard_page_confirm.yaml       # Confirm Page
+      - esphome/nspanel_esphome_standard_page_cover.yaml         # Cover Page
+      - esphome/nspanel_esphome_standard_page_entities.yaml      # Entity Pages
+      - esphome/nspanel_esphome_standard_page_fan.yaml           # Fan Page
+      - esphome/nspanel_esphome_standard_page_keyb_num.yaml      # Numeric Keyboard Page
+      - esphome/nspanel_esphome_standard_page_light.yaml         # Light Page
+      - esphome/nspanel_esphome_standard_page_media_player.yaml  # Media Player Page
+      - esphome/nspanel_esphome_standard_page_notification.yaml  # Notification Page
+      - esphome/nspanel_esphome_standard_page_qrcode.yaml        # QR Code Page
+      - esphome/nspanel_esphome_standard_page_settings.yaml      # Settings Page
+      - esphome/nspanel_esphome_standard_page_utilities.yaml     # Utilities Page
+      - esphome/nspanel_esphome_standard_page_weather.yaml       # Weather Page
+      - esphome/nspanel_esphome_standard_upload_tft.yaml         # TFT Upload Capability
+      # Optional advanced and add-on configurations
+      # - esphome/nspanel_esphome_advanced.yaml
+      # - esphome/nspanel_esphome_addon_ble_tracker.yaml
+      # - esphome/nspanel_esphome_addon_bluetooth_proxy.yaml
+      # - esphome/nspanel_esphome_addon_climate_cool.yaml
+      # - esphome/nspanel_esphome_addon_climate_heat.yaml
+      # - esphome/nspanel_esphome_addon_climate_dual.yaml
+      # - esphome/nspanel_esphome_addon_cover.yaml
+```
+
+#### Local Packages
 To use a local copy of `nspanel_esphome.yaml`, copy the file from GitHub to your local file system and include it in your ESPHome settings as follows:
 
 ```yaml
@@ -478,6 +543,10 @@ substitutions:
 packages:
   local_package: !include packages/nspanel_esphome.yaml
 ```
+
+> [!NOTE] 
+> Using local packages allows for greater control and quicker customization since you can modify the configuration without relying on a remote source.
+> This can be useful for offline use or if you want to test changes before sharing them.
 
 ### Advanced Blueprint Configuration
 The Blueprint file `nspanel_blueprint.yaml` can be installed manually.

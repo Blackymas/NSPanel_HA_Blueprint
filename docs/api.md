@@ -446,7 +446,7 @@ data:
 > Replace `<your_panel_name>` with your specific panel name as configured in Home Assistant.
 > Using "default" fetches the URL associated with the selected display model in Home Assistant settings, simplifying updates or customizations.
 
-> [!ATTENTION]
+> [!IMPORTANT]
 > The "Upload TFT" add-on must be installed for this action to be available, enhancing the panel's flexibility for interface customization or troubleshooting.
 <!-- markdownlint-enable MD028 -->
 

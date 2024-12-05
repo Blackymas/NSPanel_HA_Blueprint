@@ -7,8 +7,15 @@
 
 ---
 substitutions:
-  BOOT_STEP_PAGE_BOOT: '1UL << 29'
+  BOOT_STEP_PAGE_BOOT: '29'
   PAGE_ID_BOOT: '0'
+
+display:
+  - id: !extend disp1
+    on_setup:
+      then:
+        - lambda: |-
+            page_changed->execute(${PAGE_ID_BOOT});
 
 esphome:
   platformio_options:
@@ -20,42 +27,14 @@ esphome:
 #        - script.execute: page_boot
 
 script:
-  - id: boot_log
-    mode: queued
-    # max_runs: 15
-    parameters:
-      category: string
-      log_message: string
+  - id: !extend boot_package_register
     then:
-      - lambda: |-
-          ESP_LOGI("script.boot_log", "%s: %s", category.c_str(), log_message.c_str());
-          if (current_page_id == ${PAGE_ID_BOOT}){
-            std::string combined_log = category + ": " + log_message;
-            if (combined_log.length() > 40) {
-              combined_log = combined_log.substr(0, 40);
-            }
-            disp1->send_command_printf("log_body.txt+=\"%s\\r\"", combined_log.c_str());
-            boot_log_scroll->execute();
-          }
-
-  - id: boot_log_scroll
-    mode: restart
-    then:
-      - delay: 1s
-      - lambda: |-
-          if (current_page_id == ${PAGE_ID_BOOT})
-            disp1->send_command("click log_box,1");
+      - lambda: boot_package_register_add->execute(${BOOT_STEP_PAGE_BOOT}, "PAGE_BOOT", "Page Boot");
 
   - id: !extend boot_progress
     then:
       - lambda: |-
-          if (current_page_id == ${PAGE_ID_BOOT})
-            set_component_value->execute(${PAGE_ID_BOOT}, "progress", get_boot_progress_percentage());
-
-  - id: !extend boot_progress_dump
-    then:
-      - lambda: |-
-          boot_progress_dump_item->execute(${BOOT_STEP_PAGE_BOOT}, "Page Boot");
+          set_component_value->execute(${PAGE_ID_BOOT}, "progress", get_boot_progress_percentage());
 
   - id: page_boot
     mode: restart
@@ -69,7 +48,6 @@ script:
           #else
           set_component_text->execute(${PAGE_ID_BOOT}, "sys_framework", "Framework: ESP-IDF");
           #endif
-          boot_progress->execute(${BOOT_STEP_PAGE_BOOT}, "Page Boot");
 
   - id: page_boot_exit
     mode: restart
@@ -81,10 +59,36 @@ script:
           timeout: 180s
       - lambda: |-
           if (current_page_id == ${PAGE_ID_BOOT}) {
-            ESP_LOGI("script.page_boot_exit", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
+            ESP_LOGI("script", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
             goto_page_id->execute(get_page_id(wakeup_page_name->state), true);
             set_variable_value->execute("wakeup_page_id", get_page_id(wakeup_page_name->state.c_str()));
           }
+
+  - id: page_boot_log
+    mode: queued
+    # max_runs: 15
+    parameters:
+      category: string
+      log_message: string
+    then:
+      - lambda: |-
+          ESP_LOGI("script", "%s: %s", category.c_str(), log_message.c_str());
+          if (current_page_id == ${PAGE_ID_BOOT}){
+            std::string combined_log = category + ": " + log_message;
+            if (combined_log.length() > 40) {
+              combined_log = combined_log.substr(0, 40);
+            }
+            disp1->send_command_printf("log_body.txt+=\"%s\\r\"", combined_log.c_str());
+            page_boot_log_scroll->execute();
+          }
+
+  - id: page_boot_log_scroll
+    mode: restart
+    then:
+      - delay: 1s
+      - lambda: |-
+          if (current_page_id == ${PAGE_ID_BOOT})
+            disp1->send_command("click log_box,1");
 
   - id: !extend page_changed
     then:
@@ -95,7 +99,8 @@ script:
   - id: !extend stop_all
     then:
       - lambda: |-
-          boot_log->stop();
           page_boot->stop();
           page_boot_exit->stop();
+          page_boot_log->stop();
+          page_boot_log_scroll->stop();
 ...

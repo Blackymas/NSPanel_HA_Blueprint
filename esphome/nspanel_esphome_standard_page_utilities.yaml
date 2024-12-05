@@ -1,0 +1,84 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - ALARM PAGE                                                                 #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+##### External references #####
+###############################
+
+---
+substitutions:
+  BOOT_STEP_PAGE_UTILITIES: '24'
+  PAGE_ID_UTILITIES: '27'
+
+api:
+  actions:
+    # Utilities group refresh
+    - action: utilities_group_refresh
+      variables:
+        group_id: string
+        value1: string
+        value2: string
+        direction: int
+        constructor: bool
+      then:
+        - lambda: |-
+            if (!group_id.empty()) {
+              uint8_t id = findUtilitiesGroupIndex(group_id.c_str());
+              if (id != UINT8_MAX) {
+                // Update Value 1
+                if (!value1.empty() and
+                    (constructor or strcmp(value1.c_str(), UtilitiesGroups[id].value1) != 0)) {
+                  copyStringToCharArray(UtilitiesGroups[id].value1, value1);
+                  display_component_update_text->execute(get_component(${PAGE_ID_UTILITIES}, group_id.c_str()),
+                                                                        value1.c_str());
+                }
+
+                // Update Value 2
+                if (!value2.empty() and
+                    (constructor or strcmp(value2.c_str(), UtilitiesGroups[id].value2) != 0)) {
+                  copyStringToCharArray(UtilitiesGroups[id].value2, value2);
+                  display_component_update_text->execute(get_component(${PAGE_ID_UTILITIES}, (group_id + "b").c_str()),
+                                                                        value2.c_str());
+                }
+
+                // Update direction
+                if (group_id != "grid" and !isnan(direction) and
+                    (constructor or direction != UtilitiesGroups[id].direction)) {
+                  UtilitiesGroups[id].direction = direction;
+                  disp1->set_component_value((group_id + "_line_d").c_str(), direction);
+                }
+              }
+            }
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_STANDARD_PAGE_UTILITIES
+
+script:
+  - id: !extend boot_package_register
+    then:
+      - lambda: boot_package_register_add->execute(${BOOT_STEP_PAGE_UTILITIES}, "PAGE_UTILITIES", "Page Utilities");
+
+  - id: !extend page_changed
+    then:
+      - lambda: |-
+          if (current_page_id == ${PAGE_ID_UTILITIES})
+            page_utilities->execute();
+
+  - id: page_utilities
+    mode: restart
+    then:
+      - lambda: |-
+          if (UtilitiesGroups == nullptr)
+            resetUtilitiesGroups();
+
+  - id: !extend stop_all
+    then:
+      - lambda: |-
+          cleanupUtilitiesGroups();
+          page_utilities->stop();
+...

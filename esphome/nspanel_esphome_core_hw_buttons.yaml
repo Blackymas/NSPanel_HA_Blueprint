@@ -14,7 +14,7 @@ substitutions:
   buttons_color_on: "7519"
   buttons_color_off: "10597"
   ##############################
-  BOOT_STEP_HW_BUTTONS: '1UL << 3'
+  BOOT_STEP_HW_BUTTONS: '3'
 
 binary_sensor:
   - id: left_button  # LEFT BUTTON BELOW DISPLAY TO TOGGLE RELAY
@@ -28,7 +28,7 @@ binary_sensor:
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("binary_sensor.left_button.on_press", "Left button - Pressed");
+            ESP_LOGI("binary_sensor", "Left button - Pressed");
       # Extended by:
       #   - nspanel_esphome_core_hw_display_timers.yaml
     on_multi_click:
@@ -37,20 +37,15 @@ binary_sensor:
         invalid_cooldown: ${invalid_cooldown}
         then:
           - lambda: |-
-              ESP_LOGI("binary_sensor.left_button.on_multi_click", "Left button - Long click");
-              ha_button->execute(page_names[current_page_id], "hw_bt_left", "long_click");
+              ESP_LOGI("binary_sensor", "Left button - Long click");
+              ha_button->execute(current_page_id, "hw_bt_left", "long_click");
       - timing: &short_click-timing
           - ON for at most 0.8s
         invalid_cooldown: ${invalid_cooldown}
         then:
           - lambda: |-
-              ESP_LOGI("binary_sensor.left_button.on_multi_click", "Left button - Short click");
-              if (
-                  id(relay1_local) or
-                  (id(relay1_fallback) and (!api_server->is_connected() or !wifi_component->is_connected()))
-                )
-                relay_1->toggle();
-              ha_button->execute(page_names[current_page_id], "hw_bt_left", "short_click");
+              ESP_LOGI("binary_sensor", "Left button - Short click");
+              ha_button->execute(current_page_id, "hw_bt_left", "short_click");
 
   - id: right_button  # RIGHT BUTTON BELOW DISPLAY TO TOGGLE RELAY
     name: Right Button
@@ -63,7 +58,7 @@ binary_sensor:
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("binary_sensor.right_button.on_press", "Right button - Pressed");
+            ESP_LOGI("binary_sensor", "Right button - Pressed");
       # Extended by:
       #   - nspanel_esphome_core_hw_display_timers.yaml
     on_multi_click:
@@ -71,19 +66,14 @@ binary_sensor:
         invalid_cooldown: ${invalid_cooldown}
         then:
           - lambda: |-
-              ESP_LOGI("binary_sensor.right_button.on_multi_click", "Right button - Long click");
-              ha_button->execute(page_names[current_page_id], "hw_bt_right", "long_click");
+              ESP_LOGI("binary_sensor", "Right button - Long click");
+              ha_button->execute(current_page_id, "hw_bt_right", "long_click");
       - timing: *short_click-timing
         invalid_cooldown: ${invalid_cooldown}
         then:
           - lambda: |-
-              ESP_LOGI("binary_sensor.right_button.on_multi_click", "Right button - Short click");
-              if (
-                  id(relay2_local) or
-                  (id(relay2_fallback) and (!api_server->is_connected() or !wifi_component->is_connected()))
-                )
-                relay_2->toggle();
-              ha_button->execute(page_names[current_page_id], "hw_bt_right", "short_click");
+              ESP_LOGI("binary_sensor", "Right button - Short click");
+              ha_button->execute(current_page_id, "hw_bt_right", "short_click");
 
 esphome:
   platformio_options:
@@ -122,10 +112,9 @@ globals:
     initial_value: '1'
 
 script:
-  - id: !extend boot_progress_dump  # Defined by nspanel_esphome_core_boot.yaml
+  - id: !extend boot_package_register
     then:
-      - lambda: |-
-          boot_progress_dump_item->execute(${BOOT_STEP_HW_BUTTONS}, "HW Buttons");
+      - lambda: boot_package_register_add->execute(${BOOT_STEP_HW_BUTTONS}, "HW_BUTTONS", "HW Buttons");
 
   - id: hw_buttons_bars_refresh
     mode: restart
@@ -188,8 +177,8 @@ script:
       - lambda: |-
           static uint8_t hw_buttons_boot_steps_count = 0;
           hw_buttons_boot_steps_count++;
-          boot_progress->execute(hw_buttons_boot_steps_count >= 3 ? ${BOOT_STEP_HW_BUTTONS} : 0,
-                                ("HW Buttons - " + sub_step_name).c_str());
+          if (hw_buttons_boot_steps_count >= 4)
+            boot_progress->execute(${BOOT_STEP_HW_BUTTONS});
 
   - id: !extend page_changed  # Defined by nspanel_esphome_core_hw_display.yaml
     then:
@@ -200,7 +189,7 @@ script:
       - delay: 1s
       - *hw_buttons_bars_refresh_3
 
-  - id: !extend set_var_number  # Defined by nspanel_esphome_core_base.yaml
+  - id: !extend set_var_int  # Defined by nspanel_esphome_core_base.yaml
     then:
       - lambda: |-
           if (component == "hw_button_state" and val >= 0) {
@@ -222,13 +211,13 @@ script:
                 (((val_uint >> 2) & 0x03) != 0 ? 1 : 0)
             );
           } else if (component == "button_bar_color_on" and val >= 0) {
-            id(buttons_color_on) = val;
+            id(buttons_color_on) = static_cast<uint8_t>(val);
             hw_buttons_boot_progress->execute("Bar color - On");
           } else if (component == "button_bar_color_off" and val >= 0) {
-            id(buttons_color_off) = val;
+            id(buttons_color_off) = static_cast<uint8_t>(val);
             hw_buttons_boot_progress->execute("Bar color - Off");
           } else if (component == "buttons_bars_pages" and val >= 0) {
-            id(buttons_bars_pages) = val;
+            id(buttons_bars_pages) = static_cast<uint8_t>(val);
             hw_buttons_boot_progress->execute("Bar pages");
           }
 
