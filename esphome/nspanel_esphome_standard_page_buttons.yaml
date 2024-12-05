@@ -76,13 +76,13 @@ display:
       then:
         - lambda: |-
             if (is_page_in_group(BUTTONS_PAGE_MASK, page_id)) {  // Button's pages
-              if (component_id >= 42 and component_id <= 49) {  // Buttons
-                const uint8_t button_id = (8*(page_id-${PAGE_ID_BUTTONPAGE01}))+(component_id-41);
+              if (component_id >= 38 and component_id <= 45) {  // Buttons
+                const uint8_t button_id = (8*(page_id-${PAGE_ID_BUTTONPAGE01}))+(component_id-37);
                 ESP_LOGI("display", "Button %" PRIu8 " %s", button_id, touch_event ? "pressed" : "released");
                 if (touch_event)
-                  button_press->execute(button_id);
+                  button_press->execute(page_id, button_id);
                 else
-                  button_release->execute(button_id);
+                  button_release->execute(page_id, button_id);
               }
             }
 
@@ -100,28 +100,40 @@ script:
   - id: button_click_long
     mode: parallel
     parameters:
+      page_id: uint8_t
       button_id: uint8_t
     then:
+      - lambda: |-
+          ha_button->execute(page_id, get_button_name(button_id), "long_click");
 
   - id: button_click_short
     mode: parallel
     parameters:
+      page_id: uint8_t
       button_id: uint8_t
     then:
+      # Extended by:
+      #   nspanel_esphome_standard_page_confirm.yaml
+      - lambda: |-
+          if (not is_button_in_mask(button_id, PageButtonsMaskConfirm))
+            ha_button->execute(page_id, get_button_name(button_id), "short_click");
 
   - id: button_press
     mode: restart
     parameters:
+      page_id: uint8_t
       button_id: uint8_t
     then:
       - delay: ${BUTTON_LONG_PRESS_DELAY}
       - script.execute:
           id: button_click_long
+          page_id: !lambda return page_id;
           button_id: !lambda return button_id;
 
   - id: button_release
     mode: parallel
     parameters:
+      page_id: uint8_t
       button_id: uint8_t
     then:
       - if:
@@ -131,11 +143,20 @@ script:
             - script.stop: button_press
             - script.execute:
                 id: button_click_short
+                page_id: !lambda return page_id;
                 button_id: !lambda return button_id;
 
   - id: !extend boot_package_register
     then:
       - lambda: boot_package_register_add->execute(${BOOT_STEP_PAGE_BUTTONS}, "PAGE_BUTTONS", "Page Buttons");
+
+  - id: !extend dump_config
+    then:
+      - lambda: |-
+          // Check for requirements
+          #if !defined(NSPANEL_HA_BLUEPRINT_STANDARD_PAGE_BUTTONS)
+            #error "The package nspanel_esphome_standard_page_buttons.yaml is required."
+          #endif
 
   - id: page_buttonpage
     mode: restart

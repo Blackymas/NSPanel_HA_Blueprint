@@ -37,7 +37,7 @@ namespace nspanel_ha_blueprint {
     std::string process_time_format(const std::string &time_format, int current_hour,
                                     const std::string &meridiem_am, const std::string &meridiem_pm);
 
-    inline uint32_t decode_utf8(const char* bytes) {
+    uint32_t decode_utf8(const char* bytes) {
         if (!bytes || bytes[0] == '\0') {
             return 0;
         }
