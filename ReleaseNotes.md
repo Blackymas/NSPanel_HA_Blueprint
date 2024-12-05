@@ -59,8 +59,8 @@ between ESPHome and Nextion. Visit the updated [API documentation](docs/api.md) 
    | `component_text`, `icon`, etc.     | [`component`](docs/api.md#component-action-component) | Set display components |  
    <!-- markdownlint-enable MD033 -->
 
-2. **Sensor `blueprint_status` removed**
-   Boot info is now transferred via events.
+2. **Sensors `blueprint_status` and `device_name` removed**
+   Device's and boot info is now transferred via events.
 
 3. **Notification unread switch replaced**
    The "**Notification unread**" switch is now a binary sensor.

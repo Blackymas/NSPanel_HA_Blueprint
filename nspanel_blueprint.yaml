@@ -3807,15 +3807,8 @@ trigger_variables:
         ).split(".")[1].split("_nextion_display")[0]
       }}
     {%- elif nspanel_deviceid is string %}
-      {{ nspanel_deviceid | regex_replace("[^a-zA-Z0-9]", "_") | regex_replace("_+", "_") | lower }}
+      {{ nspanel_deviceid | slugify }}
     {%- endif %}
-
-  device_name_sensor: >
-    {{
-      nspanel_entities | selectattr(None, "search", "sensor.*_device_name") | list | last
-      if nspanel_entities | selectattr(None, "search", "sensor.*_device_name") | list | count > 0
-      else ("sensor." ~ device_name ~ "_device_name")
-    }}
 
   relay01_entity: >
     {{
@@ -4615,7 +4608,7 @@ conditions:
   - >  # Trigger is coming from panel's event or Nextion display must be connected
     {{
       trigger.id in ["automation_reloaded", "ha_started", "nspanel_event"] or
-      (states(nextion_display_sensor) | default(false) and has_value(device_name_sensor))
+      states(nextion_display_sensor) | default(false)
     }}
   - >  # Update page Home only when visible or home_page_background_update is enabled
     {{
@@ -4672,6 +4665,7 @@ conditions:
 actions:
   - variables:
       ##### GENERAL #####
+      nspanel_name_from_device_attr: '{{ device_attr(nspanel_deviceid, "name") }}'
       nspanel_name: >
         {{
           trigger.event.data.device_name
@@ -4680,37 +4674,18 @@ actions:
             trigger.event is defined and
             trigger.event.data is defined and
             trigger.event.data.device_name is defined and
-            trigger.event.data.device_name is string and trigger.event.data.device_name | length > 0
+            trigger.event.data.device_name is string and
+            trigger.event.data.device_name | length > 0
           else
             (
-              states(device_name_sensor)
-              if has_value(device_name_sensor)
+              nspanel_name_from_device_attr | slugify
+              if
+                nspanel_name_from_device_attr is string and
+                nspanel_name_from_device_attr | length > 0
               else device_name
             )
         }}
 
-      # esphome_version: >
-      #   {%
-      #     set esphome_version_sensor =
-      #       nspanel_entities | selectattr(None, "search", "sensor.*_esphome_version") | list | last
-      #       if nspanel_entities | selectattr(None, "search", "sensor.*_esphome_version") | list | count > 0
-      #       else ("sensor." ~ device_name ~ "_esphome_version")
-      #   %}
-      #   {{
-      #     version(trigger.event.data.esphome_version)
-      #     if
-      #       trigger is defined and
-      #       trigger.event is defined and
-      #       trigger.event.data is defined and
-      #       trigger.event.data.esphome_version is defined and
-      #       trigger.event.data.esphome_version is string and trigger.event.data.esphome_version | length > 0
-      #     else
-      #       (
-      #         version(states(esphome_version_sensor))
-      #         if has_value(esphome_version_sensor)
-      #         else version("0.0.0")
-      #       )
-      #   }}
       date_format_temp: !input 'date_format'
       # Avoid breaking change for existing users with legacy type format
       date_format: >
