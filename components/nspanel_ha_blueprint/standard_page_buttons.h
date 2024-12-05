@@ -11,8 +11,6 @@
 
 namespace nspanel_ha_blueprint {
 
-    static const char* TAG_NEXTION = "nspanel_ha_blueprint.standard_page_buttons";
-
     bool PageButtonsButtonInitilized = false;
     uint32_t PageButtonsMaskEnabled = 0;
     uint32_t PageButtonsMaskConfirm = 0;
@@ -36,16 +34,16 @@ namespace nspanel_ha_blueprint {
     void setup_pagebuttons_buttons() {
         if (!PageButtonsButtonInitilized) {
             // Allocate memory for 32 buttons, placing them in PSRAM if available
-            esphome::ESP_LOGD(TAG_NEXTION, "Allocating memory");
+            esphome::ESP_LOGD(TAG_COMPONENT, "Allocating memory");
             // Allocate PageButtonsButton dynamically
             esphome::ExternalRAMAllocator<PageButtonsButton>
                 allocator(esphome::ExternalRAMAllocator<PageButtonsButton>::ALLOW_FAILURE);
             buttonpage_buttons = allocator.allocate(32*sizeof(PageButtonsButton));
             if (!buttonpage_buttons || buttonpage_buttons == nullptr) {
-                esphome::ESP_LOGE(TAG_NEXTION, "Failed to allocate memory for buttonpage_buttons.");
+                esphome::ESP_LOGE(TAG_COMPONENT, "Failed to allocate memory for buttonpage_buttons.");
                 return;  // Memory allocation failed, do not proceed
             }
-            esphome::ESP_LOGD(TAG_NEXTION, "Memory allocated");
+            esphome::ESP_LOGD(TAG_COMPONENT, "Memory allocated");
 
             // Initialize each button with default settings and assign DisplayComponent pointers
             for (uint8_t i = 0; i < 32; ++i) {

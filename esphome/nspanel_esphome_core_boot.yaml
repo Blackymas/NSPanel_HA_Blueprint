@@ -54,26 +54,58 @@ esphome:
 
     - priority: 600.1
       then:
-        - script.execute: boot_sequence
+        - script.execute:
+            id: boot_sequence
+            show_boot_page: true
 
 script:
   - id: boot_event
     mode: restart
     then:
-      - delay: 120s
+      - lambda: |-
+          ESP_LOGW("DEBUG", "boot_event called");
+      - delay: 20s
+      - lambda: |-
+          ESP_LOGW("DEBUG", "boot_event checking");
       - while:
           condition:
             - lambda: return not is_boot_complete();
           then:
-            - homeassistant.event:
-                event: esphome.nspanel_ha_blueprint
-                data:
-                  device_name: !lambda return device_name->state.c_str();
-                  esphome_version: ${version}
-                  type: boot
-                  step: timeout
-                  get_completed_boot_steps(): !lambda return get_completed_boot_steps();
+            - lambda: |-
+                ESP_LOGW("DEBUG", "boot_event informing HA");
+            - script.execute:
+                id: boot_event_ha
+                step_name: timeout
             - delay: 120s
+
+  - id: boot_event_ha
+    mode: restart
+    parameters:
+      step_name: string
+    then:
+      - lambda: |-
+          ESP_LOGW("DEBUG", "boot_event_ha called with step_name: '%s'", step_name.c_str());
+          esphome::api::CustomAPIDevice ha_event;
+          std::map<std::string, std::string> event_data;
+
+          // Adding static data to the event
+          event_data["device_name"] = device_name->state.c_str();
+          event_data["esphome_version"] = "${version}";
+          event_data["type"] = "boot";
+          event_data["step"] = step_name.c_str();
+
+          // Add each uncompleted boot step with its key name
+          for (size_t i = 0; i < MAX_BOOT_STEPS; ++i) {
+            if (boot_steps[i].registered && !boot_steps[i].completed) {
+              // Add prefix "BOOT_STEP_" to the key of the boot step
+              std::string key = "BOOT_STEP_" + std::string(boot_steps[i].key);
+              // Set the value to "true"
+              event_data[key] = "true";
+            }
+          }
+
+          // Fire the Home Assistant event with the generated data
+          ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", event_data);
 
   - id: boot_initialize
     mode: single
@@ -84,18 +116,19 @@ script:
   - id: boot_package_register
     mode: restart
     then:
-      - lambda: boot_package_register_add->execute(${BOOT_STEP_BOOT}, "Boot");
+      - lambda: boot_package_register_add->execute(${BOOT_STEP_BOOT}, "BOOT", "Boot");
 
   - id: boot_package_register_add
     mode: queued
     parameters:
       package_id: uint8_t
+      package_key: string
       package_name: string
     then:
       - lambda: |-
-          const bool package_registered = register_application(package_id, package_name.c_str());
-          ESP_LOGI("script.boot_package_register", "Package '%s' (id %" PRIu32 ") %s.", package_name.c_str(),
-                    package_id, package_registered ? "registered" : "FAILED TO REGISTER");
+          const bool package_registered = register_application(package_id, package_key.c_str(), package_name.c_str());
+          ESP_LOGI("script", "Package '%s' (id %" PRIu32 "/%s) %s.", package_name.c_str(),
+                    package_id, package_key.c_str(), package_registered ? "registered" : "FAILED TO REGISTER");
 
   - id: boot_progress
     mode: restart
@@ -105,28 +138,28 @@ script:
       - lambda: |-
           boot_progress_dump_timer->execute();
           complete_boot_step(step);
-          ESP_LOGI("script.boot_progress", "Boot step completed: %s (step %i of %i - %i%%)", get_boot_step(step)->name,
+          ESP_LOGI("script", "Boot step completed: %s (step %i of %i - %i%%)", get_boot_step(step)->name,
                     get_completed_boot_steps(), get_total_registered_boot_steps(), get_boot_progress_percentage());
           if (is_boot_complete())
-            ESP_LOGI("script.boot_progress", "Progress: Boot sequence completed");
+            ESP_LOGI("script", "Progress: Boot sequence completed");
 
   - id: boot_progress_dump
     mode: queued
     then:
       - lambda: |-
-          ESP_LOGCONFIG("script.boot_progress_dump", "Boot progress: %" PRIu8 "%% (%" PRIu32 ")",
+          ESP_LOGI("script", "Boot progress: %" PRIu8 "%% (%" PRIu32 ")",
                         get_boot_progress_percentage(), get_completed_boot_steps());
           if (boot_steps != nullptr) {
             for (size_t i = 0; i < MAX_BOOT_STEPS; ++i) {
-              if (boot_steps[i].included) {
-                const int8_t padding =
-                  std::max(0, 21 - static_cast<int>(sizeof(boot_steps[i].name))); // Dynamic padding
-                ESP_LOGCONFIG("script.boot_progress_dump", " - %s:%*s%s", boot_steps[i].name, padding, "",
-                              boot_steps[i].completed ? "Completed" : "PENDING");
+              if (boot_steps[i].registered) {
+                // Calculate padding based on the actual length of the name
+                const int8_t padding = std::max(0, 21 - static_cast<int>(strlen(boot_steps[i].name)));
+                ESP_LOGI("script", " - %s:%*s%s", boot_steps[i].name, padding, "", 
+                                boot_steps[i].completed ? "Completed" : "PENDING");
               }
             }
           } else {
-            ESP_LOGE("script.boot_progress_dump", "Boot steps have not been initialized.");
+            ESP_LOGE("script", "Boot steps have not been initialized.");
           }
 
   - id: boot_progress_dump_timer
@@ -139,26 +172,36 @@ script:
       - script.execute: boot_progress_dump
 
   - id: boot_sequence
-    mode: single
+    mode: restart
+    parameters:
+      show_boot_page: bool
     then:
-      - script.execute: boot_progress_dump
       - lambda: |-
+          page_boot_log->execute("Boot", "Starting boot sequence");
+          if (!show_boot_page)
+            reset_boot_steps();
+          boot_event->execute();
+          boot_progress_dump->execute();
           if (!disp1->is_setup())
             page_boot_log->execute("Boot", "Waiting for Nextion");
       - wait_until:
           condition:
             - lambda: return disp1->is_setup();
           timeout: 10s
-      - delay: 1s
-      - lambda: |-
-          if (current_page_id != ${PAGE_ID_BOOT}) {
-            page_changed->execute(${PAGE_ID_BOOT});
-            page_boot_log->execute("Boot", "Waiting for page Boot");
-          }
-      - wait_until:
+      - if:
           condition:
-            - lambda: return current_page_id == ${PAGE_ID_BOOT};
-          timeout: 10s
+            - lambda: return show_boot_page;
+          then:
+            - delay: 1s
+            - lambda: |-
+                if (current_page_id != ${PAGE_ID_BOOT}) {
+                  page_changed->execute(${PAGE_ID_BOOT});
+                  page_boot_log->execute("Boot", "Waiting for page Boot");
+                }
+            - wait_until:
+                condition:
+                  - lambda: return current_page_id == ${PAGE_ID_BOOT};
+                timeout: 10s
       - lambda: |-
           if (!wifi_component->is_connected())
             page_boot_log->execute("Boot", "Waiting for Wi-Fi");
@@ -173,18 +216,9 @@ script:
           condition:
             - api.connected:
           timeout: 10s
-      - delay: 2s
       - lambda: |-
           page_boot_log->execute("Boot", "Report to Blueprint");
-      - homeassistant.event:
-          event: esphome.nspanel_ha_blueprint
-          data:
-            device_name: !lambda return device_name->state.c_str();
-            esphome_version: ${version}
-            type: boot
-            step: start
-            get_completed_boot_steps(): !lambda return get_completed_boot_steps();
-      - lambda: |-
+          boot_event_ha->execute("start");
           boot_progress->execute(${BOOT_STEP_BOOT});
           boot_event->execute();
 
@@ -192,7 +226,7 @@ script:
     then:
       - lambda: |-
           if (is_boot_complete())
-            ESP_LOGCONFIG("${project_tag}", "Boot steps: %" PRIu8 "/%" PRIu8 " (100%%)",
+            ESP_LOGI("${project_tag}", "Boot steps: %" PRIu8 "/%" PRIu8 " (100%%)",
                           get_completed_boot_steps(), get_total_registered_boot_steps());
           else {
             ESP_LOGW("${project_tag}", "Boot steps: %" PRIu8 "/%" PRIu8 " (%" PRIu8 "%% - %" PRIu32 ")",
@@ -201,8 +235,21 @@ script:
             ESP_LOGW("${project_tag}", "  State:    %s",
                       ((wifi_component->is_connected()) and api_server->is_connected()) ? "Pending" : "DISCONNECTED");
             boot_progress_dump->execute();
-            ESP_LOGCONFIG("${project_tag}", "Requesting new boot parameters from Blueprint");
+            ESP_LOGI("${project_tag}", "Requesting new boot parameters from Blueprint");
             boot_event->execute();
+          }
+
+  - id: !extend set_var_bool
+    then:
+      - lambda: |-
+          if (component == "automation_reloaded") {
+            ESP_LOGI("script", "Automation reloaded");
+            ESP_LOGI("script", "Restarting boot sequence");
+            boot_sequence->execute(false);
+          } else if (component == "ha_started") {
+            ESP_LOGI("script", "Home Assistant started");
+            ESP_LOGI("script", "Restarting boot sequence");
+            boot_sequence->execute(false);
           }
 
   - id: !extend set_var_int

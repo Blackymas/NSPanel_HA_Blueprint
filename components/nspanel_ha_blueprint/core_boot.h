@@ -8,16 +8,19 @@
 #include <string.h>  // Include for handling strings
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
+#include "core_base.h"
 
 namespace nspanel_ha_blueprint {
 
     // Structure to define a boot step
     struct BootStep {
+        char key[21];             // Unique key name to identify the boot step (max 20 chars + null terminator)
         char name[21];            // Name of the boot step (max 20 chars + null terminator)
         bool completed = false;   // Status indicating if the boot of that item was completed
-        bool included = false;    // Status indicating if the boot step is included for boot process
+        bool registered = false;  // Status indicating if the boot step is registered for boot process
 
         BootStep() {
+            key[0] = '\0';  // Initialize key with an empty string
             name[0] = '\0';  // Initialize name with an empty string
         }
     };
@@ -30,7 +33,7 @@ namespace nspanel_ha_blueprint {
     void setup_boot_steps();
 
     // Function to register an application for boot.
-    bool register_application(uint8_t index, const char* name);
+    bool register_application(uint8_t index, const char* key, const char* name);
 
     // Function to mark a boot step as completed.
     bool complete_boot_step(uint8_t index);

@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstring>  // For std::strcpy
 #include <string>
+#include "core_base.h"
 
 namespace nspanel_ha_blueprint {
 

@@ -4,17 +4,16 @@
 
 #ifdef NSPANEL_HA_BLUEPRINT_CORE_HW_DISPLAY
 
-#ifndef DISPLAY_COMPONENT_H
-#define DISPLAY_COMPONENT_H
+#ifndef CORE_HW_DISPLAY_H
+#define CORE_HW_DISPLAY_H
 
 #include <vector>
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 #include "pages.h"
+#include "core_base.h"
 
 namespace nspanel_ha_blueprint {
-
-    static const char* TAG_COMPONENTS = "nspanel_ha_blueprint.components";
 
     struct DisplayComponent {
         uint8_t page_id = UINT8_MAX;   // The page ID this component belongs to, default to MAX_UINT8
@@ -58,6 +57,6 @@ namespace nspanel_ha_blueprint {
 
 }  // namespace nspanel_ha_blueprint
 
-#endif // DISPLAY_COMPONENT_H
+#endif // CORE_HW_DISPLAY_H
 
 #endif // NSPANEL_HA_BLUEPRINT_CORE_HW_DISPLAY
