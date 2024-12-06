@@ -38,7 +38,7 @@ make this a beneficial upgrade for most users.
 
 ## Breaking Changes and Guidance
 
-### Home Assistant v2024.11.0 and ESPHome v2024.12.0 are required
+### Home Assistant v2024.11.0 and ESPHome v2024.11.0 are required
 Refer to our  
 [Version Compatibility Matrix](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/version_compatibility.md).
 
