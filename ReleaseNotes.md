@@ -1,15 +1,44 @@
 # v4.4 - Dynamic QR Codes, Improved Usability, and More
 
 ## General
-Version 4.4 focuses on enhancing the usability and functionality of your NSPanel. The device page has been  
+Version 4.4 focuses on enhancing the usability and functionality of your NSPanel. The device page has been
 refined for a cleaner, more user-friendly experience, now allowing you to control the panel as a light.
 
-In addition to improved performance, this release introduces dynamic QR codes, automatic TFT updates, and  
+In addition to improved performance, this release introduces dynamic QR codes, automatic TFT updates, and
 new features like buzzer volume control and configurable wake-up settings, making your panel more versatile.
+
+## ESPHome Adopts ESP-IDF v5.1.5 (Starting in ESPHome v2024.12.0)
+With ESPHome v2024.12.0, the standard framework version has been updated from ESP-IDF v4.4.8 to v5.1.5.
+This update introduces significant improvements but also comes with considerations for memory usage.
+
+### Advantages of ESP-IDF v5.1.5
+- **Bug Fixes and Stability:**
+  The new version includes a wide range of bug fixes, enhancing system reliability and performance.
+- **Improved Features and Compatibility:**
+  Upgrades to the framework ensure better support for modern hardware and streamlined development processes.
+- **Enhanced Developer Experience:**
+  New debugging tools and improvements in the framework simplify the development and troubleshooting process.
+
+### Concerns and Impact
+- **Increased Memory Usage:**
+  ESP-IDF v5.1.5 requires slightly more memory, reducing the space available for additional features.
+  This may limit the scope of customizations or add-ons for users with resource-intensive setups.
+
+### NSPanel Preparedness
+We have fully tested the NSPanel setup with ESP-IDF v5.1.5 under ESPHome v2024.12.0 to ensure compatibility and smooth operation.
+While the increased memory footprint may impose some limitations, the improvements in stability and performance
+make this a beneficial upgrade for most users.
+
+### Recommendations
+- **Advanced Users:**
+  If you have a heavily customized configuration or multiple add-ons, consider reviewing your setup to ensure
+  it remains within the available memory constraints.
+- **All Users:**
+  Stay updated with ESPHome releases and monitor their compatibility notes to make the most of these enhancements.
 
 ## Breaking Changes and Guidance
 
-### Home Assistant v2024.11.0 and ESPHome v2024.11.0 are required
+### Home Assistant v2024.11.0 and ESPHome v2024.12.0 are required
 Refer to our  
 [Version Compatibility Matrix](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/version_compatibility.md).
 
