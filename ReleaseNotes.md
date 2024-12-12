@@ -101,7 +101,7 @@ between ESPHome and Nextion. Visit the updated [API documentation](docs/api.md) 
 5. **New "Display Command Spacing" control**
    A new control called **Display Command Spacing** has been introduced to manage the delay between commands sent to the Nextion display.
    This helps avoid buffer overflows, which can lead to a device restart if not managed properly.
-   You can find more details in the [Performance Settings for NSPanel Project](docs/performance.md#2-esphome-performance-setting-display-delay).
+   You can find more details in the [Performance Settings for NSPanel Project](docs/performance.md#2-esphome-performance-setting-display-command-spacing).
 
 ### Customizations
 Updated scripts require adjustments to these customizations:  
