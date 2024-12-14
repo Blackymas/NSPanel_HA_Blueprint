@@ -1,0 +1,243 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - HARDWARE - Display - UART                                                  #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+substitutions:
+  BAUD_RATE: '921600'
+  MAX_SCAN_RETRIES: '255'  # Maximum number of complete scan cycles, limited to 255 (UINT8_MAX)
+  SCAN_INTERVAL: '500'     # Interval between connection checks in ms
+  VERIFY_DELAY: '1000'     # Delay before verifying connection in ms
+
+display:
+  - id: !extend disp1
+    on_setup:
+      then:
+        - lambda: |-
+            // Set the current baud rate into the display
+            disp1->send_command_printf("bauds=%" PRIu32, tf_uart->get_baud_rate());
+
+esphome:
+  on_boot:
+    priority: 600.5  # Before other display initialization
+    then:
+      - wait_until:
+          condition:
+            - lambda: return disp1->is_setup();
+          timeout: 5s
+          then:
+            - lambda: |-
+                ESP_LOGI("script", "Display connected at boot with baud rate %" PRIu32, tf_uart->get_baud_rate());
+                if (tf_uart->get_baud_rate() != ${BAUD_RATE}) {
+                  ESP_LOGI("script", "Attempting to switch to target baud rate ${BAUD_RATE} bps");
+                  set_baud_rate->execute(${BAUD_RATE}, true);
+                  verify_target_baud->execute();
+                }
+          else:
+            - script.execute: scan_baud_rate
+
+globals:
+  - id: baud_error_count
+    type: uint8_t
+    restore_value: yes
+    initial_value: '0'
+
+  - id: baud_scan_index
+    type: uint8_t
+    restore_value: no
+    initial_value: '0'
+
+  - id: baud_scan_retries
+    type: uint8_t
+    restore_value: no
+    initial_value: '0'
+
+script:
+  - id: !extend dump_config
+    then:
+      - lambda: |-
+          // Report UART
+          ESP_LOGI("${project_tag}", "UART:");
+          ESP_LOGI("${project_tag}", "  Baud rate:    %" PRIu32 " bps", tf_uart->get_baud_rate());
+          ESP_LOGI("${project_tag}", "  Queue size:   %d", tf_uart->available());
+          ESP_LOGI("${project_tag}", "  Error count:  %u", id(baud_error_count));
+
+  - id: scan_baud_rate
+    mode: restart
+    then:
+      - globals.set:
+          id: baud_scan_index
+          value: '0'
+      - lambda: |-
+          id(baud_scan_retries)++;
+          ESP_LOGI("script", "Starting baud rate detection cycle %u (target: ${BAUD_RATE} bps)...",
+                    id(baud_scan_retries));
+      - script.execute: try_next_baud_rate
+
+  - id: set_baud_rate
+    mode: restart
+    parameters:
+      baud_rate: uint32_t
+      definitive: bool
+    then:
+      - if:
+          condition:
+            - lambda: return (tf_uart->get_baud_rate() != baud_rate);
+          then:
+            - lambda: |-
+                ESP_LOGI("script", "Baud rate changing from %" PRIu32 " to %" PRIu32 " bps",
+                          tf_uart->get_baud_rate(), baud_rate);
+                ESP_LOGD("script", "Flush UART");
+            - wait_until:
+                condition:
+                  - lambda: return (tf_uart->available() < 1);
+                timeout: 5s
+            - lambda: |-
+                ESP_LOGD("script", "Sending instruction '%s=%" PRIu32 "' to Nextion",
+                          definitive ? "bauds" : "baud", baud_rate);
+                disp1->send_command_printf("%s=%" PRIu32, definitive ? "bauds" : "baud", baud_rate);
+                ESP_LOGD("script", "Flush UART");
+            - wait_until:
+                condition:
+                  - lambda: return (tf_uart->available() < 1);
+                timeout: 5s
+            - lambda: |-
+                ESP_LOGD("script", "Set ESPHome new baud rate to %" PRIu32 " bps", baud_rate);
+                tf_uart->set_baud_rate(baud_rate);
+                tf_uart->load_settings();
+                ESP_LOGI("script", "Current baud rate: %" PRIu32 " bps", tf_uart->get_baud_rate());
+
+  - id: !extend stop_all
+    then:
+      - lambda: |-
+          scan_baud_rate->stop();
+          set_baud_rate->stop();
+          try_next_baud_rate->stop();
+          verify_target_baud->stop();
+
+  - id: try_next_baud_rate
+    mode: restart
+    then:
+      - lambda: |-
+          const std::vector<uint32_t> baud_rates = {
+            ${BAUD_RATE}, 921600, 115200,  // Target rate and most common rates first
+            512000, 256000, 250000, 230400, 
+            57600, 38400, 31250, 19200, 
+            9600, 4800, 2400  // Slower rates last
+          };
+
+          if (disp1->is_setup()) {
+            ESP_LOGI("script", "Display connected at %" PRIu32 " bps", tf_uart->get_baud_rate());
+            if (tf_uart->get_baud_rate() != ${BAUD_RATE}) {
+              ESP_LOGI("script", "Attempting to switch to target baud rate ${BAUD_RATE} bps");
+              set_baud_rate->execute(${BAUD_RATE}, true);
+              verify_target_baud->execute();
+            }
+            return;
+          }
+          
+          if (id(baud_scan_index) >= baud_rates.size()) {
+            ESP_LOGE("script", "Failed to detect display at any baud rate");
+            if (id(baud_error_count) < UINT8_MAX)
+              id(baud_error_count)++;
+
+            const uint8_t max_retries = std::min(static_cast<uint8_t>(${MAX_SCAN_RETRIES}),
+                                                  static_cast<uint8_t>(UINT8_MAX));
+            if (id(baud_scan_retries) < max_retries) {
+              ESP_LOGI("script", "Starting new scan cycle (%u/%u)", id(baud_scan_retries) + 1, max_retries);
+              scan_baud_rate->execute();
+            } else {
+              ESP_LOGE("script", "Maximum retry attempts reached. Display might be disconnected.");
+              ESP_LOGE("script", "Total errors since boot: %u", id(baud_error_count));
+            }
+            return;
+          }
+
+          uint32_t current_baud = baud_rates[id(baud_scan_index)];
+          ESP_LOGI("script", "Trying baud rate: %" PRIu32, current_baud);
+          set_baud_rate->execute(current_baud, false);
+      
+      # Check connection status multiple times
+      - repeat:
+          count: 10
+          then:
+            - if:
+                condition:
+                  - lambda: return disp1->is_setup();
+                then:
+                  - lambda: |-
+                      ESP_LOGI("script", "Display connected at %" PRIu32 " bps", tf_uart->get_baud_rate());
+                      if (tf_uart->get_baud_rate() != ${BAUD_RATE}) {
+                        ESP_LOGI("script", "Attempting to switch to target baud rate ${BAUD_RATE} bps");
+                        set_baud_rate->execute(${BAUD_RATE}, true);
+                        verify_target_baud->execute();
+                      }
+                else:
+                  - delay: ${SCAN_INTERVAL}ms
+            
+      # If we get here, this rate didn't work, try next one
+      - globals.set:
+          id: baud_scan_index
+          value: !lambda return id(baud_scan_index) + 1;
+      - script.execute: try_next_baud_rate
+
+  - id: verify_target_baud
+    mode: restart
+    then:
+      - delay: ${VERIFY_DELAY}ms
+      
+      - if:
+          condition:
+            - lambda: return disp1->is_setup();
+          then:
+            - lambda: |-
+                ESP_LOGI("script", "Successfully configured display at ${BAUD_RATE} bps");
+                id(baud_scan_retries) = 0;  // Reset retry counter on success
+          else:
+            - lambda: |-
+                ESP_LOGE("script", "Failed to verify connection at target baud rate");
+                id(baud_error_count)++;
+                ESP_LOGI("script", "Will retry scanning process");
+            - script.execute: scan_baud_rate
+
+select:
+  - id: baud_rate
+    name: Baud rate
+    platform: template
+    options:
+      - "2400"
+      - "4800"
+      - "9600"
+      - "19200"
+      - "31250"
+      - "38400"
+      - "57600"
+      - "115200"
+      - "230400"
+      - "250000"
+      - "256000"
+      - "512000"
+      - "921600"
+    initial_option: "${BAUD_RATE}"
+    optimistic: true
+    restore_value: true
+    internal: false
+    entity_category: config
+    disabled_by_default: true
+    icon: mdi:swap-horizontal
+    on_value:
+      then:
+        - script.execute:
+            id: set_baud_rate
+            baud_rate: !lambda return stoi(x);
+            definitive: true
+
+uart:
+  - id: tf_uart
+    tx_pin: 16
+    rx_pin: 17
+    baud_rate: ${BAUD_RATE}
+...

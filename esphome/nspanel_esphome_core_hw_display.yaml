@@ -10,7 +10,12 @@ substitutions:
   BOOT_STEP_HW_DISPLAY: '5'
   DISPLAY_CHARSET_INTERNATIONAL: '1'
   DISPLAY_CHARSET_CJK: '2'
-  BAUD_RATE: '921600'
+
+packages:
+  # yamllint disable rule:colons
+  hw_display_timers: !include nspanel_esphome_core_hw_display_timers.yaml
+  hw_display_uart:   !include nspanel_esphome_core_hw_display_uart.yaml
+  # yamllint enable rule:colons
 
 api:
   actions:
@@ -90,12 +95,10 @@ display:
               page_changed->execute(x);
 
     on_setup:
-      then:
-        - lambda: |-
-            // Set the current baud rate into the display
-            disp1->send_command_printf("bauds=%" PRIu32, tf_uart->get_baud_rate());
+      then:  # There's nothing here so far
     # Extended by:
     # - nspanel_esphome_core_boot.yaml
+    # - nspanel_esphome_core_hw_display_uart.yaml
     # - nspanel_esphome_core_page_boot.yaml
 
     on_touch:
@@ -122,38 +125,38 @@ esphome:
               - lambda: return (display_command_spacing->state >= 0 and display_command_spacing->state <= UINT8_MAX);
         - lambda: disp1->set_command_spacing(static_cast<uint8_t>(display_command_spacing->state));
 
-    - priority: 600.5
-      then:
-        - if:
-            condition:
-              - lambda: return not id(is_safe_mode);
-            then:
-              - wait_until:
-                  condition:
-                    - lambda: return (not isnan(stoi(baud_rate->state)));
-                  timeout: 60s
-              - script.execute:
-                  id: page_boot_log
-                  category: on_boot
-                  log_message: Set baud rate
-              - lambda: |-
-                  if (stoi(baud_rate->state) != tf_uart->get_baud_rate())
-                    set_baud_rate->execute(stoi(baud_rate->state), true);
-              - wait_until:
-                  condition:
-                    - lambda: return disp1->is_setup();
-                  timeout: 60s
-              - if:
-                  condition:
-                    - lambda: return (not disp1->is_detected());
-                  then:
-                    - script.execute:
-                        id: page_boot_log
-                        category: on_boot
-                        log_message: Restart Nextion
-                    - switch.turn_off: screen_power
-                    - delay: 2s
-                    - switch.turn_on: screen_power
+    #- priority: 600.5
+    #  then:
+        #- if:
+        #    condition:
+        #      - lambda: return not id(is_safe_mode);
+        #    then:
+        #      - wait_until:
+        #          condition:
+        #            - lambda: return (not isnan(stoi(baud_rate->state)));
+        #          timeout: 60s
+        #      - script.execute:
+        #          id: page_boot_log
+        #          category: on_boot
+        #          log_message: Set baud rate
+        #      - lambda: |-
+        #          if (stoi(baud_rate->state) != tf_uart->get_baud_rate())
+        #            set_baud_rate->execute(stoi(baud_rate->state), true);
+        #      - wait_until:
+        #          condition:
+        #            - lambda: return disp1->is_setup();
+        #          timeout: 60s
+        #      - if:
+        #          condition:
+        #            - lambda: return (not disp1->is_detected());
+        #          then:
+        #            - script.execute:
+        #                id: page_boot_log
+        #                category: on_boot
+        #                log_message: Restart Nextion
+        #            - switch.turn_off: screen_power
+        #            - delay: 2s
+        #            - switch.turn_on: screen_power
 
   on_shutdown:
     - priority: 600.5
@@ -583,11 +586,6 @@ script:
   - id: !extend dump_config
     then:
       - lambda: |-
-          // Report UART
-          ESP_LOGI("${project_tag}", "UART:");
-          ESP_LOGI("${project_tag}", "  Baud rate:    %" PRIu32 " bps", tf_uart->get_baud_rate());
-          ESP_LOGI("${project_tag}", "  Queue size:   %d", tf_uart->available());
-
           // Report Nextion status
           nextion_init->publish_state(nextion_init->state and disp1->is_setup());
           ESP_LOGI("${project_tag}", "Nextion:");
@@ -753,39 +751,6 @@ script:
             display_component_send->execute(display_component);
           }
 
-  - id: set_baud_rate
-    mode: restart
-    parameters:
-      baud_rate: uint32_t
-      definitive: bool
-    then:
-      - if:
-          condition:
-            - lambda: return (tf_uart->get_baud_rate() != baud_rate);
-          then:
-            - lambda: |-
-                ESP_LOGI("script", "Baud rate changing from %" PRIu32 " to %" PRIu32 " bps",
-                          tf_uart->get_baud_rate(), baud_rate);
-                ESP_LOGD("script", "Flush UART");
-            - wait_until:
-                condition:
-                  - lambda: return (tf_uart->available() < 1);
-                timeout: 5s
-            - lambda: |-
-                ESP_LOGD("script", "Sending instruction '%s=%" PRIu32 "' to Nextion",
-                          definitive ? "bauds" : "baud", baud_rate);
-                disp1->send_command_printf("%s=%" PRIu32, definitive ? "bauds" : "baud", baud_rate);
-                ESP_LOGD("script", "Flush UART");
-            - wait_until:
-                condition:
-                  - lambda: return (tf_uart->available() < 1);
-                timeout: 5s
-            - lambda: |-
-                ESP_LOGD("script", "Set ESPHome new baud rate to %" PRIu32 " bps", baud_rate);
-                tf_uart->set_baud_rate(baud_rate);
-                tf_uart->load_settings();
-                ESP_LOGI("script", "Current baud rate: %" PRIu32 " bps", tf_uart->get_baud_rate());
-
   - id: set_component_font
     mode: parallel
     parameters:
@@ -907,44 +872,11 @@ script:
           event_from_display->stop();
           goto_page_id->stop();
           page_changed->stop();
-          set_baud_rate->stop();
           set_component_font_color->stop();
           set_component_pic->stop();
           set_component_picc->stop();
           set_component_text->stop();
           set_component_visibility->stop();
-
-select:
-  - id: baud_rate
-    name: Baud rate
-    platform: template
-    options:
-      - "2400"
-      - "4800"
-      - "9600"
-      - "19200"
-      - "31250"
-      - "38400"
-      - "57600"
-      - "115200"
-      - "230400"
-      - "250000"
-      - "256000"
-      - "512000"
-      - "921600"
-    initial_option: "921600"
-    optimistic: true
-    restore_value: true
-    internal: false
-    entity_category: config
-    disabled_by_default: true
-    icon: mdi:swap-horizontal
-    on_value:
-      then:
-        - script.execute:
-            id: set_baud_rate
-            baud_rate: !lambda return stoi(x);
-            definitive: true
 
 sensor:
   - id: brightslider  # Display Brightness GET VALUE FROM NSPanel SLIDER
@@ -1004,10 +936,4 @@ text_sensor:
               const std::string page = json["page"];
               event_from_display->execute(json, page.c_str());
             }
-
-uart:  ## UART for Nextion display
-  - id: tf_uart
-    tx_pin: 16
-    rx_pin: 17
-    baud_rate: ${BAUD_RATE}
 ...
