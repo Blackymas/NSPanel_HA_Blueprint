@@ -26,26 +26,7 @@ esphome:
   on_boot:
     - priority: 600.${BOOT_STEP_HW_DISPLAY}  # Before other display initialization
       then:
-        - wait_until:
-            condition:
-              - lambda: return not isnan(tf_uart->get_baud_rate());
-            timeout: 15s
-        - wait_until:
-            condition: &nextion_is_connected
-              - lambda: return disp1->is_connected();
-            timeout: 5s
-        - if:
-            condition: *nextion_is_connected
-            then:
-              - lambda: |-
-                  ESP_LOGI("script", "Display connected at boot with baud rate %" PRIu32, tf_uart->get_baud_rate());
-                  if (tf_uart->get_baud_rate() != ${BAUD_RATE}) {
-                    ESP_LOGW("script", "Attempting to switch to target baud rate ${BAUD_RATE} bps");
-                    set_baud_rate->execute(${BAUD_RATE}, true);
-                    scan_baud_rate->execute();
-                  }
-            else:
-              - script.execute: scan_baud_rate
+        - script.execute: boot_scan_baud_rate
 
 globals:
   - id: DEBUG_step
@@ -85,6 +66,39 @@ globals:
       }
 
 script:
+  - id: boot_scan_baud_rate
+    mode: restart
+    then:
+      - wait_until:
+          condition:
+            - lambda: return not isnan(tf_uart->get_baud_rate());
+          timeout: 15s
+      - wait_until:
+          condition: &nextion_is_connected
+            - lambda: return disp1->is_connected();
+          timeout: 5s
+      - if:
+          condition: *nextion_is_connected
+          then:
+            - lambda: |-
+                ESP_LOGI("script", "Display connected at boot with baud rate %" PRIu32, tf_uart->get_baud_rate());
+            - if:
+                condition:
+                  - lambda: return (tf_uart->get_baud_rate() != ${BAUD_RATE});
+                then:
+                  - lambda: |-
+                      ESP_LOGW("script", "Attempting to switch to target baud rate ${BAUD_RATE} bps");
+                      tf_uart->write_str("bauds=${BAUD_RATE}");
+                      tf_uart->write_array((const uint8_t[]){0xFF, 0xFF, 0xFF}, 3);
+                      disp1->send_command("bauds=${BAUD_RATE}");
+                  - delay: 2s
+                  - lambda: |-
+                      set_baud_rate->execute(${BAUD_RATE}, true);
+                      ESP_LOGW("script", "Scanning...");
+                      scan_baud_rate->execute();
+          else:
+            - script.execute: scan_baud_rate
+
   - id: !extend dump_config
     then:
       - script.execute: dump_config_uart
@@ -127,10 +141,22 @@ script:
                 then:
                   - lambda: |-
                       ESP_LOGI("script", "Nextion detected at %" PRIu32 "bps", tf_uart->get_baud_rate());
-                      if (tf_uart->get_baud_rate() != ${BAUD_RATE}) {
-                        ESP_LOGI("script", "Trying to set it to ${BAUD_RATE}bps");
-                        set_baud_rate->execute(${BAUD_RATE}, true);
-                      }
+                  - if:
+                      condition:
+                        - lambda: return (tf_uart->get_baud_rate() != ${BAUD_RATE});
+                      then:
+                        - lambda: |-
+                            ESP_LOGW("script", "Attempting to switch to target baud rate ${BAUD_RATE} bps");
+                        - delay: 2s
+                        - lambda: |-
+                            disp1->send_command("bauds=${BAUD_RATE}");
+                        - delay: 2s
+                        - lambda: |-
+                            tf_uart->write_str("bauds=${BAUD_RATE}");
+                            tf_uart->write_array((const uint8_t[]){0xFF, 0xFF, 0xFF}, 3);
+                        - delay: 2s
+                        - lambda: |-
+                            set_baud_rate->execute(${BAUD_RATE}, true);
                 else:
                   - lambda: |-
                       ESP_LOGW("script", "Nextion was not detected at %" PRIu32 "bps", tf_uart->get_baud_rate());
@@ -208,41 +234,10 @@ script:
   - id: !extend stop_all
     then:
       - lambda: |-
+          boot_scan_baud_rate->stop();
           dump_config_uart->stop();
           scan_baud_rate->stop();
           set_baud_rate->stop();
-
-select:
-  - id: baud_rateX
-    name: Baud rate
-    platform: template
-    options:
-      - "2400"
-      - "4800"
-      - "9600"
-      - "19200"
-      - "31250"
-      - "38400"
-      - "57600"
-      - "115200"
-      - "230400"
-      - "250000"
-      - "256000"
-      - "512000"
-      - "921600"
-    initial_option: "${BAUD_RATE}"
-    optimistic: true
-    restore_value: true
-    internal: false
-    entity_category: config
-    disabled_by_default: true
-    icon: mdi:swap-horizontal
-    on_value:
-      then:
-        - script.execute:
-            id: set_baud_rate
-            baud_rate: !lambda return stoi(x);
-            definitive: true
 
 uart:
   - id: tf_uart
