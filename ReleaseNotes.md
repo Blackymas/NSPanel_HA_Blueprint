@@ -78,15 +78,15 @@ All actions now use a unified method to transfer information, reducing overhead 
 between ESPHome and Nextion. Visit the updated [API documentation](docs/api.md) for details.
 
 #### Key API Changes:
-<!-- markdownlint-disable MD033 -->  
 1. **Deprecated actions**  
+   <!-- markdownlint-disable MD033 -->  
    | Deprecated action                  | Replacement              | Previous use                    |  
    | :--------------------------------- | :----------------------- | :----------------------------- |  
    | `init_global`, `init_hardware`     | `set_number`, `set_string` | Sent settings at boot          |  
    | `init_page_home`                   | [`component`](docs/api.md#component-action-component) | Sent values to page Home |  
    | `set_timezone`                     | `set_string`             | Sent timezone settings         |  
    | `component_text`, `icon`, etc.     | [`component`](docs/api.md#component-action-component) | Set display components |  
-<!-- markdownlint-enable MD033 -->
+   <!-- markdownlint-enable MD033 -->
 
 2. **Sensors `blueprint_status` and `device_name` removed**
    Device's and boot info is now transferred via events.
