@@ -32,18 +32,23 @@ esphome:
     build_flags:
       - -D NSPANEL_HA_BLUEPRINT_CORE_HW_WIFI
   on_boot:
-    - priority: 600.4  # This is where most sensors are set up.
+    - priority: 600.9  # This is where most sensors are set up.
       then:
-        - text_sensor.template.publish:
-            id: device_name
-            state: ${name}
+        - lambda: |-
+            id(device_name) = generate_device_name("${name}");
 
   on_shutdown:
-    - priority: 0.1
+    - priority: 0.9
       then:  # Update Wi-Fi icon
         - lambda: |-
             set_component_text->execute(${PAGE_ID_HOME}, "wifi_icon", "${MDI_ICON_RESTART}");
             set_component_font_color->execute(${PAGE_ID_HOME}, "wifi_icon", 63488);
+
+globals:
+  - id: device_name
+    type: std::string
+    restore_value: false
+    initial_value: '"${name}"'
 
 script:
   - id: !extend boot_package_register
@@ -64,8 +69,10 @@ script:
             if (rssi > -70) ESP_LOGI("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
             else if (rssi > -80) ESP_LOGW("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
             else ESP_LOGE("${project_tag}", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
-          } else
+          } else {
             ESP_LOGE("${project_tag}", "Wi-Fi:         DISCONNECTED");
+          }
+          ESP_LOGI("${project_tag}", "Device name:   %s", id(device_name).c_str());
 
   - id: !extend page_boot
     then:
@@ -128,10 +135,11 @@ script:
               display_component_update_text->execute(wifi_icon, new_wifi_icon);
 
             if (blueprint_is_connected and api_is_connected and wifi_is_connected) {
-              ESP_LOGI("script", "Wi-Fi icon changed to %s (\\u%04X)", new_wifi_icon, decode_utf8(new_wifi_icon));
+              ESP_LOGI("script", "Wi-Fi icon changed to %s (\\u%04" PRIx32 ")",
+                        new_wifi_icon, decode_utf8(new_wifi_icon));
               set_variable_value->execute("api", 1);
             } else {
-              ESP_LOGW("script", "Wi-Fi icon changed to %s (\\u%04X)",
+              ESP_LOGW("script", "Wi-Fi icon changed to %s (\\u%04" PRIx32 ")",
                         new_wifi_icon, decode_utf8(new_wifi_icon));
               set_variable_value->execute("api", 0);
             }
@@ -171,49 +179,6 @@ sensor:
     disabled_by_default: false
     icon: mdi:wifi
     entity_category: diagnostic
-
-text_sensor:
-  ##### Device name - Used by bluepring to find action's names #####
-  - id: device_name
-    name: Device Name
-    platform: template
-    icon: mdi:identifier
-    entity_category: diagnostic
-    internal: false
-    disabled_by_default: false
-    lambda: |-
-      return {"${name}"};
-    filters:
-      - lambda: |-
-          #ifdef ESP_MAC_WIFI_STA
-          std::string suffix = "00ERROR";  // Default suffix in case of an error
-          uint8_t mac[6] = {0,0,0,0,0,0};
-          if (esp_read_mac(mac, ESP_MAC_WIFI_STA) == ESP_OK) {
-            suffix.clear();  // Clear the default error suffix
-            for (int i = 3; i < 6; ++i) {  // Use last 3 bytes of MAC
-              char hex[3];
-              snprintf(hex, sizeof(hex), "%02X", mac[i]);
-              suffix += hex;
-            }
-          }
-          // Proceed with suffix (either MAC-based or default error indicator)
-          const std::string raw_name = (x + "-" + suffix);
-          #else
-          const std::string raw_name = x;
-          #endif
-
-          std::string result;
-          bool last_was_underscore = false;
-          for (const char& c : raw_name) {
-            if (isalnum(c)) {
-              result += tolower(c);  // Add alphanumeric characters as lowercase
-              last_was_underscore = false;
-            } else if (!last_was_underscore) {  // Replace non-alphanumeric with '_' but avoid consecutive '_'
-              result += '_';
-              last_was_underscore = true;
-            }
-          }
-          return result;
 
 ##### WIFI SETUP #####
 wifi:

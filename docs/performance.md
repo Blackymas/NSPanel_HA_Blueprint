@@ -29,7 +29,7 @@ This delay helps prevent consecutive calls from overloading both the WLAN and th
 Adjusting this delay can help manage the network load and ensure that the commands are spaced out properly,
 allowing the NSPanel and WLAN to process them without being overwhelmed.
 
-## 2. ESPHome Performance Setting: Display Delay
+## 2. ESPHome Performance Setting: Display Command Spacing
 
 On the ESPHome side, the performance setting involves configuring a delay when sending commands to the Nextion display.
 This delay is critical in preventing the "Buffer overload" issue that can occur on the Nextion display.
@@ -37,23 +37,23 @@ This delay is critical in preventing the "Buffer overload" issue that can occur 
 ### Where to Find It - Integrations
 - **Location:** This setting can be found on the ESPHome device's page under `Settings > Devices & Services > ESPHome`.
 - **Configuration Group:** Look for the setting under the "Configuration" group.
-- **Name:** The setting is named **"Display delay"**.
+- **Name:** The setting is named **"Display Command Spacing"**.
 
 Note that this setting may be hidden or disabled in some systems. You may need to enable it before you can adjust its value.
 
 ### Purpose
-The **Display Delay** setting prevents buffer overload on the Nextion display, which occurs when too many commands are received and cannot be processed in time.
+The **Display Command Spacing** setting prevents buffer overload on the Nextion display, which occurs when too many commands are received and cannot be processed in time.
 If the buffer overloads, the Nextion queue will fall out of sync, leading to a device restart.
 Each time this restart occurs, the delay will automatically increase one step in the delay interval (measured in milliseconds).
 
 ## Combining Delays: Impact on Responsiveness
 The two delay settings (Blueprint and ESPHome) are combined, which can lead to a slower response time on the panel.
 You can reduce these intervals to improve the panel's responsiveness.
-However, it's important to note that reducing the **Display Delay** on the ESPHome side too much can lead to buffer overflows, causing instability.
+However, it's important to note that reducing the **Display Command Spacing** on the ESPHome side too much can lead to buffer overflows, causing instability.
 
 ### Recommendations
 - **Fine-Tune the Blueprint Delay** to manage WLAN and command pacing effectively.
-- **Adjust ESPHome Display Delay Carefully**: Lowering it too much can lead to buffer issues.
+- **Adjust ESPHome Display Command Spacing Carefully**: Lowering it too much can lead to buffer issues.
     Start with a conservative value and decrease it slowly while monitoring performance.
 
 Maintaining a balance between the two settings is essential to ensure a responsive and stable NSPanel experience.

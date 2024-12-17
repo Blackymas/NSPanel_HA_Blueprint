@@ -10,7 +10,7 @@ blueprint:
   description: >
     # NSPanel Configuration via Blueprint: Complete UI-Based Setup
 
-    **Version**: v4.4.0.dev8
+    **Version**: v4.4.0.dev9
 
 
     This project enables comprehensive configuration of your NSPanel through a Blueprint featuring a user interface.
@@ -3807,15 +3807,8 @@ trigger_variables:
         ).split(".")[1].split("_nextion_display")[0]
       }}
     {%- elif nspanel_deviceid is string %}
-      {{ nspanel_deviceid | regex_replace("[^a-zA-Z0-9]", "_") | regex_replace("_+", "_") | lower }}
+      {{ nspanel_deviceid | slugify }}
     {%- endif %}
-
-  device_name_sensor: >
-    {{
-      nspanel_entities | selectattr(None, "search", "sensor.*_device_name") | list | last
-      if nspanel_entities | selectattr(None, "search", "sensor.*_device_name") | list | count > 0
-      else ("sensor." ~ device_name ~ "_device_name")
-    }}
 
   relay01_entity: >
     {{
@@ -3869,7 +3862,7 @@ trigger_variables:
     }}
 
 variables:
-  blueprint_version: 4.4.0.dev8
+  blueprint_version: 4.4.0.dev9
   pages:
     current: '{{ states(currentpage) }}'
     home: "home"
@@ -4615,7 +4608,7 @@ conditions:
   - >  # Trigger is coming from panel's event or Nextion display must be connected
     {{
       trigger.id in ["automation_reloaded", "ha_started", "nspanel_event"] or
-      (states(nextion_display_sensor) | default(false) and has_value(device_name_sensor))
+      states(nextion_display_sensor) | default(false)
     }}
   - >  # Update page Home only when visible or home_page_background_update is enabled
     {{
@@ -4672,6 +4665,7 @@ conditions:
 actions:
   - variables:
       ##### GENERAL #####
+      nspanel_name_from_device_attr: '{{ device_attr(nspanel_deviceid, "name") }}'
       nspanel_name: >
         {{
           trigger.event.data.device_name
@@ -4680,37 +4674,18 @@ actions:
             trigger.event is defined and
             trigger.event.data is defined and
             trigger.event.data.device_name is defined and
-            trigger.event.data.device_name is string and trigger.event.data.device_name | length > 0
+            trigger.event.data.device_name is string and
+            trigger.event.data.device_name | length > 0
           else
             (
-              states(device_name_sensor)
-              if has_value(device_name_sensor)
+              nspanel_name_from_device_attr | slugify
+              if
+                nspanel_name_from_device_attr is string and
+                nspanel_name_from_device_attr | length > 0
               else device_name
             )
         }}
 
-      # esphome_version: >
-      #   {%
-      #     set esphome_version_sensor =
-      #       nspanel_entities | selectattr(None, "search", "sensor.*_esphome_version") | list | last
-      #       if nspanel_entities | selectattr(None, "search", "sensor.*_esphome_version") | list | count > 0
-      #       else ("sensor." ~ device_name ~ "_esphome_version")
-      #   %}
-      #   {{
-      #     version(trigger.event.data.esphome_version)
-      #     if
-      #       trigger is defined and
-      #       trigger.event is defined and
-      #       trigger.event.data is defined and
-      #       trigger.event.data.esphome_version is defined and
-      #       trigger.event.data.esphome_version is string and trigger.event.data.esphome_version | length > 0
-      #     else
-      #       (
-      #         version(states(esphome_version_sensor))
-      #         if has_value(esphome_version_sensor)
-      #         else version("0.0.0")
-      #       )
-      #   }}
       date_format_temp: !input 'date_format'
       # Avoid breaking change for existing users with legacy type format
       date_format: >
@@ -8591,14 +8566,9 @@ actions:
               - alias: Boot init
                 conditions:
                   - '{{ nspanel_event.type == "boot"}}'
-                  - '{{ nspanel_event.step is defined and nspanel_event.step in ["start", "timeout"]}}'
                 sequence:  # Boot init
                   - variables:
                       is_boot: true
-
-                  - if: '{{ nspanel_event.step == "timeout" }}'
-                    then:
-                      - delay: 15
 
                   - alias: Boot sequence
                     sequence:
@@ -8611,7 +8581,9 @@ actions:
                           message: 'NSPanel requested boot parameters: {{ nspanel_event }}'
 
                       - alias: BOOT_STEP_VERSIONING
-                        if: '{{ nspanel_event.BOOT_STEP_VERSIONING is defined and nspanel_event.BOOT_STEP_VERSIONING }}'
+                        if:
+                          - '{{ nspanel_event.BOOT_STEP_VERSIONING is defined }}'
+                          - '{{ nspanel_event.BOOT_STEP_VERSIONING }}'
                         then:
                           - alias: Send the blueprint version
                             sequence:
@@ -9123,7 +9095,7 @@ actions:
                                 continue_on_error: true
 
                       - alias: BOOT_STEP_HW_TEMPERATURE
-                        if: >
+                        if:
                           - '{{ nspanel_event.BOOT_STEP_HW_TEMPERATURE is defined }}'
                           - '{{ nspanel_event.BOOT_STEP_HW_TEMPERATURE }}'
                         then:
@@ -9206,7 +9178,7 @@ actions:
                                 continue_on_error: true
 
                       - alias: BOOT_STEP_PAGE_BUTTONS
-                        if: >
+                        if:
                           - '{{ nspanel_event.BOOT_STEP_PAGE_BUTTONS is defined }}'
                           - '{{ nspanel_event.BOOT_STEP_PAGE_BUTTONS }}'
                         then:
@@ -9487,7 +9459,7 @@ actions:
                                 continue_on_error: true
 
                       - alias: BOOT_STEP_PAGE_CLIMATE
-                        if: >
+                        if:
                           - '{{ nspanel_event.BOOT_STEP_PAGE_CLIMATE is defined }}'
                           - '{{ nspanel_event.BOOT_STEP_PAGE_CLIMATE }}'
                         then:
@@ -9524,7 +9496,7 @@ actions:
                                 continue_on_error: true
 
                       - alias: BOOT_STEP_PAGE_CONFIRM
-                        if: >
+                        if:
                           - '{{ nspanel_event.BOOT_STEP_PAGE_CONFIRM is defined }}'
                           - '{{ nspanel_event.BOOT_STEP_PAGE_CONFIRM }}'
                         then:
@@ -9565,7 +9537,7 @@ actions:
                                 continue_on_error: true
 
                       - alias: BOOT_STEP_PAGE_ENTITIES
-                        if: >
+                        if:
                           - '{{ nspanel_event.BOOT_STEP_PAGE_ENTITIES is defined }}'
                           - '{{ nspanel_event.BOOT_STEP_PAGE_ENTITIES }}'
                         then:
@@ -10163,7 +10135,7 @@ actions:
                                 continue_on_error: true
 
                       - alias: BOOT_STEP_PAGE_KEYBOARD_NUM
-                        if: >
+                        if:
                           - '{{ nspanel_event.BOOT_STEP_PAGE_KEYBOARD_NUM is defined }}'
                           - '{{ nspanel_event.BOOT_STEP_PAGE_KEYBOARD_NUM }}'
                         then:  # There's nothing here so far
@@ -10193,7 +10165,7 @@ actions:
                                 continue_on_error: true
 
                       - alias: BOOT_STEP_PAGE_MEDIA_PLAYER
-                        if: >
+                        if:
                           - '{{ nspanel_event.BOOT_STEP_PAGE_MEDIA_PLAYER is defined }}'
                           - '{{ nspanel_event.BOOT_STEP_PAGE_MEDIA_PLAYER }}'
                         then:  # There's nothing here so far
@@ -10209,7 +10181,7 @@ actions:
                                 continue_on_error: true
 
                       - alias: BOOT_STEP_PAGE_NOTIFICATION
-                        if: >
+                        if:
                           - '{{ nspanel_event.BOOT_STEP_PAGE_NOTIFICATION is defined }}'
                           - '{{ nspanel_event.BOOT_STEP_PAGE_NOTIFICATION }}'
                         then:  # There's nothing here so far
@@ -10225,7 +10197,7 @@ actions:
                                 continue_on_error: true
 
                       - alias: BOOT_STEP_PAGE_QRCODE
-                        if: >
+                        if:
                           - '{{ nspanel_event.BOOT_STEP_PAGE_QRCODE is defined }}'
                           - '{{ nspanel_event.BOOT_STEP_PAGE_QRCODE }}'
                         then:
@@ -10307,7 +10279,7 @@ actions:
                                 continue_on_error: true
 
                       - alias: BOOT_STEP_PAGE_SCREENSAVER
-                        if: >
+                        if:
                           - '{{ nspanel_event.BOOT_STEP_PAGE_SCREENSAVER is defined }}'
                           - '{{ nspanel_event.BOOT_STEP_PAGE_SCREENSAVER }}'
                         then:
@@ -10351,7 +10323,7 @@ actions:
                                 continue_on_error: true
 
                       - alias: BOOT_STEP_PAGE_SETTINGS
-                        if: >
+                        if:
                           - '{{ nspanel_event.BOOT_STEP_PAGE_SETTINGS is defined }}'
                           - '{{ nspanel_event.BOOT_STEP_PAGE_SETTINGS }}'
                         then:
@@ -10407,7 +10379,7 @@ actions:
                                 continue_on_error: true
 
                       - alias: BOOT_STEP_PAGE_UTILITIES
-                        if: >
+                        if:
                           - '{{ nspanel_event.BOOT_STEP_PAGE_UTILITIES is defined }}'
                           - '{{ nspanel_event.BOOT_STEP_PAGE_UTILITIES }}'
                         then:
@@ -10447,7 +10419,7 @@ actions:
                                 continue_on_error: true
 
                       - alias: BOOT_STEP_PAGE_WEATHER
-                        if: >
+                        if:
                           - '{{ nspanel_event.BOOT_STEP_PAGE_WEATHER is defined }}'
                           - '{{ nspanel_event.BOOT_STEP_PAGE_WEATHER }}'
                         then:
@@ -10490,11 +10462,15 @@ actions:
                                   val: 30
                                 continue_on_error: true
 
-                      - &ADD_ON
-                        sequence:
-                          - &ADD_ON_CLIMATE
+                      - alias: BOOT_STEP_ADDON_CLIMATE
+                        if:
+                          - '{{ BOOT_STEP_ADDON_CLIMATE in nspanel_event }}'
+                          - '{{ nspanel_event.BOOT_STEP_ADDON_CLIMATE }}'
+                        then:  # There's nothing here so far
+                          - *boot_delay
+
+                          - alias: Set climate friendly name
                             sequence:
-                              - *boot_delay
                               - variables:
                                   climate_friendly_name: '{{ state_attr(climate, "friendly_name") }}'
                               - *delay_default
@@ -10502,6 +10478,16 @@ actions:
                                 data:
                                   component: embedded_climate_friendly_name
                                   val: '{{ climate_friendly_name if climate_friendly_name else "" }}'
+                                continue_on_error: true
+
+                          - alias: Set BOOT_STEP_ADDON_CLIMATE
+                            sequence:
+                              - *delay_default
+                              - alias: set_bool.BOOT_STEP_ADDON_CLIMATE
+                                action: 'esphome.{{ nspanel_name }}_set_int'
+                                data:
+                                  component: BOOT_STEP
+                                  val: 32
                                 continue_on_error: true
 
                       ##### Update Date & Time before showing the Home page #####

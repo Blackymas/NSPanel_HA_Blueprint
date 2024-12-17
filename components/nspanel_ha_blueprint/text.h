@@ -37,30 +37,7 @@ namespace nspanel_ha_blueprint {
     std::string process_time_format(const std::string &time_format, int current_hour,
                                     const std::string &meridiem_am, const std::string &meridiem_pm);
 
-    inline uint32_t decode_utf8(const char* bytes) {
-        if (!bytes || bytes[0] == '\0') {
-            return 0;
-        }
-        uint32_t code_point = 0;
-        unsigned char byte = static_cast<unsigned char>(bytes[0]);
-        if ((byte & 0x80) == 0x00) {
-            code_point = byte;
-        } else if ((byte & 0xE0) == 0xC0 && bytes[1] != '\0') {
-            code_point = ((byte & 0x1F) << 6) | (static_cast<unsigned char>(bytes[1]) & 0x3F);
-        } else if ((byte & 0xF0) == 0xE0 && bytes[1] != '\0' && bytes[2] != '\0') {
-            code_point = ((byte & 0x0F) << 12) |
-                            ((static_cast<unsigned char>(bytes[1]) & 0x3F) << 6) |
-                            (static_cast<unsigned char>(bytes[2]) & 0x3F);
-        } else if ((byte & 0xF8) == 0xF0 && bytes[1] != '\0' && bytes[2] != '\0' && bytes[3] != '\0') {
-            code_point = ((byte & 0x07) << 18) |
-                            ((static_cast<unsigned char>(bytes[1]) & 0x3F) << 12) |
-                            ((static_cast<unsigned char>(bytes[2]) & 0x3F) << 6) |
-                            (static_cast<unsigned char>(bytes[3]) & 0x3F);
-        } else {
-            code_point = 0;
-        }
-        return code_point;
-    }
+    uint32_t decode_utf8(const char* bytes);
 
     inline std::string get_page_and_component(const std::string& page, const std::string& component) {
         return page + "." + component;

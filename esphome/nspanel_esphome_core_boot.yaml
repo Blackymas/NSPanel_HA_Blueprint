@@ -23,7 +23,7 @@ display:
       then:
         - lambda: |-
             disp1->send_command("esphome=0");
-            set_brightness->execute(100);
+            disp1->set_backlight_brightness(1);
             nextion_init->publish_state(disp1->is_setup());
 
     on_touch:
@@ -52,27 +52,20 @@ esphome:
       then:
         - script.execute: boot_initialize
 
-    - priority: 600.1
+    - priority: 400.1
       then:
-        - script.execute:
-            id: boot_sequence
-            show_boot_page: true
+        - script.execute: boot_sequence_start
 
 script:
   - id: boot_event
     mode: restart
     then:
-      - lambda: |-
-          ESP_LOGW("DEBUG", "boot_event called");
+      - script.wait: scan_baud_rate
       - delay: 20s
-      - lambda: |-
-          ESP_LOGW("DEBUG", "boot_event checking");
       - while:
           condition:
             - lambda: return not is_boot_complete();
           then:
-            - lambda: |-
-                ESP_LOGW("DEBUG", "boot_event informing HA");
             - script.execute:
                 id: boot_event_ha
                 step_name: timeout
@@ -83,13 +76,13 @@ script:
     parameters:
       step_name: string
     then:
+      - script.wait: scan_baud_rate
       - lambda: |-
-          ESP_LOGW("DEBUG", "boot_event_ha called with step_name: '%s'", step_name.c_str());
           esphome::api::CustomAPIDevice ha_event;
           std::map<std::string, std::string> event_data;
 
           // Adding static data to the event
-          event_data["device_name"] = device_name->state.c_str();
+          event_data["device_name"] = id(device_name).c_str();
           event_data["esphome_version"] = "${version}";
           event_data["type"] = "boot";
           event_data["step"] = step_name.c_str();
@@ -127,7 +120,7 @@ script:
     then:
       - lambda: |-
           const bool package_registered = register_application(package_id, package_key.c_str(), package_name.c_str());
-          ESP_LOGI("script", "Package '%s' (id %" PRIu32 "/%s) %s.", package_name.c_str(),
+          ESP_LOGI("script", "Package '%s' (id %" PRIu8 "/%s) %s.", package_name.c_str(),
                     package_id, package_key.c_str(), package_registered ? "registered" : "FAILED TO REGISTER");
 
   - id: boot_progress
@@ -147,19 +140,15 @@ script:
     mode: queued
     then:
       - lambda: |-
-          ESP_LOGI("script", "Boot progress: %" PRIu8 "%% (%" PRIu32 ")",
+          ESP_LOGI("script", "Boot progress: %" PRIu8 "%% (%" PRIu8 ")",
                         get_boot_progress_percentage(), get_completed_boot_steps());
-          if (boot_steps != nullptr) {
-            for (size_t i = 0; i < MAX_BOOT_STEPS; ++i) {
-              if (boot_steps[i].registered) {
-                // Calculate padding based on the actual length of the name
-                const int8_t padding = std::max(0, 21 - static_cast<int>(strlen(boot_steps[i].name)));
-                ESP_LOGI("script", " - %s:%*s%s", boot_steps[i].name, padding, "",
-                                    boot_steps[i].completed ? "Completed" : "PENDING");
-              }
+          for (size_t i = 0; i < MAX_BOOT_STEPS; ++i) {
+            if (boot_steps[i].registered) {
+              // Calculate padding based on the actual length of the name
+              const int8_t padding = std::max(0, 21 - static_cast<int>(strlen(boot_steps[i].name)));
+              ESP_LOGI("script", " - %s:%*s%s", boot_steps[i].name, padding, "",
+                                  boot_steps[i].completed ? "Completed" : "PENDING");
             }
-          } else {
-            ESP_LOGE("script", "Boot steps have not been initialized.");
           }
 
   - id: boot_progress_dump_timer
@@ -176,6 +165,7 @@ script:
     parameters:
       show_boot_page: bool
     then:
+      - script.wait: scan_baud_rate
       - lambda: |-
           page_boot_log->execute("Boot", "Starting boot sequence");
           if (!show_boot_page)
@@ -187,7 +177,7 @@ script:
       - wait_until:
           condition:
             - lambda: return disp1->is_setup();
-          timeout: 10s
+            - lambda: return (tf_uart->get_baud_rate() == ${BAUD_RATE});
       - if:
           condition:
             - lambda: return show_boot_page;
@@ -218,9 +208,17 @@ script:
           timeout: 10s
       - lambda: |-
           page_boot_log->execute("Boot", "Report to Blueprint");
-          boot_event_ha->execute("start");
+          boot_event_ha->execute("ready");
           boot_progress->execute(${BOOT_STEP_BOOT});
           boot_event->execute();
+
+  - id: boot_sequence_start
+    mode: restart
+    then:
+      - script.wait: scan_baud_rate
+      - script.execute:
+          id: boot_sequence
+          show_boot_page: true
 
   - id: !extend dump_config
     then:
@@ -229,7 +227,7 @@ script:
             ESP_LOGI("${project_tag}", "Boot steps: %" PRIu8 "/%" PRIu8 " (100%%)",
                           get_completed_boot_steps(), get_total_registered_boot_steps());
           else {
-            ESP_LOGW("${project_tag}", "Boot steps: %" PRIu8 "/%" PRIu8 " (%" PRIu8 "%% - %" PRIu32 ")",
+            ESP_LOGW("${project_tag}", "Boot steps: %" PRIu8 "/%" PRIu8 " (%" PRIu8 "%% - %" PRIu8 ")",
                       get_completed_boot_steps(), get_total_registered_boot_steps(),
                       get_boot_progress_percentage(), get_completed_boot_steps());
             ESP_LOGW("${project_tag}", "  State:    %s",
@@ -266,4 +264,6 @@ script:
           boot_package_register->stop();
           boot_progress->stop();
           boot_progress_dump_timer->stop();
+          boot_sequence->stop();
+          boot_sequence_start->stop();
 ...

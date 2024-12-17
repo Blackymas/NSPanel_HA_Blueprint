@@ -1,0 +1,79 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHome Add-on for OTA over HTTP (Used by pre-built versions)                             #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+##### ATTENTION: This will add climate elements to the core system and requires the core part.  #####
+#####################################################################################################
+---
+substitutions:
+  firmware_bin: "https://raw.githubusercontent.com/Blackymas/NSPanel_HA_Blueprint/main/prebuilt/nspanel_esphome_prebuilt.bin"
+  firmware_manifest: "https://raw.githubusercontent.com/Blackymas/NSPanel_HA_Blueprint/main/prebuilt/nspanel_esphome_prebuilt.manifest.json"
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_ADDON_OTA_HTTP
+
+api:
+  actions:
+    - action: firmware_update
+      variables:
+        url: string
+      then:
+        - ota.http_request.flash:
+            md5_url: !lambda return fw_url->state + ".md5";
+            url: !lambda return fw_url->state;
+        - logger.log:
+            format: "Firmware update failed!"
+            level: ERROR
+
+button:
+  - id: bt_firmware_update
+    name: Firmware update
+    platform: template
+    on_press:
+      then:
+        - ota.http_request.flash:
+            md5_url: !lambda return fw_url->state + ".md5";
+            url: !lambda return fw_url->state;
+        - logger.log:
+            format: "Firmware update failed!"
+            level: ERROR
+
+http_request:
+
+ota:
+  - id: ota_web
+    platform: http_request
+
+script:
+  - id: !extend dump_config_packages  # Defined by nspanel_esphome_core_base.yaml
+    then:
+      - lambda: |-
+          ESP_LOGCONFIG("${project_tag}", "  - Add-on OTA HTTP");
+
+text:
+  - id: fw_url
+    name: Firmware URL
+    platform: template
+    icon: mdi:cloud-download
+    mode: text
+    optimistic: true
+    entity_category: config
+    internal: false
+    update_interval: never
+    restore_value: true
+    initial_value: ${firmware_bin}
+    on_value:
+      then:
+        - lambda: |-
+            ESP_LOGI("text.fw_url", "New Firmware URL set: %s", x.c_str());
+
+update:
+  - id: update_std
+    platform: http_request
+    name: Firmware Update
+    source: ${firmware_manifest}
+...

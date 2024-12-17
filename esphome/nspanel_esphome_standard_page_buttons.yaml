@@ -34,7 +34,7 @@ api:
         label: string      # Main text label for the button.
       then:
         - lambda: |-
-            ESP_LOGD("api.actions.button", "Received data for button %i", id);
+            ESP_LOGD("api.actions.button", "Received data for button %" PRIu8, static_cast<uint8_t>(id));
             if (id >= 1 and id <= 32) {
               const uint8_t index = static_cast<uint8_t>(id) - 1;
 
@@ -66,8 +66,9 @@ api:
               display_component_update_visibility->execute(buttonpage_buttons[index].label, true);
 
               // Rendering button
-              const uint8_t page_id = get_page_id(page.c_str());
-              page_buttonpage_button_renderer->execute(index, page_id, component.c_str());
+              if (is_button_in_mask(index, PageButtonsMaskEnabled)) {
+                page_buttonpage_button_renderer->execute(index, get_page_id(page.c_str()), component.c_str());
+              }
             }
 
 display:
@@ -76,13 +77,13 @@ display:
       then:
         - lambda: |-
             if (is_page_in_group(BUTTONS_PAGE_MASK, page_id)) {  // Button's pages
-              if (component_id >= 42 and component_id <= 49) {  // Buttons
-                const uint8_t button_id = (8*(page_id-${PAGE_ID_BUTTONPAGE01}))+(component_id-41);
+              if (component_id >= 38 and component_id <= 45) {  // Buttons
+                const uint8_t button_id = (8*(page_id-${PAGE_ID_BUTTONPAGE01}))+(component_id-37);
                 ESP_LOGI("display", "Button %" PRIu8 " %s", button_id, touch_event ? "pressed" : "released");
                 if (touch_event)
-                  button_press->execute(button_id);
+                  button_press->execute(page_id, button_id);
                 else
-                  button_release->execute(button_id);
+                  button_release->execute(page_id, button_id);
               }
             }
 
@@ -100,28 +101,40 @@ script:
   - id: button_click_long
     mode: parallel
     parameters:
+      page_id: uint8_t
       button_id: uint8_t
     then:
+      - lambda: |-
+          ha_button->execute(page_id, get_button_name(button_id), "long_click");
 
   - id: button_click_short
     mode: parallel
     parameters:
+      page_id: uint8_t
       button_id: uint8_t
     then:
+      # Extended by:
+      #   nspanel_esphome_standard_page_confirm.yaml
+      - lambda: |-
+          if (not is_button_in_mask(button_id, PageButtonsMaskConfirm))
+            ha_button->execute(page_id, get_button_name(button_id), "short_click");
 
   - id: button_press
     mode: restart
     parameters:
+      page_id: uint8_t
       button_id: uint8_t
     then:
       - delay: ${BUTTON_LONG_PRESS_DELAY}
       - script.execute:
           id: button_click_long
+          page_id: !lambda return page_id;
           button_id: !lambda return button_id;
 
   - id: button_release
     mode: parallel
     parameters:
+      page_id: uint8_t
       button_id: uint8_t
     then:
       - if:
@@ -131,11 +144,20 @@ script:
             - script.stop: button_press
             - script.execute:
                 id: button_click_short
+                page_id: !lambda return page_id;
                 button_id: !lambda return button_id;
 
   - id: !extend boot_package_register
     then:
       - lambda: boot_package_register_add->execute(${BOOT_STEP_PAGE_BUTTONS}, "PAGE_BUTTONS", "Page Buttons");
+
+  - id: !extend dump_config
+    then:
+      - lambda: |-
+          // Check for requirements
+          #if !defined(NSPANEL_HA_BLUEPRINT_STANDARD_PAGE_BUTTONS)
+            #error "The package nspanel_esphome_standard_page_buttons.yaml is required."
+          #endif
 
   - id: page_buttonpage
     mode: restart
@@ -143,12 +165,11 @@ script:
       - repeat:
           count: 8
           then:
-            - delay: !lambda return display_delay->state;
             - lambda: |-
                 const uint8_t index = (current_page_id-${PAGE_ID_BUTTONPAGE01})*8 + iteration;
-                if (buttonpage_buttons[index].icon->visible) {
+                if (is_button_in_mask(index, PageButtonsMaskEnabled)) {
                   char component[10];
-                  sprintf(component, "button%02d", iteration+1);
+                  snprintf(component, sizeof(component), "button%02" PRIu8, static_cast<uint8_t>(iteration + 1));
                   ESP_LOGD("script.page_buttonpage", "Updating state of %s - %s",
                             current_page->state.c_str(), component);
                   page_buttonpage_button_renderer->execute(index, current_page_id, component);
@@ -162,8 +183,10 @@ script:
       component: string
     then:
       - lambda: |-
-          page_buttonpage_button_renderer_state->execute(index, page_id, component.c_str());
-          page_buttonpage_button_renderer_visibility->execute(index, page_id, component.c_str());
+          if (is_button_in_mask(index, PageButtonsMaskEnabled)) {
+            page_buttonpage_button_renderer_state->execute(index, page_id, component.c_str());
+            page_buttonpage_button_renderer_visibility->execute(index, page_id, component.c_str());
+          }
 
   - id: page_buttonpage_button_renderer_state
     mode: parallel
@@ -197,10 +220,9 @@ script:
     then:
       - lambda: |-
           if (page_id == current_page_id) {
-            set_component_visibility->execute(page_id, (component + "pic").c_str(),
-                                              buttonpage_buttons[index].icon->visible);
-            set_component_visibility->execute(page_id, component.c_str(),
-                                              buttonpage_buttons[index].icon->visible);
+            const bool is_button_visible = is_button_in_mask(index, PageButtonsMaskEnabled);
+            set_component_visibility->execute(page_id, (component + "pic").c_str(), is_button_visible);
+            set_component_visibility->execute(page_id, component.c_str(), is_button_visible);
           }
 
   - id: !extend page_changed
@@ -215,35 +237,43 @@ script:
           if (component == "buttonpage01MaskEnabled") {
             PageButtonsMaskEnabled &= 0xFFFFFF00; // Clear bits 0-7
             PageButtonsMaskEnabled |= static_cast<uint32_t>(val) << 0; // Set bits 0-7 with Page 1 value
-            ESP_LOGD("script", "Got buttons enabled settings for buttonpage01: %" PRIu8, val);
+            ESP_LOGD("script", "Got buttons enabled settings for buttonpage01: %" PRIu8 " (%" PRIu32 ")",
+                                val, PageButtonsMaskEnabled);
           } else if (component == "buttonpage02MaskEnabled") {
             PageButtonsMaskEnabled &= 0xFFFF00FF; // Clear bits 8-15
             PageButtonsMaskEnabled |= static_cast<uint32_t>(val) << 8; // Set bits 8-15 with Page 2 value
-            ESP_LOGD("script", "Got buttons enabled settings for buttonpage02: %" PRIu8, val);
+            ESP_LOGD("script", "Got buttons enabled settings for buttonpage02: %" PRIu8 " (%" PRIu32 ")",
+                                val, PageButtonsMaskEnabled);
           } else if (component == "buttonpage03MaskEnabled") {
             PageButtonsMaskEnabled &= 0xFF00FFFF; // Clear bits 16-23
             PageButtonsMaskEnabled |= static_cast<uint32_t>(val) << 16; // Set bits 16-23 with Page 3 value
-            ESP_LOGD("script", "Got buttons enabled settings for buttonpage03: %" PRIu8, val);
+            ESP_LOGD("script", "Got buttons enabled settings for buttonpage03: %" PRIu8 " (%" PRIu32 ")",
+                                val, PageButtonsMaskEnabled);
           } else if (component == "buttonpage04MaskEnabled") {
             PageButtonsMaskEnabled &= 0x00FFFFFF; // Clear bits 24-31
             PageButtonsMaskEnabled |= static_cast<uint32_t>(val) << 24; // Set bits 24-31 with Page 4 value
-            ESP_LOGD("script", "Got buttons enabled settings for buttonpage04: %" PRIu8, val);
+            ESP_LOGD("script", "Got buttons enabled settings for buttonpage04: %" PRIu8 " (%" PRIu32 ")",
+                                val, PageButtonsMaskEnabled);
           } else if (component == "buttonpage01MaskConfirm") {
             PageButtonsMaskConfirm &= 0xFFFFFF00; // Clear bits 0-7
             PageButtonsMaskConfirm |= static_cast<uint32_t>(val) << 0; // Set bits 0-7 with Page 1 value
-            ESP_LOGD("script", "Got buttons confirm settings for buttonpage01: %" PRIu8, val);
+            ESP_LOGD("script", "Got buttons confirm settings for buttonpage01: %" PRIu8 " (%" PRIu32 ")",
+                                val, PageButtonsMaskConfirm);
           } else if (component == "buttonpage02MaskConfirm") {
             PageButtonsMaskConfirm &= 0xFFFF00FF; // Clear bits 8-15
             PageButtonsMaskConfirm |= static_cast<uint32_t>(val) << 8; // Set bits 8-15 with Page 2 value
-            ESP_LOGD("script", "Got buttons confirm settings for buttonpage02: %" PRIu8, val);
+            ESP_LOGD("script", "Got buttons confirm settings for buttonpage02: %" PRIu8 " (%" PRIu32 ")",
+                                val, PageButtonsMaskConfirm);
           } else if (component == "buttonpage03MaskConfirm") {
             PageButtonsMaskConfirm &= 0xFF00FFFF; // Clear bits 16-23
             PageButtonsMaskConfirm |= static_cast<uint32_t>(val) << 16; // Set bits 16-23 with Page 3 value
-            ESP_LOGD("script", "Got buttons confirm settings for buttonpage03: %" PRIu8, val);
+            ESP_LOGD("script", "Got buttons confirm settings for buttonpage03: %" PRIu8 " (%" PRIu32 ")",
+                                val, PageButtonsMaskConfirm);
           } else if (component == "buttonpage04MaskConfirm") {
             PageButtonsMaskConfirm &= 0x00FFFFFF; // Clear bits 24-31
             PageButtonsMaskConfirm |= static_cast<uint32_t>(val) << 24; // Set bits 24-31 with Page 4 value
-            ESP_LOGD("script", "Got buttons confirm settings for buttonpage04: %" PRIu8, val);
+            ESP_LOGD("script", "Got buttons confirm settings for buttonpage04: %" PRIu8 " (%" PRIu32 ")",
+                                val, PageButtonsMaskConfirm);
           }
 
   - id: !extend stop_all

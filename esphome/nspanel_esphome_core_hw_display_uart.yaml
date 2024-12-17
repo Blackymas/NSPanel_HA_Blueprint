@@ -1,0 +1,247 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - HARDWARE - Display - UART                                                  #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+substitutions:
+  BAUD_RATE: '921600'
+  MAX_SCAN_RETRIES: '255'  # Maximum number of complete scan cycles, limited to 255 (UINT8_MAX)
+  SCAN_INTERVAL: '500'     # Interval between connection checks in ms
+  VERIFY_DELAY: '1000'     # Delay before verifying connection in ms
+  WAIT_TIME: '10000'       # Time to wait for the Nextion display to respond
+
+display:
+  - id: !extend disp1
+    uart_id: tf_uart
+    on_setup:
+      then:
+        - lambda: |-
+            // Set the current baud rate into the display
+            disp1->send_command_printf("bauds=%" PRIu32, tf_uart->get_baud_rate());
+
+esphome:
+  on_boot:
+    - priority: 600.${BOOT_STEP_HW_DISPLAY}  # Before other display initialization
+      then:
+        - script.execute: boot_scan_baud_rate
+
+globals:
+  - id: DEBUG_step
+    type: uint8_t
+    restore_value: false
+    initial_value: '0'
+
+  - id: baud_error_count
+    type: uint8_t
+    restore_value: true
+    initial_value: '0'
+
+  - id: baud_scan_started
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+
+  - id: baud_scan_index
+    type: uint8_t
+    restore_value: false
+    initial_value: '0'
+
+  - id: baud_scan_retries
+    type: uint8_t
+    restore_value: false
+    initial_value: '0'
+
+  - id: baud_rates
+    type: const std::vector<uint32_t>
+    restore_value: false
+    initial_value: >  # Target rate first, then most common rates, standard rated and then uncommon rates
+      {
+        ${BAUD_RATE}, 921600, 115200,
+        57600, 38400, 19200, 9600,
+        512000, 256000, 250000,
+        31250, 4800, 2400
+      }
+
+script:
+  - id: boot_scan_baud_rate
+    mode: restart
+    then:
+      - wait_until:
+          condition:
+            - lambda: return not isnan(tf_uart->get_baud_rate());
+          timeout: 15s
+      - wait_until:
+          condition: &nextion_is_connected
+            - lambda: return disp1->is_connected();
+          timeout: 5s
+      - if:
+          condition: *nextion_is_connected
+          then:
+            - lambda: |-
+                ESP_LOGI("script", "Display connected at boot with baud rate %" PRIu32, tf_uart->get_baud_rate());
+            - if:
+                condition:
+                  - lambda: return (tf_uart->get_baud_rate() != ${BAUD_RATE});
+                then:
+                  - lambda: |-
+                      ESP_LOGW("script", "Attempting to switch to target baud rate ${BAUD_RATE} bps");
+                      tf_uart->write_str("bauds=${BAUD_RATE}");
+                      tf_uart->write_array((const uint8_t[]){0xFF, 0xFF, 0xFF}, 3);
+                      disp1->send_command("bauds=${BAUD_RATE}");
+                  - delay: 2s
+                  - lambda: |-
+                      set_baud_rate->execute(${BAUD_RATE}, true);
+                      ESP_LOGW("script", "Scanning...");
+                      scan_baud_rate->execute();
+          else:
+            - script.execute: scan_baud_rate
+
+  - id: !extend dump_config
+    then:
+      - script.execute: dump_config_uart
+
+  - id: dump_config_uart
+    then:
+      - lambda: |-
+          // Report UART
+          ESP_LOGI("${project_tag}", "UART:");
+          ESP_LOGI("${project_tag}", "  Baud rate:    %" PRIu32 " bps", tf_uart->get_baud_rate());
+          ESP_LOGI("${project_tag}", "  Queue size:   %d", tf_uart->available());
+          ESP_LOGI("${project_tag}", "  Error count:  %u", id(baud_error_count));
+
+  - id: scan_baud_rate
+    mode: restart
+    then:
+      - globals.set:
+          id: baud_scan_started
+          value: 'true'
+      - while:
+          condition:
+            or:
+              - lambda: return not disp1->is_connected();
+              - lambda: return (tf_uart->get_baud_rate() != ${BAUD_RATE});
+          then:
+            - repeat:
+                count: 5
+                then:
+                  - if:
+                      condition: &nextion_is_NOT_connected
+                        - lambda: return not disp1->is_connected();
+                      then:
+                        - logger.log: Waiting for Nextion
+                        - wait_until:
+                            condition: *nextion_is_connected
+                            timeout: 1s  # ${WAIT_TIME}ms
+            - if:
+                condition:
+                  - lambda: return disp1->is_connected();
+                then:
+                  - lambda: |-
+                      ESP_LOGI("script", "Nextion detected at %" PRIu32 "bps", tf_uart->get_baud_rate());
+                  - if:
+                      condition:
+                        - lambda: return (tf_uart->get_baud_rate() != ${BAUD_RATE});
+                      then:
+                        - lambda: |-
+                            ESP_LOGW("script", "Attempting to switch to target baud rate ${BAUD_RATE} bps");
+                        - delay: 2s
+                        - lambda: |-
+                            disp1->send_command("bauds=${BAUD_RATE}");
+                        - delay: 2s
+                        - lambda: |-
+                            tf_uart->write_str("bauds=${BAUD_RATE}");
+                            tf_uart->write_array((const uint8_t[]){0xFF, 0xFF, 0xFF}, 3);
+                        - delay: 2s
+                        - lambda: |-
+                            set_baud_rate->execute(${BAUD_RATE}, true);
+                else:
+                  - lambda: |-
+                      ESP_LOGW("script", "Nextion was not detected at %" PRIu32 "bps", tf_uart->get_baud_rate());
+                      id(baud_scan_index)++;
+                      // Check if we need to start over
+                      if (id(baud_scan_index) >= id(baud_rates).size()) {
+                        id(baud_scan_index) = 0;
+                        if (id(baud_scan_retries) < UINT8_MAX) {
+                        id(baud_scan_retries)++;
+                        }
+                        if (id(baud_error_count) < UINT8_MAX) {
+                        id(baud_error_count)++;
+                        }
+                        ESP_LOGW("script", "Starting new scan cycle %u", id(baud_scan_retries));
+                      }
+                      const uint32_t current_baud = id(baud_rates)[id(baud_scan_index)];
+                      ESP_LOGW("script", "Searching for Nextion at %" PRIu32, current_baud);
+                      set_baud_rate->execute(current_baud, (current_baud == ${BAUD_RATE}));
+                  - script.wait: set_baud_rate
+            - if:
+                condition:
+                  - lambda: return disp1->is_connected();
+                  - lambda: return (tf_uart->get_baud_rate() == ${BAUD_RATE});
+                then:
+                  - lambda: |-
+                      ESP_LOGI("script", "Nextion detected at %" PRIu32 "bps", tf_uart->get_baud_rate());
+                      if (not disp1->is_setup())
+                        disp1->setup();
+                  - wait_until:
+                      condition: &nextion_is_setup
+                        - lambda: return disp1->is_setup();
+                      timeout: 5s
+                  - if:
+                      condition: &nextion_is_NOT_setup
+                        - lambda: return not disp1->is_setup();
+                      then:
+                        - switch.turn_off: screen_power
+                        - delay: 2s
+                        - switch.turn_on: screen_power
+
+  - id: set_baud_rate
+    mode: restart
+    parameters:
+      baud_rate: uint32_t
+      definitive: bool
+    then:
+      - if:
+          condition:
+            - lambda: return (baud_rate > 0);
+            - lambda: return (baud_rate != tf_uart->get_baud_rate());
+          then:
+            - lambda: |-
+                ESP_LOGW("script", "Baud rate changing from %" PRIu32 " to %" PRIu32 " bps",
+                          tf_uart->get_baud_rate(), baud_rate);
+                ESP_LOGW("script", "Flush UART");
+            - wait_until:
+                condition:
+                  - lambda: return (tf_uart->available() < 1);
+                timeout: 5s
+            - lambda: |-
+                ESP_LOGW("script", "Sending instruction '%s=%" PRIu32 "' to Nextion",
+                          definitive ? "bauds" : "baud", baud_rate);
+                disp1->send_command_printf("%s=%" PRIu32, definitive ? "bauds" : "baud", baud_rate);
+                ESP_LOGW("script", "Flush UART");
+            - wait_until:
+                condition:
+                  - lambda: return (tf_uart->available() < 1);
+                timeout: 5s
+            - lambda: |-
+                ESP_LOGW("script", "Set ESPHome new baud rate to %" PRIu32 " bps", baud_rate);
+                tf_uart->set_baud_rate(baud_rate);
+                tf_uart->load_settings();
+                ESP_LOGW("script", "Current baud rate: %" PRIu32 " bps", tf_uart->get_baud_rate());
+
+  - id: !extend stop_all
+    then:
+      - lambda: |-
+          boot_scan_baud_rate->stop();
+          dump_config_uart->stop();
+          scan_baud_rate->stop();
+          set_baud_rate->stop();
+
+uart:
+  - id: tf_uart
+    tx_pin: 16
+    rx_pin: 17
+    baud_rate: ${BAUD_RATE}
+...

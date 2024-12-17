@@ -30,6 +30,13 @@ namespace nspanel_ha_blueprint {
     // Pointer to the static button's array, allocated in PSRAM if possible
     PageButtonsButton* buttonpage_buttons;
 
+    char* get_button_name(const uint8_t button_id) {
+        // Determine the base component name
+        static char base_component[9];
+        snprintf(base_component, sizeof(base_component), "button%02d", (button_id % 8) + 1);
+        return base_component;
+    }
+
     // Function to set up all buttons in the PSRAM
     void setup_pagebuttons_buttons() {
         if (!PageButtonsButtonInitilized) {
@@ -52,18 +59,14 @@ namespace nspanel_ha_blueprint {
                 // Calculate page and button identifiers
                 const uint8_t page_id = (i / 8) + 12;  // PAGE_ID_BUTTONPAGE01: '12'
 
-                // Determine the base component name
-                char base_component[15];
-                snprintf(base_component, sizeof(base_component), "button%02d", (i % 8) + 1);
-
                 // Use the component ID to identify each component in the Nextion, with suffixes
                 char bri_component[20];
                 char icon_component[20];
                 char label_component[20];
 
-                snprintf(bri_component, sizeof(bri_component), "%sbri", base_component);
-                snprintf(icon_component, sizeof(icon_component), "%sicon", base_component);
-                snprintf(label_component, sizeof(label_component), "%stext", base_component);
+                snprintf(bri_component, sizeof(bri_component), "%sbri", get_button_name(i));
+                snprintf(icon_component, sizeof(icon_component), "%sicon", get_button_name(i));
+                snprintf(label_component, sizeof(label_component), "%stext", get_button_name(i));
 
                 // Assign pointers to the respective DisplayComponent using get_component
                 buttonpage_buttons[i].bri = get_component(page_id, bri_component);
@@ -84,7 +87,7 @@ namespace nspanel_ha_blueprint {
         return (index % 8) + 1;  // Calculate the button ID within the page (1-based button numbering)
     }
 
-    bool is_page_enabled(const uint8_t buttonpage_index, const uint32_t mask) {
+    bool is_button_page_enabled(const uint8_t buttonpage_index, const uint32_t mask) {
         // Ensure the buttonpage_index is within the valid range (1-4)
         if (buttonpage_index < 1 || buttonpage_index > 4) {
             return false;
