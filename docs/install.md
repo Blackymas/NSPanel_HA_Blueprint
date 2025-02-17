@@ -15,7 +15,7 @@ Let’s embark on this journey together to create a smart home that’s uniquely
 > Our community is here to support, but please note that this guide may not cover the fundamental aspects of Home Assistant and ESPHome extensively.
 
 > [!NOTE]
-> Some images or instructions on this guide might be slighly different due to different configurations depending on your ESPHome and Home Assistant implementation or versions.
+> Some images or instructions on this guide might be slightly different due to different configurations depending on your ESPHome and Home Assistant implementation or versions.
 >
 > If you find something that is not understandable or needs to be updated, please let us know.
 > You can create an issue reporting this, or fix it yourself and submit a [Pull Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/pulls) to this repository.
@@ -309,7 +309,7 @@ To update your device's firmware to the latest version, simply follow the [Steps
 Keeping each component of the NSPanel HA Blueprint in sync with the same version enhances the stability and functionality of your smart panel.
 
 ### Migrating from other custom firmware
-The installation in a NSPanel with Sonoff's original firmware should be straighforward, however,
+The installation in a NSPanel with Sonoff's original firmware should be straightforward, however,
 if you have installed some other custom firmware before, you may have additional steps to execute.
 
 #### NSPanel Lovelace UI
