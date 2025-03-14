@@ -41,16 +41,16 @@ namespace nspanel_ha_blueprint {
     void setup_pagebuttons_buttons() {
         if (!PageButtonsButtonInitilized) {
             // Allocate memory for 32 buttons, placing them in PSRAM if available
-            esphome::ESP_LOGD(TAG_COMPONENT, "Allocating memory");
+            ESP_LOGD(TAG_COMPONENT, "Allocating memory");
             // Allocate PageButtonsButton dynamically
             esphome::ExternalRAMAllocator<PageButtonsButton>
                 allocator(esphome::ExternalRAMAllocator<PageButtonsButton>::ALLOW_FAILURE);
             buttonpage_buttons = allocator.allocate(32*sizeof(PageButtonsButton));
             if (!buttonpage_buttons || buttonpage_buttons == nullptr) {
-                esphome::ESP_LOGE(TAG_COMPONENT, "Failed to allocate memory for buttonpage_buttons.");
+                ESP_LOGE(TAG_COMPONENT, "Failed to allocate memory for buttonpage_buttons.");
                 return;  // Memory allocation failed, do not proceed
             }
-            esphome::ESP_LOGD(TAG_COMPONENT, "Memory allocated");
+            ESP_LOGD(TAG_COMPONENT, "Memory allocated");
 
             // Initialize each button with default settings and assign DisplayComponent pointers
             for (uint8_t i = 0; i < 32; ++i) {

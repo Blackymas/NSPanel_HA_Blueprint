@@ -30,7 +30,7 @@ namespace nspanel_ha_blueprint {
         if (!DisplayComponentInitialized) {
             // Allocate memory for the components vector in PSRAM
             #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_DEBUG
-                esphome::ESP_LOGD(TAG_COMPONENT, "Allocating memory for components vector");
+                ESP_LOGD(TAG_COMPONENT, "Allocating memory for components vector");
             #endif
 
             esphome::ExternalRAMAllocator<ComponentVector> vector_allocator(
@@ -40,7 +40,7 @@ namespace nspanel_ha_blueprint {
 
             if (!components) {
                 #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_ERROR
-                    esphome::ESP_LOGE(TAG_COMPONENT, "Failed to allocate memory for components vector.");
+                    ESP_LOGE(TAG_COMPONENT, "Failed to allocate memory for components vector.");
                 #endif
                 return;  // Memory allocation failed, do not proceed
             }
@@ -50,7 +50,7 @@ namespace nspanel_ha_blueprint {
 
             DisplayComponentInitialized = true;
             #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_DEBUG
-                esphome::ESP_LOGD(TAG_COMPONENT, "Memory allocated for components vector in PSRAM");
+                ESP_LOGD(TAG_COMPONENT, "Memory allocated for components vector in PSRAM");
             #endif
         }
     }
@@ -86,7 +86,7 @@ namespace nspanel_ha_blueprint {
         } else {
             // Allocate memory for the new component in PSRAM
             #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_DEBUG
-                esphome::ESP_LOGD(TAG_COMPONENT, "Allocating memory for new component %s on page %s",
+                ESP_LOGD(TAG_COMPONENT, "Allocating memory for new component %s on page %s",
                                     component, page_names[page_id]);
             #endif
 
@@ -97,13 +97,13 @@ namespace nspanel_ha_blueprint {
 
             if (!new_component) {
                 #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_ERROR
-                    esphome::ESP_LOGE(TAG_COMPONENT, "Failed to allocate memory for new component.");
+                    ESP_LOGE(TAG_COMPONENT, "Failed to allocate memory for new component.");
                 #endif
                 return nullptr;  // Memory allocation failed
             }
 
             #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_DEBUG
-                esphome::ESP_LOGD(TAG_COMPONENT, "Memory allocated for new component in PSRAM");
+                ESP_LOGD(TAG_COMPONENT, "Memory allocated for new component in PSRAM");
             #endif
 
             // Use placement new to construct the component in the allocated memory
