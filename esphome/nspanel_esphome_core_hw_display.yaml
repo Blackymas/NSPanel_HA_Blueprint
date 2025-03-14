@@ -134,12 +134,13 @@ esphome:
             id: nextion_init
             state: false
 
-external_components:  # To-do: Remove this when both PR#7948 and PR#7961 are merged and released (v2025.1.0?)
+# To-do: Remove this when both PR#7948 and PR#7961 are merged and released (v2025.1.0?)
+external_components:
   - source:
       type: git
       url: https://github.com/edwardtfn/esphome
       ref: nextion-47
-    refresh: 300s
+    refresh: 1d
     components:
       - nextion
 
@@ -608,13 +609,63 @@ script:
       json: DynamicJsonDocument
       page: string
     then:
+      # Extended by:
+      #   - nspanel_esphome_core_page_alarm.yaml
+      #   - nspanel_esphome_core_page_climate.yaml
+      #   - nspanel_esphome_core_page_cover.yaml
+      #   - nspanel_esphome_core_page_fan.yaml
+      #   - nspanel_esphome_core_page_keyb_num.yaml
+      #   - nspanel_esphome_core_page_light.yaml
+      #   - nspanel_esphome_core_page_media_player.yaml
+      #   - nspanel_esphome_core_versioning.yaml
       - lambda: |-
-          const std::string event = json["event"];
-          const std::string component = json["component"];
-          const std::string value = json["value"];
+          if (page.empty()) {
+            ESP_LOGW("script", "Received empty page parameter");
+            return;
+          }
+
+          // Extract required fields with validation
+          if (!json.containsKey("event")) {
+            ESP_LOGW("script", "Missing required 'event' field in JSON");
+            return;
+          }
+          const std::string event = json["event"].as<std::string>();
+          const std::string component = json.containsKey("component") ?
+            json["component"].as<std::string>() : "";
+          const std::string value = json.containsKey("value") ?
+            json["value"].as<std::string>() : "";
+
+          ESP_LOGV("script", "Processing display event: page=%s, event=%s, component=%s",
+            page.c_str(), event.c_str(), component.c_str());
+
+          // Handle special events
+          if (event == "params") {
+            if (!json.containsKey("display_mode") || !json.containsKey("charset")) {
+              ESP_LOGW("script", "Missing required display parameters");
+              return;
+            }
+
+            // Parse display parameters
+            id(display_mode) = json["display_mode"].as<uint8_t>();
+            id(display_charset) = json["charset"].as<uint8_t>();
+
+            ESP_LOGI("script", "Display parameters received:");
+            ESP_LOGI("script", "  Display mode:    %" PRIu8, id(display_mode));
+            ESP_LOGI("script", "  Display charset: %" PRIu8, id(display_charset));
+
+            disp1->send_command("tm_esphome.en=0");
+            return;
+          }
+
           // Send event to Home Assistant
           esphome::api::CustomAPIDevice ha_event;
-          if (event == "short_click" or event == "long_click") {
+
+          if (event == "short_click" || event == "long_click") {
+            if (component.empty()) {
+              ESP_LOGW("script", "Missing component for button click event");
+              return;
+            }
+
             // Button click event
             ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
               {"device_name", id(device_name).c_str()},
@@ -624,13 +675,6 @@ script:
               {"component", component.c_str()},
               {"command", event.c_str()}
             });
-          } else if (event == "params") {
-              ESP_LOGI("script", "Display parameters received:");
-              id(display_mode) = json["display_mode"].as<uint8_t>();
-              id(display_charset) = json["charset"].as<uint8_t>();
-              ESP_LOGI("script", "  Display mode:    %" PRIu8, id(display_mode));
-              ESP_LOGI("script", "  Display charset: %" PRIu8, id(display_charset));
-              disp1->send_command("tm_esphome.en=0");
           } else {
             // Generic event
             ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
@@ -645,15 +689,7 @@ script:
             });
           }
 
-      # Extended by:
-      #   - nspanel_esphome_core_page_alarm.yaml
-      #   - nspanel_esphome_core_page_climate.yaml
-      #   - nspanel_esphome_core_page_cover.yaml
-      #   - nspanel_esphome_core_page_fan.yaml
-      #   - nspanel_esphome_core_page_keyb_num.yaml
-      #   - nspanel_esphome_core_page_light.yaml
-      #   - nspanel_esphome_core_page_media_player.yaml
-      #   - nspanel_esphome_core_versioning.yaml
+          ESP_LOGV("script", "Event sent to Home Assistant successfully");
 
   - id: goto_page_id
     mode: restart

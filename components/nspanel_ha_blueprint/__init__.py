@@ -37,6 +37,7 @@ async def to_code(config):
         add_idf_sdkconfig_option("CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY", True)
         add_idf_sdkconfig_option("CONFIG_SPIRAM_RODATA", True)
         add_idf_sdkconfig_option("CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP", True)
+        add_idf_sdkconfig_option("CONFIG_ESPTOOLPY_FLASHSIZE_4MB", True)
 
     cg.add_define("USE_NSPANEL_HA_BLUEPRINT")
     cg.add_global(nspanel_ha_blueprint_ns.using)

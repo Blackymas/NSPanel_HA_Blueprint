@@ -59,7 +59,7 @@ namespace nspanel_ha_blueprint {
             full_name += "-" + std::string(hex_suffix);
 #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_WARNING
         } else {
-            esphome::ESP_LOGW("generate_device_name", "Failed to read MAC address! Suffix not added.");
+            ESP_LOGW("generate_device_name", "Failed to read MAC address! Suffix not added.");
 #endif  // ESPHOME_LOG_LEVEL
         }
 #endif  // ESP_MAC_WIFI_STA

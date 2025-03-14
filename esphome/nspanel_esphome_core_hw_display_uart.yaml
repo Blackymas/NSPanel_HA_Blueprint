@@ -74,11 +74,11 @@ script:
             - lambda: return not isnan(tf_uart->get_baud_rate());
           timeout: 15s
       - wait_until:
-          condition: &nextion_is_connected
-            - lambda: return disp1->is_connected();
+          condition: &nextion_is_detected
+            - lambda: return disp1->is_detected();
           timeout: 5s
       - if:
-          condition: *nextion_is_connected
+          condition: *nextion_is_detected
           then:
             - lambda: |-
                 ESP_LOGI("script", "Display connected at boot with baud rate %" PRIu32, tf_uart->get_baud_rate());
@@ -121,23 +121,26 @@ script:
       - while:
           condition:
             or:
-              - lambda: return not disp1->is_connected();
+              - lambda: return not disp1->is_detected();
               - lambda: return (tf_uart->get_baud_rate() != ${BAUD_RATE});
           then:
-            - repeat:
-                count: 5
+            - if:
+                condition: &nextion_is_NOT_connected
+                  - lambda: return not disp1->is_detected();
                 then:
-                  - if:
-                      condition: &nextion_is_NOT_connected
-                        - lambda: return not disp1->is_connected();
+                  - logger.log: Waiting for Nextion
+                  - repeat:
+                      count: 5
                       then:
-                        - logger.log: Waiting for Nextion
-                        - wait_until:
-                            condition: *nextion_is_connected
-                            timeout: 1s  # ${WAIT_TIME}ms
+                        - if:
+                            condition: *nextion_is_NOT_connected
+                            then:
+                              - wait_until:
+                                  condition: *nextion_is_detected
+                                  timeout: 1s  # ${WAIT_TIME}ms
             - if:
                 condition:
-                  - lambda: return disp1->is_connected();
+                  - lambda: return disp1->is_detected();
                 then:
                   - lambda: |-
                       ESP_LOGI("script", "Nextion detected at %" PRIu32 "bps", tf_uart->get_baud_rate());
@@ -178,7 +181,7 @@ script:
                   - script.wait: set_baud_rate
             - if:
                 condition:
-                  - lambda: return disp1->is_connected();
+                  - lambda: return disp1->is_detected();
                   - lambda: return (tf_uart->get_baud_rate() == ${BAUD_RATE});
                 then:
                   - lambda: |-
