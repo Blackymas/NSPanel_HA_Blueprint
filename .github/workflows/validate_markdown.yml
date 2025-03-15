@@ -17,23 +17,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@main
+        uses: actions/checkout@v4
         with:
-          fetch-depth: '0'
+          fetch-depth: 0  # Ensures full commit history for diff
 
-      # https://github.com/marketplace/actions/markdownlint-cli2-action
       - name: Identify changed files
-        uses: tj-actions/changed-files@v41
         id: changed-files
-        with:
-          files: '**/*.md'
-          separator: ","
-      # https://github.com/marketplace/actions/markdownlint-cli2-action
+        run: |
+          BASE=${{ github.event.before }}
+          HEAD=${{ github.sha }}
+          FILES=$(git diff --name-only $BASE $HEAD -- '**/*.md' | tr '\n' ',')
+          echo "changed_files=$FILES" >> $GITHUB_ENV
+          if [[ -n "$FILES" ]]; then
+            echo "any_changed=true" >> $GITHUB_ENV
+          else
+            echo "any_changed=false" >> $GITHUB_ENV
+          fi
+
       - name: Markdown Lint
         uses: DavidAnson/markdownlint-cli2-action@v14
-        if: steps.changed-files.outputs.any_changed == 'true'
+        if: env.any_changed == 'true'
         with:
-          globs: ${{ steps.changed-files.outputs.all_changed_files }}
+          globs: ${{ env.changed_files }}
           separator: ","
           config: '.rules/.markdownlint.jsonc'
           fix: true
@@ -43,15 +48,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@main
+        uses: actions/checkout@v4
         with:
-          fetch-depth: '0'
+          fetch-depth: 0
 
-      # https://github.com/gaurav-nelson/github-action-markdown-link-check
+      - name: Identify changed files
+        id: changed-files
+        run: |
+          BASE=${{ github.event.before }}
+          HEAD=${{ github.sha }}
+          FILES=$(git diff --name-only $BASE $HEAD -- '**/*.md' | tr '\n' ',')
+          echo "changed_files=$FILES" >> $GITHUB_ENV
+          if [[ -n "$FILES" ]]; then
+            echo "any_changed=true" >> $GITHUB_ENV
+          else
+            echo "any_changed=false" >> $GITHUB_ENV
+          fi
+
       - name: Markdown links
         uses: gaurav-nelson/github-action-markdown-link-check@v1
+        if: env.any_changed == 'true'
         with:
-          # yamllint disable-line rule:truthy
           check-modified-files-only: yes
           config-file: '.rules/mlc_config.json'
           base-branch: 'main'
