@@ -19,26 +19,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@main
+        uses: actions/checkout@v4
         with:
-          fetch-depth: '0'
+          fetch-depth: 0  # Ensures full commit history for diff
 
       - name: Identify changed files
-        uses: tj-actions/changed-files@v41
         id: changed-files
-        with:
-          files: '**/*.y*ml'
-          separator: ","
+        run: |
+          BASE=${{ github.event.before }}
+          HEAD=${{ github.sha }}
+          FILES=$(git diff --name-only $BASE $HEAD -- '**/*.yml' '**/*.yaml' | tr '\n' ',')
+          echo "changed_files=$FILES" >> $GITHUB_ENV
+          if [[ -n "$FILES" ]]; then
+            echo "any_changed=true" >> $GITHUB_ENV
+          else
+            echo "any_changed=false" >> $GITHUB_ENV
+          fi
 
       - name: Validate YAML
-        if: steps.changed-files.outputs.any_changed == 'true'
+        if: env.any_changed == 'true'
         run: |
-          IFS=',' read -ra FILES <<< "${{ steps.changed-files.outputs.all_changed_files }}"
+          IFS=',' read -ra FILES <<< "${{ env.changed_files }}"
           for file in "${FILES[@]}"; do
             if [[ "$file" =~ ^nspanel_esphome.*\.yaml$ ]] || \
-              [[ "$file" =~ ^esphome/nspanel_esphome.*\.yaml$ ]] || \
-              [[ "$file" =~ ^prebuilt/nspanel_esphome.*\.yaml$ ]] || \
-              [[ "$file" == "nspanel_blueprint.yaml" ]]; then
+               [[ "$file" =~ ^esphome/nspanel_esphome.*\.yaml$ ]] || \
+               [[ "$file" =~ ^prebuilt/nspanel_esphome.*\.yaml$ ]] || \
+               [[ "$file" == "nspanel_blueprint.yaml" ]]; then
               echo "Skipping $file"
               continue
             fi
