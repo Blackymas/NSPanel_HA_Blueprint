@@ -55,11 +55,16 @@ async def to_code(config):
         add_idf_sdkconfig_option("CONFIG_SPIRAM_RODATA", True)
         add_idf_sdkconfig_option("CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP", True)
         ##### TO BE TESTED LATER IN ORDER TO OPTIMIZE MEMORY #####
-        # add_idf_sdkconfig_option("CONFIG_MBEDTLS_SSL_MAX_CONTENT_LEN", 4096)  # Default is 16 KB
+        add_idf_sdkconfig_option("CONFIG_MBEDTLS_SSL_MAX_CONTENT_LEN", 4096)  # Default is 16 KB
         # add_idf_sdkconfig_option("CONFIG_ESP32_WIFI_IRAM_OPT", False)         # Optional: if not optimizing for speed
         # add_idf_sdkconfig_option("CONFIG_ESP32_WIFI_RX_IRAM_OPT", False)      # Optional
         # add_idf_sdkconfig_option("CONFIG_FREERTOS_HZ", 100)                   # Reduces context switching
         # add_idf_sdkconfig_option("CONFIG_TCP_MAX_SYN_RETRIES", 3)             # Lower memory for TCP stack
+        add_idf_sdkconfig_option("CONFIG_MBEDTLS_KEY_EXCHANGE_RSA", False)
+        add_idf_sdkconfig_option("CONFIG_MBEDTLS_KEY_EXCHANGE_PSK", False)
+        add_idf_sdkconfig_option("CONFIG_MBEDTLS_KEY_EXCHANGE_DHE_PSK", False)
+        add_idf_sdkconfig_option("CONFIG_MBEDTLS_KEY_EXCHANGE_ECDHE_RSA", False)
+        add_idf_sdkconfig_option("CONFIG_MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA", True)
 
     cg.add_define("USE_NSPANEL_HA_BLUEPRINT")
     cg.add_global(nspanel_ha_blueprint_ns.using)
