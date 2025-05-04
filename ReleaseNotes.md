@@ -110,6 +110,9 @@ Updated scripts require adjustments to these customizations:
 - [Sleep & Wake-up buttons](docs/customization.md#sleep--wake-up-buttons)  
 - [Set display as a light (deprecated)](docs/customization.md#set-display-as-a-light)
 
+### Dropped support to *Wall Display*
+This was an experimental feature, but the available memory on the NSPanel can't support all the desired features.
+
 ## Noteworthy Changes
 
 ### Core and Standard Functionality Split
