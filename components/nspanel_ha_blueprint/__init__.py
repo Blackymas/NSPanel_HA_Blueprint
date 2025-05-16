@@ -31,7 +31,7 @@ async def to_code(config):
             add_idf_sdkconfig_option("CONFIG_D0WD_PSRAM_CLK_IO", clk_pin)
 
     if PSRAM_CS_PIN in config:
-        cs_pin  = config[PSRAM_CS_PIN]
+        cs_pin = config[PSRAM_CS_PIN]
 
         if CORE.using_arduino:
             cg.add_build_flag(f"-DCONFIG_D0WD_PSRAM_CS_IO={cs_pin}")
@@ -43,13 +43,13 @@ async def to_code(config):
         add_idf_sdkconfig_option("CONFIG_BT_ALLOCATION_FROM_SPIRAM_FIRST", True)
         add_idf_sdkconfig_option("CONFIG_BT_BLE_DYNAMIC_ENV_MEMORY", True)
         add_idf_sdkconfig_option("CONFIG_ESP32_REV_MIN_3", True)
-        add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_BUFFER", True)
-        add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_FREE_CA_CERT", True)
-        add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA", True)
-        add_idf_sdkconfig_option("CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC", True)
-        add_idf_sdkconfig_option("CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY", True)
-        add_idf_sdkconfig_option("CONFIG_SPIRAM_RODATA", True)
-        add_idf_sdkconfig_option("CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP", True)
+        # add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_BUFFER", True)
+        # add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_FREE_CA_CERT", True)
+        # add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA", True)
+        # add_idf_sdkconfig_option("CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC", True)
+        # add_idf_sdkconfig_option("CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY", True)
+        # add_idf_sdkconfig_option("CONFIG_SPIRAM_RODATA", True)
+        # add_idf_sdkconfig_option("CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP", True)
 
     cg.add_define("USE_NSPANEL_HA_BLUEPRINT")
     cg.add_global(nspanel_ha_blueprint_ns.using)
