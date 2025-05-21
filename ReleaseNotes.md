@@ -58,7 +58,7 @@ This change is aimed at improving functionality and compatibility but may requir
    Pay special attention to the examples section, which offers valuable insights and practical guidance for adapting your existing setups seamlessly.
 
 4. **15s Hardware Button Press No Longer Restarts the Device**: This feature was removed to repurpose the hardware button for more versatile uses.
-   - **What to Do**: If you relied on this feature, see our [customization guide](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md#restart-with-15s-button-press) for alternatives.
+   - **What to Do**: If you relied on this feature, see our [customization guide](docs/customization.md#restart-with-15s-button-press) for alternatives.
    Additionally, the reset pin remains an option for manual resets.
 
 5. **Relay Fallback Switches Removed**: These switches were deprecated and have now been removed to streamline the firmware and reduce memory usage.
@@ -787,7 +787,7 @@ ensuring improved performance and user experience.
 
 > [!WARNING]
 > Home Assistant v2024.6.0 and ESPHome v2024.3.0 are required.
-> Please take a look at our [Version compatibility matrix](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/version_compatibility.md) for a full list.
+> Please take a look at our [Version compatibility matrix](docs/version_compatibility.md) for a full list.
 
 ### Bluetooth Proxy Addon Crash Fixed (#2119)
 - **Criticality:** Major
