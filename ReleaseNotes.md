@@ -58,7 +58,7 @@ This change is aimed at improving functionality and compatibility but may requir
    Pay special attention to the examples section, which offers valuable insights and practical guidance for adapting your existing setups seamlessly.
 
 4. **15s Hardware Button Press No Longer Restarts the Device**: This feature was removed to repurpose the hardware button for more versatile uses.
-   - **What to Do**: If you relied on this feature, see our [customization guide](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md#restart-with-15s-button-press) for alternatives.
+   - **What to Do**: If you relied on this feature, see our [customization guide](docs/customization.md#restart-with-15s-button-press) for alternatives.
    Additionally, the reset pin remains an option for manual resets.
 
 5. **Relay Fallback Switches Removed**: These switches were deprecated and have now been removed to streamline the firmware and reduce memory usage.
@@ -787,7 +787,7 @@ ensuring improved performance and user experience.
 
 > [!WARNING]
 > Home Assistant v2024.6.0 and ESPHome v2024.3.0 are required.
-> Please take a look at our [Version compatibility matrix](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/version_compatibility.md) for a full list.
+> Please take a look at our [Version compatibility matrix](docs/version_compatibility.md) for a full list.
 
 ### Bluetooth Proxy Addon Crash Fixed (#2119)
 - **Criticality:** Major
@@ -946,6 +946,9 @@ These fixes ensure accurate and consistent time display, fully synchronized with
   affecting users with time discrepancies between the panel and Home Assistant.
   The fix includes improvements in the propagation of timezone settings from the Blueprint, ensuring the home page accurately reflects the configured timezone.
 
+## v4.3.13 - Hotfix for crash with climate add-on with ESPHome v2025.5.0
+This hotfix addresses critical issues with an incorrect relay assignment causing a crash with ESPHome v2025.5.0.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
@@ -964,6 +967,7 @@ Your contributions have made our guides more informative and accessible, enrichi
 -  **@briangunderson**: For updating the docs to reflect to the new name for '**action**' (formelly '**service**') on Home Assistant v2024.8.0 (#2236)
 
 ## Previous releases
+- [v4.3.12 - Hotfix for Incorrect Timezone Calculation Issues](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.12)
 - [v4.3.11 - Hotfix for TFT File Download Issue](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.11)
 - [v4.3.10 - Boot Stability Enhancements and Troubleshooting Support](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.10)
 - [v4.3.9 - Ensuring Compatibility with ESPHome v2024.6.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.9)
