@@ -949,6 +949,11 @@ These fixes ensure accurate and consistent time display, fully synchronized with
 ## v4.3.13 - Hotfix for crash with climate add-on with ESPHome v2025.5.0
 This hotfix addresses critical issues with an incorrect relay assignment causing a crash with ESPHome v2025.5.0.
 
+## v4.3.14 - Hotfix for crash with climate add-on with ESPHome v2025.5.0
+This hotfix addresses critical issues with a looger related stack overflow from ESPHome v2025.5.0 causing crash in some devices.
+
+*Attention:* ESPHome v2025.4.2 or later is now required.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
@@ -967,6 +972,7 @@ Your contributions have made our guides more informative and accessible, enrichi
 -  **@briangunderson**: For updating the docs to reflect to the new name for '**action**' (formelly '**service**') on Home Assistant v2024.8.0 (#2236)
 
 ## Previous releases
+- [v4.3.13 - Hotfix for crash with climate add-on with ESPHome v2025.5.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.13)
 - [v4.3.12 - Hotfix for Incorrect Timezone Calculation Issues](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.12)
 - [v4.3.11 - Hotfix for TFT File Download Issue](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.11)
 - [v4.3.10 - Boot Stability Enhancements and Troubleshooting Support](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.10)
