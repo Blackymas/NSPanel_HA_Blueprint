@@ -957,7 +957,7 @@ This hotfix addresses critical issues with a looger related stack overflow from 
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
-or our [online documentation](/docs/README.md).
+or our [online documentation](docs/README.md).
 
 ## What's Next?
 Discover our upcoming projects in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open).
@@ -970,6 +970,7 @@ Your efforts have significantly improved its functionality and reliability (#183
 Your contributions have made our guides more informative and accessible, enriching the user experience for everyone (#1865).
 -  **@AJediIAm**: For the valuable contributions in reviewing and improving the installation documentation (#2106 & #2107).
 -  **@briangunderson**: For updating the docs to reflect to the new name for '**action**' (formelly '**service**') on Home Assistant v2024.8.0 (#2236)
+-  **@Bascht74**: For the detailed investigation and report on #2543.
 
 ## Previous releases
 - [v4.3.13 - Hotfix for crash with climate add-on with ESPHome v2025.5.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.13)
