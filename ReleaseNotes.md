@@ -952,7 +952,7 @@ This hotfix addresses critical issues with an incorrect relay assignment causing
 ## v4.3.14 - Hotfix for crash with climate add-on with ESPHome v2025.5.0
 This hotfix addresses critical issues with a looger related stack overflow from ESPHome v2025.5.0 causing crash in some devices.
 
-*Attention:* ESPHome v2025.4.2 or later is now required.
+**Attention**: ESPHome v2025.4.2 or later is now required.
 
 ## Support
 For support or more information about this update,
@@ -970,7 +970,7 @@ Your efforts have significantly improved its functionality and reliability (#183
 Your contributions have made our guides more informative and accessible, enriching the user experience for everyone (#1865).
 -  **@AJediIAm**: For the valuable contributions in reviewing and improving the installation documentation (#2106 & #2107).
 -  **@briangunderson**: For updating the docs to reflect to the new name for '**action**' (formelly '**service**') on Home Assistant v2024.8.0 (#2236)
--  **@Bascht74**: For the detailed investigation and report on #2543.
+-  **@Bascht74**: For your thorough investigation and clear reporting in issue #2543, which helped us identify and address a critical edge case.
 
 ## Previous releases
 - [v4.3.13 - Hotfix for crash with climate add-on with ESPHome v2025.5.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.13)
