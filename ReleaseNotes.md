@@ -957,7 +957,7 @@ This hotfix addresses critical issues with a looger related stack overflow from 
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
-or our [online documentation](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/README.md).
+or our [online documentation](/docs/README.md).
 
 ## What's Next?
 Discover our upcoming projects in our [Milestones](https://github.com/Blackymas/NSPanel_HA_Blueprint/milestones?direction=asc&sort=title&state=open).
