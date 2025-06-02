@@ -12,6 +12,7 @@ substitutions:
   DISPLAY_CHARSET_CJK: '2'
   GPIO_DISPLAY_POWER_PIN: '4'
   GPIO_DISPLAY_POWER_INVERTED: 'true'
+  TAG_CORE_HW_DISPLAY: core_hw_display
 
 packages:
   # yamllint disable rule:colons
@@ -29,7 +30,7 @@ api:
         cmd: string
       then:
         - lambda: |-
-            ESP_LOGD("api", cmd.c_str());
+            ESP_LOGD("${TAG_CORE_HW_DISPLAY}", cmd.c_str());
             disp1->send_command(cmd.c_str());
 
     # Component action
@@ -44,20 +45,19 @@ api:
       then:
         - lambda: |-
             #if ESP_LOG_LEVEL >= ESP_LOG_DEBUG
-            ESP_LOGD("api", "Component '%s' on page '%s' was updated:",
-                      component.c_str(), page.c_str());
+            ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "Updated '%s.%s':", page.c_str(), component.c_str());
             const uint16_t txt_len = txt.length();
             if (txt_len == 3) {
               const uint32_t codepoint = decode_utf8(txt.c_str());
-              ESP_LOGD("api", "  txt:     %s (\\u%04" PRIx32 ")", txt.c_str(), codepoint);
+              ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "  txt:     %s (\\u%04" PRIx32 ")", txt.c_str(), codepoint);
             } else if (txt_len > 0) {
-              ESP_LOGD("api", "  txt:     '%s' (len=%" PRIu16 ")", txt.c_str(), txt_len);
+              ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "  txt:     '%s' (len=%" PRIu16 ")", txt.c_str(), txt_len);
             } else {
-              ESP_LOGD("api", "  txt:     null (len=0)");
+              ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "  txt:     null (len=0)");
             }
-            ESP_LOGD("api", "  color:   %" PRIu16, color565(color));
-            ESP_LOGD("api", "  font:    %" PRIi32, font);
-            ESP_LOGD("api", "  visible: %s", YESNO(visible));
+            ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "  color:   %" PRIu16, color565(color));
+            ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "  font:    %" PRIi32, font);
+            ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "  visible: %s", YESNO(visible));
             #endif
             if (not page.empty() and not component.empty())
               display_component_action->execute(get_page_id(page.c_str()), component.c_str(),
@@ -71,8 +71,7 @@ api:
         val: int           # New integer value to set for the component.
       then:
         - lambda: |-
-            ESP_LOGD("api", "New value for component '%s' on page '%s': %" PRIi32,
-                      component.c_str(), page.c_str(), val);
+            ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "'%s.%s': %" PRIi32, page.c_str(), component.c_str(), val);
             if (!page.empty() and !component.empty())
               set_component_value->execute(get_page_id(page.c_str()), component.c_str(), val);
 
@@ -83,7 +82,7 @@ api:
         back_page: string  # Specifies the page to return to. Accepts "home" or "buttonpage01" to "buttonpage04".
       then:
         - lambda: |-
-            ESP_LOGD("api", "Show details of entity '%s'", entity_id.c_str());
+            ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "Show entity '%s'", entity_id.c_str());
             if (not entity_id.empty() and not back_page.empty())
               entity_details_show_action->execute(entity_id.c_str(), get_page_id(back_page.c_str()));
 
@@ -356,7 +355,7 @@ script:
           timeout: 2s
       - lambda: |-
           if (display_component->page_id == current_page_id or display_component->global) {
-            ESP_LOGD("script", "Rendering page %s, component %s",
+            ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "Rendering page %s, component %s",
                       page_names[display_component->page_id], display_component->component);
             if (not display_component->global) {
               display_component_send_text->execute(display_component);
@@ -509,8 +508,8 @@ script:
     then:
       - lambda: |-
           screen_power->turn_off();
-          ESP_LOGE("script", "Nextion reported a buffer overflow");
-          ESP_LOGE("script", "Increasing the display command spacing...");
+          ESP_LOGE("${TAG_CORE_HW_DISPLAY}", "Nextion buffer overflow");
+          ESP_LOGE("${TAG_CORE_HW_DISPLAY}", "Increasing command spacing");
       - number.increment:
           id: display_command_spacing
           cycle: false
@@ -519,10 +518,10 @@ script:
             - lambda: return global_preferences->sync();
           then:
             - lambda: |-
-                ESP_LOGE("script", "Restarting ESP in 15s to avoid getting out of sync with Nextion");
+                ESP_LOGE("${TAG_CORE_HW_DISPLAY}", "Restarting in 15s to avoid getting out of sync with Nextion");
             - delay: 15s
             - lambda: |-
-                ESP_LOGE("script", "Restarting ESP now");
+                ESP_LOGE("${TAG_CORE_HW_DISPLAY}", "Restarting");
                 App.safe_reboot();
 
   - id: display_wrapped_text
@@ -568,25 +567,25 @@ script:
       - lambda: |-
           // Report Nextion status
           nextion_init->publish_state(nextion_init->state and disp1->is_setup());
-          ESP_LOGI("${project_tag}", "Nextion:");
-          ESP_LOGI("${project_tag}", "  Command spacing: %" PRIu8 "ms",
+          ESP_LOGI("${TAG_CORE_HW_DISPLAY}", "Nextion:");
+          ESP_LOGI("${TAG_CORE_HW_DISPLAY}", "  Command spacing: %" PRIu8 "ms",
                     static_cast<uint8_t>(display_command_spacing->state));
-          ESP_LOGI("${project_tag}", "  Queue size:      %d", disp1->queue_size());
+          ESP_LOGI("${TAG_CORE_HW_DISPLAY}", "  Queue size:  %d", disp1->queue_size());
           if (disp1->is_setup())
-            ESP_LOGI("${project_tag}", "  Is setup:        True");
+            ESP_LOGI("${TAG_CORE_HW_DISPLAY}", "  Is setup:    True");
           else {
-            ESP_LOGW("${project_tag}", "  Is setup:        False");
-            ESP_LOGW("${project_tag}", "  Is detected:     %s", YESNO(disp1->is_detected()));
+            ESP_LOGW("${TAG_CORE_HW_DISPLAY}", "  Is setup:    False");
+            ESP_LOGW("${TAG_CORE_HW_DISPLAY}", "  Is detected: %s", YESNO(disp1->is_detected()));
             //exit_reparse->execute();
           }
           if (nextion_init->state) {
-            ESP_LOGI("${project_tag}", "  Init:            True");
+            ESP_LOGI("${TAG_CORE_HW_DISPLAY}", "  Init:        True");
           } else
-            ESP_LOGW("${project_tag}", "  Init:            False");
+            ESP_LOGW("${TAG_CORE_HW_DISPLAY}", "  Init:        False");
           if (version_tft->state.empty())
-            ESP_LOGW("${project_tag}", "  TFT:             UNKNOWN");
+            ESP_LOGW("${TAG_CORE_HW_DISPLAY}", "  TFT:         UNKNOWN");
           else
-            ESP_LOGI("${project_tag}", "  TFT:             %s", version_tft->state.c_str());
+            ESP_LOGI("${TAG_CORE_HW_DISPLAY}", "  TFT:         %s", version_tft->state.c_str());
 
   - id: entity_details_show_action
     mode: restart
@@ -632,13 +631,13 @@ script:
       #   - nspanel_esphome_core_versioning.yaml
       - lambda: |-
           if (page.empty()) {
-            ESP_LOGW("script", "Received empty page parameter");
+            ESP_LOGW("${TAG_CORE_HW_DISPLAY}", "Received empty page parameter");
             return;
           }
 
           // Extract required fields with validation
           if (!json.containsKey("event")) {
-            ESP_LOGW("script", "Missing required 'event' field in JSON");
+            ESP_LOGW("${TAG_CORE_HW_DISPLAY}", "Missing 'event' field");
             return;
           }
           const std::string event = json["event"].as<std::string>();
@@ -647,13 +646,13 @@ script:
           const std::string value = json.containsKey("value") ?
             json["value"].as<std::string>() : "";
 
-          ESP_LOGV("script", "Processing display event: page=%s, event=%s, component=%s",
+          ESP_LOGV("${TAG_CORE_HW_DISPLAY}", "Processing display event: page=%s, event=%s, component=%s",
             page.c_str(), event.c_str(), component.c_str());
 
           // Handle special events
           if (event == "params") {
             if (!json.containsKey("display_mode") || !json.containsKey("charset")) {
-              ESP_LOGW("script", "Missing required display parameters");
+              ESP_LOGW("${TAG_CORE_HW_DISPLAY}", "Missing display parameters");
               return;
             }
 
@@ -661,9 +660,9 @@ script:
             id(display_mode) = json["display_mode"].as<uint8_t>();
             id(display_charset) = json["charset"].as<uint8_t>();
 
-            ESP_LOGI("script", "Display parameters received:");
-            ESP_LOGI("script", "  Display mode:    %" PRIu8, id(display_mode));
-            ESP_LOGI("script", "  Display charset: %" PRIu8, id(display_charset));
+            ESP_LOGI("${TAG_CORE_HW_DISPLAY}", "Display parameters:");
+            ESP_LOGI("${TAG_CORE_HW_DISPLAY}", "  Mode:    %" PRIu8, id(display_mode));
+            ESP_LOGI("${TAG_CORE_HW_DISPLAY}", "  Charset: %" PRIu8, id(display_charset));
 
             disp1->send_command("tm_esphome.en=0");
             return;
@@ -674,7 +673,7 @@ script:
 
           if (event == "short_click" || event == "long_click") {
             if (component.empty()) {
-              ESP_LOGW("script", "Missing component for button click event");
+              ESP_LOGW("${TAG_CORE_HW_DISPLAY}", "Missing component for button click event");
               return;
             }
 
@@ -685,7 +684,8 @@ script:
               {"type", "button_click"},
               {"page", page.c_str()},
               {"component", component.c_str()},
-              {"command", event.c_str()}
+              {"command", event.c_str()},
+              {"tag", "${TAG_CORE_HW_DISPLAY}"}
             });
           } else {
             // Generic event
@@ -697,11 +697,12 @@ script:
               {"component", component.c_str()},
               {"event", event.c_str()},
               {"value", value.c_str()},
-              {"entity", detailed_entity->state.c_str()}
+              {"entity", detailed_entity->state.c_str()},
+              {"tag", "${TAG_CORE_HW_DISPLAY}"}
             });
           }
 
-          ESP_LOGV("script", "Event sent to Home Assistant successfully");
+          ESP_LOGV("${TAG_CORE_HW_DISPLAY}", "Home Assistant event sent");
 
   - id: goto_page_id
     mode: restart
@@ -732,7 +733,7 @@ script:
             }
             if (is_new_page or new_page_id == ${PAGE_ID_BOOT}) {
               // Report new page to logs
-              ESP_LOGI("display", "Page changed from \"%s\" to \"%s\"", page_names[previous_page_id],
+              ESP_LOGI("${TAG_CORE_HW_DISPLAY}", "Page changed from \"%s\" to \"%s\"", page_names[previous_page_id],
                         page_names[new_page_id]);
 
               // Reset entity_id when it does not apply
@@ -749,7 +750,8 @@ script:
                 {"type", "page_changed"},
                 {"page", page_names[new_page_id]},
                 {"from", page_names[previous_page_id]},
-                {"entity", detailed_entity->state.c_str()}
+                {"entity", detailed_entity->state.c_str()},
+                {"tag", "${TAG_CORE_HW_DISPLAY}"}
               });
             }
             page_changed_rendering_components->execute();
@@ -945,8 +947,8 @@ text_sensor:
             DynamicJsonDocument json(1024);
             DeserializationError error = deserializeJson(json, x.c_str());
             if (error) {
-              ESP_LOGE("text_sensor", "Error parsing json: %s", x.c_str());
-              ESP_LOGE("text_sensor", "Error: %s", error.c_str());
+              ESP_LOGE("${TAG_CORE_HW_DISPLAY}", "Error parsing json: %s", x.c_str());
+              ESP_LOGE("${TAG_CORE_HW_DISPLAY}", "Error: %s", error.c_str());
             } else {
               const std::string page = json["page"];
               event_from_display->execute(json, page.c_str());
