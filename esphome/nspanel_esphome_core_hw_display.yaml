@@ -102,6 +102,8 @@ display:
   - id: disp1
     platform: nextion
     command_spacing: 5ms
+    # max_commands_per_loop: 15  # add when PR#8972 is merged in ESPHome
+    # max_queue_size: 20  # add when PR#8976 is merged in ESPHome
 
     on_buffer_overflow:
       then:
@@ -250,9 +252,9 @@ number:
     name: Display Command Spacing
     platform: template
     entity_category: config
-    min_value: 0
+    min_value: 1
     max_value: 255
-    initial_value: 0
+    initial_value: 5
     step: 1
     unit_of_measurement: msec
     restore_value: true
@@ -276,7 +278,7 @@ script:
 
   - id: !extend boot_sequence
     then:
-      - script.wait: scan_baud_rate
+      - script.wait: boot_scan_baud_rate
       - wait_until:
           condition:
             - lambda: return not isnan(display_sleep_brightness->state);
@@ -521,7 +523,7 @@ script:
             - delay: 15s
             - lambda: |-
                 ESP_LOGE("script", "Restarting ESP now");
-                arch_restart();
+                App.safe_reboot();
 
   - id: display_wrapped_text
     mode: queued
@@ -567,7 +569,7 @@ script:
           // Report Nextion status
           nextion_init->publish_state(nextion_init->state and disp1->is_setup());
           ESP_LOGI("${project_tag}", "Nextion:");
-          ESP_LOGI("${project_tag}", "  Command spacing: %" PRIu8,
+          ESP_LOGI("${project_tag}", "  Command spacing: %" PRIu8 "ms",
                     static_cast<uint8_t>(display_command_spacing->state));
           ESP_LOGI("${project_tag}", "  Queue size:      %d", disp1->queue_size());
           if (disp1->is_setup())
@@ -678,7 +680,7 @@ script:
 
             // Button click event
             ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
-              {"device_name", id(device_name).c_str()},
+              {"device_name", nspanel_ha_blueprint::get_device_name()},
               {"esphome_version", "${version}"},
               {"type", "button_click"},
               {"page", page.c_str()},
@@ -688,7 +690,7 @@ script:
           } else {
             // Generic event
             ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
-              {"device_name", id(device_name).c_str()},
+              {"device_name", nspanel_ha_blueprint::get_device_name()},
               {"esphome_version", "${version}"},
               {"type", "button_click"},
               {"page", page.c_str()},
@@ -742,7 +744,7 @@ script:
               // Inform Home Assistant about the page change
               esphome::api::CustomAPIDevice ha_event;
               ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
-                {"device_name", id(device_name).c_str()},
+                {"device_name", nspanel_ha_blueprint::get_device_name()},
                 {"esphome_version", "${version}"},
                 {"type", "page_changed"},
                 {"page", page_names[new_page_id]},
