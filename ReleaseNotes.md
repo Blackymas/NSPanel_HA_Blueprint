@@ -954,6 +954,12 @@ This hotfix addresses critical issues with a looger related stack overflow from 
 
 **Attention**: ESPHome v2025.4.2 or later is now required.
 
+## v4.3.15 - Hotfix for a building error with ESPHome v2025.5.2
+This hotfix addresses a critical build error introduced by v4.13.14, which points to fix PR on ESPHome for `logger` component,
+however this PR was merged together with other changes, causing an error during the build.
+
+**Attention**: ESPHome v2025.5.2 or later is now required.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
@@ -973,6 +979,7 @@ Your contributions have made our guides more informative and accessible, enrichi
 -  **@Bascht74**: For your thorough investigation and clear reporting in issue #2543, which helped us identify and address a critical edge case.
 
 ## Previous releases
+- [v4.3.14 - Hotfix for crash with climate add-on with ESPHome v2025.5.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.14)
 - [v4.3.13 - Hotfix for crash with climate add-on with ESPHome v2025.5.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.13)
 - [v4.3.12 - Hotfix for Incorrect Timezone Calculation Issues](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.12)
 - [v4.3.11 - Hotfix for TFT File Download Issue](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.11)
