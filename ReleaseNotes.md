@@ -45,7 +45,7 @@ Here's a detailed overview and guidance for a smooth transition:
 
 1. **Home Assistant v2024.3.0 is required**. You can see the full version compatibility list [here](docs/version_compatibility.md).
 
-2. **Transition to ESP-IDF Framework**: This release marks the official switch to the ESP-IDF framework, enhancing performance and allowing for more complex features. 
+2. **Transition to ESP-IDF Framework**: This release marks the official switch to the ESP-IDF framework, enhancing performance and allowing for more complex features.
    - **What to Do**: You'll need to flash your device with the new firmware using a serial connection.
    Detailed instructions are available in our [installation guide](docs/install.md#flashing-the-device-for-the-first-time).
    - **Support for Arduino Framework**: If you're not ready to make the switch or prefer the Arduino framework, it's still supported for OTA updates.
