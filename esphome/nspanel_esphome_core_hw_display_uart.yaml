@@ -32,11 +32,6 @@ esphome:
         - script.execute: boot_scan_baud_rate
 
 globals:
-  - id: DEBUG_step
-    type: uint8_t
-    restore_value: false
-    initial_value: '0'
-
   - id: baud_error_count
     type: uint8_t
     restore_value: true
@@ -51,17 +46,6 @@ globals:
     type: uint8_t
     restore_value: false
     initial_value: '0'
-
-  - id: baud_rates
-    type: const std::vector<uint32_t>
-    restore_value: false
-    initial_value: >  # Target rate first, then most common rates, standard rated and then uncommon rates
-      {
-        ${BAUD_RATE}, 921600, 115200,
-        57600, 38400, 19200, 9600,
-        512000, 256000, 250000,
-        31250, 4800, 2400
-      }
 
 script:
   - id: boot_scan_baud_rate
@@ -144,8 +128,17 @@ script:
                         - lambda: |-
                             ESP_LOGW("${TAG_CORE_HW_DISPLAY_UART}", "Nextion was not detected at %" PRIu32 "bps", tf_uart->get_baud_rate());
                             id(baud_scan_index)++;
+
+                            // Get the baud rates vector with our target rate first
+                            const std::vector<uint32_t> baud_rates_list = {
+                                ${BAUD_RATE},                              // Target baud rate first
+                                921600, 115200,                            // Most common rates
+                                57600, 38400, 19200, 9600,                 // Standard rates
+                                512000, 256000, 250000, 31250, 4800, 2400  // Uncommon rates
+                            };
+
                             // Check if we need to start over
-                            if (id(baud_scan_index) >= id(baud_rates).size()) {
+                            if (id(baud_scan_index) >=  baud_rates_list.size()) {
                               id(baud_scan_index) = 0;
                               if (id(baud_scan_retries) < UINT8_MAX) {
                               id(baud_scan_retries)++;
@@ -153,9 +146,10 @@ script:
                               if (id(baud_error_count) < UINT8_MAX) {
                               id(baud_error_count)++;
                               }
-                              ESP_LOGW("${TAG_CORE_HW_DISPLAY_UART}", "Starting new scan cycle %u", id(baud_scan_retries));
+                              ESP_LOGW("${TAG_CORE_HW_DISPLAY_UART}", "Starting new scan cycle %u",
+                                        id(baud_scan_retries));
                             }
-                            const uint32_t current_baud = id(baud_rates)[id(baud_scan_index)];
+                            const uint32_t current_baud = baud_rates_list[id(baud_scan_index)];
                             ESP_LOGW("${TAG_CORE_HW_DISPLAY_UART}", "Searching for Nextion at %" PRIu32, current_baud);
                             set_baud_rate->execute(current_baud, (current_baud == ${BAUD_RATE}));
                         - script.wait: set_baud_rate
@@ -165,7 +159,8 @@ script:
                         - lambda: return (tf_uart->get_baud_rate() == ${BAUD_RATE});
                       then:
                         - lambda: |-
-                            ESP_LOGI("${TAG_CORE_HW_DISPLAY_UART}", "Nextion detected at %" PRIu32 "bps", tf_uart->get_baud_rate());
+                            ESP_LOGI("${TAG_CORE_HW_DISPLAY_UART}", "Nextion detected at %" PRIu32 "bps",
+                                      tf_uart->get_baud_rate());
                             if (not disp1->is_setup())
                               disp1->setup();
                         - wait_until:
