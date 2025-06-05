@@ -351,101 +351,90 @@ script:
     then:
       - wait_until:
           condition:
-            - lambda: return (display_component->page_id == current_page_id);
+            - lambda: |-
+                // Exit wait if pointer becomes invalid OR condition is met
+                return (!display_component || display_component->page_id == current_page_id);
           timeout: 2s
       - lambda: |-
-          if (display_component->page_id == current_page_id or display_component->global) {
+          // Check if pointer is still valid after wait
+          if (display_component && 
+              (display_component->page_id == current_page_id || display_component->global)) {
             ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "Rendering page %s, component %s",
                       page_names[display_component->page_id], display_component->component);
-            if (not display_component->global) {
+            if (!display_component->global) {
               display_component_send_text->execute(display_component);
               display_component_send_color->execute(display_component);
               display_component_send_font->execute(display_component);
             }
             if (display_component->page_id == current_page_id)
               display_component_send_visibility->execute(display_component);
-          }
+          } // endif display_component still valid after wait
 
   - id: display_component_send_color
     mode: queued
     parameters:
       display_component: DisplayComponent*
     then:
-      - if:
-          condition:
-            - lambda: return (display_component->page_id == current_page_id or display_component->global);
-            - lambda: return not display_component->color_is_updated;
-          then:
-            - lambda: |-
-                if ((display_component->global or display_component->page_id == current_page_id) and
-                    !display_component->color_is_updated) {
-                  disp1->set_component_font_color(
-                      (display_component->page_id == current_page_id) ? display_component->component :
-                      get_page_and_component(page_names[display_component->page_id],
-                                              display_component->component).c_str(),
-                      display_component->color);
-                  display_component->color_is_updated = true;
-                }
+      - lambda:
+          if (display_component &&  // Check if display_component is valid (not nullptr)
+              (display_component->page_id == current_page_id || display_component->global) &&
+              !display_component->color_is_updated) {
+            disp1->set_component_font_color(
+                (display_component->page_id == current_page_id) ? display_component->component :
+                get_page_and_component(page_names[display_component->page_id],
+                                        display_component->component).c_str(),
+                display_component->color);
+            display_component->color_is_updated = true;
+          }
 
   - id: display_component_send_font
     mode: queued
     parameters:
       display_component: DisplayComponent*
     then:
-      - if:
-          condition:
-            - lambda: return (display_component->page_id == current_page_id or display_component->global);
-            - lambda: return display_component->font != UINT8_MAX;
-            - lambda: return not display_component->font_is_updated;
-          then:
-            - lambda: |-
-                if ((display_component->global or display_component->page_id == current_page_id) and
-                    !display_component->font_is_updated) {
-                  disp1->set_component_font(
-                      (display_component->page_id == current_page_id) ? display_component->component :
-                      get_page_and_component(page_names[display_component->page_id],
-                                              display_component->component).c_str(),
-                      display_component->font);
-                  display_component->font_is_updated = true;
-                }
+      - lambda: |-
+          if (display_component &&  // Check if display_component is valid (not nullptr)
+              (display_component->page_id == current_page_id || display_component->global) &&
+              display_component->font != UINT8_MAX &&
+              !display_component->font_is_updated) {
+            disp1->set_component_font(
+                (display_component->page_id == current_page_id) ? display_component->component :
+                get_page_and_component(page_names[display_component->page_id],
+                                        display_component->component).c_str(),
+                display_component->font);
+            display_component->font_is_updated = true;
+          }
 
   - id: display_component_send_text
     mode: queued
     parameters:
       display_component: DisplayComponent*
     then:
-      - if:
-          condition:
-            - lambda: return (display_component->page_id == current_page_id or display_component->global);
-            - lambda: return not display_component->text_is_updated;
-          then:
-            - lambda: |-
-                if ((display_component->global or display_component->page_id == current_page_id) and
-                    !display_component->text_is_updated) {
-                  disp1->set_component_text(
-                      (display_component->page_id == current_page_id) ? display_component->component :
-                      get_page_and_component(page_names[display_component->page_id],
-                                              display_component->component).c_str(),
-                      display_component->text);
-                  display_component->text_is_updated = true;
-                }
+      - lambda: |-
+          if (display_component &&  // Check if display_component is valid (not nullptr)
+              (display_component->page_id == current_page_id || display_component->global) &&
+              !display_component->text_is_updated) {
+            disp1->set_component_text(
+                (display_component->page_id == current_page_id) ? display_component->component :
+                get_page_and_component(page_names[display_component->page_id],
+                                        display_component->component).c_str(),
+                display_component->text);
+            display_component->text_is_updated = true;
+          }
 
   - id: display_component_send_visibility
     mode: queued
     parameters:
       display_component: DisplayComponent*
     then:
-      - if:
-          condition:
-            - lambda: return display_component->page_id == current_page_id;
-            - lambda: return not display_component->visible_is_updated;
-          then:
-            - lambda: |-
-                if (display_component->page_id == current_page_id and !display_component->visible_is_updated) {
-                  disp1->send_command_printf("vis %s,%i", display_component->component,
-                                              display_component->visible ? 1 : 0);
-                  display_component->visible_is_updated = true;
-                }
+      - lambda: |-
+          if (display_component &&  // Check if display_component is valid (not nullptr)
+              display_component->page_id == current_page_id &&
+              !display_component->visible_is_updated) {
+            disp1->send_command_printf("vis %s,%i", display_component->component,
+                                        display_component->visible ? 1 : 0);
+            display_component->visible_is_updated = true;
+          }
 
   - id: display_component_update_color
     mode: parallel
@@ -454,12 +443,14 @@ script:
       new_color: uint16_t
     then:
       - lambda: |-
-          if (new_color != display_component->color) {
-            display_component->color = new_color;
-            display_component->color_is_updated = false;
+          if (display_component) {  // Check if display_component is valid (not nullptr)
+            if (new_color != display_component->color) {
+              display_component->color = new_color;
+              display_component->color_is_updated = false;
+            }
+            if (!display_component->color_is_updated)
+              display_component_send_color->execute(display_component);
           }
-          if (!display_component->color_is_updated)
-            display_component_send_color->execute(display_component);
 
   - id: display_component_update_font
     mode: parallel
@@ -468,12 +459,14 @@ script:
       new_font: uint8_t
     then:
       - lambda: |-
-          if (new_font != display_component->font) {
-            display_component->font = new_font;
-            display_component->font_is_updated = false;
+          if (display_component) {  // Check if display_component is valid (not nullptr)
+            if (new_font != display_component->font) {
+              display_component->font = new_font;
+              display_component->font_is_updated = false;
+            }
+            if (!display_component->font_is_updated)
+              display_component_send_font->execute(display_component);
           }
-          if (!display_component->font_is_updated)
-            display_component_send_font->execute(display_component);
 
   - id: display_component_update_text
     mode: parallel
@@ -482,12 +475,14 @@ script:
       new_text: string
     then:
       - lambda: |-
-          if (new_text != display_component->text) {
-            copyStringToCharArray(display_component->text, new_text);
-            display_component->text_is_updated = false;
+          if (display_component) {  // Check if display_component is valid (not nullptr)
+            if (new_text != display_component->text) {
+              copyStringToCharArray(display_component->text, new_text);
+              display_component->text_is_updated = false;
+            }
+            if (!display_component->text_is_updated)
+              display_component_send_text->execute(display_component);
           }
-          if (!display_component->text_is_updated)
-            display_component_send_text->execute(display_component);
 
   - id: display_component_update_visibility
     mode: parallel
@@ -496,12 +491,14 @@ script:
       new_visibility: bool
     then:
       - lambda: |-
-          if (new_visibility != display_component->visible) {
-            display_component->visible = new_visibility;
-            display_component->visible_is_updated = false;
+          if (display_component) {                               // Check if display_component is valid (not nullptr)
+            if (new_visibility != display_component->visible) {  // Only update if visibility actually changed
+              display_component->visible = new_visibility;
+              display_component->visible_is_updated = false;
+            }
+            if (!display_component->visible_is_updated)          // Send visibility update if needed
+              display_component_send_visibility->execute(display_component);
           }
-          if (!display_component->visible_is_updated)
-            display_component_send_visibility->execute(display_component);
 
   - id: display_command_spacing_increment
     mode: restart
