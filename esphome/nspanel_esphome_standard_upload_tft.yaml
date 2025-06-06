@@ -105,10 +105,10 @@ script:
   - id: !extend dump_config
     then:
       - lambda: |-
-          ESP_LOGI("${TAG_UPLOAD_TFT}", "Add-on Upload TFT:");
-          ESP_LOGI("${TAG_UPLOAD_TFT}", "  File model:  %s", tft_file_model->state.c_str());
-          ESP_LOGI("${TAG_UPLOAD_TFT}", "  Valid TFT:   %s",
-                        YESNO((id(display_mode) > 0 and id(display_mode) < 4)));
+          ESP_LOGCONFIG("${TAG_UPLOAD_TFT}", "Add-on Upload TFT:");
+          ESP_LOGCONFIG("${TAG_UPLOAD_TFT}", "  File model: %s", tft_file_model->state.c_str());
+          ESP_LOGCONFIG("${TAG_UPLOAD_TFT}", "  Valid TFT:  %s",
+                          YESNO((id(display_mode) > 0 and id(display_mode) < 4)));
 
   - id: !extend check_versions
     then:
@@ -132,7 +132,7 @@ script:
   - id: !extend dump_config_packages  # Defined by nspanel_esphome_core_base.yaml
     then:
       - lambda: |-
-          ESP_LOGI("${TAG_UPLOAD_TFT}", "  - Add-on - Upload TFT");
+          ESP_LOGCONFIG("${TAG_UPLOAD_TFT}", "  - Add-on - Upload TFT");
 
   - id: nextion_status
     mode: restart
@@ -159,7 +159,6 @@ script:
       - lambda: |-
           ESP_LOGI("${TAG_UPLOAD_TFT}", "Starting TFT upload");
           id(tft_upload_result) = disp1->upload_tft(baud_rate, !disp1->is_setup());
-          ESP_LOGI("${TAG_UPLOAD_TFT}", "TFT upload: %s", YESNO(id(tft_upload_result)));
 
   - id: open_upload_dialog
     mode: restart
@@ -208,11 +207,8 @@ script:
           timeout: 120s
       - lambda: |-
           ESP_LOGI("${TAG_UPLOAD_TFT}", "Display mode: %i", id(display_mode));
-          if (id(display_mode) > 0 and id(display_mode) < 4)
-            ESP_LOGI("${TAG_UPLOAD_TFT}", "Valid TFT:    True");
-          else
-            ESP_LOGE("${TAG_UPLOAD_TFT}", "Valid TFT:    False");
-
+          if (id(display_mode) <= 0 or id(display_mode) >= 4)
+            ESP_LOGE("${TAG_UPLOAD_TFT}", "Invalid TFT");
       - wait_until:
           condition:
             - lambda: return not isnan(id(display_charset));
@@ -375,7 +371,7 @@ script:
           timeout: 5s
       - script.execute:
           id: report_upload_progress
-          message: "Turn off Nextion and restart ESPHome"
+          message: "Turn-off Nextion, restart ESPHome"
       - script.wait: report_upload_progress
       - wait_until:
           condition:
@@ -388,10 +384,9 @@ script:
 
       ### This code should never run
       - delay: 2s
-      - switch.turn_on: screen_power
-      - logger.log:
-          format: TFT upload finished unsuccessfully!
-          level: ERROR
+      - lambda: |-
+          screen_power->turn_on();
+          ESP_LOGE("${TAG_UPLOAD_TFT}", "TFT upload failed");
 
   - id: upload_tft_sequence_attempt
     mode: single
@@ -402,7 +397,7 @@ script:
       - script.wait: nextion_status
       - script.execute:
           id: report_upload_progress
-          message: "Setting baud rate"
+          message: "Set baud rate"
       - script.wait: report_upload_progress
       - script.execute:
           id: set_baud_rate
@@ -425,11 +420,11 @@ script:
     parameters:
       baud_rate: uint32_t
     then:
-      - logger.log: "Attempting to upload TFT"
-      - lambda: id(tft_upload_attempt)++;
       - lambda: |-
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "Upload TFT");
+          id(tft_upload_attempt)++;
           char update_msg[128];
-          sprintf(update_msg, "Attempt #%d at %" PRIu32 " bps", id(tft_upload_attempt), tf_uart->get_baud_rate());
+          sprintf(update_msg, "Try #%d (%" PRIu32 "bps)", id(tft_upload_attempt), tf_uart->get_baud_rate());
           id(tft_upload_result) = false;
           report_upload_progress->execute(update_msg);
       - script.wait: report_upload_progress
@@ -443,7 +438,7 @@ script:
       - script.wait: nextion_upload
       - lambda: |-
           char update_msg[128];
-          sprintf(update_msg, "Attempt #%d at %" PRIu32 " bps returned: %s", id(tft_upload_attempt),
+          sprintf(update_msg, "Try #%d (%" PRIu32 "bps): %s", id(tft_upload_attempt),
                   tf_uart->get_baud_rate(), YESNO(id(tft_upload_result)));
           report_upload_progress->execute(update_msg);
       - script.wait: report_upload_progress
@@ -452,9 +447,7 @@ script:
             - lambda: return id(tft_upload_result);
           then:
             - delay: 5s
-            - lambda: |-
-                ESP_LOGW("${TAG_UPLOAD_TFT}", "Restarting");
-                App.safe_reboot();
+            - lambda: App.safe_reboot();
 
 select:
   - id: tft_file_model
