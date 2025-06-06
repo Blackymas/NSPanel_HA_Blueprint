@@ -44,8 +44,16 @@ api:
         visible: bool      # Set to `true` for visible or `false` for hidden.
       then:
         - lambda: |-
+            if (page.empty()) {
+              ESP_LOGE("${TAG_CORE_HW_DISPLAY}", "Missing PAGE info");
+              return;
+            }
+            if (component.empty()) {
+              ESP_LOGE("${TAG_CORE_HW_DISPLAY}", "Missing COMPONENT info");
+              return;
+            }
+            ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "'%s.%s' updated", page.c_str(), component.c_str());
             #if ESP_LOG_LEVEL >= ESP_LOG_DEBUG
-            ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "Updated '%s.%s':", page.c_str(), component.c_str());
             const uint16_t txt_len = txt.length();
             if (txt_len == 3) {
               const uint32_t codepoint = decode_utf8(txt.c_str());
@@ -55,20 +63,22 @@ api:
             } else {
               ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "  txt:     null (len=0)");
             }
-            if (color.size() == 3 and
-                color[0] >= 0 and color[0] <= UINT8_MAX and
-                color[1] >= 0 and color[1] <= UINT8_MAX and
-                color[2] >= 0 and color[2] <= UINT8_MAX) {
-              ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "  color:   %" PRIu16, color565(color));
+            if (color.size() != 3) {
+              ESP_LOGE("${TAG_CORE_HW_DISPLAY}", "Incorrect COLOR size");
+            }
+            if (color.size() != 3 or
+                color[0] < 0 or color[0] > UINT8_MAX or
+                color[1] < 0 or color[1] > UINT8_MAX or
+                color[2] < 0 or color[2] > UINT8_MAX) {
+              ESP_LOGW("${TAG_CORE_HW_DISPLAY}", "Invalid color");
             } else {
-              ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "  color:   invalid");
+              ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "  color:   %" PRIu16, color565(color));
             }
             ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "  font:    %" PRIi32, font);
             ESP_LOGD("${TAG_CORE_HW_DISPLAY}", "  visible: %s", YESNO(visible));
             #endif
-            if (not page.empty() and not component.empty())
-              display_component_action->execute(get_page_id(page.c_str()), component.c_str(),
-                                                txt.c_str(), color, font, visible);
+            display_component_action->execute(get_page_id(page.c_str()), component.c_str(),
+                                              txt.c_str(), color, font, visible);
 
     # Updates the value of a specified component on the display.
     - action: component_val
@@ -322,6 +332,11 @@ script:
       - lambda: |-
           DisplayComponent* display_component = get_component(page_id, component.c_str());
 
+          if (not display_component) {
+            ESP_LOGE("${TAG_CORE_HW_DISPLAY}", "Error getting component '%s.%s'",page_names[page_id], component.c_str());
+            return;
+          }
+
           // Text
           if (!txt.empty())
             display_component_update_text->execute(display_component, txt);
@@ -349,6 +364,10 @@ script:
     then:
       - lambda: |-
           DisplayComponent* component_to_initialize = get_component(page_id, component.c_str());
+          if (not component_to_initialize) {
+            ESP_LOGE("${TAG_CORE_HW_DISPLAY}", "Error getting component '%s.%s'",page_names[page_id], component.c_str());
+            return;
+          }
           component_to_initialize->global = global;
 
   - id: display_component_send
