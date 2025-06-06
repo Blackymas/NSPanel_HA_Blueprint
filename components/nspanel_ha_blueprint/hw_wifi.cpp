@@ -9,7 +9,7 @@
 namespace nspanel_ha_blueprint {
 
     // Internal buffer for storing the generated device name
-    static char device_name_[32] = {0};
+    static char device_name_[32] = "nspanel-unset";
 
     void set_device_name(const char* raw_name) {
         char temp[64] = {0};
