@@ -24,6 +24,7 @@ This document provides step-by-step instructions for releasing a new version of 
 
 2. **Generate new TFT files**:
    - Compile each modified `.hmi` file to generate the updated `.tft` files. Use the Nextion Editor or any applicable tool for this process.
+   - Run `./generate_nextion_txt.sh` to generate the text files showing what's updated from the HMI.
 
 3. **Update the Release Notes**:
    - Open `ReleaseNotes.md` in the root of the repository.
