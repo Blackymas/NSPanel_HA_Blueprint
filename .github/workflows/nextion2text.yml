@@ -1,0 +1,295 @@
+---
+name: Nextion2Text
+
+# yamllint disable rule:line-length rule:braces
+# yamllint disable-line rule:truthy
+on:
+  push:
+    paths:
+      - 'hmi/*.HMI'
+      - 'hmi/*.hmi'
+  pull_request:
+    paths:
+      - 'hmi/*.HMI'
+      - 'hmi/*.hmi'
+  # Allow manual triggering - always processes ALL HMI files
+  workflow_dispatch:
+    inputs:
+      force_commit:
+        description: 'Force commit even if no changes detected'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NEXTION2TEXT_REPO: 'https://github.com/edwardtfn/Nextion2Text'
+  NEXTION2TEXT_REF: 'main'  # Can be 'main', a tag like 'v1.0.0', or a commit hash
+  HMI_INPUT_DIR: 'hmi'
+  HMI_OUTPUT_DIR: 'hmi/dev'
+
+jobs:
+  extract-nextion:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history to detect changes
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache Nextion2Text
+        id: cache-nextion2text
+        uses: actions/cache@v3
+        with:
+          path: nextion2text
+          key: nextion2text-edwardtfn-${{ env.NEXTION2TEXT_REF }}
+
+      - name: Download Nextion2Text from your fork
+        if: steps.cache-nextion2text.outputs.cache-hit != 'true'
+        run: |
+          echo "📥 Downloading Nextion2Text from your fork: ${{ env.NEXTION2TEXT_REPO }}"
+          echo "📌 Using reference: ${{ env.NEXTION2TEXT_REF }}"
+          git clone --depth 1 --branch ${{ env.NEXTION2TEXT_REF }} \
+            ${{ env.NEXTION2TEXT_REPO }}.git nextion2text
+          chmod +x nextion2text/Nextion2Text.py
+          echo "✅ Nextion2Text downloaded successfully from your fork"
+
+      - name: Verify Nextion2Text installation
+        run: |
+          echo "🔍 Verifying Nextion2Text installation..."
+          echo "📍 Repository: ${{ env.NEXTION2TEXT_REPO }}"
+          echo "📍 Reference: ${{ env.NEXTION2TEXT_REF }}"
+          ls -la nextion2text/
+          python nextion2text/Nextion2Text.py --help || echo "ℹ️ Help command may not be available"
+          echo "✅ Nextion2Text ready to use"
+
+      - name: Create output directories
+        run: |
+          mkdir -p ${{ env.HMI_OUTPUT_DIR }}
+
+      - name: Detect changed HMI files
+        id: changed-files
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Manual trigger - ALWAYS process ALL HMI files
+            echo "🔄 Manual trigger: Processing ALL HMI files"
+            changed_files=$(find ${{ env.HMI_INPUT_DIR }} -type f \( -iname "*.hmi" \) -printf "%P\n" | sort)
+            echo "All HMI files found:"
+          else
+            # Automatic trigger - only process changed files
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              # For PRs, compare against target branch
+              base_ref="${{ github.event.pull_request.base.sha }}"
+              head_ref="${{ github.event.pull_request.head.sha }}"
+              echo "🔍 PR mode: Comparing $head_ref against $base_ref"
+            else
+              # For push events, compare against previous commit
+              if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+                # Initial commit - check all files
+                base_ref="HEAD~1"
+              else
+                base_ref="${{ github.event.before }}"
+              fi
+              head_ref="${{ github.sha }}"
+              echo "🔍 Push mode: Comparing $head_ref against $base_ref"
+            fi
+
+            # Get changed HMI files
+            changed_files=$(git diff --name-only $base_ref..$head_ref | grep -E '\.hmi$|\.HMI$' | grep "^${{ env.HMI_INPUT_DIR }}/" || true)
+            echo "Changed HMI files detected:"
+          fi
+
+          if [ -z "$changed_files" ]; then
+            echo "ℹ️ No HMI files to process"
+            echo "files_to_process=" >> $GITHUB_OUTPUT
+            echo "file_count=0" >> $GITHUB_OUTPUT
+          else
+            echo "$changed_files"
+            echo "files_to_process<<EOF" >> $GITHUB_OUTPUT
+            echo "$changed_files" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "file_count=$(echo "$changed_files" | wc -l)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract changed HMI files
+        if: steps.changed-files.outputs.file_count > 0
+        run: |
+          success_count=0
+          total_count=0
+          failed_files=""
+
+          echo "🔧 Processing ${{ steps.changed-files.outputs.file_count }} HMI file(s)..."
+
+          # Process each changed HMI file
+          while IFS= read -r hmi_file; do
+            if [ -z "$hmi_file" ]; then continue; fi
+
+            total_count=$((total_count + 1))
+
+            # Get filename without extension and path
+            base_name=$(basename "$hmi_file" | sed 's/\.[^.]*$//')
+            output_file="${{ env.HMI_OUTPUT_DIR }}/${base_name}_code"
+
+            echo ""
+            echo "📁 Processing: $hmi_file"
+            echo "📤 Output: $output_file"
+
+            if [ ! -f "$hmi_file" ]; then
+              echo "⚠️ File not found: $hmi_file (may have been deleted)"
+              continue
+            fi
+
+            if python nextion2text/Nextion2Text.py -i "$hmi_file" -o "$output_file"; then
+              echo "✅ Successfully extracted: $hmi_file"
+              success_count=$((success_count + 1))
+
+              # Show some stats about the extracted file
+              if [ -f "$output_file" ]; then
+                lines=$(wc -l < "$output_file")
+                echo "📊 Generated $lines lines of text"
+              fi
+            else
+              echo "❌ Failed to extract: $hmi_file"
+              failed_files="$failed_files$hmi_file\n"
+            fi
+          done <<< "${{ steps.changed-files.outputs.files_to_process }}"
+
+          echo ""
+          echo "📈 Summary: $success_count/$total_count files processed successfully"
+
+          echo "SUCCESS_COUNT=$success_count" >> $GITHUB_ENV
+          echo "TOTAL_COUNT=$total_count" >> $GITHUB_ENV
+          echo "FAILED_FILES<<EOF" >> $GITHUB_ENV
+          echo -e "$failed_files" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Check for changes in extracted files
+        id: extraction-changes
+        run: |
+          if [ "${{ steps.changed-files.outputs.file_count }}" = "0" ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No files were processed"
+          elif [ "${{ github.event.inputs.force_commit }}" = "true" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "🔄 Force commit enabled - will commit regardless of changes"
+          elif [ "$(git status --porcelain ${{ env.HMI_OUTPUT_DIR }})" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "📝 Changes detected in extracted files:"
+            git status --porcelain ${{ env.HMI_OUTPUT_DIR }}
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No changes in extracted files (files may be identical)"
+          fi
+
+      - name: Show diff summary
+        if: steps.extraction-changes.outputs.has_changes == 'true'
+        run: |
+          echo "📊 Diff summary for extracted files:"
+          git diff --stat ${{ env.HMI_OUTPUT_DIR }}/
+          echo ""
+          echo "📋 Changed files:"
+          git diff --name-only ${{ env.HMI_OUTPUT_DIR }}/
+
+      - name: Commit extracted files
+        if: steps.extraction-changes.outputs.has_changes == 'true'
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          # Add only the extracted files
+          git add ${{ env.HMI_OUTPUT_DIR }}/
+
+          # Create detailed commit message
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            commit_msg="🔄 Manual extraction: All Nextion HMI files to text
+
+            Processed $SUCCESS_COUNT/$TOTAL_COUNT HMI files successfully
+            Trigger: Manual workflow dispatch"
+                    else
+                        commit_msg="🔧 Auto-extract changed Nextion HMI files to text
+
+            Processed $SUCCESS_COUNT/$TOTAL_COUNT changed HMI files successfully
+            Trigger: ${{ github.event_name }}"
+                    fi
+
+                    if [ -n "$FAILED_FILES" ]; then
+                        commit_msg="$commit_msg
+
+            ❌ Failed files:
+            $FAILED_FILES"
+                    fi
+
+                    commit_msg="$commit_msg
+
+            [skip ci]"
+
+          git commit -m "$commit_msg"
+          echo "✅ Committed extracted files to repository"
+
+      - name: Push changes
+        if: steps.extraction-changes.outputs.has_changes == 'true'
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
+
+      - name: Generate detailed summary
+        run: |
+          echo "# 🔧 Nextion2Text Extraction Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.changed-files.outputs.file_count }}" = "0" ]; then
+            echo "ℹ️ **No HMI files to process** - No changes detected in HMI files." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "**Mode:** Manual - All HMI files processed" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**Mode:** Automatic - Only changed HMI files processed" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "**Files Processed:** ${{ steps.changed-files.outputs.file_count }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Successfully Extracted:** ${SUCCESS_COUNT:-0}" >> $GITHUB_STEP_SUMMARY
+            echo "**Failed:** $((${TOTAL_COUNT:-0} - ${SUCCESS_COUNT:-0}))" >> $GITHUB_STEP_SUMMARY
+            echo "**Changes Committed:** ${{ steps.extraction-changes.outputs.has_changes }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            echo "## 📁 Processed Files" >> $GITHUB_STEP_SUMMARY
+            echo "| HMI File | Status | Output File | Notes |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|--------|-------------|-------|" >> $GITHUB_STEP_SUMMARY
+
+            while IFS= read -r hmi_file; do
+              if [ -z "$hmi_file" ]; then continue; fi
+
+              base_name=$(basename "$hmi_file" | sed 's/\.[^.]*$//')
+              output_file="${{ env.HMI_OUTPUT_DIR }}/${base_name}_code"
+
+              if [ ! -f "$hmi_file" ]; then
+                status="⚠️ File not found"
+                output_info="N/A"
+                notes="File may have been deleted"
+              elif [ -f "$output_file" ]; then
+                status="✅ Success"
+                size=$(wc -l < "$output_file" 2>/dev/null || echo "0")
+                output_info="${base_name}_code"
+                notes="${size} lines generated"
+              else
+                status="❌ Failed"
+                output_info="N/A"
+                notes="Extraction failed"
+              fi
+
+              echo "| $(basename "$hmi_file") | $status | $output_info | $notes |" >> $GITHUB_STEP_SUMMARY
+            done <<< "${{ steps.changed-files.outputs.files_to_process }}"
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 **Tool Used:** [Nextion2Text (edwardtfn fork)](${{ env.NEXTION2TEXT_REPO }}) (ref: ${{ env.NEXTION2TEXT_REF }})" >> $GITHUB_STEP_SUMMARY
+          echo "*Generated by Nextion2Text GitHub Action*" >> $GITHUB_STEP_SUMMARY
+...
