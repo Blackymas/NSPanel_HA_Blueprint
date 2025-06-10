@@ -21,7 +21,7 @@ namespace nspanel_ha_blueprint {
             return false;  // Invalid index
         }
         if (boot_steps[index].registered) {
-            return false;  // Already registered
+            return true;  // Already registered
         }
         boot_steps[index].registered = true;
         strncpy(boot_steps[index].key, key, sizeof(boot_steps[index].key) - 1);

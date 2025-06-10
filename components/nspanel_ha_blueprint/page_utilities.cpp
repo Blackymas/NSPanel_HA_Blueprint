@@ -11,15 +11,15 @@ namespace nspanel_ha_blueprint {
     UtilitiesGroupValues *UtilitiesGroups = nullptr;
 
     void resetUtilitiesGroups() {
-        ESP_LOGD(TAG_COMPONENT, "Dynamically allocate the UtilitiesGroups array in PSRAM");
+        ESP_LOGD(TAG_COMPONENT, "Alloc UtilitiesGroups array (PSRAM)");
         // Allocate PageButtonsButton dynamically
         esphome::ExternalRAMAllocator<UtilitiesGroupValues> allocator(esphome::ExternalRAMAllocator<UtilitiesGroupValues>::ALLOW_FAILURE);
         UtilitiesGroups = allocator.allocate(sizeof(UtilitiesGroupValues));
         if (!UtilitiesGroups or UtilitiesGroups == nullptr) {
-            ESP_LOGE(TAG_COMPONENT, "Failed to allocate memory for UtilitiesGroups.");
+            ESP_LOGE(TAG_COMPONENT, "UtilitiesGroups alloc failed");
             return;  // Memory allocation failed, do not proceed
         }
-        ESP_LOGD(TAG_COMPONENT, "Memory allocated");
+        ESP_LOGD(TAG_COMPONENT, "UtilitiesGroups ready");
 
         if (!UtilitiesGroups) UtilitiesGroups = new (std::nothrow) UtilitiesGroupValues[8];  // Fallback to internal SRAM if PSRAM is not available or not supported
         if (!UtilitiesGroups) return;                                         // Fail nicely if no memory is available
