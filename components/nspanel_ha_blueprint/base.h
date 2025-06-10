@@ -11,6 +11,8 @@ namespace nspanel_ha_blueprint {
 
     static const char* TAG_COMPONENT = "nspanel_ha_blueprint";
 
+    extern bool is_safe_mode;
+
 }  // namespace nspanel_ha_blueprint
 
 #endif // CORE_BASE_H
