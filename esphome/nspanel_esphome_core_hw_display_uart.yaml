@@ -55,53 +55,58 @@ script:
   - id: boot_scan_baud_rate
     mode: restart
     then:
-      # Initialize scan state
-      - lambda: |-
-          ESP_LOGI("${TAG_HW_DISPLAY_UART}", "Starting baud rate detection");
-          id(baud_scan_index) = 0;
-          id(baud_scan_retries) = 0;
-
-      # Wait for UART to be ready
-      - wait_until:
-          condition:
-            - lambda: |-
-                return not isnan(tf_uart->get_baud_rate());
-          timeout: 15s
-
-      # Quick check if already connected at any rate
-      - wait_until:
-          condition: &nextion_is_detected
-            - lambda: |-
-                return disp1->is_detected();
-          timeout: 5s
-
-      # If connected, check if we need to switch baud rates
       - if:
-          condition: *nextion_is_detected
+          condition:
+            - lambda: return not disp1->is_detected();
+            - lambda: return tf_uart->get_baud_rate() != ${BAUD_RATE};
           then:
+            # Initialize scan state
             - lambda: |-
-                ESP_LOGI("${TAG_HW_DISPLAY_UART}", "Connected at %" PRIu32 " bps", tf_uart->get_baud_rate());
-            - if:
-                condition: &baud_rate_mismatch
+                ESP_LOGI("${TAG_HW_DISPLAY_UART}", "Starting baud rate detection");
+                id(baud_scan_index) = 0;
+                id(baud_scan_retries) = 0;
+
+            # Wait for UART to be ready
+            - wait_until:
+                condition:
                   - lambda: |-
-                      return (tf_uart->get_baud_rate() != ${BAUD_RATE});
+                      return not isnan(tf_uart->get_baud_rate());
+                timeout: 15s
+
+            # Quick check if already connected at any rate
+            - wait_until:
+                condition: &nextion_is_detected
+                  - lambda: |-
+                      return disp1->is_detected();
+                timeout: 5s
+
+            # If connected, check if we need to switch baud rates
+            - if:
+                condition: *nextion_is_detected
                 then:
                   - lambda: |-
-                      ESP_LOGW("${TAG_HW_DISPLAY_UART}", "Switch to ${BAUD_RATE} bps");
-                      disp1->send_command("bauds=${BAUD_RATE}");
-                  - delay: 2s
-                  - script.execute:
-                      id: set_baud_rate
-                      baud_rate: ${BAUD_RATE}
-                      definitive: true
-                  - script.wait: set_baud_rate
+                      ESP_LOGI("${TAG_HW_DISPLAY_UART}", "Connected at %" PRIu32 " bps", tf_uart->get_baud_rate());
+                  - if:
+                      condition: &baud_rate_mismatch
+                        - lambda: |-
+                            return (tf_uart->get_baud_rate() != ${BAUD_RATE});
+                      then:
+                        - lambda: |-
+                            ESP_LOGW("${TAG_HW_DISPLAY_UART}", "Switch to ${BAUD_RATE} bps");
+                            disp1->send_command("bauds=${BAUD_RATE}");
+                        - delay: 2s
+                        - script.execute:
+                            id: set_baud_rate
+                            baud_rate: ${BAUD_RATE}
+                            definitive: true
+                        - script.wait: set_baud_rate
+                      else:
+                        # Already at correct baud rate
+                        - lambda: |-
+                            ESP_LOGI("${TAG_HW_DISPLAY_UART}", "Already at target baud rate");
                 else:
-                  # Already at correct baud rate
-                  - lambda: |-
-                      ESP_LOGI("${TAG_HW_DISPLAY_UART}", "Already at target baud rate");
-          else:
-            # Not detected, start scanning
-            - script.execute: boot_scan_all_baud_rates
+                  # Not detected, start scanning
+                  - script.execute: boot_scan_all_baud_rates
 
   - id: boot_scan_all_baud_rates
     mode: restart
