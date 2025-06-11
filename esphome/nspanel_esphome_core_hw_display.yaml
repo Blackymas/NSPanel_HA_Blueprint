@@ -120,7 +120,11 @@ display:
 
     on_buffer_overflow:
       then:
-        - script.execute: display_command_spacing_increment
+        - lambda: |-
+            // Increase command spacing if in use
+            #ifdef USE_NEXTION_COMMAND_SPACING
+            display_command_spacing_increment->execute();
+            #endif
 
     on_page:
       then:
@@ -155,14 +159,30 @@ esphome:
     - priority: 700.${BOOT_STEP_HW_DISPLAY}
       then:
         - if:
-            condition: &condition_NOT_safe_mode
-              - lambda: return not nspanel_ha_blueprint::is_safe_mode;
+            condition:
+              - lambda: |-
+                  // Run only if command_spacing is set
+                  #ifdef USE_NEXTION_COMMAND_SPACING
+                  return true;
+                  #else
+                  return false;
+                  #endif
             then:
-              - wait_until:
-                  condition:
+              - if:
+                  condition: &condition_NOT_safe_mode
+                    - lambda: return not nspanel_ha_blueprint::is_safe_mode;
+                  then:
+                    - wait_until:
+                        condition:
+                          - lambda: |-
+                              return (display_command_spacing->state >= 0 and display_command_spacing->state <= UINT8_MAX);
                     - lambda: |-
-                        return (display_command_spacing->state >= 0 and display_command_spacing->state <= UINT8_MAX);
-              - lambda: disp1->set_command_spacing(static_cast<uint8_t>(display_command_spacing->state));
+                        // Only if command spacing is set
+                        #ifdef USE_NEXTION_COMMAND_SPACING
+                        disp1->set_command_spacing(static_cast<uint8_t>(display_command_spacing->state));
+                        #endif
+            else:
+              - lambda: display_command_spacing->set_internal(true);
 
   on_shutdown:
     - priority: 600.${BOOT_STEP_HW_DISPLAY}
@@ -278,7 +298,11 @@ number:
     disabled_by_default: true
     on_value:
       then:
-        - lambda: disp1->set_command_spacing(static_cast<uint8_t>(x));
+        - lambda: |-
+            // Only if command spacing is in use
+            #ifdef USE_NEXTION_COMMAND_SPACING
+            disp1->set_command_spacing(static_cast<uint8_t>(x));
+            #endif
 
 script:
   - id: !extend boot_package_register
@@ -527,19 +551,30 @@ script:
   - id: display_command_spacing_increment
     mode: restart
     then:
-      - lambda: |-
-          screen_power->turn_off();
-          ESP_LOGE("${TAG_HW_DISPLAY}", "Nextion buffer overflow");
-          ESP_LOGE("${TAG_HW_DISPLAY}", "Increasing command spacing");
-      - number.increment:
-          id: display_command_spacing
-          cycle: false
       - if:
           condition:
-            - lambda: return global_preferences->sync();
+            - lambda: |-
+                // Execute only when command spacing is in use
+                #ifdef USE_NEXTION_COMMAND_SPACING
+                return true;
+                #else
+                return false;
+                #endif
           then:
             - lambda: |-
-                ESP_LOGE("${TAG_HW_DISPLAY}", "Nextion out of sync - restart in 15s");
+                // Include only when command spacing is in use
+                #ifdef USE_NEXTION_COMMAND_SPACING
+                screen_power->turn_off();
+                ESP_LOGE("${TAG_HW_DISPLAY}", "Nextion buffer overflow - Increasing command spacing");
+                // Ultra-compact lambda for rare execution
+                // Increment display_command_spacing, no cycle
+                if (auto *n = id(display_command_spacing))
+                  n->make_call().set_value(min(n->state + n->traits.get_step(), 
+                                              n->traits.get_max_value())).perform();
+                if (global_preferences->sync()) {
+                  ESP_LOGE("${TAG_HW_DISPLAY}", "Nextion out of sync - restart in 15s");
+                }
+                #endif
             - delay: 15s
             - lambda: App.safe_reboot();
 
@@ -587,8 +622,10 @@ script:
           // Report Nextion status
           nextion_init->publish_state(nextion_init->state and disp1->is_setup());
           ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "Nextion:");
+          #ifdef USE_NEXTION_COMMAND_SPACING
           ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "  Cmd  spacing: %" PRIu8 "ms",
                     static_cast<uint8_t>(display_command_spacing->state));
+          #endif
           ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "  Queue: %d", disp1->queue_size());
           if (!disp1->is_setup() or !disp1->is_detected() or !nextion_init->state) {
             ESP_LOGE("${TAG_HW_DISPLAY}", "  Is setup: %s", YESNO(disp1->is_setup()));
