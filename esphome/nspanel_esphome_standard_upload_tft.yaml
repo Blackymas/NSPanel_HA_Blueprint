@@ -106,9 +106,8 @@ script:
     then:
       - lambda: |-
           ESP_LOGCONFIG("${TAG_UPLOAD_TFT}", "Add-on Upload TFT:");
-          ESP_LOGCONFIG("${TAG_UPLOAD_TFT}", "  File model: %s", tft_file_model->state.c_str());
-          ESP_LOGCONFIG("${TAG_UPLOAD_TFT}", "  Valid TFT:  %s",
-                          YESNO((id(display_mode) > 0 and id(display_mode) < 4)));
+          ESP_LOGCONFIG("${TAG_UPLOAD_TFT}", "  Model: %s", tft_file_model->state.c_str());
+          ESP_LOGCONFIG("${TAG_UPLOAD_TFT}", "  Valid: %s", YESNO((id(display_mode) > 0 and id(display_mode) < 4)));
 
   - id: !extend check_versions
     then:
@@ -124,7 +123,7 @@ script:
                 if (tft_update_automatically->state and
                     (not compare_versions(version_tft->state.c_str(), "${version}")) and
                     tft_file_model->state != "NSPanel Blank") {
-                  ESP_LOGI("${TAG_UPLOAD_TFT}", "Automatically updating TFT");
+                  ESP_LOGI("${TAG_UPLOAD_TFT}", "Auto updating TFT");
                   upload_tft->execute(construct_tft_url("v${version}", tft_file_model->state, "${nextion_update_url}",
                                                         "${nextion_update_base_url}").c_str());
                 }
@@ -139,16 +138,16 @@ script:
     then:
       - lambda: |-
           ESP_LOGD("${TAG_UPLOAD_TFT}", "Nextion status:");
-          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Is detected: %s", YESNO(disp1->is_detected()));
-          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Is setup:    %s", YESNO(disp1->is_setup()));
-          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Queue size:  %d", disp1->queue_size());
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Detected: %s", YESNO(disp1->is_detected()));
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Setup: %s", YESNO(disp1->is_setup()));
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Queue: %d", disp1->queue_size());
 
   - id: nextion_upload
     mode: single
     parameters:
       baud_rate: uint32_t
     then:
-      - logger.log: Waiting for empty UART and Nextion queues
+      - lambda: ESP_LOGD("${TAG_UPLOAD_TFT}", "Waiting for empty queues");
       - wait_until:
           condition:
             - lambda: return (disp1->queue_size() < 1);
@@ -165,7 +164,7 @@ script:
     then:
       - lambda: |-
           if (current_page_id != ${PAGE_ID_BOOT}) {
-            ESP_LOGD("${TAG_UPLOAD_TFT}", "Showing upload dialog page");
+            ESP_LOGD("${TAG_UPLOAD_TFT}", "Show upload dialog");
             goto_page_id->execute(${PAGE_ID_BOOT}, true);
           }
       - wait_until:
@@ -253,10 +252,10 @@ script:
       # Then start the upload
       - lambda: |-
           // The upload process starts here
-          ESP_LOGD("${TAG_UPLOAD_TFT}", "Starting the upload script");
-          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Valid TFT:  %s", YESNO((id(display_mode) > 0 and id(display_mode) < 4)));
-          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Baud rate:  %" PRIu32 " bps", tf_uart->get_baud_rate());
-          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Upload URL: %s", url.c_str());
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "Starting upload script");
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Valid: %s", YESNO((id(display_mode) > 0 and id(display_mode) < 4)));
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Baud:  %" PRIu32, tf_uart->get_baud_rate());
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "  URL:   %s", url.c_str());
           disp1->set_tft_url(url.c_str());
 
           // #ifdef USE_IMPROV
@@ -277,24 +276,24 @@ script:
           bool ble_proxy_active_mode = false;
           #ifdef USE_BLUETOOTH_PROXY
           ble_proxy_active_mode = ble_proxy->has_active();
-          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Bluetooth proxy: %s", ble_proxy_active_mode ? "Active" : "Passive");
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "  BT proxy: %s", ble_proxy_active_mode ? "Active" : "Passive");
           if (ble_proxy_active_mode) {
-            ESP_LOGD("${TAG_UPLOAD_TFT}", "    BT proxy set passive mode...");
+            ESP_LOGD("${TAG_UPLOAD_TFT}", "    Set BT proxy passive");
             ble_proxy->set_active(false);
             delay(250);
             App.feed_wdt();
           }
           #endif  // USE_BLUETOOTH_PROXY
-          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Stopping BLE Tracker scan...");
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Stop BLE scan");
           ble_tracker->stop_scan();
           delay(250);
           App.feed_wdt();
-          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Disabling BLE Tracker scan...");
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Disable BLE scan");
           ble_tracker->set_scan_active(false);
           delay(250);
           App.feed_wdt();
           if (!ble_proxy_active_mode and ble_tracker->get_parent() != nullptr) {
-            ESP_LOGD("${TAG_UPLOAD_TFT}", "  Disabling BLE...");
+            ESP_LOGD("${TAG_UPLOAD_TFT}", "  Disable BLE");
             delay(250);
             App.feed_wdt();
             ble_component->disable();
@@ -317,7 +316,7 @@ script:
           timeout: 2s
       - script.execute:
           id: report_upload_progress
-          message: "Stopping other scripts"
+          message: "Stop scripts"
       - script.wait: report_upload_progress
       - script.execute: stop_all
       - script.wait: stop_all
@@ -345,7 +344,7 @@ script:
       ### Restart Nextion and attempt twice again at default baud rate (115200bps)
       - script.execute:
           id: report_upload_progress
-          message: "Restarting Nextion display"
+          message: "Restart display"
       - script.wait: report_upload_progress
       - wait_until:
           condition:
@@ -363,7 +362,7 @@ script:
       ### All tries failed ###
       - script.execute:
           id: report_upload_progress
-          message: "TFT upload failed"
+          message: "Upload failed"
       - script.wait: report_upload_progress
       - wait_until:
           condition:
@@ -424,7 +423,7 @@ script:
           ESP_LOGD("${TAG_UPLOAD_TFT}", "Upload TFT");
           id(tft_upload_attempt)++;
           char update_msg[128];
-          sprintf(update_msg, "Try #%d (%" PRIu32 "bps)", id(tft_upload_attempt), tf_uart->get_baud_rate());
+          sprintf(update_msg, "Try #%d (%" PRIu32 ")", id(tft_upload_attempt), tf_uart->get_baud_rate());
           id(tft_upload_result) = false;
           report_upload_progress->execute(update_msg);
       - script.wait: report_upload_progress
@@ -438,7 +437,7 @@ script:
       - script.wait: nextion_upload
       - lambda: |-
           char update_msg[128];
-          sprintf(update_msg, "Try #%d (%" PRIu32 "bps): %s", id(tft_upload_attempt),
+          sprintf(update_msg, "Try #%d (%" PRIu32 "): %s", id(tft_upload_attempt),
                   tf_uart->get_baud_rate(), YESNO(id(tft_upload_result)));
           report_upload_progress->execute(update_msg);
       - script.wait: report_upload_progress
