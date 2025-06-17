@@ -960,6 +960,12 @@ however this PR was merged together with other changes, causing an error during 
 
 **Attention**: ESPHome v2025.5.2 or later is now required.
 
+## v4.3.16 - Removed screen turn-off from shutdown sequence
+Fixed "System DATA error!" messages that occurred after TFT uploads.
+The screen turn-off command in the shutdown sequence was being executed during the graceful restart window (introduced in ESPHome 2025.6.0),
+causing the display to interpret it as corrupt TFT data.
+Removing this shutdown command prevents the corruption issue.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
@@ -979,6 +985,7 @@ Your contributions have made our guides more informative and accessible, enrichi
 -  **@Bascht74**: For your thorough investigation and clear reporting in issue #2543, which helped us identify and address a critical edge case.
 
 ## Previous releases
+- [v4.3.15 - Hotfix for a building error with ESPHome v2025.5.2](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.15)
 - [v4.3.14 - Hotfix for crash with climate add-on with ESPHome v2025.5.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.14)
 - [v4.3.13 - Hotfix for crash with climate add-on with ESPHome v2025.5.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.13)
 - [v4.3.12 - Hotfix for Incorrect Timezone Calculation Issues](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.12)
