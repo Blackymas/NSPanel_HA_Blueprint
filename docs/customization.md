@@ -36,6 +36,7 @@ Table of contents:
   - [Remove non-essential components](#remove-non-essential-components)
   - [Restart with 15s button press](#restart-with-15s-button-press)
   - [Custom log level](#custom-log-level)
+  - [Set Temperature to Fahrenheit](#set-temperature-to-fahrenheit)
 
 &nbsp;
 &nbsp;
@@ -699,4 +700,11 @@ logger:
   logs:
     # Define the log level for `text_sensor` componente to `DEBUG` level
     text_sensor: DEBUG
+```
+
+### Set Temperature To Fahrenheit
+By default, the device's internal thermostat is set to celsius. Adding the following to your YAML configuration's substitutions will set it to fahrenheit
+```yaml
+substitutions:
+  temp_units: "°F"
 ```
