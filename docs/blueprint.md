@@ -95,7 +95,7 @@ You will find more details about this on the Add-on Climate documentation.
 If you are using the climate add-on, it will create a climate entity in your panel's device page.
 You still have to select that entity on this field in the blueprint settings to have it used as your main climate.
 
-Additional climate entities can be assigned to [hardware buttons](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/blueprint.md#hardware-buttons).
+Additional climate entities can be assigned to [hardware buttons](#hardware-buttons).
 
 On the blueprint settings, you will also find settings for sensors and custom buttons to be shown on all the climate pages.
 
