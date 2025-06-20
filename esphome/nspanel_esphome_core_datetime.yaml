@@ -8,6 +8,7 @@
 ---
 substitutions:
   BOOT_STEP_DATETIME: '2'
+  TAG_DATETIME: nspanel_ha_blueprint.datetime
 
 esphome:
   platformio_options:
@@ -16,9 +17,13 @@ esphome:
   on_boot:
     - priority: 600.2
       then:
-        - lambda: |-
-            if (not id(mui_timezone).empty())
-              set_timezone->execute(id(mui_timezone).c_str());
+        - if:
+            condition: &condition_NOT_safe_mode
+              - lambda: return not nspanel_ha_blueprint::is_safe_mode;
+            then:
+              - lambda: |-
+                  if (not id(mui_timezone).empty())
+                    set_timezone->execute(id(mui_timezone).c_str());
 
 globals:
   - id: mui_timezone
@@ -26,23 +31,10 @@ globals:
     restore_value: true
     initial_value: '""'
 
-logger:
-  logs:
-    time: INFO
-
 script:
   - id: !extend boot_package_register
     then:
       - lambda: boot_package_register_add->execute(${BOOT_STEP_DATETIME}, "DATETIME", "Date & Time");
-
-  - id: !extend dump_config
-    then:
-      - lambda: |-
-          ESP_LOGI("${project_tag}", "Date & Time:");
-          ESP_LOGI("${project_tag}", " Time format:         %s", id(mui_time_format).c_str());
-          if (not id(mui_timezone).empty())
-            ESP_LOGI("${project_tag}", " Timezone (selected): %s", id(mui_timezone).c_str());
-          ESP_LOGI("${project_tag}", " Timezone (current):  %s", time_provider->get_timezone().c_str());
 
   - id: refresh_datetime
     mode: restart
@@ -65,24 +57,26 @@ script:
       timezone: string
     then:
       - lambda: |-
-          ESP_LOGI("script", "Setting timezone: %s", timezone.c_str());
+          ESP_LOGD("${TAG_DATETIME}", "Set timezone: '%s'->'%s'", id(mui_timezone).c_str(), timezone.c_str());
           if (timezone != id(mui_timezone)) {
-            id(mui_timezone) = timezone;
-            size_t start = id(mui_timezone).find('<');
-            size_t end = id(mui_timezone).find('>');
-            if (start != std::string::npos && end != std::string::npos && end > start)
-              id(mui_timezone).replace(start, (end - start) + 1, "UTC");
-            time_provider->set_timezone(id(mui_timezone).c_str());
-            time_provider->call_setup();
-            if (timezone.empty())
+            id(mui_timezone) = timezone == "\"\"" ? "" : timezone;
+            if (id(mui_timezone).empty()) {
               set_timezone_restart_esp->execute();
+            } else {
+              size_t start = id(mui_timezone).find('<');
+              size_t end = id(mui_timezone).find('>');
+              if (start != std::string::npos && end != std::string::npos && end > start)
+                id(mui_timezone).replace(start, (end - start) + 1, "UTC");
+              time_provider->set_timezone(id(mui_timezone).c_str());
+              time_provider->call_setup();
+            }
           }
           if (id(time_provider).now().is_valid()) {
               auto time = id(time_provider).now();
-              ESP_LOGI("script", "  Current Time: %02d:%02d:%02d", time.hour, time.minute, time.second);
-              ESP_LOGI("script", "  Time zone:    %s", id(time_provider).get_timezone().c_str());
+              ESP_LOGD("${TAG_DATETIME}", "Time: %02d:%02d:%02d (%s)", time.hour, time.minute, time.second,
+                        id(time_provider).get_timezone().c_str());
           } else {
-              ESP_LOGW("script", "  Time is not available yet.");
+              ESP_LOGW("${TAG_DATETIME}", "Time unavailable");
           }
           time_provider->dump_config();
           refresh_datetime->execute();
@@ -90,8 +84,12 @@ script:
   - id: set_timezone_restart_esp
     mode: restart
     then:
+      - logger.log:
+          format: Panel set to restart in 10s
+          level: WARN
+          tag: nspanel.core.datetime
       - delay: 10s
-      - lambda: arch_restart();  // Restart when timezone is set to blank so it uses the one from ESPHome compiller
+      - lambda: App.safe_reboot();  // Restart when timezone is set to blank so it uses the one from ESPHome compiller
 
   - id: !extend set_var_string
     then:
@@ -122,6 +120,4 @@ time:
       then:
         - lambda: |-
             refresh_datetime->execute();
-            ESP_LOGI("time", "System clock synchronized");
-            ESP_LOGI("time", "Timezone: %s", time_provider->get_timezone().c_str());
 ...

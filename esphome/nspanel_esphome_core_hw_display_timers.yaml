@@ -4,8 +4,10 @@
 ##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
 ##### For normal use with the Blueprint, no changes are necessary.                              #####
 #####################################################################################################
-
 ---
+substitutions:
+  TAG_HW_DISPLAY_TIMERS: nspanel_ha_blueprint.hw.display.timers
+
 api:
   actions:
     # Wake Up action
@@ -28,7 +30,7 @@ binary_sensor:
             if (hw_button_wakeup->state) {
               if (current_page_id == ${PAGE_ID_SCREENSAVER})
                 goto_page_id->execute(get_page_id(wakeup_page_name->state.c_str()), false);
-              timer_dim->execute();
+              timer_wakeup->execute();
               timer_sleep->execute();
             }
 
@@ -55,7 +57,7 @@ number:
         - lambda: |-
             if (current_page_id != ${PAGE_ID_SCREENSAVER}) {
               disp1->set_backlight_brightness(x / 100.0f);
-              timer_dim->execute();
+              timer_wakeup->execute();
               timer_sleep->execute();
             }
 
@@ -89,7 +91,7 @@ number:
     unit_of_measurement: "s"
     on_value:
       then:
-        - script.execute: timer_dim
+        - script.execute: timer_wakeup
 
   - id: timeout_sleep
     name: Timeout - Sleep
@@ -122,7 +124,7 @@ script:
           if (reset_timers and page_id != ${PAGE_ID_SCREENSAVER}) {
             if (page_id != ${PAGE_ID_HOME})
               timer_page->execute();
-            timer_dim->execute();
+            timer_wakeup->execute();
             timer_sleep->execute();
           }
 
@@ -133,6 +135,7 @@ script:
           timer_page->stop();
           timer_reset_all->stop();
           timer_sleep->stop();
+          timer_wakeup->stop();
 
   - id: !extend time_watchdog  # Defined by nspanel_esphome_core_base.yaml
     then:
@@ -150,7 +153,7 @@ script:
     mode: restart
     then:
       - lambda: |-
-          timer_dim->execute();
+          timer_wakeup->execute();
           timer_page->execute();
           timer_sleep->execute();
 
@@ -165,19 +168,24 @@ script:
             - delay: !lambda return (timeout_page->state *1000);
             - lambda: |-
                 if (timeout_page->state >= 1 and not is_page_in_group(NON_API_ID_PAGE_MASK)) {
-                  ESP_LOGI("script", "Fallback to page Home");
+                  ESP_LOGD("${TAG_HW_DISPLAY_TIMERS}", "Fallback to Home");
                   goto_page_id->execute(${PAGE_ID_HOME}, false);
                 }
 
-  - id: timer_dim        # Handles the brightness dimming after a timeout
+  - id: timer_wakeup
     mode: restart
     then:
       - lambda: |-
           if (current_page_id != ${PAGE_ID_SCREENSAVER} and
               current_page_id != ${PAGE_ID_BOOT}) {
-            ESP_LOGD("script", "Waking up on page: %s", page_names[current_page_id]);
+            ESP_LOGD("${TAG_HW_DISPLAY_TIMERS}", "Wake on page: %s", page_names[current_page_id]);
             disp1->set_backlight_brightness(display_brightness->state / 100.0f);
+            timer_dim->execute();
           }
+
+  - id: timer_dim        # Handles the brightness dimming after a timeout
+    mode: restart
+    then:
       - if:
           condition:
             - number.in_range:
@@ -204,7 +212,7 @@ script:
                 if (timeout_sleep->state >= 1 and
                     current_page_id != ${PAGE_ID_SCREENSAVER} and
                     current_page_id != ${PAGE_ID_BOOT}) {
-                  ESP_LOGI("script", "Going to sleep from page %s", page_names[current_page_id]);
+                  ESP_LOGD("${TAG_HW_DISPLAY_TIMERS}", "Sleep from page %s", page_names[current_page_id]);
                   goto_page_id->execute(${PAGE_ID_SCREENSAVER}, false);
                   disp1->set_backlight_brightness(display_sleep_brightness->state / 100.0f);
                 }

@@ -10,6 +10,7 @@
 substitutions:
   ### Local cover defaults ###
   interlock_wait_time: '250'
+  TAG_ADDON_COVER: nspanel_ha_blueprint.addon.cover
 
 esphome:
   platformio_options:
@@ -18,61 +19,80 @@ esphome:
   on_boot:
     - priority: 700.29
       then:
-        - wait_until:
-            condition:
-              - lambda: return cover_interlock_wait_time->has_state();
-              - lambda: return !isnan(cover_interlock_wait_time->state);
-        - lambda: |-
-            page_boot_log->execute("Cover on_boot", "Set relay interlock");
-            relay_1->set_interlock_wait_time(cover_interlock_wait_time->state);
-            relay_2->set_interlock_wait_time(cover_interlock_wait_time->state);
+        - if:
+            condition: &condition_NOT_safe_mode
+              - lambda: return not nspanel_ha_blueprint::is_safe_mode;
+            then:
+              - wait_until:
+                  condition:
+                    - lambda: return cover_interlock_wait_time->has_state();
+                    - lambda: return !isnan(cover_interlock_wait_time->state);
+              - lambda: |-
+                  page_boot_log->execute("Cover on_boot", "Set relay interlock");
+                  relay_1->set_interlock_wait_time(cover_interlock_wait_time->state);
+                  relay_2->set_interlock_wait_time(cover_interlock_wait_time->state);
     - priority: 700.27
       then:
-        - wait_until:
-            condition:
-              - lambda: return cover_open_duration->has_state();
-              - lambda: return !isnan(cover_open_duration->state);
-        - lambda: |-
-            page_boot_log->execute("Cover on_boot", "Set open duration");
-            cover_embedded->set_open_duration(cover_open_duration->state);
+        - if:
+            condition: *condition_NOT_safe_mode
+            then:
+              - wait_until:
+                  condition:
+                    - lambda: return cover_open_duration->has_state();
+                    - lambda: return !isnan(cover_open_duration->state);
+              - lambda: |-
+                  page_boot_log->execute("Cover on_boot", "Set open duration");
+                  cover_embedded->set_open_duration(cover_open_duration->state);
     - priority: 700.26
       then:
-        - wait_until:
-            condition:
-              - lambda: return cover_close_duration->has_state();
-              - lambda: return !isnan(cover_close_duration->state);
-        - lambda: |-
-            page_boot_log->execute("Cover on_boot", "Set close duration");
-            cover_embedded->set_close_duration(cover_close_duration->state);
+        - if:
+            condition: *condition_NOT_safe_mode
+            then:
+              - wait_until:
+                  condition:
+                    - lambda: return cover_close_duration->has_state();
+                    - lambda: return !isnan(cover_close_duration->state);
+              - lambda: |-
+                  page_boot_log->execute("Cover on_boot", "Set close duration");
+                  cover_embedded->set_close_duration(cover_close_duration->state);
     - priority: 700.24
       then:
-        - wait_until:
-            condition:
-              - lambda: return cover_acceleration_wait_time->has_state();
-              - lambda: return !isnan(cover_acceleration_wait_time->state);
-        - lambda: |-
-            page_boot_log->execute("Cover on_boot", "Set acc. wait time");
-            cover_embedded->set_acceleration_wait_time(cover_acceleration_wait_time->state);
+        - if:
+            condition: *condition_NOT_safe_mode
+            then:
+              - wait_until:
+                  condition:
+                    - lambda: return cover_acceleration_wait_time->has_state();
+                    - lambda: return !isnan(cover_acceleration_wait_time->state);
+              - lambda: |-
+                  page_boot_log->execute("Cover on_boot", "Set acc. wait time");
+                  cover_embedded->set_acceleration_wait_time(cover_acceleration_wait_time->state);
     - priority: 700.23
       then:
-        - wait_until:
-            condition:
-              - lambda: return cover_direction_change_wait_time->has_state();
-              - lambda: return !isnan(cover_direction_change_wait_time->state);
-        - lambda: |-
-            page_boot_log->execute("Cover on_boot", "Set dir. change wait time");
-            cover_embedded->set_direction_change_waittime(cover_direction_change_wait_time->state);
+        - if:
+            condition: *condition_NOT_safe_mode
+            then:
+              - wait_until:
+                  condition:
+                    - lambda: return cover_direction_change_wait_time->has_state();
+                    - lambda: return !isnan(cover_direction_change_wait_time->state);
+              - lambda: |-
+                  page_boot_log->execute("Cover on_boot", "Set dir. change wait time");
+                  cover_embedded->set_direction_change_waittime(cover_direction_change_wait_time->state);
     - priority: 700.21
       then:
-        - wait_until:
-            condition:
-              - lambda: return cover_device_class->has_state();
-              - lambda: return !(cover_device_class->state).empty();
-        - lambda: |-
-            page_boot_log->execute("Cover on_boot", "Set device class");
-            std::string lower_x = cover_device_class->state;
-            std::transform(lower_x.begin(), lower_x.end(), lower_x.begin(), ::tolower);
-            cover_embedded->set_device_class(lower_x.c_str());
+        - if:
+            condition: *condition_NOT_safe_mode
+            then:
+              - wait_until:
+                  condition:
+                    - lambda: return cover_device_class->has_state();
+                    - lambda: return !(cover_device_class->state).empty();
+              - lambda: |-
+                  page_boot_log->execute("Cover on_boot", "Set device class");
+                  std::string lower_x = cover_device_class->state;
+                  std::transform(lower_x.begin(), lower_x.end(), lower_x.begin(), ::tolower);
+                  cover_embedded->set_device_class(lower_x.c_str());
 
 cover:
   - id: cover_embedded
@@ -89,10 +109,6 @@ cover:
       - switch.turn_off: cover_close_virtual_relay
       - switch.turn_off: relay_1
       - switch.turn_off: relay_2
-
-logger:
-  logs:
-    cover: INFO
 
 number:
   - id: cover_acceleration_wait_time
@@ -202,13 +218,13 @@ script:
           #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE
             #error "Configuration error: The add-on cover and add-on climate cannot be installed simultaneously."
           #endif
-          ESP_LOGI("${project_tag}", "Add-on cover (time based):");
+          ESP_LOGCONFIG("${TAG_ADDON_COVER}", "Add-on cover (time based):");
           cover_embedded->dump_config();
 
   - id: !extend dump_config_packages  # Defined by nspanel_esphome_core_base.yaml
     then:
       - lambda: |-
-          ESP_LOGI("${project_tag}", "  - Add-on - Cover");
+          ESP_LOGCONFIG("${TAG_ADDON_COVER}", "  - Add-on - Cover");
 
   - id: set_physical_relays
     mode: queued

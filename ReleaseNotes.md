@@ -40,31 +40,10 @@ This update introduces significant improvements but also comes with consideratio
 
 ### Home Assistant v2024.11.0 and ESPHome v2024.11.0 are required
 Refer to our  
-[Version Compatibility Matrix](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/version_compatibility.md).
+[Version Compatibility Matrix](docs/version_compatibility.md).
 
 ### Versioning changes require updating all three components
 Update all components (Blueprint, ESPHome, and TFT) together for compatibility and consistency.
-
-### Substitution `nextion_update_url` deprecated
-To simplify the system and make it more intuitive, the substitution `nextion_update_url` has been deprecated.  
-It is replaced by `nextion_update_base_url`, which specifies a base location (e.g., a local server or remote URL).  
-The system automatically appends the version name to the path, making it easier to organize and manage files.
-
-For example, if you set:  
-`nextion_update_base_url: "http://homeassistant.local:8234/local/nspanel/"`  
-and your panel is running version `v4.4.0`, the system will look for files under:  
-`http://homeassistant.local:8234/local/nspanel/v4.4.0/`.
-
-This enables flexible hosting options while maintaining the ability to use local files.  
-The default value for `nextion_update_base_url` is:  
-`https://raw.githubusercontent.com/Blackymas/NSPanel_HA_Blueprint/`.
-
-To use a local server (e.g., Home Assistant), ensure the files are organized by version. For example:  
-Store the files for version `v4.4.0` in `/www/nspanel/v4.4.0/` on your Home Assistant server, and configure:  
-```yaml
-substitutions:
-  nextion_update_base_url: "http://homeassistant.local:8234/local/nspanel/"  # Base folder for files
-```
 
 ### Diagnostic sensors removed
 Some diagnostic sensors were removed to free memory for new features. Their values are logged; request custom  

@@ -12,6 +12,7 @@ substitutions:
   DISPLAY_CHARSET_CJK: '2'
   GPIO_DISPLAY_POWER_PIN: '4'
   GPIO_DISPLAY_POWER_INVERTED: 'true'
+  TAG_HW_DISPLAY: nspanel_ha_blueprint.hw.display
 
 packages:
   # yamllint disable rule:colons
@@ -29,6 +30,7 @@ api:
         cmd: string
       then:
         - lambda: |-
+            ESP_LOGV("${TAG_HW_DISPLAY}", cmd.c_str());
             disp1->send_command(cmd.c_str());
 
     # Component action
@@ -42,11 +44,38 @@ api:
         visible: bool      # Set to `true` for visible or `false` for hidden.
       then:
         - lambda: |-
-            ESP_LOGD("api", "New value for component '%s' on page '%s'",
-                      component.c_str(), page.c_str());
-            if (not page.empty() and not component.empty())
-              display_component_action->execute(get_page_id(page.c_str()), component.c_str(),
-                                                txt.c_str(), color, font, visible);
+            if (page.empty()) {
+              ESP_LOGE("${TAG_HW_DISPLAY}", "Missing page info");
+              return;
+            }
+            if (component.empty()) {
+              ESP_LOGE("${TAG_HW_DISPLAY}", "Missing component info");
+              return;
+            }
+            ESP_LOGV("${TAG_HW_DISPLAY}", "'%s.%s' updated", page.c_str(), component.c_str());
+            #if ESP_LOG_LEVEL >= ESP_LOG_VERBOSE
+            const uint16_t txt_len = txt.length();
+            if (txt_len == 3) {
+              const uint32_t codepoint = decode_utf8(txt.c_str());
+              ESP_LOGV("${TAG_HW_DISPLAY}", "  txt:     %s (\\u%04" PRIx32 ")", txt.c_str(), codepoint);
+            } else if (txt_len > 0) {
+              ESP_LOGV("${TAG_HW_DISPLAY}", "  txt:     '%s' (len=%" PRIu16 ")", txt.c_str(), txt_len);
+            } else {
+              ESP_LOGV("${TAG_HW_DISPLAY}", "  txt:     null (len=0)");
+            }
+            if (color.size() == 3 and
+                color[0] >= 0 and color[0] <= UINT8_MAX and
+                color[1] >= 0 and color[1] <= UINT8_MAX and
+                color[2] >= 0 and color[2] <= UINT8_MAX) {
+              ESP_LOGV("${TAG_HW_DISPLAY}", "  color:   %" PRIu16, color565(color));
+            }
+            if (font >= 0 and font <= UINT8_MAX) {
+              ESP_LOGV("${TAG_HW_DISPLAY}", "  font:    %" PRIi32, font);
+            }
+            ESP_LOGV("${TAG_HW_DISPLAY}", "  visible: %s", YESNO(visible));
+            #endif
+            display_component_action->execute(get_page_id(page.c_str()), component.c_str(), txt.c_str(), color, font,
+                                              visible);
 
     # Updates the value of a specified component on the display.
     - action: component_val
@@ -56,6 +85,7 @@ api:
         val: int           # New integer value to set for the component.
       then:
         - lambda: |-
+            ESP_LOGV("${TAG_HW_DISPLAY}", "'%s.%s': %" PRIi32, page.c_str(), component.c_str(), val);
             if (!page.empty() and !component.empty())
               set_component_value->execute(get_page_id(page.c_str()), component.c_str(), val);
 
@@ -66,6 +96,7 @@ api:
         back_page: string  # Specifies the page to return to. Accepts "home" or "buttonpage01" to "buttonpage04".
       then:
         - lambda: |-
+            ESP_LOGV("${TAG_HW_DISPLAY}", "Show entity '%s'", entity_id.c_str());
             if (not entity_id.empty() and not back_page.empty())
               entity_details_show_action->execute(entity_id.c_str(), get_page_id(back_page.c_str()));
 
@@ -83,11 +114,17 @@ binary_sensor:
 display:
   - id: disp1
     platform: nextion
-    command_spacing: 1ms
+    # command_spacing: 5ms  # add this back when this functionality is more stable
+    # max_commands_per_loop: 15  # add when PR#8972 is merged in ESPHome
+    # max_queue_size: 20  # add when PR#8976 is merged in ESPHome
 
     on_buffer_overflow:
       then:
-        - script.execute: display_command_spacing_increment
+        - lambda: |-
+            // Increase command spacing if in use
+            #ifdef USE_NEXTION_COMMAND_SPACING
+            display_command_spacing_increment->execute();
+            #endif
 
     on_page:
       then:
@@ -121,30 +158,39 @@ esphome:
   on_boot:
     - priority: 700.${BOOT_STEP_HW_DISPLAY}
       then:
-        - wait_until:
+        - if:
             condition:
-              - lambda: return (display_command_spacing->state >= 0 and display_command_spacing->state <= UINT8_MAX);
-        - lambda: disp1->set_command_spacing(static_cast<uint8_t>(display_command_spacing->state));
+              - lambda: |-
+                  // Run only if command_spacing is set
+                  #ifdef USE_NEXTION_COMMAND_SPACING
+                  return true;
+                  #else
+                  return false;
+                  #endif
+            then:
+              - if:
+                  condition: &condition_NOT_safe_mode
+                    - lambda: return not nspanel_ha_blueprint::is_safe_mode;
+                  then:
+                    - wait_until:
+                        condition:
+                          - lambda: |-
+                              return (display_command_spacing->state >= 0 and
+                                      display_command_spacing->state <= UINT8_MAX);
+                    - lambda: |-
+                        // Only if command spacing is set
+                        #ifdef USE_NEXTION_COMMAND_SPACING
+                        disp1->set_command_spacing(static_cast<uint8_t>(display_command_spacing->state));
+                        #endif
+            else:
+              - lambda: display_command_spacing->set_internal(true);
 
   on_shutdown:
-    - priority: 600.${BOOT_STEP_HW_DISPLAY}
-      then:
-        - switch.turn_off: screen_power
-    - priority: 0.5
+    - priority: 0.${BOOT_STEP_HW_DISPLAY}
       then:
         - binary_sensor.template.publish:  # Make it unavailable to blueprint calls
             id: nextion_init
             state: false
-
-# To-do: Remove this when both PR#7948 and PR#7961 are merged and released (v2025.1.0?)
-external_components:
-  - source:
-      type: git
-      url: https://github.com/edwardtfn/esphome
-      ref: nextion-47
-    refresh: 1d
-    components:
-      - nextion
 
 globals:
   - id: display_charset
@@ -168,10 +214,6 @@ globals:
     initial_value: "'.'"
 
 json:  # Can be replaced by web_server
-
-logger:
-  logs:
-    nextion_textsensor: INFO
 
 number:
   - id: display_brightness  # SCREEN BRIGHTNESS
@@ -242,9 +284,9 @@ number:
     name: Display Command Spacing
     platform: template
     entity_category: config
-    min_value: 0
+    min_value: 1
     max_value: 255
-    initial_value: 0
+    initial_value: 5
     step: 1
     unit_of_measurement: msec
     restore_value: true
@@ -254,7 +296,11 @@ number:
     disabled_by_default: true
     on_value:
       then:
-        - lambda: disp1->set_command_spacing(static_cast<uint8_t>(x));
+        - lambda: |-
+            // Only if command spacing is in use
+            #ifdef USE_NEXTION_COMMAND_SPACING
+            disp1->set_command_spacing(static_cast<uint8_t>(x));
+            #endif
 
 script:
   - id: !extend boot_package_register
@@ -268,7 +314,7 @@ script:
 
   - id: !extend boot_sequence
     then:
-      - script.wait: scan_baud_rate
+      - script.wait: boot_scan_baud_rate
       - wait_until:
           condition:
             - lambda: return not isnan(display_sleep_brightness->state);
@@ -306,6 +352,11 @@ script:
       - lambda: |-
           DisplayComponent* display_component = get_component(page_id, component.c_str());
 
+          if (not display_component) {
+            ESP_LOGE("${TAG_HW_DISPLAY}", "Component '%s.%s' not found", page_names[page_id], component.c_str());
+            return;
+          }
+
           // Text
           if (!txt.empty())
             display_component_update_text->execute(display_component, txt);
@@ -333,6 +384,10 @@ script:
     then:
       - lambda: |-
           DisplayComponent* component_to_initialize = get_component(page_id, component.c_str());
+          if (not component_to_initialize) {
+            ESP_LOGE("${TAG_HW_DISPLAY}", "Component '%s.%s' not found", page_names[page_id], component.c_str());
+            return;
+          }
           component_to_initialize->global = global;
 
   - id: display_component_send
@@ -342,101 +397,90 @@ script:
     then:
       - wait_until:
           condition:
-            - lambda: return (display_component->page_id == current_page_id);
+            - lambda: |-
+                // Exit wait if pointer becomes invalid OR condition is met
+                return (!display_component || display_component->page_id == current_page_id);
           timeout: 2s
       - lambda: |-
-          if (display_component->page_id == current_page_id or display_component->global) {
-            ESP_LOGD("script", "Rendering page %s, component %s",
+          // Check if pointer is still valid after wait
+          if (display_component &&
+              (display_component->page_id == current_page_id || display_component->global)) {
+            ESP_LOGV("${TAG_HW_DISPLAY}", "Render '%s.%s'",
                       page_names[display_component->page_id], display_component->component);
-            if (not display_component->global) {
+            if (!display_component->global) {
               display_component_send_text->execute(display_component);
               display_component_send_color->execute(display_component);
               display_component_send_font->execute(display_component);
             }
             if (display_component->page_id == current_page_id)
               display_component_send_visibility->execute(display_component);
-          }
+          } // endif display_component still valid after wait
 
   - id: display_component_send_color
     mode: queued
     parameters:
       display_component: DisplayComponent*
     then:
-      - if:
-          condition:
-            - lambda: return (display_component->page_id == current_page_id or display_component->global);
-            - lambda: return not display_component->color_is_updated;
-          then:
-            - lambda: |-
-                if ((display_component->global or display_component->page_id == current_page_id) and
-                    !display_component->color_is_updated) {
-                  disp1->set_component_font_color(
-                      (display_component->page_id == current_page_id) ? display_component->component :
-                      get_page_and_component(page_names[display_component->page_id],
-                                              display_component->component).c_str(),
-                      display_component->color);
-                  display_component->color_is_updated = true;
-                }
+      - lambda: |-
+          if (display_component &&  // Check if display_component is valid (not nullptr)
+              (display_component->page_id == current_page_id || display_component->global) &&
+              !display_component->color_is_updated) {
+            disp1->set_component_font_color(
+                (display_component->page_id == current_page_id) ? display_component->component :
+                get_page_and_component(page_names[display_component->page_id],
+                                        display_component->component).c_str(),
+                display_component->color);
+            display_component->color_is_updated = true;
+          }
 
   - id: display_component_send_font
     mode: queued
     parameters:
       display_component: DisplayComponent*
     then:
-      - if:
-          condition:
-            - lambda: return (display_component->page_id == current_page_id or display_component->global);
-            - lambda: return display_component->font != UINT8_MAX;
-            - lambda: return not display_component->font_is_updated;
-          then:
-            - lambda: |-
-                if ((display_component->global or display_component->page_id == current_page_id) and
-                    !display_component->font_is_updated) {
-                  disp1->set_component_font(
-                      (display_component->page_id == current_page_id) ? display_component->component :
-                      get_page_and_component(page_names[display_component->page_id],
-                                              display_component->component).c_str(),
-                      display_component->font);
-                  display_component->font_is_updated = true;
-                }
+      - lambda: |-
+          if (display_component &&  // Check if display_component is valid (not nullptr)
+              (display_component->page_id == current_page_id || display_component->global) &&
+              display_component->font != UINT8_MAX &&
+              !display_component->font_is_updated) {
+            disp1->set_component_font(
+                (display_component->page_id == current_page_id) ? display_component->component :
+                get_page_and_component(page_names[display_component->page_id],
+                                        display_component->component).c_str(),
+                display_component->font);
+            display_component->font_is_updated = true;
+          }
 
   - id: display_component_send_text
     mode: queued
     parameters:
       display_component: DisplayComponent*
     then:
-      - if:
-          condition:
-            - lambda: return (display_component->page_id == current_page_id or display_component->global);
-            - lambda: return not display_component->text_is_updated;
-          then:
-            - lambda: |-
-                if ((display_component->global or display_component->page_id == current_page_id) and
-                    !display_component->text_is_updated) {
-                  disp1->set_component_text(
-                      (display_component->page_id == current_page_id) ? display_component->component :
-                      get_page_and_component(page_names[display_component->page_id],
-                                              display_component->component).c_str(),
-                      display_component->text);
-                  display_component->text_is_updated = true;
-                }
+      - lambda: |-
+          if (display_component &&  // Check if display_component is valid (not nullptr)
+              (display_component->page_id == current_page_id || display_component->global) &&
+              !display_component->text_is_updated) {
+            disp1->set_component_text(
+                (display_component->page_id == current_page_id) ? display_component->component :
+                get_page_and_component(page_names[display_component->page_id],
+                                        display_component->component).c_str(),
+                display_component->text);
+            display_component->text_is_updated = true;
+          }
 
   - id: display_component_send_visibility
     mode: queued
     parameters:
       display_component: DisplayComponent*
     then:
-      - if:
-          condition:
-            - lambda: return display_component->page_id == current_page_id;
-            - lambda: return not display_component->visible_is_updated;
-          then:
-            - lambda: |-
-                if (display_component->page_id == current_page_id and !display_component->visible_is_updated) {
-                  disp1->send_command_printf("vis %s,%i", display_component->component,
-                                              display_component->visible ? 1 : 0);
-                  display_component->visible_is_updated = true;
-                }
+      - lambda: |-
+          if (display_component &&  // Check if display_component is valid (not nullptr)
+              display_component->page_id == current_page_id &&
+              !display_component->visible_is_updated) {
+            disp1->send_command_printf("vis %s,%i", display_component->component,
+                                        display_component->visible ? 1 : 0);
+            display_component->visible_is_updated = true;
+          }
 
   - id: display_component_update_color
     mode: parallel
@@ -445,12 +489,14 @@ script:
       new_color: uint16_t
     then:
       - lambda: |-
-          if (new_color != display_component->color) {
-            display_component->color = new_color;
-            display_component->color_is_updated = false;
+          if (display_component) {  // Check if display_component is valid (not nullptr)
+            if (new_color != display_component->color) {
+              display_component->color = new_color;
+              display_component->color_is_updated = false;
+            }
+            if (!display_component->color_is_updated)
+              display_component_send_color->execute(display_component);
           }
-          if (!display_component->color_is_updated)
-            display_component_send_color->execute(display_component);
 
   - id: display_component_update_font
     mode: parallel
@@ -459,12 +505,14 @@ script:
       new_font: uint8_t
     then:
       - lambda: |-
-          if (new_font != display_component->font) {
-            display_component->font = new_font;
-            display_component->font_is_updated = false;
+          if (display_component) {  // Check if display_component is valid (not nullptr)
+            if (new_font != display_component->font) {
+              display_component->font = new_font;
+              display_component->font_is_updated = false;
+            }
+            if (!display_component->font_is_updated)
+              display_component_send_font->execute(display_component);
           }
-          if (!display_component->font_is_updated)
-            display_component_send_font->execute(display_component);
 
   - id: display_component_update_text
     mode: parallel
@@ -473,12 +521,14 @@ script:
       new_text: string
     then:
       - lambda: |-
-          if (new_text != display_component->text) {
-            copyStringToCharArray(display_component->text, new_text);
-            display_component->text_is_updated = false;
+          if (display_component) {  // Check if display_component is valid (not nullptr)
+            if (new_text != display_component->text) {
+              copyStringToCharArray(display_component->text, new_text);
+              display_component->text_is_updated = false;
+            }
+            if (!display_component->text_is_updated)
+              display_component_send_text->execute(display_component);
           }
-          if (!display_component->text_is_updated)
-            display_component_send_text->execute(display_component);
 
   - id: display_component_update_visibility
     mode: parallel
@@ -487,33 +537,43 @@ script:
       new_visibility: bool
     then:
       - lambda: |-
-          if (new_visibility != display_component->visible) {
-            display_component->visible = new_visibility;
-            display_component->visible_is_updated = false;
+          if (display_component) {                               // Check if display_component is valid (not nullptr)
+            if (new_visibility != display_component->visible) {  // Only update if visibility actually changed
+              display_component->visible = new_visibility;
+              display_component->visible_is_updated = false;
+            }
+            if (!display_component->visible_is_updated)          // Send visibility update if needed
+              display_component_send_visibility->execute(display_component);
           }
-          if (!display_component->visible_is_updated)
-            display_component_send_visibility->execute(display_component);
 
   - id: display_command_spacing_increment
     mode: restart
     then:
-      - lambda: |-
-          screen_power->turn_off();
-          ESP_LOGE("script", "Nextion reported a buffer overflow");
-          ESP_LOGE("script", "Increasing the display command spacing...");
-      - number.increment:
-          id: display_command_spacing
-          cycle: false
       - if:
           condition:
-            - lambda: return global_preferences->sync();
+            - lambda: |-
+                // Execute only when command spacing is in use
+                #ifdef USE_NEXTION_COMMAND_SPACING
+                return true;
+                #else
+                return false;
+                #endif
           then:
             - lambda: |-
-                ESP_LOGE("script", "Restarting ESP in 15s to avoid getting out of sync with Nextion");
+                // Include only when command spacing is in use
+                #ifdef USE_NEXTION_COMMAND_SPACING
+                screen_power->turn_off();
+                ESP_LOGE("${TAG_HW_DISPLAY}", "Nextion buffer overflow - Increasing command spacing");
+                // Ultra-compact lambda for rare execution
+                // Increment display_command_spacing, no cycle
+                if (auto *n = id(display_command_spacing))
+                  n->make_call().set_value(min(n->state + n->traits.get_step(), n->traits.get_max_value())).perform();
+                if (global_preferences->sync()) {
+                  ESP_LOGE("${TAG_HW_DISPLAY}", "Nextion out of sync - restart in 15s");
+                }
+                #endif
             - delay: 15s
-            - lambda: |-
-                ESP_LOGE("script", "Restarting ESP now");
-                arch_restart();
+            - lambda: App.safe_reboot();
 
   - id: display_wrapped_text
     mode: queued
@@ -558,25 +618,19 @@ script:
       - lambda: |-
           // Report Nextion status
           nextion_init->publish_state(nextion_init->state and disp1->is_setup());
-          ESP_LOGI("${project_tag}", "Nextion:");
-          ESP_LOGI("${project_tag}", "  Command spacing: %" PRIu8,
+          ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "Nextion:");
+          #ifdef USE_NEXTION_COMMAND_SPACING
+          ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "  Cmd  spacing: %" PRIu8 "ms",
                     static_cast<uint8_t>(display_command_spacing->state));
-          ESP_LOGI("${project_tag}", "  Queue size:      %d", disp1->queue_size());
-          if (disp1->is_setup())
-            ESP_LOGI("${project_tag}", "  Is setup:        True");
-          else {
-            ESP_LOGW("${project_tag}", "  Is setup:        False");
-            ESP_LOGW("${project_tag}", "  Is detected:     %s", YESNO(disp1->is_detected()));
-            //exit_reparse->execute();
+          #endif
+          ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "  Queue: %d", disp1->queue_size());
+          if (!disp1->is_setup() or !disp1->is_detected() or !nextion_init->state) {
+            ESP_LOGE("${TAG_HW_DISPLAY}", "  Is setup: %s", YESNO(disp1->is_setup()));
+            ESP_LOGE("${TAG_HW_DISPLAY}", "  Is detected: %s", YESNO(disp1->is_detected()));
+            ESP_LOGE("${TAG_HW_DISPLAY}", "  Init: %s", YESNO(nextion_init->state));
           }
-          if (nextion_init->state) {
-            ESP_LOGI("${project_tag}", "  Init:            True");
-          } else
-            ESP_LOGW("${project_tag}", "  Init:            False");
-          if (id(version_tft).empty())
-            ESP_LOGW("${project_tag}", "  TFT:             UNKNOWN");
-          else
-            ESP_LOGI("${project_tag}", "  TFT:             %s", id(version_tft).c_str());
+          ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "  TFT: %s",
+                          version_tft->state.empty() ? "UNKNOWN" : version_tft->state.c_str());
 
   - id: entity_details_show_action
     mode: restart
@@ -622,13 +676,13 @@ script:
       #   - nspanel_esphome_core_versioning.yaml
       - lambda: |-
           if (page.empty()) {
-            ESP_LOGW("script", "Received empty page parameter");
+            ESP_LOGW("${TAG_HW_DISPLAY}", "Empty page");
             return;
           }
 
           // Extract required fields with validation
           if (!json.containsKey("event")) {
-            ESP_LOGW("script", "Missing required 'event' field in JSON");
+            ESP_LOGW("${TAG_HW_DISPLAY}", "Missing 'event' key");
             return;
           }
           const std::string event = json["event"].as<std::string>();
@@ -637,13 +691,13 @@ script:
           const std::string value = json.containsKey("value") ?
             json["value"].as<std::string>() : "";
 
-          ESP_LOGV("script", "Processing display event: page=%s, event=%s, component=%s",
-            page.c_str(), event.c_str(), component.c_str());
+          ESP_LOGV("${TAG_HW_DISPLAY}", "Event: '%s.%s', type=%s",
+                    page.c_str(), component.c_str(), event.c_str());
 
           // Handle special events
           if (event == "params") {
             if (!json.containsKey("display_mode") || !json.containsKey("charset")) {
-              ESP_LOGW("script", "Missing required display parameters");
+              ESP_LOGW("${TAG_HW_DISPLAY}", "Missing 'display' key");
               return;
             }
 
@@ -651,9 +705,9 @@ script:
             id(display_mode) = json["display_mode"].as<uint8_t>();
             id(display_charset) = json["charset"].as<uint8_t>();
 
-            ESP_LOGI("script", "Display parameters received:");
-            ESP_LOGI("script", "  Display mode:    %" PRIu8, id(display_mode));
-            ESP_LOGI("script", "  Display charset: %" PRIu8, id(display_charset));
+            ESP_LOGV("${TAG_HW_DISPLAY}", "Display:");
+            ESP_LOGV("${TAG_HW_DISPLAY}", "  Mode:    %" PRIu8, id(display_mode));
+            ESP_LOGV("${TAG_HW_DISPLAY}", "  Charset: %" PRIu8, id(display_charset));
 
             disp1->send_command("tm_esphome.en=0");
             return;
@@ -664,34 +718,36 @@ script:
 
           if (event == "short_click" || event == "long_click") {
             if (component.empty()) {
-              ESP_LOGW("script", "Missing component for button click event");
+              ESP_LOGW("${TAG_HW_DISPLAY}", "Click event missing component");
               return;
             }
 
             // Button click event
             ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
-              {"device_name", id(device_name).c_str()},
+              {"device_name", nspanel_ha_blueprint::get_device_name()},
               {"esphome_version", "${version}"},
               {"type", "button_click"},
               {"page", page.c_str()},
               {"component", component.c_str()},
-              {"command", event.c_str()}
+              {"command", event.c_str()},
+              {"tag", "${TAG_HW_DISPLAY}"}
             });
           } else {
             // Generic event
             ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
-              {"device_name", id(device_name).c_str()},
+              {"device_name", nspanel_ha_blueprint::get_device_name()},
               {"esphome_version", "${version}"},
               {"type", "button_click"},
               {"page", page.c_str()},
               {"component", component.c_str()},
               {"event", event.c_str()},
               {"value", value.c_str()},
-              {"entity", detailed_entity->state.c_str()}
+              {"entity", detailed_entity->state.c_str()},
+              {"tag", "${TAG_HW_DISPLAY}"}
             });
           }
 
-          ESP_LOGV("script", "Event sent to Home Assistant successfully");
+          ESP_LOGV("${TAG_HW_DISPLAY}", "HA event sent");
 
   - id: goto_page_id
     mode: restart
@@ -722,7 +778,7 @@ script:
             }
             if (is_new_page or new_page_id == ${PAGE_ID_BOOT}) {
               // Report new page to logs
-              ESP_LOGI("display", "Page changed from \"%s\" to \"%s\"", page_names[previous_page_id],
+              ESP_LOGD("${TAG_HW_DISPLAY}", "Page change: '%s'->'%s'", page_names[previous_page_id],
                         page_names[new_page_id]);
 
               // Reset entity_id when it does not apply
@@ -734,12 +790,13 @@ script:
               // Inform Home Assistant about the page change
               esphome::api::CustomAPIDevice ha_event;
               ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
-                {"device_name", id(device_name).c_str()},
+                {"device_name", nspanel_ha_blueprint::get_device_name()},
                 {"esphome_version", "${version}"},
                 {"type", "page_changed"},
                 {"page", page_names[new_page_id]},
                 {"from", page_names[previous_page_id]},
-                {"entity", detailed_entity->state.c_str()}
+                {"entity", detailed_entity->state.c_str()},
+                {"tag", "${TAG_HW_DISPLAY}"}
               });
             }
             page_changed_rendering_components->execute();
@@ -896,6 +953,22 @@ sensor:
     variable_name: dimslider
     internal: true
 
+  - id: nextion_esphome
+    name: Nextion esphome var
+    platform: nextion
+    variable_name: esphome
+    internal: false  # To do: Change this before the release
+    on_value:
+      then:
+        - lambda: |-
+            if (x==0) {
+              ESP_LOGI("${TAG_HW_DISPLAY}", "Nextion connected");  // To do: Change this before the release
+              return;
+            }
+            ESP_LOGE("${TAG_HW_DISPLAY}", "Nextion disconnected");  // To do: Change this before the release
+            ESP_LOGE("${TAG_HW_DISPLAY}", "Set connection flag");  // To do: Change this before the release
+            disp1->send_command("esphome=0");
+
 switch:
   - name: Nextion display - Power  # DISPLAY ALWAYS ON
     platform: gpio
@@ -935,8 +1008,8 @@ text_sensor:
             DynamicJsonDocument json(1024);
             DeserializationError error = deserializeJson(json, x.c_str());
             if (error) {
-              ESP_LOGE("text_sensor", "Error parsing json: %s", x.c_str());
-              ESP_LOGE("text_sensor", "Error: %s", error.c_str());
+              ESP_LOGE("${TAG_HW_DISPLAY}", "JSON parse error: %s", x.c_str());
+              ESP_LOGE("${TAG_HW_DISPLAY}", "Error: %s", error.c_str());
             } else {
               const std::string page = json["page"];
               event_from_display->execute(json, page.c_str());

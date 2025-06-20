@@ -26,6 +26,7 @@ substitutions:
   heat_deadband: "0.5"  # Temperature delta before engaging heat
   heat_overrun: "0.5"   # Temperature delta before disengaging heat
   BOOT_STEP_ADDON_CLIMATE: '32'
+  TAG_ADDON_CLIMATE_BASE: nspanel_ha_blueprint.addon.climate.base
 
 esphome:
   platformio_options:
@@ -45,8 +46,6 @@ climate:
         # This is hard coded for now as ESPHome isn't supporting a substitution here. In contact with support.
         target_temperature: 0.5
         current_temperature: 0.1
-    idle_action:
-      - switch.turn_off: relay_${heater_relay}
     default_preset: "Off"
     on_boot_restore_from: memory
     internal: false
@@ -73,28 +72,10 @@ display:
             }
 
 globals:
-  - id: is_addon_climate_visible  # Is embedded thermostat visible on climate page?
-    type: bool
-    restore_value: false
-    initial_value: 'false'
-
-  - id: addon_climate_friendly_name  # Embeded climate friendly name
-    type: std::string
-    restore_value: false
-    initial_value: '"${name} Thermostat"'
-
   - id: is_embedded_thermostat  # Is embedded thermostat set as main climate entity?
     type: bool
     restore_value: true
     initial_value: 'false'
-
-  - id: chip_climate  # Climate chip shown on page Home
-    type: DisplayComponent*
-    restore_value: false
-
-logger:
-  logs:
-    climate: INFO
 
 switch:
   ##### PHYSICAL SWITCH 0 (Dummy) - Used when relay is not set #####
@@ -113,14 +94,14 @@ script:
   - id: !extend boot_sequence
     then:
       - lambda: |-
-          id(chip_climate) = get_component(${PAGE_ID_HOME}, "chip_climate");
+          nspanel_ha_blueprint::chip_climate = get_component(${PAGE_ID_HOME}, "chip_climate");
 
   - id: !extend change_climate_state
     then:
       - lambda: |-
           if (embedded) {
             set_component_value->execute(${PAGE_ID_CLIMATE}, "embedded", 1);
-            id(is_addon_climate_visible) = true;
+            nspanel_ha_blueprint::is_addon_climate_visible = true;
 
             auto call = thermostat_embedded->make_call();
             if (key == "temperature") {
@@ -168,48 +149,36 @@ script:
           #endif
           const uint cooler_relay = ${cooler_relay};
           const uint heater_relay = ${heater_relay};
-          ESP_LOGI("${project_tag}", "Add-on climate:");
+          ESP_LOGCONFIG("${TAG_ADDON_CLIMATE_BASE}", "Add-on climate:");
           #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL
-          ESP_LOGI("${project_tag}", "  Cool:  Enabled");
-          if (cooler_relay == 1 or cooler_relay == 2)
-            ESP_LOGI("${project_tag}", "  Relay: %u", cooler_relay);
-          else
-            ESP_LOGE("${project_tag}", "  Relay: %u", cooler_relay);
+          ESP_LOGCONFIG("${TAG_ADDON_CLIMATE_BASE}", "  Cool:  enabled");
+          ESP_LOGCONFIG("${TAG_ADDON_CLIMATE_BASE}", "  Relay: %u", cooler_relay);
           #endif
           #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT
-          ESP_LOGI("${project_tag}", "  Heat:  Enabled");
-          if (heater_relay == 1 or heater_relay == 2)
-            ESP_LOGI("${project_tag}", "  Relay: %u", heater_relay);
-          else
-            ESP_LOGE("${project_tag}", "  Relay: %u", heater_relay);
+          ESP_LOGCONFIG("${TAG_ADDON_CLIMATE_BASE}", "  Heat:  enabled");
+          ESP_LOGCONFIG("${TAG_ADDON_CLIMATE_BASE}", "  Relay: %u", heater_relay);
           #endif
           #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
-          ESP_LOGI("${project_tag}", "  Dual:  Enabled");
-          if (cooler_relay == 1 or cooler_relay == 2)
-            ESP_LOGI("${project_tag}", "  Relay (cooler): %u", cooler_relay);
-          else
-            ESP_LOGE("${project_tag}", "  Relay (cooler): %u", cooler_relay);
-          if (heater_relay == 1 or heater_relay == 2)
-            ESP_LOGI("${project_tag}", "  Relay (heater): %u", heater_relay);
-          else
-            ESP_LOGE("${project_tag}", "  Relay (heater): %u", heater_relay);
+          ESP_LOGCONFIG("${TAG_ADDON_CLIMATE_BASE}", "  Dual:  enabled");
+          ESP_LOGCONFIG("${TAG_ADDON_CLIMATE_BASE}", "  Cooler relay: %u", cooler_relay);
+          ESP_LOGCONFIG("${TAG_ADDON_CLIMATE_BASE}", "  Heater relay: %u", heater_relay);
           if (cooler_relay == heater_relay)
-            ESP_LOGE("${project_tag}", "  Double relay assignment");
+            ESP_LOGE("${TAG_ADDON_CLIMATE_BASE}", "  Relay conflict");
           #endif
 
   - id: !extend dump_config_packages  # Defined by nspanel_esphome_core_base.yaml
     then:
       - lambda: |-
-          ESP_LOGI("${project_tag}", "  - Add-on - Climate - Base");
+          ESP_LOGCONFIG("${TAG_ADDON_CLIMATE_BASE}", "  - Add-on - Climate - Base");
 
   - id: !extend page_climate
     then:
       - lambda: |-
-          id(is_addon_climate_visible) = (current_page_id == ${PAGE_ID_CLIMATE}
+          nspanel_ha_blueprint::is_addon_climate_visible = (current_page_id == ${PAGE_ID_CLIMATE}
                                           and detailed_entity->state == "embedded_climate");
-          if (id(is_addon_climate_visible)) {
+          if (nspanel_ha_blueprint::is_addon_climate_visible) {
             display_component_update_text->execute(get_component(${PAGE_ID_CLIMATE}, "page_label"),
-                                                    id(addon_climate_friendly_name).c_str());
+                                                    nspanel_ha_blueprint::addon_climate_friendly_name.c_str());
             ClimateTraits traits = thermostat_embedded->get_traits();
 
             float temp_step = traits.get_visual_target_temperature_step();
@@ -309,7 +278,7 @@ script:
     then:
       - lambda: |-
           if (current_page_id == ${PAGE_ID_CLIMATE})
-            id(is_addon_climate_visible) = embedded_climate;
+            nspanel_ha_blueprint::is_addon_climate_visible = embedded_climate;
 
   - id: !extend set_var_bool
     then:
@@ -321,7 +290,7 @@ script:
     then:
       - lambda: |-
           if (component == "embedded_climate_friendly_name")  // Friendly name for the climate control feature
-            id(addon_climate_friendly_name) = val;
+            nspanel_ha_blueprint::addon_climate_friendly_name = val;
 
   - id: !extend stop_all
     then:

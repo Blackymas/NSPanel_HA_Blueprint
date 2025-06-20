@@ -12,11 +12,9 @@ substitutions:
   ## local yaml substitutions ##
   device_name: nspanel
   name: ${device_name}
-  friendly_name: ${device_name}
-  ota_password: ${wifi_password}
-  project_tag: nspanel_ha_blueprint
   ##############################
   BOOT_STEP_API: '30'
+  TAG_API: nspanel_ha_blueprint.api
 
 api:
   id: api_server
@@ -38,31 +36,26 @@ api:
         val: bool
       then:
         - lambda: |-
-            ESP_LOGV("api.action.set_bool", "%s: %s", component.c_str(), val ? "True" : "False");
-        - script.execute:
-            id: set_var_bool
-            component: !lambda return component;
-            val: !lambda return val;
+            ESP_LOGV("${TAG_API}", "%s: %s", component.c_str(), YESNO(val));
+            set_var_bool->execute(component.c_str(), val);
 
     - action: set_int
       variables:
         component: string
         val: int
       then:
-        - script.execute:
-            id: set_var_int
-            component: !lambda return component;
-            val: !lambda return val;
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "%s: %" PRIi32, component.c_str(), val);
+            set_var_int->execute(component.c_str(), val);
 
     - action: set_string
       variables:
         component: string
         val: string
       then:
-        - script.execute:
-            id: set_var_string
-            component: !lambda return component;
-            val: !lambda return val;
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "%s: %s", component.c_str(), val.c_str());
+            set_var_string->execute(component.c_str(), val.c_str());
 
 esphome:
   platformio_options:
@@ -74,10 +67,6 @@ globals:
     type: bool
     restore_value: false
     initial_value: 'false'
-
-logger:
-  logs:
-    api: INFO
 
 script:
   - id: api_reset
@@ -92,23 +81,13 @@ script:
           condition:
             - lambda: return not id(api_is_updated);
           then:
-            - logger.log: Resetting API
+            - logger.log: API reset
             - delay: 2s
             - lambda: api_server->on_shutdown();
 
   - id: !extend boot_package_register
     then:
       - lambda: boot_package_register_add->execute(${BOOT_STEP_API}, "API", "API");
-
-  - id: !extend dump_config
-    then:
-      - lambda: |-
-          // report API status
-          if (api_server->is_connected()) {
-            ESP_LOGI("${project_tag}", "API:           Connected");
-          } else {
-            ESP_LOGW("${project_tag}", "API:           DISCONNECTED");
-          }
 
   - id: ha_button
     mode: parallel
@@ -120,12 +99,13 @@ script:
       - homeassistant.event:
           event: esphome.nspanel_ha_blueprint
           data:
-            device_name: !lambda return id(device_name).c_str();
+            device_name: !lambda return nspanel_ha_blueprint::get_device_name();
             esphome_version: ${version}
             type: button_click
             page: !lambda return page_names[page_id];
             component: !lambda return component.c_str();
             command: !lambda return command.c_str();
+            tag: ${TAG_API}
 
   - id: ha_call_action
     mode: parallel
@@ -138,13 +118,14 @@ script:
       - homeassistant.event:
           event: esphome.nspanel_ha_blueprint
           data:
-            device_name: !lambda return id(device_name).c_str();
+            device_name: !lambda return nspanel_ha_blueprint::get_device_name();
             esphome_version: ${version}
             type: action_call
             action: !lambda return action.c_str();
             key: !lambda return key.c_str();
             value: !lambda return value.c_str();
             entity: !lambda return entity.c_str();
+            tag: ${TAG_API}
 
   - id: set_var_bool
     mode: single
@@ -153,7 +134,7 @@ script:
       val: bool
     then:  # There's nothing here so far
       - lambda: |-
-          ESP_LOGV("script.set_var_bool", "%s: %s", component.c_str(), val ? "True" : "False");
+          ESP_LOGV("${TAG_API}", "%s: %s", component.c_str(), YESNO(val));
 
   - id: set_var_int
     mode: single
@@ -162,7 +143,7 @@ script:
       val: int
     then:  # There's nothing here so far
       - lambda: |-
-          ESP_LOGV("script.set_var_int", "%s: %i", component.c_str(), val);
+          ESP_LOGV("${TAG_API}", "%s: %i", component.c_str(), val);
 
   - id: set_var_string
     mode: single
@@ -171,7 +152,7 @@ script:
       val: string
     then:  # There's nothing here so far
       - lambda: |-
-          ESP_LOGV("script.set_var_string", "%s: '%s'", component.c_str(), val.c_str());
+          ESP_LOGV("${TAG_API}", "%s: '%s'", component.c_str(), val.c_str());
 
   - id: stop_all
     mode: restart
