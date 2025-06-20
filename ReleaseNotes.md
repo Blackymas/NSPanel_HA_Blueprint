@@ -40,7 +40,7 @@ This update introduces significant improvements but also comes with consideratio
 
 ### Home Assistant v2024.11.0 and ESPHome v2024.11.0 are required
 Refer to our  
-[Version Compatibility Matrix](https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/version_compatibility.md).
+[Version Compatibility Matrix](docs/version_compatibility.md).
 
 ### Versioning changes require updating all three components
 Update all components (Blueprint, ESPHome, and TFT) together for compatibility and consistency.
