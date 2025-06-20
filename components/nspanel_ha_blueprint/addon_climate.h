@@ -4,7 +4,6 @@
 
 #include "hw_display.h"
 
-namespace esphome {
 namespace nspanel_ha_blueprint {
 
     // Climate addon variables
@@ -13,6 +12,5 @@ namespace nspanel_ha_blueprint {
     extern DisplayComponent *chip_climate;             // Climate chip shown on page Home
 
 }  // namespace nspanel_ha_blueprint
-}  // namespace esphome
 
 #endif  // NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE
