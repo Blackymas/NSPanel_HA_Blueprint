@@ -59,8 +59,8 @@ namespace nspanel_ha_blueprint {
     // Function to get a pointer to a specific boot step by its index
     BootStep* get_boot_step(uint8_t index);
 
-    bool boot_completed = false;
-    uint8_t last_pending_step = 0;
+    extern bool boot_completed;
+    extern uint8_t last_pending_step;
 
 }  // namespace nspanel_ha_blueprint
 

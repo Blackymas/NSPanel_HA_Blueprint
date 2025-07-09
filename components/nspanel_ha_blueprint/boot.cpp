@@ -4,6 +4,10 @@
 
 namespace nspanel_ha_blueprint {
 
+    // Initialize boot flags
+    bool boot_completed = false;
+    uint8_t last_pending_step = 0;
+
     // Fixed array to store the boot steps
     BootStep boot_steps[MAX_BOOT_STEPS];
 
@@ -30,7 +34,7 @@ namespace nspanel_ha_blueprint {
         boot_steps[index].key[sizeof(boot_steps[index].key) - 1] = '\0';  // Ensure null termination
         strncpy(boot_steps[index].name, name, sizeof(boot_steps[index].name) - 1);
         boot_steps[index].name[sizeof(boot_steps[index].name) - 1] = '\0';  // Ensure null termination
-        last_pending_step = math::min(last_pending_step, index);
+        last_pending_step = (last_pending_step > index) ? index : last_pending_step;
         boot_completed = false;
         return true;
     }
@@ -66,7 +70,7 @@ namespace nspanel_ha_blueprint {
     bool is_boot_complete() {
         if (boot_completed)
             return true;
-        for (uint8_t i = 0; i < MAX_BOOT_STEPS; ++i) {
+        for (uint8_t i = last_pending_step; i < MAX_BOOT_STEPS; ++i) {
             if (boot_steps[i].registered && !boot_steps[i].completed) {
                 return false;
             }
