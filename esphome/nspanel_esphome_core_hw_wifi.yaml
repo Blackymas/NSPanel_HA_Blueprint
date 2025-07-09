@@ -40,22 +40,22 @@ esphome:
               - lambda: return not nspanel_ha_blueprint::is_safe_mode;
             then:
               - lambda: |-
-                  nspanel_ha_blueprint::set_device_name("${name}");
+                  id(device_name).publish_state("${name}");
 
 script:
   - id: !extend boot_package_register
     then:
-      - lambda: boot_package_register_add->execute(${BOOT_STEP_HW_WIFI}, "HW_WIFI", "HW Wi-Fi");
+      - lambda: id(boot_package_register_add).execute(${BOOT_STEP_HW_WIFI}, "HW_WIFI", "HW Wi-Fi");
 
   - id: !extend dump_config
     then:
       - lambda: |-
-          if (wifi_component->is_connected()) {
-            ESP_LOGCONFIG("${TAG_HW_WIFI}", "Wi-Fi: %.0f dBm", wifi_rssi->state);
+          if (id(wifi_component).is_connected()) {
+            ESP_LOGCONFIG("${TAG_HW_WIFI}", "Wi-Fi: %.0f dBm", id(wifi_rssi).state);
           } else {
             ESP_LOGE("${TAG_HW_WIFI}", "Wi-Fi: DISCONNECTED");
           }
-          ESP_LOGCONFIG("${TAG_HW_WIFI}", "Device: %s", nspanel_ha_blueprint::get_device_name());
+          ESP_LOGCONFIG("${TAG_HW_WIFI}", "Device: %s", id(device_name).state.c_str());
 
   - id: !extend page_boot
     then:
@@ -65,16 +65,16 @@ script:
     mode: restart
     then:
       - lambda: |-
-          if (!wifi_component->is_connected())
-            page_boot_log->execute("Boot", "Waiting WiFi");
+          if (!id(wifi_component).is_connected())
+            id(page_boot_log).execute("Boot", "Waiting WiFi");
       - wait_until:
           condition:
-            - lambda: return wifi_component->is_connected();
+            - lambda: return id(wifi_component).is_connected();
             - lambda: return current_page_id == ${PAGE_ID_BOOT};
           timeout: 20s
       - lambda: |-
           if (current_page_id == ${PAGE_ID_BOOT})
-            disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());
+            id(disp1).set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());
 
   - id: !extend page_home
     then:
@@ -91,13 +91,13 @@ script:
           static bool wifi_is_connected = false;
           static bool wifi_rssi_warning = false;
           bool status_has_changed = blueprint_is_connected != is_boot_step_completed(${BOOT_STEP_VERSIONING}) or
-                                    wifi_is_connected != wifi_component->is_connected() or
-                                    api_is_connected != api_server->is_connected();
+                                    wifi_is_connected != id(wifi_component).is_connected() or
+                                    api_is_connected != id(api_server).is_connected();
           if (status_has_changed) {
             ESP_LOGV("${TAG_HW_WIFI}", "Status changed");
             blueprint_is_connected = is_boot_step_completed(${BOOT_STEP_VERSIONING});
-            api_is_connected = api_server->is_connected();
-            wifi_is_connected = wifi_component->is_connected();
+            api_is_connected = id(api_server).is_connected();
+            wifi_is_connected = id(wifi_component).is_connected();
             // Update Wi-Fi icon
             char new_wifi_icon[5] = "\0";  // Allocate sufficient space to store UTF-8 icon
             if (wifi_is_connected) {
@@ -115,18 +115,18 @@ script:
             }
 
             if (new_wifi_icon[0] != '\0' and strcmp(wifi_icon->text, new_wifi_icon) != 0)
-              display_component_update_text->execute(wifi_icon, new_wifi_icon);
+              id(display_component_update_text).execute(wifi_icon, new_wifi_icon);
 
             ESP_LOGV("${TAG_HW_WIFI}", "WiFi icon: %s (\\u%04" PRIx32 ")", new_wifi_icon, decode_utf8(new_wifi_icon));
-            set_variable_value->execute("api",
+            id(set_variable_value).execute("api",
                                         (blueprint_is_connected and api_is_connected and wifi_is_connected) ? 1 : 0);
           }
 
           // Update Wi-Fi icon color
-          if (status_has_changed or (wifi_rssi_warning != (wifi_rssi->state <= -70))) {
+          if (status_has_changed or (wifi_rssi_warning != (id(wifi_rssi).state <= -70))) {
             ESP_LOGVV("${TAG_HW_WIFI}", "RSSI changed");
-            wifi_rssi_warning = (wifi_rssi->state <= -70);
-            display_component_update_color->execute(wifi_icon,
+            wifi_rssi_warning = (id(wifi_rssi).state <= -70);
+            id(display_component_update_color).execute(wifi_icon,
                                                     (blueprint_is_connected and wifi_is_connected and api_is_connected)
                                                     ? (wifi_rssi_warning ? 64992 : 33808)
                                                     : 63488);
@@ -135,17 +135,17 @@ script:
   - id: !extend stop_all
     then:
       - lambda: |-
-          page_boot_wifi->stop();
-          refresh_wifi_icon->stop();
+          id(page_boot_wifi).stop();
+          id(refresh_wifi_icon).stop();
 
   - id: !extend time_watchdog  # Defined by nspanel_esphome_core_base.yaml
     then:
       - lambda: |-
-          if (not wifi_component->is_connected()) {
+          if (not id(wifi_component).is_connected()) {
             ESP_LOGW("${TAG_HW_WIFI}", "Retry WiFi");
-            wifi_component->retry_connect();
+            id(wifi_component).retry_connect();
           }
-          refresh_wifi_icon->execute();
+          id(refresh_wifi_icon).execute();
 
 sensor:
   ##### Wi-Fi Signal stregth
@@ -156,6 +156,49 @@ sensor:
     disabled_by_default: false
     icon: mdi:wifi
     entity_category: diagnostic
+
+text_sensor:
+  ##### Device name - Used by bluepring to find service's names #####
+  - id: device_name
+    name: Device Name
+    platform: template
+    icon: mdi:identifier
+    entity_category: diagnostic
+    internal: false
+    disabled_by_default: false
+    lambda: |-
+      return {"${name}"};
+    filters:
+      - lambda: |-
+          #ifdef ESP_MAC_WIFI_STA
+          std::string suffix = "00ERROR";  // Default suffix in case of an error
+          uint8_t mac[6] = {0,0,0,0,0,0};
+          if (esp_read_mac(mac, ESP_MAC_WIFI_STA) == ESP_OK) {
+            suffix.clear();  // Clear the default error suffix
+            for (int i = 3; i < 6; ++i) {  // Use last 3 bytes of MAC
+              char hex[3];
+              snprintf(hex, sizeof(hex), "%02X", mac[i]);
+              suffix += hex;
+            }
+          }
+          // Proceed with suffix (either MAC-based or default error indicator)
+          const std::string raw_name = (x + "-" + suffix);
+          #else
+          const std::string raw_name = x;
+          #endif
+
+          std::string result;
+          bool last_was_underscore = false;
+          for (const char& c : raw_name) {
+            if (isalnum(c)) {
+              result += tolower(c);  // Add alphanumeric characters as lowercase
+              last_was_underscore = false;
+            } else if (!last_was_underscore) {  // Replace non-alphanumeric with '_' but avoid consecutive '_'
+              result += '_';
+              last_was_underscore = true;
+            }
+          }
+          return result;
 
 ##### WIFI SETUP #####
 wifi:
