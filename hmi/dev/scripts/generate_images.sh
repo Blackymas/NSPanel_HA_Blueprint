@@ -49,9 +49,9 @@ for i in {1..15}; do
 done
 
 # 19,20 Cover controls
-# 39,40 Fan settings
+# 34,35 Fan settings
 
-for i in 19 20 39 40; do
+for i in 19 20 34 35; do
   if [[ $VARIANT = eu* ]]; then
     magick_command "$VARIANT/0.png" "pics/$i.png" -geometry +183+67 -composite -background black -flatten -crop 83x233+183+67 +repage "$VARIANT/$i.png"
   else
@@ -59,10 +59,10 @@ for i in 19 20 39 40; do
   fi
 done
 
-# 33,34 Settings page
+# 30,31 Settings page
 # 37 Climate controls
-# 46,47 Home Alt
-for i in 33 34 37 46 47; do
+# 41,42 Home Alt / Buttons background
+for i in 30 31 32 41 42; do
   if [[ $VARIANT = eu* ]]; then
     magick_command "$VARIANT/0.png" "pics/$i.png" -geometry +0+0 -composite -background black -flatten -crop 480x320 +repage "$VARIANT/$i.png"
   else
@@ -76,18 +76,10 @@ done
 # 17: Colour page
 # 18: Slider on Cover, Fan & Colour pages
 # 21-29: Colour page
-# 30,31: Indicators
-# 38: Slider on Climate page
-# 44,45: Alarm
+# 33: Slider on Climate page
+# 39,40: Alarm
+# 36,37,38: Unused, can be used on Alarm as alternative colours
 
-# 35,36,41,42,43: Unused?
-for i in {16..18} {21..31} 35 36 38 {41..45}; do
+for i in {16..18} {21..29} 33 {36..40}; do
   cp "${IMAGES_DIR}/pics/$i.png" "${IMAGES_DIR}/$VARIANT/$i.png"
 done
-
-# 32: Splash screen (JPG!)
-if [[ $VARIANT = eu* ]]; then
-  cp "${IMAGES_DIR}/pics/32.jpg" "${IMAGES_DIR}/$VARIANT/32.jpg"
-else
-  cp "${IMAGES_DIR}/pics/32-portrait.jpg" "${IMAGES_DIR}/$VARIANT/32.jpg"
-fi
