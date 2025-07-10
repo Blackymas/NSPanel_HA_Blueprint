@@ -31,7 +31,7 @@ api:
       then:
         - lambda: |-
             ESP_LOGV("${TAG_HW_DISPLAY}", cmd.c_str());
-            disp1->send_command(cmd.c_str());
+            id(disp1).send_command(cmd.c_str());
 
     # Component action
     - action: component
@@ -74,7 +74,7 @@ api:
             }
             ESP_LOGV("${TAG_HW_DISPLAY}", "  visible: %s", YESNO(visible));
             #endif
-            display_component_action->execute(get_page_id(page.c_str()), component.c_str(), txt.c_str(), color, font,
+            id(display_component_action).execute(get_page_id(page.c_str()), component.c_str(), txt.c_str(), color, font,
                                               visible);
 
     # Updates the value of a specified component on the display.
@@ -87,7 +87,7 @@ api:
         - lambda: |-
             ESP_LOGV("${TAG_HW_DISPLAY}", "'%s.%s': %" PRIi32, page.c_str(), component.c_str(), val);
             if (!page.empty() and !component.empty())
-              set_component_value->execute(get_page_id(page.c_str()), component.c_str(), val);
+              id(set_component_value).execute(get_page_id(page.c_str()), component.c_str(), val);
 
     # Displays detailed information for a specific entity.
     - action: entity_details_show
@@ -98,7 +98,7 @@ api:
         - lambda: |-
             ESP_LOGV("${TAG_HW_DISPLAY}", "Show entity '%s'", entity_id.c_str());
             if (not entity_id.empty() and not back_page.empty())
-              entity_details_show_action->execute(entity_id.c_str(), get_page_id(back_page.c_str()));
+              id(entity_details_show_action).execute(entity_id.c_str(), get_page_id(back_page.c_str()));
 
 binary_sensor:
   ## Delays initial info from HA to the display #####
@@ -109,7 +109,7 @@ binary_sensor:
     trigger_on_initial_state: true
     entity_category: diagnostic
     icon: mdi:tablet-dashboard
-    lambda: return disp1->is_setup();
+    lambda: return id(disp1).is_setup();
 
 display:
   - id: disp1
@@ -123,14 +123,14 @@ display:
         - lambda: |-
             // Increase command spacing if in use
             #ifdef USE_NEXTION_COMMAND_SPACING
-            display_command_spacing_increment->execute();
+            id(display_command_spacing_increment).execute();
             #endif
 
     on_page:
       then:
         - lambda: |-
             if (x != current_page_id)
-              page_changed->execute(x);
+              id(page_changed).execute(x);
 
     on_setup:
       then:  # There's nothing here so far
@@ -175,15 +175,15 @@ esphome:
                     - wait_until:
                         condition:
                           - lambda: |-
-                              return (display_command_spacing->state >= 0 and
-                                      display_command_spacing->state <= UINT8_MAX);
+                              return (id(display_command_spacing).state >= 0 and
+                                      id(display_command_spacing).state <= UINT8_MAX);
                     - lambda: |-
                         // Only if command spacing is set
                         #ifdef USE_NEXTION_COMMAND_SPACING
-                        disp1->set_command_spacing(static_cast<uint8_t>(display_command_spacing->state));
+                        id(disp1).set_command_spacing(static_cast<uint8_t>(id(display_command_spacing).state));
                         #endif
             else:
-              - lambda: display_command_spacing->set_internal(true);
+              - lambda: id(display_command_spacing).set_internal(true);
 
   on_shutdown:
     - priority: 0.${BOOT_STEP_HW_DISPLAY}
@@ -233,7 +233,7 @@ number:
     on_value:
       then:
         - lambda: |-
-            set_variable_value->execute("brightness", static_cast<uint8_t>(x));
+            id(set_variable_value).execute("brightness", static_cast<uint8_t>(x));
       # Extended by:
       #   - nspanel_esphome_core_hw_display_timers.yaml
 
@@ -254,9 +254,9 @@ number:
     on_value:
       then:
         - lambda: |-
-            set_variable_value->execute("brightness_dim", static_cast<uint8_t>(x));
+            id(set_variable_value).execute("brightness_dim", static_cast<uint8_t>(x));
             if (current_page_id != ${PAGE_ID_SCREENSAVER})
-              disp1->set_backlight_brightness(x / 100.0f);
+              id(disp1).set_backlight_brightness(x / 100.0f);
 
   - id: display_sleep_brightness  # SCREEN BRIGHTNESS SLEEP
     name: Brightness - Sleep
@@ -299,13 +299,13 @@ number:
         - lambda: |-
             // Only if command spacing is in use
             #ifdef USE_NEXTION_COMMAND_SPACING
-            disp1->set_command_spacing(static_cast<uint8_t>(x));
+            id(disp1).set_command_spacing(static_cast<uint8_t>(x));
             #endif
 
 script:
   - id: !extend boot_package_register
     then:
-      - lambda: boot_package_register_add->execute(${BOOT_STEP_HW_DISPLAY}, "HW_DISPLAY", "HW Display");
+      - lambda: id(boot_package_register_add).execute(${BOOT_STEP_HW_DISPLAY}, "HW_DISPLAY", "HW Display");
 
   - id: !extend boot_initialize
     then:
@@ -317,23 +317,26 @@ script:
       - script.wait: boot_scan_baud_rate
       - wait_until:
           condition:
-            - lambda: return not isnan(display_sleep_brightness->state);
-            - lambda: return not isnan(display_dim_brightness->state);
-            - lambda: return not isnan(display_brightness->state);
+            - lambda: return not isnan(id(display_sleep_brightness).state);
+            - lambda: return not isnan(id(display_dim_brightness).state);
+            - lambda: return not isnan(id(display_brightness).state);
           timeout: 180s
       - lambda: |-
-          page_boot_log->execute("Boot", "Display settings");
-          if (not isnan(display_sleep_brightness->state))
-            set_variable_value->execute("brightness_sleep", static_cast<uint8_t>(display_sleep_brightness->state));
-          if (not isnan(display_dim_brightness->state))
-            set_variable_value->execute("brightness_dim", static_cast<uint8_t>(display_dim_brightness->state));
-          if (not isnan(display_brightness->state)) {
-            set_variable_value->execute("brightness", static_cast<uint8_t>(display_brightness->state));
-            disp1->set_backlight_brightness(((current_page_id == ${PAGE_ID_SCREENSAVER}) ?
-                                            display_sleep_brightness->state :
-                                            display_brightness->state) / 100.0f);
+          id(page_boot_log).execute("Boot", "Display settings");
+          if (not isnan(id(display_sleep_brightness).state))
+            id(set_variable_value).execute("brightness_sleep",
+                                            static_cast<uint8_t>(id(display_sleep_brightness).state));
+          if (not isnan(id(display_dim_brightness).state))
+            id(set_variable_value).execute("brightness_dim",
+                                            static_cast<uint8_t>(id(display_dim_brightness).state));
+          if (not isnan(id(display_brightness).state)) {
+            id(set_variable_value).execute("brightness",
+                                            static_cast<uint8_t>(id(display_brightness).state));
+            id(disp1).set_backlight_brightness(((current_page_id == ${PAGE_ID_SCREENSAVER}) ?
+                                            id(display_sleep_brightness).state :
+                                            id(display_brightness).state) / 100.0f);
           }
-          page_boot_log->execute("Boot", "Display settings completed");
+          id(page_boot_log).execute("Boot", "Display settings completed");
 
   - id: display_component_action
     mode: parallel
@@ -359,21 +362,21 @@ script:
 
           // Text
           if (!txt.empty())
-            display_component_update_text->execute(display_component, txt);
+            id(display_component_update_text).execute(display_component, txt);
 
           // Text color
           if (color.size() == 3 and
               color[0] >= 0 and color[0] <= UINT8_MAX and
               color[1] >= 0 and color[1] <= UINT8_MAX and
               color[2] >= 0 and color[2] <= UINT8_MAX)
-            display_component_update_color->execute(display_component, color565(color));
+            id(display_component_update_color).execute(display_component, color565(color));
 
           // Text font
           if (font >= 0 and font <= UINT8_MAX)
-            display_component_update_font->execute(display_component, font);
+            id(display_component_update_font).execute(display_component, font);
 
           // Text visibility
-          display_component_update_visibility->execute(display_component, visible);
+          id(display_component_update_visibility).execute(display_component, visible);
 
   - id: display_component_initialize
     mode: parallel
@@ -408,12 +411,12 @@ script:
             ESP_LOGV("${TAG_HW_DISPLAY}", "Render '%s.%s'",
                       page_names[display_component->page_id], display_component->component);
             if (!display_component->global) {
-              display_component_send_text->execute(display_component);
-              display_component_send_color->execute(display_component);
-              display_component_send_font->execute(display_component);
+              id(display_component_send_text).execute(display_component);
+              id(display_component_send_color).execute(display_component);
+              id(display_component_send_font).execute(display_component);
             }
             if (display_component->page_id == current_page_id)
-              display_component_send_visibility->execute(display_component);
+              id(display_component_send_visibility).execute(display_component);
           } // endif display_component still valid after wait
 
   - id: display_component_send_color
@@ -425,7 +428,7 @@ script:
           if (display_component &&  // Check if display_component is valid (not nullptr)
               (display_component->page_id == current_page_id || display_component->global) &&
               !display_component->color_is_updated) {
-            disp1->set_component_font_color(
+            id(disp1).set_component_font_color(
                 (display_component->page_id == current_page_id) ? display_component->component :
                 get_page_and_component(page_names[display_component->page_id],
                                         display_component->component).c_str(),
@@ -443,7 +446,7 @@ script:
               (display_component->page_id == current_page_id || display_component->global) &&
               display_component->font != UINT8_MAX &&
               !display_component->font_is_updated) {
-            disp1->set_component_font(
+            id(disp1).set_component_font(
                 (display_component->page_id == current_page_id) ? display_component->component :
                 get_page_and_component(page_names[display_component->page_id],
                                         display_component->component).c_str(),
@@ -460,7 +463,7 @@ script:
           if (display_component &&  // Check if display_component is valid (not nullptr)
               (display_component->page_id == current_page_id || display_component->global) &&
               !display_component->text_is_updated) {
-            disp1->set_component_text(
+            id(disp1).set_component_text(
                 (display_component->page_id == current_page_id) ? display_component->component :
                 get_page_and_component(page_names[display_component->page_id],
                                         display_component->component).c_str(),
@@ -477,7 +480,7 @@ script:
           if (display_component &&  // Check if display_component is valid (not nullptr)
               display_component->page_id == current_page_id &&
               !display_component->visible_is_updated) {
-            disp1->send_command_printf("vis %s,%i", display_component->component,
+            id(disp1).send_command_printf("vis %s,%i", display_component->component,
                                         display_component->visible ? 1 : 0);
             display_component->visible_is_updated = true;
           }
@@ -495,7 +498,7 @@ script:
               display_component->color_is_updated = false;
             }
             if (!display_component->color_is_updated)
-              display_component_send_color->execute(display_component);
+              id(display_component_send_color).execute(display_component);
           }
 
   - id: display_component_update_font
@@ -511,7 +514,7 @@ script:
               display_component->font_is_updated = false;
             }
             if (!display_component->font_is_updated)
-              display_component_send_font->execute(display_component);
+              id(display_component_send_font).execute(display_component);
           }
 
   - id: display_component_update_text
@@ -527,7 +530,7 @@ script:
               display_component->text_is_updated = false;
             }
             if (!display_component->text_is_updated)
-              display_component_send_text->execute(display_component);
+              id(display_component_send_text).execute(display_component);
           }
 
   - id: display_component_update_visibility
@@ -543,7 +546,7 @@ script:
               display_component->visible_is_updated = false;
             }
             if (!display_component->visible_is_updated)          // Send visibility update if needed
-              display_component_send_visibility->execute(display_component);
+              id(display_component_send_visibility).execute(display_component);
           }
 
   - id: display_command_spacing_increment
@@ -611,26 +614,26 @@ script:
               while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
             }
           }
-          set_component_text->execute(page_id, component.c_str(), wrappedText.c_str());
+          id(set_component_text).execute(page_id, component.c_str(), wrappedText.c_str());
 
   - id: !extend dump_config
     then:
       - lambda: |-
           // Report Nextion status
-          nextion_init->publish_state(nextion_init->state and disp1->is_setup());
+          id(nextion_init).publish_state(id(nextion_init).state and id(disp1).is_setup());
           ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "Nextion:");
           #ifdef USE_NEXTION_COMMAND_SPACING
           ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "  Cmd  spacing: %" PRIu8 "ms",
-                    static_cast<uint8_t>(display_command_spacing->state));
+                    static_cast<uint8_t>(id(display_command_spacing).state));
           #endif
-          ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "  Queue: %d", disp1->queue_size());
-          if (!disp1->is_setup() or !disp1->is_detected() or !nextion_init->state) {
-            ESP_LOGE("${TAG_HW_DISPLAY}", "  Is setup: %s", YESNO(disp1->is_setup()));
-            ESP_LOGE("${TAG_HW_DISPLAY}", "  Is detected: %s", YESNO(disp1->is_detected()));
-            ESP_LOGE("${TAG_HW_DISPLAY}", "  Init: %s", YESNO(nextion_init->state));
+          ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "  Queue: %d", id(disp1).queue_size());
+          if (!id(disp1).is_setup() or !id(disp1).is_detected() or !id(nextion_init).state) {
+            ESP_LOGE("${TAG_HW_DISPLAY}", "  Is setup: %s", YESNO(id(disp1).is_setup()));
+            ESP_LOGE("${TAG_HW_DISPLAY}", "  Is detected: %s", YESNO(id(disp1).is_detected()));
+            ESP_LOGE("${TAG_HW_DISPLAY}", "  Init: %s", YESNO(id(nextion_init).state));
           }
           ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "  TFT: %s",
-                          version_tft->state.empty() ? "UNKNOWN" : version_tft->state.c_str());
+                          id(version_tft).state.empty() ? "UNKNOWN" : id(version_tft).state.c_str());
 
   - id: entity_details_show_action
     mode: restart
@@ -652,11 +655,11 @@ script:
             id = entity_id;
           }
           if (entity_id == "embedded_climate" or domain != "invalid") {
-            detailed_entity->publish_state(entity_id.c_str());
+            id(detailed_entity).publish_state(entity_id.c_str());
             std::string new_page = (entity_id == "embedded_climate" ? "climate" :
                                     (domain == "alarm_control_panel" ? "alarm" : domain));
-            goto_page_id->execute(get_page_id(new_page.c_str()), true);
-            set_variable_value->execute("back_page_id", back_page_id);
+            id(goto_page_id).execute(get_page_id(new_page.c_str()), true);
+            id(set_variable_value).execute("back_page_id", back_page_id);
           }
 
   - id: event_from_display
@@ -709,7 +712,7 @@ script:
             ESP_LOGV("${TAG_HW_DISPLAY}", "  Mode:    %" PRIu8, id(display_mode));
             ESP_LOGV("${TAG_HW_DISPLAY}", "  Charset: %" PRIu8, id(display_charset));
 
-            disp1->send_command("tm_esphome.en=0");
+            id(disp1).send_command("tm_esphome.en=0");
             return;
           }
 
@@ -724,7 +727,7 @@ script:
 
             // Button click event
             ha_event.fire_homeassistant_event("${EVENT_NAME}", {
-              {"device_name", device_name->state},
+              {"device_name", id(device_name).state},
               {"esphome_version", "${version}"},
               {"type", "button_click"},
               {"page", page.c_str()},
@@ -735,14 +738,14 @@ script:
           } else {
             // Generic event
             ha_event.fire_homeassistant_event("${EVENT_NAME}", {
-              {"device_name", device_name->state},
+              {"device_name", id(device_name).state},
               {"esphome_version", "${version}"},
               {"type", "button_click"},
               {"page", page.c_str()},
               {"component", component.c_str()},
               {"event", event.c_str()},
               {"value", value.c_str()},
-              {"entity", detailed_entity->state.c_str()},
+              {"entity", id(detailed_entity).state.c_str()},
               {"tag", "${TAG_HW_DISPLAY}"}
             });
           }
@@ -757,7 +760,7 @@ script:
     then:
       - lambda: |-
           next_page_id = page_id;
-          disp1->goto_page(page_id);
+          id(disp1).goto_page(page_id);
       # Extended by:
       #   - nspanel_esphome_core_hw_display_timers.yaml
 
@@ -783,23 +786,23 @@ script:
 
               // Reset entity_id when it does not apply
               if (not is_page_in_group(ENTITY_ID_PAGE_MASK, new_page_id)) {
-                detailed_entity->publish_state("");
-                set_variable_value->execute("back_page_id", ${PAGE_ID_HOME});
+                id(detailed_entity).publish_state("");
+                id(set_variable_value).execute("back_page_id", ${PAGE_ID_HOME});
               }
 
               // Inform Home Assistant about the page change
               esphome::api::CustomAPIDevice ha_event;
               ha_event.fire_homeassistant_event("${EVENT_NAME}", {
-                {"device_name", device_name->state},
+                {"device_name", id(device_name).state},
                 {"esphome_version", "${version}"},
                 {"type", "page_changed"},
                 {"page", page_names[new_page_id]},
                 {"from", page_names[previous_page_id]},
-                {"entity", detailed_entity->state.c_str()},
+                {"entity", id(detailed_entity).state.c_str()},
                 {"tag", "${TAG_HW_DISPLAY}"}
               });
             }
-            page_changed_rendering_components->execute();
+            id(page_changed_rendering_components).execute();
 
   - id: page_changed_rendering_components
     mode: restart
@@ -810,7 +813,7 @@ script:
           // Plot page's icons
           std::vector<DisplayComponent*> display_components = list_components_by_page(current_page_id);
           for (DisplayComponent* display_component : display_components) {
-            display_component_send->execute(display_component);
+            id(display_component_send).execute(display_component);
           }
 
   - id: set_component_font
@@ -822,7 +825,7 @@ script:
     then:
       - lambda: |-
           if (page_id == current_page_id)
-            disp1->set_component_font(component.c_str(), font);
+            id(disp1).set_component_font(component.c_str(), font);
 
   - id: set_component_font_color
     mode: parallel
@@ -833,7 +836,7 @@ script:
     then:
       - lambda: |-
           if (page_id == current_page_id)
-            disp1->set_component_font_color(component.c_str(), color);
+            id(disp1).set_component_font_color(component.c_str(), color);
 
   - id: set_component_picc
     mode: parallel
@@ -844,7 +847,7 @@ script:
     then:
       - lambda: |-
           if (page_id == current_page_id)
-            disp1->set_component_picc(component.c_str(), picc);
+            id(disp1).set_component_picc(component.c_str(), picc);
 
   - id: set_component_foreground_color
     mode: parallel
@@ -853,7 +856,7 @@ script:
       component: string
       color: int
     then:
-      - lambda: set_component_font_color->execute(page_id, component.c_str(), color);
+      - lambda: id(set_component_font_color).execute(page_id, component.c_str(), color);
 
   - id: set_component_pic
     mode: parallel
@@ -864,7 +867,7 @@ script:
     then:
       - lambda: |-
           if (page_id == current_page_id)
-            disp1->set_component_pic(component.c_str(), pic);
+            id(disp1).set_component_pic(component.c_str(), pic);
 
   - id: set_component_text
     mode: parallel
@@ -875,7 +878,7 @@ script:
     then:
       - lambda: |-
           if (page_id == current_page_id)
-            disp1->set_component_text(component.c_str(), text.c_str());
+            id(disp1).set_component_text(component.c_str(), text.c_str());
 
   - id: set_component_value
     mode: parallel
@@ -886,7 +889,7 @@ script:
     then:
       - lambda: |-
           if (page_id == current_page_id)
-            disp1->set_component_value(component.c_str(), val);
+            id(disp1).set_component_value(component.c_str(), val);
 
   - id: set_component_visibility
     mode: parallel
@@ -897,7 +900,7 @@ script:
     then:
       - lambda: |-
           if (page_id == current_page_id)
-            disp1->send_command_printf("vis %s,%i", component.c_str(), show ? 1 : 0);
+            id(disp1).send_command_printf("vis %s,%i", component.c_str(), show ? 1 : 0);
 
   - id: !extend set_var_int
     then:
@@ -918,27 +921,27 @@ script:
       val: int
     then:
       - lambda: |-
-          disp1->send_command_printf("%s=%i", variable.c_str(), val);
+          id(disp1).send_command_printf("%s=%i", variable.c_str(), val);
 
   - id: !extend stop_all
     then:
       - lambda: |-
-          display_component_action->stop();
-          display_component_send->stop();
-          display_component_send_color->stop();
-          display_component_send_font->stop();
-          display_component_send_text->stop();
-          display_component_send_visibility->stop();
-          display_wrapped_text->stop();
-          entity_details_show_action->stop();
-          event_from_display->stop();
-          goto_page_id->stop();
-          page_changed->stop();
-          set_component_font_color->stop();
-          set_component_pic->stop();
-          set_component_picc->stop();
-          set_component_text->stop();
-          set_component_visibility->stop();
+          id(display_component_action).stop();
+          id(display_component_send).stop();
+          id(display_component_send_color).stop();
+          id(display_component_send_font).stop();
+          id(display_component_send_text).stop();
+          id(display_component_send_visibility).stop();
+          id(display_wrapped_text).stop();
+          id(entity_details_show_action).stop();
+          id(event_from_display).stop();
+          id(goto_page_id).stop();
+          id(page_changed).stop();
+          id(set_component_font_color).stop();
+          id(set_component_pic).stop();
+          id(set_component_picc).stop();
+          id(set_component_text).stop();
+          id(set_component_visibility).stop();
 
 sensor:
   - id: brightslider  # Display Brightness GET VALUE FROM NSPanel SLIDER
@@ -967,7 +970,7 @@ sensor:
             }
             ESP_LOGE("${TAG_HW_DISPLAY}", "Nextion disconnected");  // To do: Change this before the release
             ESP_LOGE("${TAG_HW_DISPLAY}", "Set connection flag");  // To do: Change this before the release
-            disp1->send_command("esphome=0");
+            id(disp1).send_command("esphome=0");
 
 switch:
   - name: Nextion display - Power  # DISPLAY ALWAYS ON
@@ -1012,6 +1015,6 @@ text_sensor:
               ESP_LOGE("${TAG_HW_DISPLAY}", "Error: %s", error.c_str());
             } else {
               const std::string page = json["page"];
-              event_from_display->execute(json, page.c_str());
+              id(event_from_display).execute(json, page.c_str());
             }
 ...

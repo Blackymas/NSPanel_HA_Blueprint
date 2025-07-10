@@ -4,15 +4,21 @@
 
 namespace nspanel_ha_blueprint {
 
+    // Initialize boot flags
+    bool boot_completed = false;
+    uint8_t last_pending_step = 0;
+
     // Fixed array to store the boot steps
     BootStep boot_steps[MAX_BOOT_STEPS];
 
     // Function to set up the boot steps array
     void setup_boot_steps() {
-        for (size_t i = 0; i < MAX_BOOT_STEPS; ++i) {
+        for (uint8_t i = 0; i < MAX_BOOT_STEPS; ++i) {
             boot_steps[i].completed = false;
             boot_steps[i].registered = false;
         }
+        boot_completed = false;
+        last_pending_step = 0;
     }
 
     // Function to register an application for boot
@@ -28,6 +34,8 @@ namespace nspanel_ha_blueprint {
         boot_steps[index].key[sizeof(boot_steps[index].key) - 1] = '\0';  // Ensure null termination
         strncpy(boot_steps[index].name, name, sizeof(boot_steps[index].name) - 1);
         boot_steps[index].name[sizeof(boot_steps[index].name) - 1] = '\0';  // Ensure null termination
+        last_pending_step = (last_pending_step > index) ? index : last_pending_step;
+        boot_completed = false;
         return true;
     }
 
@@ -44,7 +52,7 @@ namespace nspanel_ha_blueprint {
     uint8_t get_boot_progress_percentage() {
         uint8_t registered_steps = 0;
         uint8_t completed_steps = 0;
-        for (size_t i = 0; i < MAX_BOOT_STEPS; ++i) {
+        for (uint8_t i = 0; i < MAX_BOOT_STEPS; ++i) {
             if (boot_steps[i].registered) {
                 ++registered_steps;
                 if (boot_steps[i].completed) {
@@ -60,19 +68,25 @@ namespace nspanel_ha_blueprint {
 
     // Function to check if all registered applications have completed boot
     bool is_boot_complete() {
-        for (size_t i = 0; i < MAX_BOOT_STEPS; ++i) {
+        if (boot_completed)
+            return true;
+        for (uint8_t i = last_pending_step; i < MAX_BOOT_STEPS; ++i) {
             if (boot_steps[i].registered && !boot_steps[i].completed) {
                 return false;
             }
         }
+        boot_completed = true;
+        last_pending_step = MAX_BOOT_STEPS;
         return true;
     }
 
     // Function to reset the completed boot steps to the initial state
     void reset_boot_steps() {
-        for (size_t i = 0; i < MAX_BOOT_STEPS; ++i) {
+        for (uint8_t i = 0; i < MAX_BOOT_STEPS; ++i) {
             boot_steps[i].completed = false;
         }
+        boot_completed = false;
+        last_pending_step = 0;
     }
 
     // Function to check if a specific boot step has been completed
@@ -86,7 +100,7 @@ namespace nspanel_ha_blueprint {
     // Function to get the total number of registered boot steps
     uint8_t get_total_registered_boot_steps() {
         uint8_t count = 0;
-        for (size_t i = 0; i < MAX_BOOT_STEPS; ++i) {
+        for (uint8_t i = 0; i < MAX_BOOT_STEPS; ++i) {
             if (boot_steps[i].registered) {
                 ++count;
             }
@@ -97,7 +111,7 @@ namespace nspanel_ha_blueprint {
     // Function to get the total number of completed boot steps
     uint8_t get_completed_boot_steps() {
         uint8_t count = 0;
-        for (size_t i = 0; i < MAX_BOOT_STEPS; ++i) {
+        for (uint8_t i = 0; i < MAX_BOOT_STEPS; ++i) {
             if (boot_steps[i].registered && boot_steps[i].completed) {
                 ++count;
             }
