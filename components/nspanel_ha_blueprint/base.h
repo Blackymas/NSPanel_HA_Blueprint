@@ -1,4 +1,4 @@
-// base.h
+// base.h - Updated with Nextion waiting state
 
 #pragma once
 
@@ -15,26 +15,28 @@ namespace nspanel_ha_blueprint {
 
     enum class PanelState : uint8_t {
         UNKNOWN = 0,
-        BOOTING = 1,
-        RUNNING = 2,
-        RUNNING_DIMMED = 3,
-        SLEEPING = 4,
-        UPDATING_TFT = 5,
-        RESTARTING = 6,
-        SAFE_MODE = 7
+        WAITING_FOR_NEXTION = 1,    // Waiting for Nextion display to be ready
+        BOOTING = 2,                // Boot sequence in progress
+        RUNNING = 3,                // Normal operation
+        RUNNING_DIMMED = 4,         // Dimmed operation
+        SLEEPING = 5,               // Screensaver/sleep mode
+        UPDATING_TFT = 6,           // During TFT upload
+        RESTARTING = 7,             // During restart operations
+        SAFE_MODE = 8               // When in safe mode
     };
 
     // Inline function to convert enum to string
     inline const char *panel_state_to_string(PanelState state) {
         switch (state) {
             case PanelState::UNKNOWN: return "Unknown";
+            case PanelState::WAITING_FOR_NEXTION: return "Waiting for Nextion";
             case PanelState::BOOTING: return "Booting";
             case PanelState::RUNNING: return "Running";
             case PanelState::RUNNING_DIMMED: return "Running (Dimmed)";
             case PanelState::SLEEPING: return "Sleeping";
             case PanelState::UPDATING_TFT: return "Updating TFT";
             case PanelState::RESTARTING: return "Restarting";
-            case PanelState::SAFE_MODE: return "Safe mode";
+            case PanelState::SAFE_MODE: return "Safe Mode";
             default: return "Unknown";
         }
     }
