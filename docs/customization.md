@@ -24,8 +24,7 @@ Table of contents:
     - [Scheduled relay](#scheduled-relay)
     - [Scheduled climate](#scheduled-climate)
   - [Frameworks](#frameworks)
-    - [Framework `arduino`](#framework-arduino)
-    - [Framework `esp-idf`](#framework-esp-idf)
+    - [Arduino Framework Usage (Unsupported)](#arduino-framework-usage-unsupported)
   - [Bluetooth proxy](#bluetooth-proxy)
   - [BLE tracker](#ble-tracker)
   - [Logger via UART](#logger-via-uart)
@@ -478,38 +477,80 @@ time:
 ```
 
 ### Frameworks
-> [!IMPORTANT]
-> When switching between frameworks, make sure to update the device with a serial cable as the partition table is different between the two frameworks
-as [OTA Update Component](https://esphome.io/components/ota) updates will not change the partition table. While it will appear to work, the device will boot the old framework after a reset.
 
-This project currently uses `esp-idf` as default framework.
-You can overlap the settings with this customization.
+> [!WARNING]
+> Starting with version 4.4, Arduino framework support has been discontinued. ESP-IDF is now the only supported framework.
+
+This project uses `esp-idf` as the default and only supported framework since version 4.4.
+
+#### Background
+The Arduino framework was previously supported as an alternative to ESP-IDF,
+but maintaining compatibility with both frameworks became increasingly challenging.
+ESP-IDF has matured significantly and is now the recommended framework for ESP32 development in ESPHome.
+
+**It has been quite some time since our default framework was changed to ESP-IDF, and all users have been recommended to migrate.**
+Version 4.4 formalizes that recommendation by removing Arduino framework support entirely.
+
+#### Migration from Arduino Framework
+If your current configuration uses the Arduino framework, you need to update your YAML configuration:
+
+    # OLD Arduino configuration - REMOVE THIS
+    esp32:
+      framework:
+        type: arduino
+
+    # That's it! The remote package handles the ESP-IDF configuration automatically
+
+#### Critical Migration Steps
+> [!IMPORTANT]
+> When migrating from Arduino to ESP-IDF framework, proper flashing is essential for success.
+
+**Recommended flashing method:**
+1. **Serial/USB flashing (preferred):** Use a USB-to-serial adapter to flash directly via the programming pins.
+  This method properly rebuilds partitions and ensures clean migration.
+
+2. **OTA flashing (requires special attention):** If serial flashing is not possible:
+   - **Flash twice in succession** to increase chances of success
+   - The first flash may succeed but the device might boot from the wrong partition containing old Arduino firmware
+   - The second flash ensures both partitions contain the new ESP-IDF firmware, eliminating boot issues
+   - Monitor device behavior after each flash attempt
+
+**Why multiple flashes may be needed:**
+When migrating from Arduino to ESP-IDF via OTA,
+the bootloader with Arduino-type partition table may boot from the partition where the older Arduino firmware is still installed.
+Flashing twice increases the chances that both partitions will contain the new ESP-IDF firmware,
+so booting from either partition will work correctly.
+
+#### Arduino Framework Usage (Unsupported)
+While it may be possible to continue using the Arduino framework with configuration adjustments, **this is not supported**.
+Users choosing to remain on Arduino framework will be on their own for troubleshooting, compatibility issues, and future updates.
+
+If you absolutely must use the Arduino framework (not recommended), you would need:
+
+    ```yaml
+    # UNSUPPORTED: Arduino framework usage
+    esp32:
+      framework:
+        type: arduino
+
+    # Required when using Arduino framework
+    wifi:
+      use_psram: !remove
+    ```
+
+> [!WARNING]
+> Using Arduino framework is completely unsupported and may cause compatibility issues, memory problems,
+> or prevent future updates from working correctly.
+
+#### Benefits of ESP-IDF
+- **Better Memory Management:** ESP-IDF provides more efficient memory allocation and usage patterns
+- **Enhanced Performance:** Native ESP-IDF components offer better performance and lower overhead  
+- **Improved Stability:** ESP-IDF's mature codebase provides better stability for complex applications
+- **Future-Proof:** Aligns with ESPHome's long-term direction and receives priority support
+- **Reduced Complexity:** Eliminates framework-specific code paths and testing requirements
 
 > [!NOTE]
 > For more info about frameworks, please visit [ESPHome docs](https://esphome.io/components/esp32).
-
-`esp-idf` is maintained by EspressIF and is kept updated,
-more boards are supported and the memory management is better, making it ideal if you wanna customize your panel to support memory consumption functionalities,
-like `bluetooth_proxy` or [Improv](https://www.improv-wifi.com/). Consequently, this project uses `esp-idf` as the default framework since `v4.3`. 
-
-However, the `arduino` protocol still very popular and, therefore, more components are available and the project allows to switch between the frameworks 
-by adding the following lines in your panel's yaml file.
-
-#### Framework `arduino`
-```yaml
-# Change framework to `arduino`
-esp32:
-  framework:
-    type: arduino
-```
-#### Framework `esp-idf`
-```yaml
-# Change framework to `esp-idf`
-# (should not be required)
-esp32:
-  framework:
-    type: esp-idf
-```
 
 ### Bluetooth Proxy
 Please refer to the "[Add-on: Bluetooth Proxy](addon_bluetooth_proxy.md)" guide.
