@@ -7,38 +7,83 @@ refined for a cleaner, more user-friendly experience, now allowing you to contro
 In addition to improved performance, this release introduces dynamic QR codes, automatic TFT updates, and
 new features like buzzer volume control and configurable wake-up settings, making your panel more versatile.
 
-## ESPHome Adopts ESP-IDF v5.1.5 (Starting in ESPHome v2024.12.0)
-With ESPHome v2024.12.0, the standard framework version has been updated from ESP-IDF v4.4.8 to v5.1.5.
-This update introduces significant improvements but also comes with considerations for memory usage.
+## Dropping Arduino Framework Support
 
-### Advantages of ESP-IDF v5.1.5
-- **Bug Fixes and Stability:**
-  The new version includes a wide range of bug fixes, enhancing system reliability and performance.
-- **Improved Features and Compatibility:**
-  Upgrades to the framework ensure better support for modern hardware and streamlined development processes.
-- **Enhanced Developer Experience:**
-  New debugging tools and improvements in the framework simplify the development and troubleshooting process.
+### Arduino framework support discontinued
+Starting with version 4.4, NSPanel HA Blueprint will exclusively use the ESP-IDF framework, dropping support for the Arduino framework.
+This change aligns with ESPHome's direction and provides several benefits while requiring a configuration update for existing users.
 
-### Concerns and Impact
-- **Increased Memory Usage:**
-  ESP-IDF v5.1.5 requires slightly more memory, reducing the space available for additional features.
-  This may limit the scope of customizations or add-ons for users with resource-intensive setups.
+#### Background
+The Arduino framework was previously supported as an alternative to ESP-IDF,
+but maintaining compatibility with both frameworks has become increasingly challenging.
+ESP-IDF has matured significantly and is now the recommended framework for ESP32 development in ESPHome.
 
-### NSPanel Preparedness
-- Pre-built firmware and Wall Display variant will continue using ESP-IDF v4.4.8 to maintain full functionality including improv, captive portal, and OTA HTTP
-- Regular installations benefit from v5.1.5 improvements
-- We have fully tested the NSPanel setup with ESP-IDF v5.1.5 under ESPHome v2024.12.0 to ensure compatibility and smooth operation
+**It has been quite some time since our default framework was changed to ESP-IDF, and all users have been recommended to migrate.**
+This release formalizes that recommendation by removing Arduino framework support entirely.
 
-### Recommendations
-- **Advanced Users:**
-  If you have a heavily customized configuration or multiple add-ons, consider reviewing your setup to ensure
-  it remains within the available memory constraints.
-- **All Users:**
-  Stay updated with ESPHome releases and monitor their compatibility notes to make the most of these enhancements.
+#### Benefits of ESP-IDF Only
+- **Better Memory Management:** ESP-IDF provides more efficient memory allocation and usage patterns
+- **Enhanced Performance:** Native ESP-IDF components offer better performance and lower overhead
+- **Improved Stability:** ESP-IDF's mature codebase provides better stability for complex applications
+- **Future-Proof:** Aligns with ESPHome's long-term direction and receives priority support
+- **Reduced Complexity:** Eliminates framework-specific code paths and testing requirements
+
+#### Migration Required
+If your current configuration uses the Arduino framework, simply remove the framework specification:
+   ```yaml
+    # OLD Arduino configuration - REMOVE THIS
+    esp32:
+      framework:
+        type: arduino
+
+    # That's it! The remote package handles the ESP-IDF configuration automatically
+   ```
+
+#### Critical Migration Steps
+> [!IMPORTANT]
+> When migrating from Arduino to ESP-IDF framework, proper flashing is essential for success.
+
+**Recommended flashing method:**
+1. **Serial/USB flashing (preferred):** Use a USB-to-serial adapter to flash directly via the programming pins.
+   This method properly rebuilds partitions and ensures clean migration.
+
+2. **OTA flashing (requires special attention):** If serial flashing is not possible:
+   - **Flash twice in succession** to increase chances of success
+   - The first flash may succeed but the device might boot from the wrong partition containing old Arduino firmware
+   - The second flash ensures both partitions contain the new ESP-IDF firmware, eliminating boot issues
+   - Monitor device behavior after each flash attempt
+
+**Why multiple flashes may be needed:**
+When migrating from Arduino to ESP-IDF via OTA,
+the bootloader with Arduino-type partition table may boot from the partition where the older Arduino firmware is still installed.
+Flashing twice increases the chances that both partitions will contain the new ESP-IDF firmware,
+so booting from either partition will work correctly.
+
+#### Arduino Framework Usage (Unsupported)
+While it may be possible to continue using the Arduino framework with minor configuration adjustments, **this is not supported**.
+Users choosing to remain on Arduino framework will be on their own for troubleshooting, compatibility issues, and future updates.
+We strongly recommend migrating to ESP-IDF for the best experience and continued support.
+
+#### What This Means for Users
+- **New Installations:** Will automatically use ESP-IDF with no additional configuration needed
+- **Existing Arduino Users:** Must remove the Arduino framework reference from their configuration and reflash their device
+- **No Functional Changes:** All features remain available; only the underlying framework changes
+- **Better Performance:** May experience improved responsiveness and stability
+
+#### Compatibility Notes
+- All existing features and functionalities remain unchanged
+- Custom components and automations continue to work as before
+- The change is transparent to Home Assistant integration
+- Pre-built firmware images will use ESP-IDF exclusively
+
+> [!WARNING]
+> This change requires a full reflash of your device.
+> Backup your configuration before updating and be prepared to reconfigure your device if the migration encounters issues.
+> If possible, use serial/USB flashing for the most reliable migration experience.
 
 ## Breaking Changes and Guidance
 
-### Home Assistant v2024.11.0 and ESPHome v2024.11.0 are required
+### Home Assistant v2025.7.0 and ESPHome v2025.8.0 are required
 Refer to our  
 [Version Compatibility Matrix](docs/version_compatibility.md).
 
