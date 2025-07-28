@@ -969,6 +969,9 @@ Removing this shutdown command prevents the corruption issue.
 ## v4.3.17 - Refactor alarm control panel action to support ESPHome 2025.8.0+
 Updated alarm control panel service calls to use modern `homeassistant.action` syntax,
 resolving compilation errors in ESPHome 2025.8 and newer versions.
+
+This patch also fixes a warning message related to deprecated `DynamicJsonDocument` call.
+
 No functional changes.
 
 ## Support
