@@ -974,6 +974,12 @@ This patch also fixes a warning message related to deprecated `DynamicJsonDocume
 
 No functional changes.
 
+## v4.3.18 - Fix alarm control panel action name
+Corrected the alarm control panel action name formatting introduced in v4.3.17,
+which caused a runtime error when calling `alarm_control_panel.alarm_*` actions.
+
+No functional changes.
+
 ## Support
 For support or more information about this update,
 visit our [GitHub repository](https://github.com/Blackymas/NSPanel_HA_Blueprint)
@@ -993,6 +999,7 @@ Your contributions have made our guides more informative and accessible, enrichi
 -  **@Bascht74**: For your thorough investigation and clear reporting in issue #2543, which helped us identify and address a critical edge case.
 
 ## Previous releases
+- [v4.3.17 - Refactor alarm control panel action to support ESPHome 2025.8.0+](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.17)
 - [v4.3.16 - Removed screen turn-off from shutdown sequence](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.16)
 - [v4.3.15 - Hotfix for a building error with ESPHome v2025.5.2](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.15)
 - [v4.3.14 - Hotfix for crash with climate add-on with ESPHome v2025.5.0](https://github.com/Blackymas/NSPanel_HA_Blueprint/releases/tag/v4.3.14)
