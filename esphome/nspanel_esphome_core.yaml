@@ -2896,13 +2896,11 @@ script:
       button_mask: uint8_t
     then:
       - lambda: |-
-          #if ESPHOME_LOG_LEVEL > ESPHOME_LOG_LEVEL_DEBUG
           ESP_LOGV("script.refresh_hardware_buttons_bars", "Page:               %s", current_page->state.c_str());
           ESP_LOGV("script.refresh_hardware_buttons_bars", "Page id:            %i", get_page_id(current_page->state.c_str()));
           ESP_LOGV("script.refresh_hardware_buttons_bars", "buttons_bars_pages: %" PRIu32, id(buttons_bars_pages));
           ESP_LOGV("script.refresh_hardware_buttons_bars", "relay_settings:     %i", id(relay_settings));
           ESP_LOGV("script.refresh_hardware_buttons_bars", "button_mask:        %i", button_mask);
-          #endif
           if (!id(is_uploading_tft) and ((id(buttons_bars_pages) & (1 << get_page_id(current_page->state.c_str()))) != 0)) {
             switch (int(display_mode->state)) {
               case 1:  // EU model
@@ -2976,18 +2974,21 @@ script:
     then:
       - lambda: |-
           // Log code only when needed
-          #if ESPHOME_LOG_LEVEL > ESPHOME_LOG_LEVEL_DEBUG
+          #if ESPHOME_LOG_LEVEL <= ESPHOME_LOG_LEVEL_VERBOSE
           static const char *const TAG = "script.service_call_alarm_control_panel";
           std::string arm_key = "alarm_control_panel.alarm_arm_" + key;
-          if (key == "disarm") arm_key = "alarm_control_panel.alarm_disarm";
-          if (key == "bypass") arm_key = "alarm_control_panel.alarm_arm_custom_bypass";
+          if (key == "disarm") {
+            arm_key = "alarm_control_panel.alarm_disarm";
+          } else if (key == "bypass") {
+            arm_key = "alarm_control_panel.alarm_arm_custom_bypass";
+          }
           ESP_LOGV(TAG, "Home Assistant Action call:");
           ESP_LOGV(TAG, "  entity: %s", entity.c_str());
           ESP_LOGV(TAG, "  key: %s", key.c_str());
           ESP_LOGV(TAG, "  code_format: %s", code_format.c_str());
           ESP_LOGV(TAG, "  pin: %s", YESNO(!pin.empty()));
           ESP_LOGV(TAG, "  action: %s", arm_key.c_str());
-          #endif
+          #endif  // ESPHOME_LOG_LEVEL <= ESPHOME_LOG_LEVEL_VERBOSE
 
       - if:
           condition:
@@ -2995,20 +2996,17 @@ script:
           then:
             - homeassistant.action:
                 action: &alarm_control_panel_action !lambda |-
-                  if (key == "home") return "alarm_control_panel.alarm_arm_home";
-                  if (key == "away") return "alarm_control_panel.alarm_arm_away";
-                  if (key == "night") return "alarm_control_panel.alarm_arm_night";
-                  if (key == "vacation") return "alarm_control_panel.alarm_arm_vacation";
-                  if (key == "bypass") return "alarm_control_panel.alarm_arm_custom_bypass";
                   if (key == "disarm") return "alarm_control_panel.alarm_disarm";
+                  if (key == "bypass") return "alarm_control_panel.alarm_arm_custom_bypass";
+                  return "alarm_control_panel.alarm_arm_" + key;
                 data:
-                  entity_id: !lambda return entity.c_str();
+                  entity_id: !lambda return entity;
           else:
             - homeassistant.action:
                 action: *alarm_control_panel_action
                 data:
-                  entity_id: !lambda return entity.c_str();
-                  code: !lambda return pin.c_str();
+                  entity_id: !lambda return entity;
+                  code: !lambda return pin;
 
   - id: set_baud_rate
     mode: restart
@@ -3250,9 +3248,7 @@ script:
           then:
             - delay: !lambda return (int(timeout_page->state) *1000);
             - lambda: |-
-                #if ESPHOME_LOG_LEVEL > ESPHOME_LOG_LEVEL_DEBUG
                 ESP_LOGV("script.timer_page", "Timed out on page: %s", current_page->state.c_str());
-                #endif
                 if (timeout_page->state >= 1 and
                     current_page->state != "boot" and
                     current_page->state != "confirm" and
