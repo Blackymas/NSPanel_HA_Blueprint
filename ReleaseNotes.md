@@ -5,4 +5,5 @@ which caused a runtime error when calling `alarm_control_panel.alarm_*` actions 
 ### Other relevant changes
 - **Simplified Release Notes file**: To make easier and faster to release. You can always find all the same info on the release area on GitHub.
 - **Resolved warning message related to `publish_initial_state`**: That was deprecated and not used, so it was removed.
-- **Added support to Catalan**: Thanks to @ppuig71 on #2660
+- **Added support to Catalan**: Thanks to @ppuig71 on #2660.
+- **Update HMI/TFT files to v1.68.1**: To support the latest from Nextion.
