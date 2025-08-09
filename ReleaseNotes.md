@@ -1,6 +1,6 @@
-## Release Notes
+# Release Notes
 
-### Breaking Changes
+## Breaking Changes
 - **Removed Add-ons:** BLE Tracker and Bluetooth Proxy add-ons have been removed
 - **Reason:** Improved Bluetooth memory management no longer requires specific component IDs for TFT upload operations
 - **Benefits:** Simplified setup, better user experience, reduced maintenance overhead
