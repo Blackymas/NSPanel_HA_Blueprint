@@ -129,8 +129,6 @@ Follow these steps to add a new device in the ESPHome Dashboard:
          - nspanel_esphome.yaml # Basic package
          # Optional advanced and add-on configurations
          # - esphome/nspanel_esphome_advanced.yaml
-         # - esphome/nspanel_esphome_addon_ble_tracker.yaml
-         # - esphome/nspanel_esphome_addon_bluetooth_proxy.yaml
          # - esphome/nspanel_esphome_addon_climate_cool.yaml
          - esphome/nspanel_esphome_addon_climate_heat.yaml
          # - esphome/nspanel_esphome_addon_climate_dual.yaml
