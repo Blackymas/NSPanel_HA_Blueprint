@@ -170,13 +170,15 @@ esphome:
             then:
               - if:
                   condition: &condition_NOT_safe_mode
-                    - lambda: return not nspanel_ha_blueprint::is_safe_mode;
+                    - lambda: |-
+                        return nspanel_ha_blueprint::current_panel_state != nspanel_ha_blueprint::PanelState::SAFE_MODE;
                   then:
                     - wait_until:
                         condition:
                           - lambda: |-
                               return (id(display_command_spacing).state >= 0 and
                                       id(display_command_spacing).state <= UINT8_MAX);
+                        timeout: 30s
                     - lambda: |-
                         // Only if command spacing is set
                         #ifdef USE_NEXTION_COMMAND_SPACING
@@ -665,7 +667,7 @@ script:
   - id: event_from_display
     mode: parallel
     parameters:
-      json: DynamicJsonDocument
+      json: JsonDocument
       page: string
     then:
       # Extended by:
@@ -684,22 +686,22 @@ script:
           }
 
           // Extract required fields with validation
-          if (!json.containsKey("event")) {
+          if (json["event"].isNull()) {
             ESP_LOGW("${TAG_HW_DISPLAY}", "Missing 'event' key");
             return;
           }
           const std::string event = json["event"].as<std::string>();
-          const std::string component = json.containsKey("component") ?
-            json["component"].as<std::string>() : "";
-          const std::string value = json.containsKey("value") ?
-            json["value"].as<std::string>() : "";
+          const std::string component = json["component"].isNull() ? "" :
+            json["component"].as<std::string>();
+          const std::string value = json["value"].isNull() ? "" :
+            json["value"].as<std::string>();
 
           ESP_LOGV("${TAG_HW_DISPLAY}", "Event: '%s.%s', type=%s",
                     page.c_str(), component.c_str(), event.c_str());
 
           // Handle special events
           if (event == "params") {
-            if (!json.containsKey("display_mode") || !json.containsKey("charset")) {
+            if (json["display_mode"].isNull() || json["charset"].isNull()) {
               ESP_LOGW("${TAG_HW_DISPLAY}", "Missing 'display' key");
               return;
             }
@@ -1008,7 +1010,7 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            DynamicJsonDocument json(1024);
+            JsonDocument json;
             DeserializationError error = deserializeJson(json, x.c_str());
             if (error) {
               ESP_LOGE("${TAG_HW_DISPLAY}", "JSON parse error: %s", x.c_str());

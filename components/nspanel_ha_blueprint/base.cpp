@@ -6,8 +6,8 @@
 
 namespace nspanel_ha_blueprint {
 
-    // Definition of the global variable
-    bool is_safe_mode = false;
+    // Global panel state variable - starts as UNKNOWN
+    PanelState current_panel_state = PanelState::UNKNOWN;
 
 }  // namespace nspanel_ha_blueprint
 
