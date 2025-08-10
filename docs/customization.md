@@ -494,7 +494,7 @@ Version 4.4 formalizes that recommendation by removing Arduino framework support
 #### Migration from Arduino Framework
 If your current configuration uses the Arduino framework, you need to update your YAML configuration:
 
-```
+```yaml
 # OLD Arduino configuration - REMOVE THIS
 esp32:
   framework:
