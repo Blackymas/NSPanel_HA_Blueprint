@@ -494,12 +494,14 @@ Version 4.4 formalizes that recommendation by removing Arduino framework support
 #### Migration from Arduino Framework
 If your current configuration uses the Arduino framework, you need to update your YAML configuration:
 
-    # OLD Arduino configuration - REMOVE THIS
-    esp32:
-      framework:
-        type: arduino
+```
+# OLD Arduino configuration - REMOVE THIS
+esp32:
+  framework:
+    type: arduino
 
-    # That's it! The remote package handles the ESP-IDF configuration automatically
+# That's it! The remote package handles the ESP-IDF configuration automatically
+```
 
 #### Critical Migration Steps
 > [!IMPORTANT]
@@ -527,16 +529,16 @@ Users choosing to remain on Arduino framework will be on their own for troublesh
 
 If you absolutely must use the Arduino framework (not recommended), you would need:
 
-    ```yaml
-    # UNSUPPORTED: Arduino framework usage
-    esp32:
-      framework:
-        type: arduino
+```yaml
+# UNSUPPORTED: Arduino framework usage
+esp32:
+  framework:
+    type: arduino
 
-    # Required when using Arduino framework
-    wifi:
-      use_psram: !remove
-    ```
+# Required when using Arduino framework
+wifi:
+  use_psram: !remove
+```
 
 > [!WARNING]
 > Using Arduino framework is completely unsupported and may cause compatibility issues, memory problems,
@@ -559,7 +561,6 @@ Please refer to the "[Add-on: Bluetooth Proxy](addon_bluetooth_proxy.md)" guide.
 Please refer to the "[Add-on: BLE Tracker Proxy](addon_ble_tracker.md)" guide.
 
 ### Logger via UART
-
 By default, the logging via hardware UART is disable in this project.
 You can enable it by setting the baud rate accordingly to your interface:
 
@@ -570,7 +571,6 @@ logger:
 ```
 
 ### Climate custom presets
-
 ```yaml
 # Add custom presets to your climate (heat in this example)
 climate:
