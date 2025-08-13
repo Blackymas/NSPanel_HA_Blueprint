@@ -26,8 +26,6 @@ Table of contents:
   - [Frameworks](#frameworks)
     - [Framework `arduino`](#framework-arduino)
     - [Framework `esp-idf`](#framework-esp-idf)
-  - [Bluetooth proxy](#bluetooth-proxy)
-  - [BLE tracker](#ble-tracker)
   - [Logger via UART](#logger-via-uart)
   - [Climate custom presets](#climate-custom-presets)
   - [Push button / Momentary switch](#push-button--momentary-switch)
@@ -578,12 +576,6 @@ esp32:
   framework:
     type: esp-idf
 ```
-
-### Bluetooth Proxy
-Please refer to the "[Add-on: Bluetooth Proxy](addon_bluetooth_proxy.md)" guide.
-
-### BLE Tracker
-Please refer to the "[Add-on: BLE Tracker Proxy](addon_ble_tracker.md)" guide.
 
 ### Logger via UART
 
