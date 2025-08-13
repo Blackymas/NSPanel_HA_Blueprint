@@ -34,9 +34,10 @@ substitutions:
 
 packages:
   # yamllint disable rule:colons
-  version: !include nspanel_esphome_version.yaml
-  api:     !include nspanel_esphome_core_api.yaml
-  base:    !include nspanel_esphome_core_base.yaml
+  version:  !include nspanel_esphome_version.yaml
+  api:      !include nspanel_esphome_core_api.yaml
+  base:     !include nspanel_esphome_core_base.yaml
+  datetime: !include nspanel_esphome_core_datetime.yaml
   # yamllint enable rule:colons
 
 ##### ESPHOME CONFIGURATION #####
@@ -49,8 +50,6 @@ esphome:
     - priority: 600.0  # This is where most sensors are set up.
       then:
         - lambda: |-
-            boot_log->execute("on_boot", "Set time zone");
-            set_timezone->execute(id(mui_timezone).c_str());
             boot_log->execute("on_boot", "Publish Blueprint progress (0)");
             if (isnan(blueprint_status->raw_state)) blueprint_status->publish_state(0);
             boot_log->execute("on_boot", "Publish firmware version");
@@ -123,51 +122,6 @@ uart:
     tx_pin: 16
     rx_pin: 17
     baud_rate: 115200
-
-##### Keeps time display updated #####
-time:
-  - id: time_provider
-    platform: homeassistant
-    on_time:
-      - seconds: 0
-        then:
-          - lambda: |-
-              refresh_datetime->execute();
-              refresh_relays->execute(3);
-              refresh_hardware_buttons_bars->execute(3);
-              refresh_wifi_icon->execute();
-      - seconds: 30  # Watchdog
-        then:
-          - lambda: |-
-              if (not wifi_component->is_connected()) {
-                ESP_LOGW("watchdog", "Retrying Wi-Fi connection");
-                wifi_component->retry_connect();
-              }
-              if (not api_server->is_connected() and
-                  current_page->state != "blank" and
-                  current_page->state != "boot" and
-                  current_page->state != "confirm" and
-                  current_page->state != "home" and
-                  current_page->state != "qrcode" and
-                  current_page->state != "screensaver" and
-                  current_page->state != "settings") {
-                ESP_LOGW("watchdog", "API disconnected. Falling back to Home page.");
-                goto_page->execute("home");
-                blueprint_status->publish_state(0);
-              }
-              refresh_wifi_icon->execute();
-
-      - minutes: /10
-        seconds: 5
-        then:
-          - script.execute: dump_config
-
-    on_time_sync:
-      then:
-        - lambda: |-
-            ESP_LOGD("time.on_time_sync", "System clock synchronized");
-            ESP_LOGD("time.on_time_sync", "Timezone: %s", time_provider->get_timezone().c_str());
-            refresh_datetime->execute();
 
 json:  # Can be replaced by web_server
 
@@ -261,21 +215,10 @@ display:
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
-
-  - id: boot_completed
-    type: bool
-    restore_value: false
-    initial_value: 'false'
-
   - id: is_climate
     type: bool
     restore_value: true
     initial_value: 'true'
-
-  - id: mui_timezone
-    type: std::string
-    restore_value: true
-    initial_value: ""
 
   - id: mui_bytes_per_char
     type: uint8_t
@@ -1942,36 +1885,6 @@ script:
           id: page_weather
           page_number: 5
 
-  - id: refresh_datetime
-    mode: restart
-    then:
-      - lambda: |-
-          std::string time_format_str = id(mui_time_format);
-          if (time_format_str.find("%-H") != std::string::npos) {
-            time_format_str = time_format_str.replace(time_format_str.find("%-H"), sizeof("%-H")-1,
-                                                      to_string((int)(id(time_provider).now().hour)));
-          }
-          if (time_format_str.find("%-I") != std::string::npos) {
-            if (id(time_provider).now().hour>12) {
-              time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1,
-                                                        to_string((int)(id(time_provider).now().hour-12)));
-            } else if (id(time_provider).now().hour==0) {
-              time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1, "12");
-            } else {
-              time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1,
-                                                        to_string((int)(id(time_provider).now().hour)));
-            }
-          }
-          std::string meridiem_text = (id(time_provider).now().hour<12) ? id(mui_meridiem)[0] : id(mui_meridiem)[1];
-          if (current_page->state == "screensaver" and id(screensaver_display_time)) {
-              std::string time_format_str_sleep = time_format_str;
-              if (time_format_str_sleep.find("%p") != std::string::npos)
-                time_format_str_sleep.replace(time_format_str_sleep.find("%p"), sizeof("%p")-1, meridiem_text.c_str());
-              disp1->set_component_text("text", id(time_provider).now().strftime(time_format_str_sleep).c_str());
-          }
-          disp1->set_component_text("home.meridiem", (time_format_str.find("%p") != std::string::npos) ? meridiem_text.c_str() : " ");
-          disp1->set_component_text("home.time", id(time_provider).now().strftime(time_format_str).c_str());
-
   - id: refresh_hardware_buttons_bars
     mode: restart
     parameters:
@@ -2224,25 +2137,6 @@ script:
           NextionComponent component = extractNextionComponent(component_id, current_page->state);
           if (component.is_current_page) disp1->send_command_printf("vis %s,%i", component.component_id, show ? 1 : 0);
 
-  - id: set_timezone
-    mode: restart
-    parameters:
-      timezone: string
-    then:
-      - lambda: |-
-          ESP_LOGI("script.set_timezone", "Setting timezone: %s", timezone.c_str());
-          if (timezone != id(mui_timezone)) {
-            id(mui_timezone) = timezone;
-            size_t start = id(mui_timezone).find('<');
-            size_t end = id(mui_timezone).find('>');
-            if (start != std::string::npos && end != std::string::npos && end > start)
-              id(mui_timezone).replace(start, (end - start) + 1, "UTC");
-            time_provider->set_timezone(id(mui_timezone).c_str());
-            time_provider->call_setup();
-          }
-          time_provider->dump_config();
-          refresh_datetime->execute();
-
   - id: stop_all
     mode: restart
     then:
@@ -2287,7 +2181,6 @@ script:
           page_weather04->stop();
           page_weather05->stop();
           page_weather->stop();
-          refresh_datetime->stop();
           refresh_relays->stop();
           refresh_wifi_icon->stop();
           service_call_alarm_control_panel->stop();
