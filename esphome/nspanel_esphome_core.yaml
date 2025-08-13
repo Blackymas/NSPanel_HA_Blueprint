@@ -39,18 +39,6 @@ packages:
   base:    !include nspanel_esphome_core_base.yaml
   # yamllint enable rule:colons
 
-##### External components #####
-external_components:
-  - source:
-      # type: local
-      # path: packages/Blackymas/components
-      type: git
-      url: https://github.com/Blackymas/NSPanel_HA_Blueprint
-      ref: v${version}
-    components:
-      - nspanel_ha_blueprint
-    refresh: 30s
-
 ##### ESPHOME CONFIGURATION #####
 esphome:
   platformio_options:
@@ -190,7 +178,6 @@ display:
     uart_id: tf_uart
     on_setup:
       lambda: |-
-        boot_log->execute("Nextion", "on_setup");
         if (!id(is_uploading_tft)) {
           nextion_init->publish_state(true);
           version_tft->update();
@@ -1239,72 +1226,6 @@ text_sensor:
 
 ### Scripts ######
 script:
-  - id: boot_log
-    mode: parallel
-    max_runs: 100
-    parameters:
-      category: string
-      log_message: string
-    then:
-      - lambda: |-
-          static const char *const TAG = "script.boot_log";
-          ESP_LOGD(TAG, log_message.c_str());
-          if (current_page->state == "boot") {
-            disp1->send_command_printf("log_body.txt+=\"%s: %s\\r\"", category.c_str(), log_message.c_str());
-          }
-
-  - id: boot_event
-    mode: restart
-    parameters:
-      init: bool
-    then:
-      - lambda: |-
-          if (init) {
-            esphome::api::CustomAPIDevice ha_event;
-            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-              {
-                {"device_name", device_name->state.c_str()},
-                {"esphome_version", "${version}"},
-                {"type", "boot"},
-                {"step", "start"}
-              });
-          }
-      - while:
-          condition:
-            - lambda: return (blueprint_status->state < 99);
-          then:
-            - delay: 10s
-            - lambda: |-
-                if (blueprint_status->state < 99) {
-                  esphome::api::CustomAPIDevice ha_event;
-                  ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-                    {
-                      {"device_name", device_name->state.c_str()},
-                      {"esphome_version", "${version}"},
-                      {"type", "boot"},
-                      {"step", "timeout"}
-                    });
-                }
-
-  - id: boot_progress
-    mode: restart
-    parameters:
-      step: uint
-    then:
-      - lambda: |-
-          timer_reset_all->execute();
-          if (step == 10) {
-            id(boot_completed) = true;
-            ESP_LOGD("script.boot_progress", "Progress: Completed");
-            disp1->set_component_value("boot.progress", 100);
-          } else {
-            step = std::min(100, int(round((blueprint_status->state + (step*10))/2)));
-            ESP_LOGD("script.boot_progress", "Progress: %i%%", step);
-            disp1->set_component_value("boot.progress", step);
-          }
-          if (current_page->state == "boot" and !isnan(display_charset->state) and !isnan(display_mode->state) and !version_tft->state.empty())
-            disp1->send_command("tm_esphome.en=0");
-
   - id: change_climate_state
     mode: restart
     parameters:
@@ -2327,8 +2248,6 @@ script:
     then:
       - lambda: |-
           cleanupUtilitiesGroups();
-          boot_event->stop();
-          boot_progress->stop();
           change_climate_state->stop();
           check_versions->stop();
           display_embedded_temp->stop();
