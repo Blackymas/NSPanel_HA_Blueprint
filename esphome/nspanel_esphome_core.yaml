@@ -9,10 +9,6 @@ substitutions:
   ##############################
   ## Change only in your      ##
   ## local yaml substitutions ##
-  device_name: nspanel
-  name: ${device_name}
-  friendly_name: ${device_name}
-  ota_password: ${wifi_password}
   temp_units: "°C"
   invalid_cooldown: "100ms"
   bytes_per_char: "1"
@@ -225,37 +221,6 @@ globals:
     restore_value: true
     initial_value: ${bytes_per_char}
 
-  ###### Buttons settings ######
-  # Bit # Settings             #
-  #  0  # Left Bt - Enabled    #
-  #  1  # Left Bt - State      #
-  #  2  # reserved             #
-  #  3  # reserved             #
-  #  4  # Right Bt - Enabled   #
-  #  5  # Right Bt - State     #
-  #  6  # reserved             #
-  #  7  # reserved             #
-  ##############################
-  - id: buttons_settings
-    type: uint8_t
-    restore_value: false
-    initial_value: '0'
-
-  - id: buttons_color_on
-    type: uint16_t
-    restore_value: true
-    initial_value: '7519'
-
-  - id: buttons_color_off
-    type: uint16_t
-    restore_value: true
-    initial_value: '10597'
-
-  - id: buttons_bars_pages
-    type: uint32_t
-    restore_value: true
-    initial_value: '1'
-
   ####### Relay settings #######
   # Bit # Settings             #
   #  0  # Relay 1 - Local      #
@@ -391,89 +356,6 @@ globals:
 
 ##### START - BINARY SENSOR CONFIGURATION #####
 binary_sensor:
-
-  ###### LEFT BUTTON BELOW DISPLAY TO TOGGLE RELAY#####
-  - name: Left Button
-    platform: gpio
-    id: left_button
-    pin:
-      number: 14
-      inverted: true
-    on_multi_click:
-      - timing: &long_click-timing
-          - ON for at least 0.8s
-        invalid_cooldown: ${invalid_cooldown}
-        then:
-          - logger.log: "Left button - Long click"
-          - script.execute:
-              id: ha_button
-              page: !lambda return current_page->state.c_str();
-              component: "hw_bt_left"
-              command: "long_click"
-      - timing: &short_click-timing
-          - ON for at most 0.8s
-        invalid_cooldown: ${invalid_cooldown}
-        then:
-          - logger.log: "Left button - Short click"
-          - if:
-              condition:
-                or:
-                  - lambda: return (id(relay_settings) & RelaySettings::Relay1_Local);
-                  - and:
-                      - lambda: return (id(relay_settings) & RelaySettings::Relay1_Fallback);
-                      - or:
-                          - not:
-                              - api.connected:
-                          - not:
-                              - wifi.connected:
-              then:
-                - switch.toggle: relay_1
-          - script.execute:
-              id: ha_button
-              page: !lambda return current_page->state.c_str();
-              component: "hw_bt_left"
-              command: "short_click"
-
-  ##### RIGHT BUTTON BELOW DISPLAY TO TOGGLE RELAY #####
-  - name: Right Button
-    platform: gpio
-    id: right_button
-    pin:
-      number: 27
-      inverted: true
-    on_multi_click:
-      - timing: *long_click-timing
-        invalid_cooldown: ${invalid_cooldown}
-        then:
-          - logger.log: "Right button - Long click"
-          - script.execute:
-              id: ha_button
-              page: !lambda return current_page->state.c_str();
-              component: "hw_bt_right"
-              command: "long_click"
-      - timing: *short_click-timing
-        invalid_cooldown: ${invalid_cooldown}
-        then:
-          - logger.log: "Right button - Short click"
-          - if:
-              condition:
-                or:
-                  - lambda: return (id(relay_settings) & RelaySettings::Relay2_Local);
-                  - and:
-                      - lambda: return (id(relay_settings) & RelaySettings::Relay2_Fallback);
-                      - or:
-                          - not:
-                              - api.connected:
-                          - not:
-                              - wifi.connected:
-              then:
-                - switch.toggle: relay_2
-          - script.execute:
-              id: ha_button
-              page: !lambda return current_page->state.c_str();
-              component: "hw_bt_right"
-              command: "short_click"
-
   ## Delays initial info from HA to the display #####
   - name: Nextion display
     id: nextion_init
@@ -1884,52 +1766,6 @@ script:
       - script.execute:
           id: page_weather
           page_number: 5
-
-  - id: refresh_hardware_buttons_bars
-    mode: restart
-    parameters:
-      button_mask: uint8_t
-    then:
-      - lambda: |-
-          ESP_LOGV("script.refresh_hardware_buttons_bars", "Page:               %s", current_page->state.c_str());
-          ESP_LOGV("script.refresh_hardware_buttons_bars", "Page id:            %i", get_page_id(current_page->state.c_str()));
-          ESP_LOGV("script.refresh_hardware_buttons_bars", "buttons_bars_pages: %" PRIu32, id(buttons_bars_pages));
-          ESP_LOGV("script.refresh_hardware_buttons_bars", "relay_settings:     %i", id(relay_settings));
-          ESP_LOGV("script.refresh_hardware_buttons_bars", "button_mask:        %i", button_mask);
-          if (!id(is_uploading_tft) and ((id(buttons_bars_pages) & (1 << get_page_id(current_page->state.c_str()))) != 0)) {
-            switch (int(display_mode->state)) {
-              case 1:  // EU model
-                if (button_mask & 1 and id(buttons_settings) & ButtonSettings::ButtonLeft_Enabled) {  // Left button
-                  disp1->fill_area(48, 307, 118, 3, (id(buttons_settings) & ButtonSettings::ButtonLeft_State) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(47, 308, 120, 1, (id(buttons_settings) & ButtonSettings::ButtonLeft_State) ? id(buttons_color_on) : id(buttons_color_off));
-                }
-                if (button_mask & 2 and id(buttons_settings) & ButtonSettings::ButtonRight_Enabled) {  // Right button
-                  disp1->fill_area(289, 307, 118, 3, (id(buttons_settings) & ButtonSettings::ButtonRight_State) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(288, 308, 120, 1, (id(buttons_settings) & ButtonSettings::ButtonRight_State) ? id(buttons_color_on) : id(buttons_color_off));
-                }
-                break;
-              case 2:  // US Portrait
-                if (button_mask & 1 and id(buttons_settings) & ButtonSettings::ButtonLeft_Enabled) {  // Left button
-                  disp1->fill_area(17, 466, 118, 3, (id(buttons_settings) & ButtonSettings::ButtonLeft_State) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(16, 467, 120, 1, (id(buttons_settings) & ButtonSettings::ButtonLeft_State) ? id(buttons_color_on) : id(buttons_color_off));
-                }
-                if (button_mask & 2 and id(buttons_settings) & ButtonSettings::ButtonRight_Enabled) {  // Right button
-                  disp1->fill_area(184, 466, 118, 3, (id(buttons_settings) & ButtonSettings::ButtonRight_State) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(183, 467, 120, 1, (id(buttons_settings) & ButtonSettings::ButtonRight_State) ? id(buttons_color_on) : id(buttons_color_off));
-                }
-                break;
-              case 3:  // US Landscape
-                if (button_mask & 1 and id(buttons_settings) & ButtonSettings::ButtonLeft_Enabled) {  // Left button
-                  disp1->fill_area(467, 174, 3, 118, (id(buttons_settings) & ButtonSettings::ButtonLeft_State) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(468, 173, 1, 120, (id(buttons_settings) & ButtonSettings::ButtonLeft_State) ? id(buttons_color_on) : id(buttons_color_off));
-                }
-                if (button_mask & 2 and id(buttons_settings) & ButtonSettings::ButtonRight_Enabled) {  // Right button
-                  disp1->fill_area(467, 28, 3, 118, (id(buttons_settings) & ButtonSettings::ButtonRight_State) ? id(buttons_color_on) : id(buttons_color_off));
-                  disp1->fill_area(468, 27, 1, 120, (id(buttons_settings) & ButtonSettings::ButtonRight_State) ? id(buttons_color_on) : id(buttons_color_off));
-                }
-                break;
-            }
-          }
 
   - id: refresh_relays
     mode: restart
