@@ -833,15 +833,23 @@ switch:
         - lambda: |-
             if (id(relay_settings) & RelaySettings::Relay1_Local)
               update_bitwise_setting(id(buttons_settings), true, ButtonSettings::ButtonLeft_State);
-            refresh_relays->execute(1);
-            refresh_hardware_buttons_bars->execute(1);
+        - script.execute:
+            id: refresh_relays
+            relay_mask: 1
+        - script.execute:
+            id: refresh_hardware_buttons_bars
+            button_mask: 1
     on_turn_off:
       then:
         - lambda: |-
             if (id(relay_settings) & RelaySettings::Relay1_Local)
               update_bitwise_setting(id(buttons_settings), false, ButtonSettings::ButtonLeft_State);
-            refresh_relays->execute(1);
-            refresh_hardware_buttons_bars->execute(1);
+        - script.execute:
+            id: refresh_relays
+            relay_mask: 1
+        - script.execute:
+            id: refresh_hardware_buttons_bars
+            button_mask: 1
   ##### PHYSICAL SWITCH 2 ######
   - name: Relay 2
     platform: gpio
@@ -855,15 +863,23 @@ switch:
         - lambda: |-
             if (id(relay_settings) & RelaySettings::Relay2_Local)
               update_bitwise_setting(id(buttons_settings), true, ButtonSettings::ButtonRight_State);
-            refresh_relays->execute(2);
-            refresh_hardware_buttons_bars->execute(2);
+        - script.execute:
+            id: refresh_relays
+            relay_mask: 2
+        - script.execute:
+            id: refresh_hardware_buttons_bars
+            button_mask: 2
     on_turn_off:
       then:
         - lambda: |-
             if (id(relay_settings) & RelaySettings::Relay2_Local)
               update_bitwise_setting(id(buttons_settings), false, ButtonSettings::ButtonRight_State);
-            refresh_relays->execute(2);
-            refresh_hardware_buttons_bars->execute(2);
+        - script.execute:
+            id: refresh_relays
+            relay_mask: 2
+        - script.execute:
+            id: refresh_hardware_buttons_bars
+            button_mask: 2
 
   ##### DISPLAY ALWAYS ON #####
   - name: Nextion display - Power
@@ -1558,7 +1574,8 @@ script:
           id: boot_log
           category: Boot
           log_message: "ESPHome FW v${version}"
-      - lambda: disp1->set_component_text("ver_firmware", "Firmware: ${version}");  // ESPHome version
+      - lambda: |-
+          disp1->set_component_text("ver_firmware", "Firmware: ${version}");  // ESPHome version
       - script.execute:
           id: boot_progress
           step: 1
@@ -1596,7 +1613,8 @@ script:
           }
       - if:
           condition:
-            - lambda: return !is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI);
+            - lambda: |-
+                return !is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI);
           then:
             - script.execute:
                 id: boot_log
@@ -1616,7 +1634,8 @@ script:
                       id: current_page
                       state: boot
                 then:
-                  - lambda: disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());
+                  - lambda: |-
+                      disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());
                   - script.execute:
                       id: set_brightness
                       brightness: 100
@@ -1633,7 +1652,8 @@ script:
                 }
             - if:
                 condition:
-                  - lambda: return !is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::API);
+                  - lambda: |-
+                      return !is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::API);
                 then:
                   - script.execute:
                       id: boot_log
@@ -1706,7 +1726,8 @@ script:
       # Inform Home Assistant when Nextio is initialized
       - if:
           condition:
-            - lambda: return is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::API);
+            - lambda: |-
+                return is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::API);
             - lambda: return disp1->is_setup();
           then:
             - homeassistant.event:
@@ -1798,7 +1819,8 @@ script:
           category: Boot
           log_message: "Jump to wake-up page"
 
-      - lambda: ESP_LOGD("script.page_boot", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
+      - lambda: |-
+          ESP_LOGD("script.page_boot", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
       - script.execute:
           id: goto_page
           page: !lambda return wakeup_page_name->state.c_str();
@@ -1836,15 +1858,22 @@ script:
   - id: page_changed
     mode: restart
     then:
+      # Report new page to logs
       - lambda: |-
-          // Report new page to logs
           ESP_LOGD("script.page_changed", "New page: %s", current_page->state.c_str());
-          if (current_page->state.empty()) {
-            goto_page->execute("boot");
-            page_changed->stop();
-          }
 
-          // Reset globals
+      # Stop if page is empty
+      - if:
+          condition:
+            - lambda: return (current_page->state.empty());
+          then:
+            - script.execute:
+                id: goto_page
+                page: boot
+            - script.stop: page_changed
+
+      # Reset globals
+      - lambda: |-
           if (current_page->state != "alarm" &&
               current_page->state != "climate" &&
               current_page->state != "cover" &&
@@ -1862,27 +1891,41 @@ script:
             id(last_media_position) = 0;
           }
 
-          if (!detailed_entity->state.empty())
-            ESP_LOGD("script.page_changed", "Entity shown: %s", detailed_entity->state.c_str());
+      # Report detailed entity
+      - if:
+          condition:
+            - lambda: return !detailed_entity->state.empty();
+          then:
+            - lambda: |-
+                ESP_LOGD("script.page_changed", "Entity shown: %s", detailed_entity->state.c_str());
 
-          // Update buttons bars on screen
-          refresh_hardware_buttons_bars->execute(3);
+      # Update buttons bars on screen
+      - script.execute:
+          id: refresh_hardware_buttons_bars
+          button_mask: 3
 
-          // Reset timers
-          if (current_page->state != "screensaver") timer_reset_all->execute();
+      # Reset timers
+      - if:
+          condition:
+            not:
+              text_sensor.state:
+                id: current_page
+                state: screensaver
+          then:
+            - script.execute: timer_reset_all
 
-          // Report new page to Home Assistant
-          esphome::api::CustomAPIDevice ha_event;
-          ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-            {
-              {"device_name", device_name->state.c_str()},
-              {"esphome_version", "${version}"},
-              {"type", "page_changed"},
-              {"page", current_page->state.c_str()},
-              {"entity", detailed_entity->state.c_str()}
-            });
+      # Report new page to Home Assistant
+      - homeassistant.event:
+          event: esphome.nspanel_ha_blueprint
+          data:
+            device_name: !lambda return device_name->state.c_str();
+            esphome_version: ${version}
+            type: page_changed
+            page: !lambda return current_page->state.c_str();
+            entity: !lambda return detailed_entity->state.c_str();
 
-          // Call page constructor
+      # Call page constructor
+      - lambda: |-
           if (current_page->state == "alarm") page_alarm->execute();
           else if (current_page->state == "blank") page_blank->execute();
           else if (current_page->state == "boot") page_boot->execute();
@@ -1912,8 +1955,12 @@ script:
           else if (current_page->state == "weather03") page_weather03->execute();
           else if (current_page->state == "weather04") page_weather04->execute();
           else if (current_page->state == "weather05") page_weather05->execute();
+
+      # Update buttons bars on screen
       - delay: 1s
-      - lambda: refresh_hardware_buttons_bars->execute(3);
+      - script.execute:
+          id: refresh_hardware_buttons_bars
+          button_mask: 3
 
   - id: page_climate
     mode: restart
@@ -1923,7 +1970,8 @@ script:
     mode: restart
     then:
       - lambda: |-
-          if (!id(is_uploading_tft)) display_wrapped_text->execute("confirm.title", id(mui_please_confirm_global).c_str(), 15);
+          if (!id(is_uploading_tft))
+            display_wrapped_text->execute("confirm.title", id(mui_please_confirm_global).c_str(), 15);
 
   - id: page_cover
     mode: restart
@@ -1935,12 +1983,10 @@ script:
       page_number: uint
     then:
       - lambda: |-
-          if (current_page->state.find("entitypage") == 0) {
-            // Set value alignment
-            if (id(page_entity_value_horizontal_alignment) != 1) {
-              for (int i = 1; i <= 8; ++i) {
-                disp1->send_command_printf("value%02d.xcen=%" PRIu8, i, id(page_entity_value_horizontal_alignment));
-              }
+          // Set value alignment
+          if (current_page->state.find("entitypage") == 0 and id(page_entity_value_horizontal_alignment) != 1)) {
+            for (int i = 1; i <= 8; ++i) {
+              disp1->send_command_printf("value%02d.xcen=%" PRIu8, i, id(page_entity_value_horizontal_alignment));
             }
           }
 
@@ -1976,9 +2022,10 @@ script:
   - id: page_home
     mode: restart
     then:
-      - lambda:
-          refresh_relays->execute(3);
-          refresh_wifi_icon->execute();
+      - script.execute:
+          id: refresh_relays
+          relay_mask: 3
+      - script.execute: refresh_wifi_icon
 
   - id: page_keyb_num
     mode: restart
