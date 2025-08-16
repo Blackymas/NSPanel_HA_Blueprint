@@ -18,8 +18,7 @@ esphome:
 display:
   - id: !extend disp1
     on_setup:
-      lambda: |-
-        boot_log->execute("Nextion", "on_setup");
+      lambda: boot_log->execute("${TAG_BOOT}", "on_setup");
 
 globals:
   - id: boot_completed
@@ -35,64 +34,77 @@ script:
       category: string
       log_message: string
     then:
-      - lambda: |-
-          static const char *const TAG = "script.boot_log";
-          ESP_LOGD(TAG, log_message.c_str());
-          if (current_page->state == "boot") {
-            disp1->send_command_printf("log_body.txt+=\"%s: %s\\r\"", category.c_str(), log_message.c_str());
-          }
+      - lambda: ESP_LOGD("${TAG_BOOT}", log_message.c_str());
+      - if:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: boot
+          then:
+            - lambda: disp1->send_command_printf("log_body.txt+=\"%s: %s\\r\"", category.c_str(), log_message.c_str());
 
   - id: boot_event
     mode: restart
     parameters:
       init: bool
     then:
-      - lambda: |-
-          if (init) {
-            esphome::api::CustomAPIDevice ha_event;
-            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-              {
-                {"device_name", device_name->state.c_str()},
-                {"esphome_version", "${version}"},
-                {"type", "boot"},
-                {"step", "start"}
-              });
-          }
+      - if:
+          condition:
+            - lambda: return (init);
+          then:
+            - homeassistant.event:
+                event: esphome.nspanel_ha_blueprint
+                data:
+                  device_name: !lambda return device_name->state.c_str();
+                  esphome_version: ${version}
+                  type: boot
+                  step: start
       - while:
           condition:
             - lambda: return (blueprint_status->state < 99);
           then:
             - delay: 10s
-            - lambda: |-
-                if (blueprint_status->state < 99) {
-                  esphome::api::CustomAPIDevice ha_event;
-                  ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-                    {
-                      {"device_name", device_name->state.c_str()},
-                      {"esphome_version", "${version}"},
-                      {"type", "boot"},
-                      {"step", "timeout"}
-                    });
-                }
+            - if:
+                condition:
+                  - lambda: return (blueprint_status->state < 99);
+                then:
+                  - homeassistant.event:
+                      event: esphome.nspanel_ha_blueprint
+                      data:
+                        device_name: !lambda return device_name->state.c_str();
+                        esphome_version: ${version}
+                        type: boot
+                        step: timeout
 
   - id: boot_progress
     mode: restart
     parameters:
       step: uint
     then:
-      - lambda: |-
-          timer_reset_all->execute();
-          if (step == 10) {
-            id(boot_completed) = true;
-            ESP_LOGD("script.boot_progress", "Progress: Completed");
-            disp1->set_component_value("boot.progress", 100);
-          } else {
-            step = std::min(100, int(round((blueprint_status->state + (step*10))/2)));
-            ESP_LOGD("script.boot_progress", "Progress: %i%%", step);
-            disp1->set_component_value("boot.progress", step);
-          }
-          if (current_page->state == "boot" and !isnan(display_charset->state) and !isnan(display_mode->state) and !version_tft->state.empty())
-            disp1->send_command("tm_esphome.en=0");
+      - script.execute: timer_reset_all
+      - if:
+          condition:
+            - lambda: return (step == 10);
+          then:
+            - globals.set:
+                id: boot_completed
+                value: ' true'
+            - lambda: |-
+                ESP_LOGD("script.boot_progress", "Progress: Completed");
+                disp1->set_component_value("boot.progress", 100);
+          else:
+            - lambda: |-
+                step = std::min(100, int(round((blueprint_status->state + (step*10))/2)));
+                ESP_LOGD("script.boot_progress", "Progress: %i%%", step);
+                disp1->set_component_value("boot.progress", step);
+      - if:
+          condition:
+            - lambda: return (current_page->state == "boot");
+            - lambda: return !isnan(display_charset->state);
+            - lambda: return !isnan(display_mode->state);
+            - lambda: return !version_tft->state.empty();
+          then:
+            - lambda: disp1->send_command("tm_esphome.en=0");
 
   - id: !extend stop_all
     then:

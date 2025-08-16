@@ -64,33 +64,81 @@ esphome:
   on_boot:
     - priority: 600.0  # This is where most sensors are set up.
       then:
-        - lambda: |-
-            boot_log->execute("on_boot", "Publish Blueprint progress (0)");
-            if (isnan(blueprint_status->raw_state)) blueprint_status->publish_state(0);
-            boot_log->execute("on_boot", "Publish firmware version");
-            version_esphome->publish_state("${version}");
-            boot_log->execute("on_boot", "Publish device name");
-            device_name->publish_state("${name}");
-            boot_log->execute("on_boot", "Reset notification entities");
-            notification_label->publish_state("");
-            notification_text->publish_state("");
-            notification_unread->turn_off();
-        - wait_until:
-            condition:
-              - lambda: return (not isnan(stoi(baud_rate->state)));
-            timeout: 60s
-        - lambda: |-
-            boot_log->execute("on_boot", "Set baud rate");
-            if (stoi(baud_rate->state) != tf_uart->get_baud_rate()) set_baud_rate->execute(stoi(baud_rate->state), true);
-        - wait_until:
-            condition:
-              - lambda: return disp1->is_setup();
-            timeout: 60s
+        - script.execute:
+            id: boot_log
+            category: on_boot
+            log_message: "Publish Blueprint progress (0)"
         - if:
             condition:
-              - lambda: return (not disp1->is_detected());
+              - lambda: return isnan(blueprint_status->raw_state);
             then:
-              - lambda: boot_log->execute("on_boot", "Restart Nextion");
+              - sensor.template.publish:
+                  id: blueprint_status
+                  state: 0
+        - script.execute:
+            id: boot_log
+            category: on_boot
+            log_message: "Publish firmware version"
+        - text_sensor.template.publish:
+            id: version_esphome
+            state: "${version}"
+        - script.execute:
+            id: boot_log
+            category: on_boot
+            log_message: "Publish device name"
+        - text_sensor.template.publish:
+            id: device_name
+            state: "${name}"
+        - script.execute:
+            id: boot_log
+            category: on_boot
+            log_message: "Reset notification entities"
+        - text_sensor.template.publish:
+            id: notification_label
+            state: ""
+        - text_sensor.template.publish:
+            id: notification_text
+            state: ""
+        - switch.turn_off: notification_unread
+        - lambda: |-
+            for (int i = 0; i < 60; i++) {
+              if (not isnan(stoi(baud_rate->state)))
+                break;
+              delay(1000);
+              App.feed_wdt();
+            }
+        - script.execute:
+            id: boot_log
+            category: on_boot
+            log_message: "Set baud rate"
+        - if:
+            condition:
+              - lambda: return (stoi(baud_rate->state) != tf_uart->get_baud_rate());
+            then:
+              - script.execute:
+                  id: set_baud_rate
+                  target_baud_rate: !lambda return stoi(baud_rate->state);
+                  definitive: true
+        - if:
+            condition:
+              - lambda: return (!isnan(stoi(baud_rate->state)));
+            then:
+              - lambda: set_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::BAUD_RATE);
+        - lambda: |-
+            for (int i = 0; i < 60; i++) {
+              if (disp1->is_setup())
+                break;
+              delay(1000);
+              App.feed_wdt();
+            }
+        - if:
+            condition:
+              - lambda: return not disp1->is_detected();
+            then:
+              - script.execute:
+                  id: boot_log
+                  category: on_boot
+                  log_message: "Restart Nextion"
               - switch.turn_off: screen_power
               - delay: 2s
               - switch.turn_on: screen_power
@@ -110,9 +158,11 @@ wifi:
       password: ${wifi_password}
   on_connect:
     then:
+      - lambda: set_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI);
       - script.execute: refresh_wifi_icon
   on_disconnect:
     then:
+      - lambda: clear_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI);
       - script.execute: refresh_wifi_icon
 
 ##### ENABLE RINGTONE MUSIC SUPPORT #####
@@ -144,23 +194,25 @@ display:
     platform: nextion
     uart_id: tf_uart
     on_setup:
-      lambda: |-
-        if (!id(is_uploading_tft)) {
+      - lambda: |-
+          set_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::NEXTION);
+          if (id(is_uploading_tft))
+            return;
           nextion_init->publish_state(true);
           version_tft->update();
-        }
 
     on_page:
-      lambda: |-
-        if (!id(is_uploading_tft)) {
+      - lambda: |-
+          if (id(is_uploading_tft))
+            return;
           if (current_page->state != page_names[x] or x == 9) {
             current_page->publish_state(page_names[x]);
           }
-        }
 
     on_touch:
-      lambda: |-
-        if (!id(is_uploading_tft)) {
+      - lambda: |-
+          if (id(is_uploading_tft))
+            return;
           timer_reset_all->execute();
           switch (page_id) {
             case 0:  // Boot
@@ -224,7 +276,6 @@ display:
               }
               break;
           }
-        }
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
@@ -558,7 +609,11 @@ select:
     disabled_by_default: true
     icon: mdi:swap-horizontal
     on_value:
-      - lambda: set_baud_rate->execute(stoi(x), true);
+      then:
+        - script.execute:
+            id: set_baud_rate
+            target_baud_rate: !lambda return stoi(x);
+            definitive: true
 
   - id: wakeup_page_name
     name: Wake-up page
@@ -1136,191 +1191,247 @@ script:
 
   - id: display_wrapped_text
     mode: parallel
-    max_runs: 5
+    max_runs: 3
     parameters:
       component: string
       text_to_display: string
       line_length_limit: uint
     then:
       - lambda: |-
-          int startPos = 0;
-          int endPos = 0;
-          std::string wrappedText = "";
-          if (text_to_display.find("\\r") != std::string::npos) {
-            wrappedText = text_to_display;
-          } else {
-            while (startPos < text_to_display.length()) {
-              while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
-              int endPos = startPos + (line_length_limit * id(mui_bytes_per_char));
-              if (endPos >= text_to_display.length()) endPos = text_to_display.length();
-              else
-                {
-                  while (endPos > startPos && text_to_display[endPos] != ' ') { endPos--; }
-                  if (endPos == startPos) endPos = startPos + (line_length_limit * id(mui_bytes_per_char)); // Handle case of long word
-                }
-              wrappedText += text_to_display.substr(startPos, endPos-startPos);
-              if (endPos < text_to_display.length())
-                {
-                  while (text_to_display[endPos] == ' ') { endPos--; }
-                  if (endPos >= startPos) wrappedText += "\\r";
-                }
-              startPos = endPos + 1; // Skip the space
-              while (text_to_display[startPos] == ' ' and startPos < text_to_display.length()) { startPos++; }
-            }
+          // Safety check for overly long text
+          if (text_to_display.length() > 1000) {
+            ESP_LOGW("display_wrapped_text", "Text too long: %zu chars, truncating", text_to_display.length());
+            disp1->set_component_text(component.c_str(), "Text too long");
+            return;
           }
-          disp1->set_component_text(component.c_str(), wrappedText.c_str());
+
+          // Early exit for already formatted text
+          if (text_to_display.find("\\r") != std::string::npos) {
+            disp1->set_component_text(component.c_str(), text_to_display.c_str());
+            return;
+          }
+
+          const uint16_t max_line_length = line_length_limit * id(mui_bytes_per_char);
+          const uint16_t text_len = text_to_display.length();
+
+          // If text is short enough, no wrapping needed
+          if (text_len <= max_line_length) {
+            disp1->set_component_text(component.c_str(), text_to_display.c_str());
+            return;
+          }
+
+          // Pre-allocate string to avoid reallocations
+          std::string wrapped_text;
+          wrapped_text.reserve(text_len + 20);  // Reserve space for line breaks
+
+          uint16_t start = 0;
+
+          while (start < text_len) {
+            // Skip leading spaces
+            while (start < text_len && text_to_display[start] == ' ') {
+              start++;
+            }
+
+            if (start >= text_len) break;
+
+            // Find end position
+            uint16_t end = start + max_line_length;
+            if (end >= text_len) {
+              end = text_len;
+            } else {
+              // Find word boundary by looking backwards for space
+              uint16_t word_end = end;
+              while (word_end > start && text_to_display[word_end] != ' ') {
+                word_end--;
+              }
+
+              // If we found a space within reasonable distance, use it
+              if (word_end > start) {
+                end = word_end;
+              }
+              // Otherwise force break at max_line_length (handles long words)
+            }
+
+            // Add text segment
+            wrapped_text.append(text_to_display, start, end - start);
+
+            // Add line break if not at end of text
+            if (end < text_len) {
+              wrapped_text += "\\r";
+
+              // Skip spaces at the break point to avoid leading spaces on next line
+              while (end < text_len && text_to_display[end] == ' ') {
+                end++;
+              }
+            }
+
+            start = end;
+          }
+
+          disp1->set_component_text(component.c_str(), wrapped_text.c_str());
 
   - id: !extend dump_config
     then:
+      # Report Wi-Fi status
+      - lambda: |-
+          if (is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI)) {
+            float rssi = wifi_rssi->state;
+            const char *rssi_status = "Unknown"; // Use const char* to avoid dynamic memory allocation
+            if (rssi > -50) rssi_status = "Excellent";
+            else if (rssi > -60) rssi_status = "Good";
+            else if (rssi > -70) rssi_status = "Fair";
+            else if (rssi > -80) rssi_status = "Weak";
+            else rssi_status = "Poor";
+            if (rssi > -70) ESP_LOGCONFIG("nspanel_ha_blueprint", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
+            else if (rssi > -80) ESP_LOGW("nspanel_ha_blueprint", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
+            else ESP_LOGE("nspanel_ha_blueprint", "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
+          }
+          else {
+            ESP_LOGW("nspanel_ha_blueprint", "Wi-Fi:         DISCONNECTED");
+          }
+
+      # Report API status
+      - lambda: |-
+          if (!are_all_boot_flags_set(nspanel_component::boot_flags, {BootFlag::WIFI, BootFlag::API}))
+            blueprint_status->publish_state(0);
+
+          // Report blueprint version
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "Blueprint:");
+          if (blueprint_status->state > 99) {
+            ESP_LOGCONFIG("nspanel_ha_blueprint", "  Version:     %s", version_blueprint->state.c_str());
+            ESP_LOGCONFIG("nspanel_ha_blueprint", "  Init steps:  %i (%0.1f%%)", int(blueprint_status->raw_state), blueprint_status->state);
+          } else {
+            ESP_LOGW("nspanel_ha_blueprint", "  Init steps:  %i (%0.1f%%)", int(blueprint_status->raw_state), blueprint_status->state);
+            ESP_LOGW("nspanel_ha_blueprint", "  State:       %s", (are_all_boot_flags_set(nspanel_ha_blueprint::boot_flags, {BootFlag::WIFI, BootFlag::API}))
+                                                                  ? "Pending" : "DISCONNECTED");
+            ESP_LOGCONFIG("nspanel_ha_blueprint", "Requesting blueprint settings");
+            boot_event->execute(false);
+          }
+
+      # Report ESPHome
+      - lambda: |-
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "ESPHome:");
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  Version:     ${version}");
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  Compiler:    %s", ESPHOME_VERSION);
+
+      # Report framework
+      - lambda: |-
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  Framework:   "
+          #ifdef ARDUINO
+          "Arduino"
+          #elif defined(USE_ESP_IDF)
+          "ESP-IDF"
+          #else
+          "Unknown"
+          #endif
+          );
+
+      # Report memory
       - lambda: |-
           #include <esp_heap_caps.h>
-          static const char *const TAG = "nspanel_ha_blueprint";
-          if (id(is_uploading_tft)) {
-            ESP_LOGW(TAG, "TFT upload in progress");
+          const size_t internal_heap_size = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
+          const size_t internal_heap_size_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  Free heap:");
+
+          if (internal_heap_size != 0) {
+            ESP_LOGCONFIG("nspanel_ha_blueprint", "    Internal:  %7d bytes (%0.1f%%)", internal_heap_size_free,
+                    ((float)internal_heap_size_free / internal_heap_size) * 100.0f);
           } else {
-            // report Wi-Fi status
-            bool wifi_connected = wifi_component->is_connected();
-            if (wifi_connected) {
-              float rssi = wifi_rssi->state;
-              const char *rssi_status = "Unknown"; // Use const char* to avoid dynamic memory allocation
-              if (rssi > -50) rssi_status = "Excellent";
-              else if (rssi > -60) rssi_status = "Good";
-              else if (rssi > -70) rssi_status = "Fair";
-              else if (rssi > -80) rssi_status = "Weak";
-              else rssi_status = "Poor";
-              if (rssi > -70) ESP_LOGCONFIG(TAG, "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
-              else if (rssi > -80) ESP_LOGW(TAG, "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
-              else ESP_LOGE(TAG, "Wi-Fi:         %s (%.0f dBm)", rssi_status, rssi);
-            }
-            else {
-              ESP_LOGW(TAG, "Wi-Fi:         DISCONNECTED");
-            }
-
-            bool api_connected = api_server->is_connected();
-            if (!wifi_connected or !api_connected) blueprint_status->publish_state(0);
-
-            // Report blueprint version
-            ESP_LOGCONFIG(TAG, "Blueprint:");
-            if (blueprint_status->state > 99) {
-              ESP_LOGCONFIG(TAG, "  Version:     %s", version_blueprint->state.c_str());
-              ESP_LOGCONFIG(TAG, "  Init steps:  %i (%0.1f%%)", int(blueprint_status->raw_state), blueprint_status->state);
-            } else {
-              ESP_LOGW(TAG, "  Init steps:  %i (%0.1f%%)", int(blueprint_status->raw_state), blueprint_status->state);
-              ESP_LOGW(TAG, "  State:       %s", (wifi_connected and api_connected) ? "Pending" : "DISCONNECTED");
-              ESP_LOGCONFIG(TAG, "Requesting blueprint settings");
-              boot_event->execute(false);
-            }
-
-            // Report ESPHome
-            ESP_LOGCONFIG(TAG, "ESPHome:");
-            ESP_LOGCONFIG(TAG, "  Version:     ${version}");
-            ESP_LOGCONFIG(TAG, "  Compiler:    %s", ESPHOME_VERSION);
-            // Report framework
-            #ifdef ARDUINO
-            ESP_LOGCONFIG(TAG, "  Framework:   Arduino");
-            #elif defined(USE_ESP_IDF)
-            ESP_LOGCONFIG(TAG, "  Framework:   ESP-IDF");
-            #endif
-            // Report memory
-            const size_t internal_heap_size = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
-            const size_t internal_heap_size_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
-            ESP_LOGCONFIG(TAG, "  Free heap:");
-
-            if (internal_heap_size != 0) {
-              ESP_LOGCONFIG(TAG, "    Internal:  %7d bytes (%0.1f%%)", internal_heap_size_free,
-                      ((float)internal_heap_size_free / internal_heap_size) * 100.0f);
-            } else {
-              ESP_LOGCONFIG(TAG, "    Internal:  %7d bytes", internal_heap_size_free);
-            }
-
-            #ifdef USE_PSRAM
-            const size_t psram_heap_size = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
-            const size_t psram_heap_size_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
-            if (psram_heap_size != 0) {
-              ESP_LOGCONFIG(TAG, "    PSRAM:     %7d bytes (%0.1f%%)", psram_heap_size_free,
-                      ((float)psram_heap_size_free / psram_heap_size) * 100.0f);
-            } else {
-              ESP_LOGCONFIG(TAG, "    PSRAM:     %7d bytes", psram_heap_size_free);
-            }
-            #endif
-
-            // Report UART
-            ESP_LOGCONFIG(TAG, "UART:");
-            ESP_LOGCONFIG(TAG, "  Baud rate:   %" PRIu32 " bps", tf_uart->get_baud_rate());
-            ESP_LOGCONFIG(TAG, "  Queue size:  %d", tf_uart->available());
-
-            // Report Nextion status
-            nextion_init->publish_state(!id(is_uploading_tft) and nextion_init->state and disp1->is_setup());
-            ESP_LOGCONFIG(TAG, "Nextion:");
-            ESP_LOGCONFIG(TAG, "  Queue size:  %d", disp1->queue_size());
-            if (disp1->is_setup())
-              ESP_LOGCONFIG(TAG, "  Is setup:    True");
-            else {
-              ESP_LOGW(TAG, "  Is setup:    False");
-              ESP_LOGW(TAG, "  Is detected: %s", YESNO(disp1->is_detected()));
-              //exit_reparse->execute();
-            }
-            if (nextion_init->state) {
-              ESP_LOGCONFIG(TAG, "  Init:        True");
-            } else
-              ESP_LOGW(TAG, "  Init:        False");
-            if (version_tft->state.empty())
-              ESP_LOGW(TAG, "  TFT:         UNKNOWN");
-            else
-              ESP_LOGCONFIG(TAG, "  TFT:         %s", version_tft->state.c_str());
-            ESP_LOGCONFIG(TAG, "Packages:");
-            #ifdef NSPANEL_HA_BLUEPRINT_CORE
-            ESP_LOGCONFIG(TAG, "  - Core");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADVANCED
-            ESP_LOGCONFIG(TAG, "  - Advanced");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_BLUETOOTH_PROXY
-            ESP_LOGCONFIG(TAG, "  - Bluetooth Proxy");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
-            ESP_LOGCONFIG(TAG, "  - Upload TFT");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE
-            ESP_LOGCONFIG(TAG, "  - Climate - Base");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL
-            ESP_LOGCONFIG(TAG, "  - Climate - Cool");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
-            ESP_LOGCONFIG(TAG, "  - Climate - Dual");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT
-            ESP_LOGCONFIG(TAG, "  - Climate - Heat");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT
-            ESP_LOGCONFIG(TAG, "  - Pre-built");
-            #endif
-            #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY
-            ESP_LOGCONFIG(TAG, "  - Pre-built (Wall Display)");
-            #endif
-            #if defined(USE_BLUETOOTH_PROXY) || defined(USE_WEBSERVER) || defined(USE_CAPTIVE_PORTAL)
-            ESP_LOGCONFIG(TAG, "Components:");
-            #ifdef USE_ESP32_BLE_SERVER
-            ESP_LOGCONFIG(TAG, "  - BLE server");
-            #endif
-            #ifdef USE_ESP32_BLE_CLIENT
-            ESP_LOGCONFIG(TAG, "  - BLE tracker");
-            #endif
-            #ifdef USE_BLUETOOTH_PROXY
-            ESP_LOGCONFIG(TAG, "  - Bluetooth proxy");
-            #endif
-            #ifdef USE_CAPTIVE_PORTAL
-            ESP_LOGCONFIG(TAG, "  - Captive portal");
-            #endif
-            #ifdef USE_IMPROV
-            ESP_LOGCONFIG(TAG, "  - Improv (BLE)");
-            #endif
-            #ifdef USE_WEBSERVER
-            ESP_LOGCONFIG(TAG, "  - Web server");
-            #endif
-            #endif
+            ESP_LOGCONFIG("nspanel_ha_blueprint", "    Internal:  %7d bytes", internal_heap_size_free);
           }
+
+          #ifdef USE_PSRAM
+          const size_t psram_heap_size = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
+          const size_t psram_heap_size_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+          if (psram_heap_size != 0) {
+            ESP_LOGCONFIG("nspanel_ha_blueprint", "    PSRAM:     %7d bytes (%0.1f%%)", psram_heap_size_free,
+                    ((float)psram_heap_size_free / psram_heap_size) * 100.0f);
+          } else {
+            ESP_LOGCONFIG("nspanel_ha_blueprint", "    PSRAM:     %7d bytes", psram_heap_size_free);
+          }
+          #endif
+
+      # Report UART
+      - lambda: |-
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "UART:");
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  Baud rate:   %" PRIu32 " bps", tf_uart->get_baud_rate());
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  Queue size:  %d", tf_uart->available());
+
+      # Report Nextion status
+      - lambda: |-
+          nextion_init->publish_state(!id(is_uploading_tft) and nextion_init->state and disp1->is_setup());
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "Nextion:");
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  Queue size:  %d", disp1->queue_size());
+          if (disp1->is_setup())
+            ESP_LOGCONFIG("nspanel_ha_blueprint", "  Is setup:    True");
+          else {
+            ESP_LOGW("nspanel_ha_blueprint", "  Is setup:    False");
+            ESP_LOGW("nspanel_ha_blueprint", "  Is detected: %s", YESNO(disp1->is_detected()));
+            //exit_reparse->execute();
+          }
+          if (nextion_init->state) {
+            ESP_LOGCONFIG("nspanel_ha_blueprint", "  Init:        True");
+          } else
+            ESP_LOGW("nspanel_ha_blueprint", "  Init:        False");
+          if (version_tft->state.empty())
+            ESP_LOGW("nspanel_ha_blueprint", "  TFT:         UNKNOWN");
+          else
+            ESP_LOGCONFIG("nspanel_ha_blueprint", "  TFT:         %s", version_tft->state.c_str());
+
+      # Report Packages
+      - lambda: |-
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "Packages:");
+          #ifdef NSPANEL_HA_BLUEPRINT_CORE
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  - Core");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_ADVANCED
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  - Advanced");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_BLUETOOTH_PROXY
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  - Bluetooth Proxy");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  - Upload TFT");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  - Climate - Base");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  - Climate - Cool");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  - Climate - Dual");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  - Climate - Heat");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  - Pre-built");
+          #endif
+          #ifdef NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  - Pre-built (Wall Display)");
+          #endif
+          #if defined(USE_BLUETOOTH_PROXY) || defined(USE_WEBSERVER) || defined(USE_CAPTIVE_PORTAL)
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "Components:");
+          #ifdef USE_ESP32_BLE_SERVER
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  - BLE server");
+          #endif
+          #ifdef USE_ESP32_BLE_CLIENT
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  - BLE tracker");
+          #endif
+          #ifdef USE_BLUETOOTH_PROXY
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  - Bluetooth proxy");
+          #endif
+          #ifdef USE_CAPTIVE_PORTAL
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  - Captive portal");
+          #endif
+          #ifdef USE_IMPROV
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  - Improv (BLE)");
+          #endif
+          #ifdef USE_WEBSERVER
+          ESP_LOGCONFIG("nspanel_ha_blueprint", "  - Web server");
+          #endif
+          #endif
 
   - id: global_settings
     mode: restart
@@ -1334,35 +1445,59 @@ script:
       screensaver_time_color: int32_t[]
       decimal_separator: string
     then:
-      - lambda: |-
-          if (!id(is_uploading_tft)) {
-            // Blueprint version
-            boot_log->execute("Blueprint", "Global settings");
-            version_blueprint->publish_state(blueprint_version.c_str());
-            disp1->set_component_text_printf("ver_blueprint", "Blueprint: %s", blueprint_version.c_str());
-            check_versions->execute();
+      # Blueprint version
+      - script.execute:
+          id: boot_log
+          category: Blueprint
+          log_message: "Global settings"
+      - text_sensor.template.publish:
+          id: version_blueprint
+          state: !lambda return blueprint_version.c_str();
+      - lambda: disp1->set_component_text_printf("ver_blueprint", "Blueprint: %s", blueprint_version.c_str());
+      - script.execute: check_versions
 
-            // MUI strings
-            id(mui_please_confirm_global) = mui_please_confirm;
-            id(mui_unavailable_global) = mui_unavailable;
+      # MUI strings
+      - globals.set:
+          id: mui_please_confirm_global
+          value: !lambda return mui_please_confirm;
+      - globals.set:
+          id: mui_unavailable_global
+          value: !lambda return mui_unavailable;
 
-            // Screen saver page (sleep)
-            id(screensaver_display_time) = screensaver_time;
-            id(screensaver_display_time_font) = screensaver_time_font;
-            id(screensaver_display_time_color) = rgbTo565(screensaver_time_color);
-            page_screensaver->execute();
+      # Screen saver page (sleep)
+      - globals.set:
+          id: screensaver_display_time
+          value: !lambda return screensaver_time;
+      - globals.set:
+          id: screensaver_display_time_font
+          value: !lambda return screensaver_time_font;
+      - globals.set:
+          id: screensaver_display_time_color
+          value: !lambda return rgbTo565(screensaver_time_color);
+      - script.execute: page_screensaver
 
-            // Entities pages alignment
-            id(page_entity_value_horizontal_alignment) = ent_value_xcen;
+      # Entities pages alignment
+      - globals.set:
+          id: page_entity_value_horizontal_alignment
+          value: !lambda return ent_value_xcen;
 
-            // Decimal separator
-            if (not decimal_separator.empty()) id(mui_decimal_separator) = decimal_separator[0];
+      # Decimal separator
+      - if:
+          condition:
+            - lambda return (not decimal_separator.empty());
+          then:
+            - globals.set:
+                id: mui_decimal_separator
+                value: !lambda return decimal_separator[0];
 
-            if (current_page->state != "boot") {
-              // Update current page
-              page_changed->execute();
-            }
-          }
+      # Update current page
+      - if:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: boot
+          then:
+            - script.execute: page_changed
 
   - id: goto_page
     mode: restart
@@ -1407,121 +1542,265 @@ script:
     mode: single
     then:
       - logger.log: Page boot called
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: "Starting sequence"
+      - script.execute:
+          id: boot_progress
+          step: 0
+      - script.execute:
+          id: set_brightness
+          brightness: 100
+      - script.execute: update_tft_info
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: "ESPHome FW v${version}"
+      - lambda: disp1->set_component_text("ver_firmware", "Firmware: ${version}");  // ESPHome version
+      - script.execute:
+          id: boot_progress
+          step: 1
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: !lambda |-
+                          #ifdef ARDUINO
+                          return "Framework is Arduino";
+                          #elif defined(USE_ESP_IDF)
+                          return "Framework is ESP-IDF";
+                          #endif
+                          return "Framework is unknown";
       - lambda: |-
-          boot_log->execute("Boot", "Starting sequence");
-          boot_progress->execute(0);
-          set_brightness->execute(100);
-          update_tft_info->execute();
-          boot_log->execute("Boot", "ESPHome FW v${version}");
-          disp1->set_component_text("ver_firmware", "Firmware: ${version}");  // ESPHome version
-          boot_progress->execute(1);
           #ifdef ARDUINO
-          boot_log->execute("Boot", "Framework is Arduino");
           disp1->set_component_text("sys_framework", "Framework: Arduino");
           #elif defined(USE_ESP_IDF)
-          boot_log->execute("Boot", "Framework is ESP-IDF");
           disp1->set_component_text("sys_framework", "Framework: ESP-IDF");
+          #else
+          disp1->set_component_text("sys_framework", "Framework: Unknown");
           #endif
-          boot_progress->execute(2);
-          boot_log->execute("Boot", "Waiting for Wi-Fi...");
-      - wait_until:
-          condition:
-            - lambda: return (wifi_component->is_connected());
-          timeout: 10s
+      - script.execute:
+          id: boot_progress
+          step: 2
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: "Waiting for Wi-Fi"
+      - lambda: |-
+          for (int i = 0; i < 10; i++) {
+            if (is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI))
+              break;
+            delay(1000);
+            App.feed_wdt();
+          }
       - if:
           condition:
-            - lambda: return (wifi_component->is_connected());
-          then:  # Wi-Fi connected
-            - lambda: |-
-                boot_log->execute("Boot", "Wi-Fi connected");
-                boot_progress->execute(3);
-                if (current_page->state == "boot") {
-                  #if ESPHOME_VERSION_CODE < VERSION_CODE(2024, 3, 0)  // Code for ESPHome earlier than v2024.3.0
-                  disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_address().str().c_str());
-                  #else  // Code for ESPHome v2024.3.0 or newer
-                  disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());
-                  #endif  // ESPHome version based code
-                  set_brightness->execute(100);
-                }
-                boot_log->execute("Boot", "Waiting for API...");
-            - wait_until:
-                condition:
-                  - lambda: return (api_server->is_connected());
-                timeout: 10s
+            - lambda: return !is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI);
+          then:
+            - script.execute:
+                id: boot_log
+                category: Boot
+                log_message: "Wi-Fi not available"
+          else:  # Wi-Fi connected
+            - script.execute:
+                id: boot_log
+                category: Boot
+                log_message: "Wi-Fi connected"
+            - script.execute:
+                id: boot_progress
+                step: 3
             - if:
                 condition:
-                  - lambda: return (api_server->is_connected());
-                then:  # API connected
-                  - lambda: |-
-                      boot_log->execute("Boot", "API connected");
-                      boot_progress->execute(4);
-                      if (blueprint_status->state <= 99) boot_event->execute(true);
+                  - text_sensor.state:
+                      id: current_page
+                      state: boot
+                then:
+                  - lambda: disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());
+                  - script.execute:
+                      id: set_brightness
+                      brightness: 100
+            - script.execute:
+                id: boot_log
+                category: Boot
+                log_message: "Waiting for API"
+            - lambda: |-
+                for (int i = 0; i < 10; i++) {
+                  if (is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::API))
+                    break;
+                  delay(1000);
+                  App.feed_wdt();
+                }
+            - if:
+                condition:
+                  - lambda: return !is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::API);
+                then:
+                  - script.execute:
+                      id: boot_log
+                      category: Boot
+                      log_message: "API not available"
+                else:  # API connected
+                  - script.execute:
+                      id: boot_log
+                      category: Boot
+                      log_message: "API connected"
+                  - script.execute:
+                      id: boot_progress
+                      step: 4
+                  - if:
+                      condition:
+                        - lambda: return (blueprint_status->state <= 99);
+                      then:
+                        - script.execute:
+                            id: boot_event
+                            init: true
+                        - script.execute:
+                            id: boot_log
+                            category: Boot
+                            log_message: "Waiting for Blueprint"
+                        - lambda: |-
+                            for (int i = 0; i < 5; i++) {
+                              if (blueprint_status->state > 99)
+                                break;
+                              delay(1000);
+                              App.feed_wdt();
+                            }
+                        - if:
+                            condition:
+                              - lambda: return (blueprint_status->state > 99);
+                            then:
+                              - script.execute:
+                                  id: boot_progress
+                                  step: 5
+                            else:
+                              - script.execute:
+                                  id: boot_log
+                                  category: Boot
+                                  log_message: "Blueprint not available"
+
+      # Display settings
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: "Sending display settings"
       - lambda: |-
-          boot_log->execute("Boot", "Waiting for Blueprint...");
-      - wait_until:
-          condition:
-            - lambda: return (wifi_component->is_connected() and api_server->is_connected() and blueprint_status->state > 99);
-          timeout: 5s
-      - lambda: |-
-          boot_progress->execute(5);
-          boot_log->execute("Boot", "Sending display settings");
           disp1->send_command_printf("brightness=%i", int(display_brightness->state));
           disp1->set_component_value("settings.brightslider", int(display_brightness->state));
           disp1->send_command_printf("brightness_dim=%i", int(display_dim_brightness->state));
           disp1->set_component_value("settings.dimslider", int(display_dim_brightness->state));
           disp1->send_command_printf("brightness_sleep=%i", int(display_sleep_brightness->state));
           disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
-          boot_progress->execute(6);
-          boot_log->execute("Boot", "Publish Nextion state");
-          nextion_init->publish_state(disp1->is_setup());
-          if (api_server->is_connected() and disp1->is_setup()) {
-            esphome::api::CustomAPIDevice ha_event;
-            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-              {
-                {"device_name", device_name->state.c_str()},
-                {"esphome_version", "${version}"},
-                {"type", "boot"},
-                {"step", "nextion_init"}
-              });
-          }
-          boot_progress->execute(7);
-          boot_log->execute("Boot", "Set Home page elements");
-          // Chips icon size
+      - script.execute:
+          id: boot_progress
+          step: 6
+
+      # Publish Nextion state
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: "Publish Nextion state"
+      - binary_sensor.template.publish_state:
+          id: nextion_init
+          state: !lambda return disp1->is_setup();
+      
+      # Inform Home Assistant when Nextio is initialized
+      - if:
+          condition:
+            - lambda: return is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::API);
+            - lambda: return disp1->is_setup();
+          then:
+            - homeassistant.event:
+                event: esphome.nspanel_ha_blueprint
+                data:
+                  device_name: !lambda return device_name->state.c_str();
+                  esphome_version: "${version}"
+                  type: "boot"
+                  step: "nextion_init"
+
+      # Setup Home page
+      - script.execute:
+          id: boot_progress
+          step: 7
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: "Set Home page elements"
+
+      # Chips icon size
+      - lambda: |-
           for (int i = 1; i <= 7; ++i) {
             disp1->send_command_printf("home.chip%02d.font=%i", i, id(home_chip_font_id));
           }
-          // Custom buttons icon size
+
+      # Custom buttons icon size
+      - lambda: |-
           for (int i = 1; i <= 7; ++i) {
             disp1->send_command_printf("home.button%02d.font=%i", i, id(home_custom_buttons_font_id));
           }
+
+      # Other components icons size and color
+      - lambda: |-
           disp1->set_component_font("home.bt_notific", id(home_custom_buttons_font_id));
           disp1->set_component_font("home.bt_qrcode", id(home_custom_buttons_font_id));
           disp1->set_component_font("home.bt_entities", id(home_custom_buttons_font_id));
           disp1->set_component_font("home.wifi_icon", id(home_chip_font_id));
           disp1->set_component_font_color("home.chip_relay1", id(home_relay1_icon_color));
           disp1->set_component_font_color("home.chip_relay2", id(home_relay2_icon_color));
+
+      # Bluetooth icon
+      - lambda: |-
           #if defined(USE_ESP32_BLE_SERVER) || defined(USE_ESP32_BLE_CLIENT) || defined(USE_BLUETOOTH_PROXY) || defined(USE_IMPROV)
           disp1->set_component_text("home.bt_icon", "\uE0AE");
+          #else
+          disp1->set_component_text("home.bt_icon", "");
           #endif
-          boot_progress->execute(8);
-          boot_log->execute("Boot", "Wait to finish");
-      - wait_until:
-          condition:
-            - lambda: return (wifi_component->is_connected() and api_server->is_connected() and blueprint_status->state > 99);
-          timeout: 10s
-      - lambda: boot_progress->execute(9);
-      - delay: 5s
-      - lambda: boot_progress->execute(10);
-      - delay: 1s
+
+      # Wrap-up
+      - script.execute:
+          id: boot_progress
+          step: 8
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: "Wait to finish"
       - lambda: |-
-          if (notification_sound->state) {
-            boot_log->execute("Boot", "Play boot sound");
-            buzzer->play("two short:d=4,o=5,b=100:16e6,16e6");
+          for (int i = 0; i < 10; i++) {
+            if (is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI) and api_server->is_connected() and blueprint_status->state > 99)
+              break;
+            delay(1000);
+            App.feed_wdt();
           }
-          set_brightness->execute(display_brightness->state);
-          boot_log->execute("Boot", "Jump to wake-up page");
-          ESP_LOGD("script.page_boot", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
-          goto_page->execute(wakeup_page_name->state.c_str());
+      - script.execute:
+          id: boot_progress
+          step: 9
+      - delay: 2s
+
+      # Boot beep
+      - if:
+          condition:
+            switch.is_on: notification_sound
+          then:
+            - script.execute:
+                id: boot_log
+                category: Boot
+                log_message: "Play boot sound"
+            - rtttl.play: "two short:d=4,o=5,b=100:16e6,16e6"
+
+      - script.execute:
+          id: boot_progress
+          step: 10
+      - delay: 1s
+      - script.execute:
+          id: set_brightness
+          brightness: !lambda return display_brightness->state;
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: "Jump to wake-up page"
+
+      - lambda: ESP_LOGD("script.page_boot", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
+      - script.execute:
+          id: goto_page
+          page: !lambda return wakeup_page_name->state.c_str();
 
   - id: page_buttonpage
     mode: restart
@@ -1861,31 +2140,42 @@ script:
   - id: set_baud_rate
     mode: restart
     parameters:
-      baud_rate: uint32_t
+      target_baud_rate: uint32_t
       definitive: bool
     then:
       - if:
           condition:
-            - lambda: return (tf_uart->get_baud_rate() != baud_rate);
+            - lambda: return (!isnan(stoi(target_baud_rate)));
+          then:
+            - lambda: set_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::BAUD_RATE);
+      - if:
+          condition:
+            - lambda: return (tf_uart->get_baud_rate() != target_baud_rate);
           then:
             - lambda: |-
-                ESP_LOGD("script.set_baud_rate", "Baud rate changing from %" PRIu32 " to %" PRIu32 " bps", tf_uart->get_baud_rate(), baud_rate);
+                ESP_LOGD("script.set_baud_rate", "Baud rate changing from %" PRIu32 " to %" PRIu32 " bps", tf_uart->get_baud_rate(), target_baud_rate);
                 ESP_LOGD("script.set_baud_rate", "Flush UART");
-            - wait_until:
-                condition:
-                  - lambda: return (tf_uart->available() < 1);
-                timeout: 5s
             - lambda: |-
-                ESP_LOGD("script.set_baud_rate", "Sending instruction '%s=%" PRIu32 "' to Nextion", definitive ? "bauds" : "baud", baud_rate);
-                disp1->send_command_printf("%s=%" PRIu32, definitive ? "bauds" : "baud", baud_rate);
+                for (int i = 0; i < 5; i++) {
+                  if (tf_uart->available() < 1)
+                    break;
+                  delay(1000);
+                  App.feed_wdt();
+                }
+            - lambda: |-
+                ESP_LOGD("script.set_baud_rate", "Sending instruction '%s=%" PRIu32 "' to Nextion", definitive ? "bauds" : "baud", target_baud_rate);
+                disp1->send_command_printf("%s=%" PRIu32, definitive ? "bauds" : "baud", target_baud_rate);
                 ESP_LOGD("script.set_baud_rate", "Flush UART");
-            - wait_until:
-                condition:
-                  - lambda: return (tf_uart->available() < 1);
-                timeout: 5s
             - lambda: |-
-                ESP_LOGD("script.set_baud_rate", "Set ESPHome new baud rate to %" PRIu32 " bps", baud_rate);
-                tf_uart->set_baud_rate(baud_rate);
+                for (int i = 0; i < 5; i++) {
+                  if (tf_uart->available() < 1)
+                    break;
+                  delay(1000);
+                  App.feed_wdt();
+                }
+            - lambda: |-
+                ESP_LOGD("script.set_baud_rate", "Set ESPHome new baud rate to %" PRIu32 " bps", target_baud_rate);
+                tf_uart->set_baud_rate(target_baud_rate);
                 tf_uart->load_settings();
                 ESP_LOGD("script.set_baud_rate", "Current baud rate: %" PRIu32 " bps", tf_uart->get_baud_rate());
 
@@ -1895,10 +2185,10 @@ script:
       brightness: float
     then:
       - lambda: |-
-          if (!id(is_uploading_tft)) {
-            disp1->set_backlight_brightness(brightness / 100.0f);
-            current_brightness->update();
-          }
+          if (id(is_uploading_tft))
+            return;
+          disp1->set_backlight_brightness(brightness / 100.0f);
+          current_brightness->update();
 
   - id: set_climate
     mode: restart
