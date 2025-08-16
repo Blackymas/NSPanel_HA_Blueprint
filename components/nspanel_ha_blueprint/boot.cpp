@@ -3,6 +3,9 @@
 
 namespace nspanel_ha_blueprint {
 
+    // Define the global boot flags variable (starts with all flags false)
+    uint8_t boot_flags = 0;
+
     void set_boot_flag(uint8_t &flags, BootFlag flag) {
         uint8_t mask = 1 << static_cast<uint8_t>(flag);
         if (!(flags & mask)) {

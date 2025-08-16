@@ -17,6 +17,9 @@ namespace nspanel_ha_blueprint {
         // Bit 7 reserved
     };
 
+    // Global boot flags variable - initialized to 0 (all flags false)
+    extern uint8_t boot_flags;
+
     // Utility functions
     void set_boot_flag(uint8_t &flags, BootFlag flag);
     void clear_boot_flag(uint8_t &flags, BootFlag flag);
