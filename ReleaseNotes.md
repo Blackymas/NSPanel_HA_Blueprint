@@ -47,9 +47,16 @@ Users who prefer manual control can disable this feature through the panel's con
 
 ### Code Reorganization
 
-We are also reorganizing the project into smaller, more focused files so all code related to a specific functionality can be found in the same place.
-Users will not notice any functional change and do not need to adjust their settings — unless you have custom modifications to this project's files.
-In that case, you may need to move your changes to the correct new file locations.
+We are reorganizing the project into smaller, focused files to group related functionality together,
+improving maintainability and making it easier to locate specific code.
+
+Additionally, we are selectively converting portions of the codebase from C++ lambdas to native ESPHome YAML instructions
+where this enhances readability and accessibility for contributors more familiar with ESPHome's declarative syntax.
+Performance-critical and complex algorithmic code will remain in C++ where appropriate.
+
+Users will not notice any functional changes and do not need to adjust their settings. However,
+if you have custom modifications to this project's files, you may need to relocate your changes to match the new file structure.
+Please refer to our migration documentation for guidance on updated file locations.
 
 ---
 
