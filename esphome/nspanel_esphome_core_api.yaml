@@ -572,86 +572,177 @@ api:
         entity: string           # Entity ID for the alarm system, enabling state updates and control.
         mui_alarm: string[]      # Localized text for alarm control buttons (e.g., Arm, Disarm), allowing for a multilingual interface.
       then:
-        - lambda: |-
-            // Is page Alarm visible?
-            if (current_page->state == "alarm" and !id(is_uploading_tft))  // To do: This page constructor should be moved to Blueprint
-              { // Update alarm page
-                  detailed_entity->publish_state(entity);
+        # To do: This page constructor should be moved to Blueprint
+        - if:
+            condition:
+              - lambda: return id(is_uploading_tft);
+            then:
+              - lambda: ESP_LOGW("${TAG_API}", "TFT upload in progress");
+            else:
+              - if:
+                  condition:
+                    - text_sensor.state:
+                        id: current_page
+                        state: alarm
+                  then:  # Update alarm page
 
-                  // Alarm page - Header
-                  update_alarm_icon->execute("icon_state", state.c_str());
-                  if (page_title.find("\\r") != std::string::npos) {
-                    page_title = page_title.replace(page_title.find("\\r"), 2, " ");
-                  }
-                  disp1->set_component_text("page_label", page_title.c_str());
-                  disp1->set_component_text("code_format", code_format.c_str());
-                  disp1->set_component_text("code_arm_req", code_arm_required ? "1" : "0");
+                    # Set detailed entity sensor
+                    - text_sensor.template.publish:
+                        id: detailed_entity
+                        state: !lambda return entity;
 
-                  // Alarm page - Button's text
-                  display_wrapped_text->execute("bt_home_text", mui_alarm[0].c_str(), 10);
-                  display_wrapped_text->execute("bt_away_text", mui_alarm[1].c_str(), 10);
-                  display_wrapped_text->execute("bt_night_text", mui_alarm[2].c_str(), 10);
-                  display_wrapped_text->execute("bt_vacat_text", mui_alarm[3].c_str(), 10);
-                  display_wrapped_text->execute("bt_bypass_text", mui_alarm[4].c_str(), 10);
-                  display_wrapped_text->execute("bt_disarm_text", mui_alarm[5].c_str(), 10);
+                    # Page header - Icon
+                    - delay: 100ms
+                    - script.execute:
+                        id: update_alarm_icon
+                        component: "icon_state"
+                        state: !lambda return state;
+                    # Page header - Title
+                    - lambda: |-
+                        if (page_title.find("\\r") != std::string::npos) {
+                          page_title = page_title.replace(page_title.find("\\r"), 2, " ");
+                        }
+                        disp1->set_component_text("page_label", page_title.c_str());
 
-                  // Alarm page - Buttons
-                  if (supported_features & 1 or state == "armed_home") // Alarm - Button - Home
-                    {
-                      disp1->set_component_pic("bt_home_pic", (state == "armed_home") ? 43 : 42);
-                      disp1->set_component_background_color("bt_home_text", (state == "armed_home") ? 19818 : 52857);
-                      disp1->set_component_background_color("bt_home_icon", (state == "armed_home") ? 19818 : 52857);
-                      disp1->set_component_font_color("bt_home_text", (state == "armed_home") ? 65535 : 0);
-                      disp1->set_component_font_color("bt_home_icon", (state == "armed_home") ? 65535 : 0);
-                      set_component_visibility->execute("bt_home", (state != "armed_home"));
+                    # Page - Params
+                    - delay: 100ms
+                    - lambda: |-
+                        disp1->set_component_text("code_format", code_format.c_str());
+                        disp1->set_component_text("code_arm_req", code_arm_required ? "1" : "0");
 
-                    }
-                  if (supported_features & 2 or state == "armed_away") // Alarm - Button - Away
-                    {
-                      disp1->set_component_pic("bt_away_pic", (state == "armed_away") ? 43 : 42);
-                      disp1->set_component_background_color("bt_away_text", (state == "armed_away") ? 19818 : 52857);
-                      disp1->set_component_background_color("bt_away_icon", (state == "armed_away") ? 19818 : 52857);
-                      disp1->set_component_font_color("bt_away_text", (state == "armed_away") ? 65535 : 0);
-                      disp1->set_component_font_color("bt_away_icon", (state == "armed_away") ? 65535 : 0);
-                      set_component_visibility->execute("bt_away", (state != "armed_away"));
-                    }
-                  if (supported_features & 4 or state == "armed_night") // Alarm - Button - Night
-                    {
-                      disp1->set_component_pic("bt_night_pic", (state == "armed_night") ? 43 : 42);
-                      disp1->set_component_background_color("bt_night_text", (state == "armed_night") ? 19818 : 52857);
-                      disp1->set_component_background_color("bt_night_icon", (state == "armed_night") ? 19818 : 52857);
-                      disp1->set_component_font_color("bt_night_text", (state == "armed_night") ? 65535 : 0);
-                      disp1->set_component_font_color("bt_night_icon", (state == "armed_night") ? 65535 : 0);
-                      set_component_visibility->execute("bt_night", (state != "armed_night"));
-                    }
-                  if (supported_features & 32 or state == "armed_vacation") // Alarm - Button - Vacation
-                    {
-                      disp1->set_component_pic("bt_vacat_pic", (state == "armed_vacation") ? 43 : 42);
-                      disp1->set_component_background_color("bt_vacat_text", (state == "armed_vacation") ? 19818 : 52857);
-                      disp1->set_component_background_color("bt_vacat_icon", (state == "armed_vacation") ? 19818 : 52857);
-                      disp1->set_component_font_color("bt_vacat_text", (state == "armed_vacation") ? 65535 : 0);
-                      disp1->set_component_font_color("bt_vacat_icon", (state == "armed_vacation") ? 65535 : 0);
-                      set_component_visibility->execute("bt_vacat", (state != "armed_vacation"));
-                    }
-                  if (supported_features & 16 or state == "armed_bypass") // Alarm - Button - Custom bypass
-                    {
-                      disp1->set_component_pic("bt_bypass_pic", (state == "armed_bypass") ? 43 : 42);
-                      disp1->set_component_background_color("bt_bypass_text", (state == "armed_bypass") ? 19818 : 52857);
-                      disp1->set_component_background_color("bt_bypass_icon", (state == "armed_bypass") ? 19818 : 52857);
-                      disp1->set_component_font_color("bt_bypass_text", (state == "armed_bypass") ? 65535 : 0);
-                      disp1->set_component_font_color("bt_bypass_icon", (state == "armed_bypass") ? 65535 : 0);
-                      set_component_visibility->execute("bt_bypass", (state != "armed_bypass"));
-                    }
-                  if ( true ) // Alarm - Button - Disarm
-                    {
-                      disp1->set_component_pic("bt_disarm_pic", (state == "disarmed") ? 43 : 42);
-                      disp1->set_component_background_color("bt_disarm_text", (state == "disarmed") ? 19818 : 52857);
-                      disp1->set_component_background_color("bt_disarm_icon", (state == "disarmed") ? 19818 : 52857);
-                      disp1->set_component_font_color("bt_disarm_text", (state == "disarmed") ? 65535 : 0);
-                      disp1->set_component_font_color("bt_disarm_icon", (state == "disarmed") ? 65535 : 0);
-                      set_component_visibility->execute("bt_disarm", (state != "disarmed"));
-                    }
-              }
+                    # Buttons - Text
+                    - delay: 100ms
+                    - script.execute:
+                        id: display_wrapped_text
+                        component: bt_away_text
+                        text_to_display: !lambda return mui_alarm[1].c_str();
+                        line_length_limit: 10
+                    - delay: 100ms
+                    - script.execute:
+                        id: display_wrapped_text
+                        component: bt_night_text
+                        text_to_display: !lambda return mui_alarm[2].c_str();
+                        line_length_limit: 10
+                    - delay: 100ms
+                    - script.execute:
+                        id: display_wrapped_text
+                        component: bt_vacat_text
+                        text_to_display: !lambda return mui_alarm[3].c_str();
+                        line_length_limit: 10
+                    - delay: 100ms
+                    - script.execute:
+                        id: display_wrapped_text
+                        component: bt_bypass_text
+                        text_to_display: !lambda return mui_alarm[4].c_str();
+                        line_length_limit: 10
+                    - delay: 100ms
+                    - script.execute:
+                        id: display_wrapped_text
+                        component: bt_disarm_text
+                        text_to_display: !lambda return mui_alarm[5].c_str();
+                        line_length_limit: 10
+
+                    # Button - Home
+                    - if:
+                        condition:
+                          - or:
+                              - lambda: return (supported_features & 1);
+                              - lambda: return (state == "armed_home");
+                        then:
+                          - delay: 100ms
+                          - lambda: |-
+                              const bool is_current_state = (state == "armed_home");
+                              disp1->set_component_pic("bt_home_pic", is_current_state ? 43 : 42);
+                              disp1->set_component_background_color("bt_home_text", is_current_state ? 19818 : 52857);
+                              disp1->set_component_background_color("bt_home_icon", is_current_state ? 19818 : 52857);
+                              disp1->set_component_font_color("bt_home_text", is_current_state ? 65535 : 0);
+                              disp1->set_component_font_color("bt_home_icon", is_current_state ? 65535 : 0);
+                              delay(100);
+                              set_component_visibility->execute("bt_home", not is_current_state);
+
+                    # Button - Away
+                    - if:
+                        condition:
+                          - or:
+                              - lambda: return (supported_features & 2);
+                              - lambda: return (state == "armed_away");
+                        then:
+                          - delay: 100ms
+                          - lambda: |-
+                              const bool is_current_state = (state == "armed_away");
+                              disp1->set_component_pic("bt_away_pic", is_current_state ? 43 : 42);
+                              disp1->set_component_background_color("bt_away_text", is_current_state ? 19818 : 52857);
+                              disp1->set_component_background_color("bt_away_icon", is_current_state ? 19818 : 52857);
+                              disp1->set_component_font_color("bt_away_text", is_current_state ? 65535 : 0);
+                              disp1->set_component_font_color("bt_away_icon", is_current_state ? 65535 : 0);
+                              delay(100);
+                              set_component_visibility->execute("bt_away", not is_current_state);
+
+                    # Button - Night
+                    - if:
+                        condition:
+                          - or:
+                              - lambda: return (supported_features & 4);
+                              - lambda: return (state == "armed_night");
+                        then:
+                          - delay: 100ms
+                          - lambda: |-
+                              const bool is_current_state = (state == "armed_night");
+                              disp1->set_component_pic("bt_night_pic", is_current_state ? 43 : 42);
+                              disp1->set_component_background_color("bt_night_text", is_current_state ? 19818 : 52857);
+                              disp1->set_component_background_color("bt_night_icon", is_current_state ? 19818 : 52857);
+                              disp1->set_component_font_color("bt_night_text", is_current_state ? 65535 : 0);
+                              disp1->set_component_font_color("bt_night_icon", is_current_state ? 65535 : 0);
+                              delay(100);
+                              set_component_visibility->execute("bt_night", not is_current_state);
+
+                    # Button - Vacation
+                    - if:
+                        condition:
+                          - or:
+                              - lambda: return (supported_features & 32);
+                              - lambda: return (state == "armed_vacation");
+                        then:
+                          - delay: 100ms
+                          - lambda: |-
+                              const bool is_current_state = (state == "armed_vacation");
+                              disp1->set_component_pic("bt_vacat_pic", is_current_state ? 43 : 42);
+                              disp1->set_component_background_color("bt_vacat_text", is_current_state ? 19818 : 52857);
+                              disp1->set_component_background_color("bt_vacat_icon", is_current_state ? 19818 : 52857);
+                              disp1->set_component_font_color("bt_vacat_text", is_current_state ? 65535 : 0);
+                              disp1->set_component_font_color("bt_vacat_icon", is_current_state ? 65535 : 0);
+                              delay(100);
+                              set_component_visibility->execute("bt_vacat", not is_current_state);
+
+                    # Button - Custom bypass
+                    - if:
+                        condition:
+                          - or:
+                              - lambda: return (supported_features & 16);
+                              - lambda: return (state == "armed_bypass");
+                        then:
+                          - delay: 100ms
+                          - lambda: |-
+                              const bool is_current_state = (state == "armed_bypass");
+                              disp1->set_component_pic("bt_bypass_pic", is_current_state ? 43 : 42);
+                              disp1->set_component_background_color("bt_bypass_text", is_current_state ? 19818 : 52857);
+                              disp1->set_component_background_color("bt_bypass_icon", is_current_state ? 19818 : 52857);
+                              disp1->set_component_font_color("bt_bypass_text", is_current_state ? 65535 : 0);
+                              disp1->set_component_font_color("bt_bypass_icon", is_current_state ? 65535 : 0);
+                              delay(100);
+                              set_component_visibility->execute("bt_bypass", not is_current_state);
+                    
+                    # Button - Disarm
+                    - delay: 100ms
+                    - lambda: |-
+                        const bool is_current_state = (state == "disarmed");
+                        disp1->set_component_pic("bt_disarm_pic", is_current_state ? 43 : 42);
+                        disp1->set_component_background_color("bt_disarm_text", is_current_state ? 19818 : 52857);
+                        disp1->set_component_background_color("bt_disarm_icon", is_current_state ? 19818 : 52857);
+                        disp1->set_component_font_color("bt_disarm_text", is_current_state ? 65535 : 0);
+                        disp1->set_component_font_color("bt_disarm_icon", is_current_state ? 65535 : 0);
+                        delay(100);
+                        set_component_visibility->execute("bt_disarm", not is_current_state);
 
     # Dynamically updates the climate page with the latest climate control settings and status.
     - service: page_climate
