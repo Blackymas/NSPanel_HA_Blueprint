@@ -27,6 +27,7 @@ substitutions:
   NSPANEL_HA_BLUEPRINT_PREBUILT: "false"
   NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY: "false"
   ##############################
+  TAG_CORE: "nspanel.core"
   BAUD_RATE: '115200'
   GPIO_BUTTON_LEFT_PIN: '14'
   GPIO_BUTTON_LEFT_INVERTED: 'true'
@@ -1113,8 +1114,8 @@ text_sensor:
     internal: false
     update_interval: never
     on_value:
-      - lambda: |-
-          check_versions->execute();
+      then:
+        - script.execute: check_versions
 
   - id: version_esphome
     name: Version ESPHome
@@ -1135,8 +1136,8 @@ text_sensor:
     internal: false
     update_interval: never
     on_value:
-      - lambda: |-
-          check_versions->execute();
+      then:
+        - script.execute: check_versions
 
 ### Scripts ######
 script:
@@ -1160,33 +1161,39 @@ script:
   - id: check_versions
     mode: restart
     then:
-      - wait_until:
-          condition:
-            - lambda: |-
-                return (compare_versions("${version}", version_tft->state.c_str()) and compare_versions("${version}", version_blueprint->state.c_str()));
-          timeout: 60s
+      - delay: 5s
       - lambda: |-
-          if (!id(is_uploading_tft)) {
-            ESP_LOGD("script.check_versions", "Versions:");
-            ESP_LOGD("script.check_versions", "  TFT:       %s", version_tft->state.c_str());
-            ESP_LOGD("script.check_versions", "  ESPHome:   ${version}");
-            if (not compare_versions("${version}", version_tft->state.c_str()))
-              ESP_LOGE("script.check_versions", "TFT version mismatch!");
-            ESP_LOGD("script.check_versions", "  Blueprint: %s", version_blueprint->state.c_str());
-            if (not compare_versions("${version}", version_blueprint->state.c_str()))
-              ESP_LOGE("script.check_versions", "Blueprint version mismatch!");
-
-            esphome::api::CustomAPIDevice ha_event;
-            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-              {
-                {"device_name", device_name->state.c_str()},
-                {"esphome_version", "${version}"},
-                {"type", "version"},
-                {"tft", version_tft->state.c_str()},
-                {"esphome", "${version}"},
-                {"blueprint", version_blueprint->state.c_str()}
-              });
+          for (uint8_t i = 0; i < 60; i++) {
+            if (compare_versions("${version}", version_tft->state.c_str()) and compare_versions("${version}", version_blueprint->state.c_str()))
+              break;
+            delay(1000);
+            App.feed_wdt();
           }
+      - if:
+          condition:
+            - lambda: return id(is_uploading_tft);
+          then:
+            - script.stop: check_versions
+          else:
+            - lambda: |-
+                ESP_LOGD("${TAG_CORE}", "Versions:");
+                ESP_LOGD("${TAG_CORE}", "  TFT:       %s", version_tft->state.c_str());
+                ESP_LOGD("${TAG_CORE}", "  ESPHome:   ${version}");
+                if (not compare_versions("${version}", version_tft->state.c_str()))
+                  ESP_LOGE("${TAG_CORE}", "TFT version mismatch!");
+                ESP_LOGD("${TAG_CORE}", "  Blueprint: %s", version_blueprint->state.c_str());
+                if (not compare_versions("${version}", version_blueprint->state.c_str()))
+                  ESP_LOGE("${TAG_CORE}", "Blueprint version mismatch!");
+            - delay: 1s
+            - homeassistant.event:
+                event: esphome.nspanel_ha_blueprint
+                data:
+                  device_name: !lambda return device_name->state.c_str();
+                  esphome_version: ${version}
+                  type: "version"
+                  tft: !lambda return version_tft->state.c_str();
+                  esphome: ${version}
+                  blueprint: !lambda return version_blueprint->state.c_str();
 
   - id: display_embedded_temp
     mode: restart
@@ -2332,10 +2339,10 @@ script:
   - id: !extend stop_all
     mode: restart
     then:
+      - script.stop: check_versions
       - lambda: |-
           cleanupUtilitiesGroups();
           change_climate_state->stop();
-          check_versions->stop();
           display_embedded_temp->stop();
           display_wrapped_text->stop();
           global_settings->stop();
