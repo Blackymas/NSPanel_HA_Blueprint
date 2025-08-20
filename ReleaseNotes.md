@@ -1,17 +1,90 @@
-# v4.3.19 - Fix alarm control panel action name not updating between calls
+# Release Notes - v4.3.20
 
-## Critical Fixes
-- **Alarm Control Panel Action Persistence (#2653)**: Corrected the alarm control panel action name persistence issue introduced in v4.3.18,
-  which caused a runtime error when calling `alarm_control_panel.alarm_*` actions more than once.
-  Thanks @Kaibob2 for the numerous tests and detailed logs on #2653.
+## Summary
 
-## Enhancements
-- **Release Notes Simplification**: Streamlined the Release Notes file format to accelerate the release process.
-  Complete change history remains available in the GitHub release section.
-- **Climate Dual Relay Support (#2605)**: Enhanced Climate Dual component to allow assignment of the same relay to both "heat" and "cool" modes
-  for unified heating/cooling systems.
+This release focuses on simplifying the development and release process.
+We are moving to **smaller, more frequent releases** to reduce bugs, improve testing, and make updates easier for users.
+Key changes include **removing the BLE Tracker and Bluetooth Proxy add-ons** (now handled natively),
+**automatic TFT uploads** when version mismatches are detected, and reorganizing the codebase for better maintainability.
 
-## Maintenance
-- **Deprecated Warning Resolution**: Removed unused `publish_initial_state` parameter that generated deprecation warnings.
-- **Localization Enhancement (#2660)**: Added Catalan language support. Thanks to @ppuig71.
-- **HMI/TFT Update**: Updated HMI/TFT files to v1.68.1 for latest Nextion compatibility.
+## Release Goals
+
+Our last major feature release was over a year ago. Over time, the NSPanel project has grown in complexity,
+and each release now requires significant effort to prepare.
+This has led to fewer, larger releases — which are harder to test and more likely to accumulate critical bugs, ultimately reducing overall quality.
+
+We have been working on a new main release for over a year but ended up getting stuck in a cycle of bugs and fixes.
+To break this loop, one of the main goals of this release is to simplify the process:
+
+- Shift towards smaller, more frequent releases with fewer changes per release, reducing the chance of critical bugs.
+- Make the update process easier for users, so everyone can benefit from improvements sooner.
+- Simplify parts of the codebase to make it more approachable for new contributors and encourage community involvement.
+
+In the coming days, we'll focus on making updates smoother for users and continuing code simplification,
+setting the foundation for a healthier release cycle going forward.
+
+---
+
+## Key Improvements
+
+### ESPHome 2025.8.0 Compatibility Fix
+
+**Resolved bootloop issue** that occurred when updating to ESPHome 2025.8.0. 
+Previous versions (v4.3.19 and earlier) would crash during boot when compiled with ESPHome 2025.8.0.
+This release maintains compatibility with ESPHome v2025.5.2 or later, including the latest 2025.8.0 version.
+
+**Issues Reference:**
+  - #2685
+  - #2686
+
+### Simplified Bluetooth Integration
+
+As part of this simplification, we are removing the **BLE Tracker** and **Bluetooth Proxy** add-ons.
+Previously, these add-ons wrapped ESPHome's native components with custom code to stop them
+before starting a TFT upload (as full memory is required at that moment).
+
+With this release, we have moved that stop routine to a lower level, using ESP-IDF's native methods. This means the custom add-ons are no longer needed.
+You can now use ESPHome's native components directly without any customizations (just be mindful of memory usage, as they are memory-hungry).
+This simplification also reduces the number of files we have to maintain.
+
+### Automatic TFT Updates
+
+**TFT uploads now run automatically** whenever a version mismatch is detected between your firmware and display files.
+This eliminates the manual step of triggering TFT uploads after firmware updates, making the entire update process seamless.
+
+Users who prefer manual control can disable this feature through the panel's control interface:
+**Settings > Devices & services > ESPHome > [Your Device] > Controls**
+
+### Code Reorganization
+
+We are reorganizing the project into smaller, focused files to group related functionality together,
+improving maintainability and making it easier to locate specific code.
+
+Additionally, we are selectively converting portions of the codebase from C++ lambdas to native ESPHome YAML instructions
+where this enhances readability and accessibility for contributors more familiar with ESPHome's declarative syntax.
+Performance-critical and complex algorithmic code will remain in C++ where appropriate.
+
+Users will not notice any functional changes and do not need to adjust their settings. However,
+if you have custom modifications to this project's files, you may need to relocate your changes to match the new file structure.
+Please refer to our migration documentation for guidance on updated file locations.
+
+---
+
+## Breaking Changes
+
+- **Removed Add-ons:** BLE Tracker and Bluetooth Proxy add-ons have been removed.
+- **Reason:** Improved Bluetooth memory management now happens at a lower level and no longer requires specific component IDs for TFT uploads.
+- **Benefits:** Simplified setup, better user experience, reduced maintenance overhead, native ESPHome component support without customizations.
+- **Migration:** Use native ESPHome components directly:
+  - [ESPHome BLE Tracker](https://esphome.io/components/esp32_ble_tracker.html)
+  - [ESPHome Bluetooth Proxy](https://esphome.io/components/bluetooth_proxy.html)
+
+## Known Limitations
+
+- **Blueprint Updates:** Unfortunately, Home Assistant does not yet offer an option for implementing automatic Blueprint updates.
+  Blueprint updates will continue to require manual intervention. For detailed instructions on updating the Blueprint,
+  please refer to our [Blueprint Update Guide](docs/howto.md#update-blueprint).
+
+---
+
+*From now on, release notes will be simplified to include only items relevant to the current release.*
