@@ -26,8 +26,6 @@ Table of contents:
   - [Frameworks](#frameworks)
     - [Framework `arduino`](#framework-arduino)
     - [Framework `esp-idf`](#framework-esp-idf)
-  - [Bluetooth proxy](#bluetooth-proxy)
-  - [BLE tracker](#ble-tracker)
   - [Logger via UART](#logger-via-uart)
   - [Climate custom presets](#climate-custom-presets)
   - [Push button / Momentary switch](#push-button--momentary-switch)
@@ -204,7 +202,7 @@ ota:
 ```
 
 ### Web server credentials
-By default, the web server credentials are defined by this project using `admin` as `username` and your `Wi-Fi password` as `password`, but you can replace it using this customization:
+By default, the web server credentials are defined by this project (advanced only) using `admin` as `username` and your `Wi-Fi password` as `password`, but you can replace it using this customization:
 
 ```yaml
 # Custom web server credentials
@@ -548,6 +546,8 @@ time:
 > When switching between frameworks, make sure to update the device with a serial cable as the partition table is different between the two frameworks
 as [OTA Update Component](https://esphome.io/components/ota) updates will not change the partition table. While it will appear to work, the device will boot the old framework after a reset.
 
+If you have absolute need to change framework via OTA, please ensure you flash your device twice in a row to increase the chances to have both partitions with the new firmware.
+
 This project currently uses `esp-idf` as default framework.
 You can overlap the settings with this customization.
 
@@ -576,12 +576,6 @@ esp32:
   framework:
     type: esp-idf
 ```
-
-### Bluetooth Proxy
-Please refer to the "[Add-on: Bluetooth Proxy](addon_bluetooth_proxy.md)" guide.
-
-### BLE Tracker
-Please refer to the "[Add-on: BLE Tracker Proxy](addon_ble_tracker.md)" guide.
 
 ### Logger via UART
 
@@ -715,10 +709,10 @@ switch:
 This can be useful to free-up memory, so other custom components could be used instead.
 
 ```yaml
-# Removes captive portal
+# Removes captive portal - Pre-built and advanced only
 captive_portal: !remove
 
-# Removes embedded web server
+# Removes embedded web server - Advanced only
 web_server: !remove
 ```
 
