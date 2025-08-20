@@ -1,4 +1,4 @@
-# Release Notes
+# Release Notes - v4.3.20
 
 ## Summary
 
@@ -27,15 +27,25 @@ setting the foundation for a healthier release cycle going forward.
 
 ## Key Improvements
 
-### Simplified Bluetooth Management
+### ESPHome 2025.8.0 Compatibility Fix
+
+**Resolved bootloop issue** that occurred when updating to ESPHome 2025.8.0. 
+Previous versions (v4.3.19 and earlier) would crash during boot when compiled with ESPHome 2025.8.0.
+This release maintains compatibility with ESPHome v2025.5.2 or later, including the latest 2025.8.0 version.
+
+**Issues Reference:**
+  - #2685
+  - #2686
+
+### Simplified Bluetooth Integration
 
 As part of this simplification, we are removing the **BLE Tracker** and **Bluetooth Proxy** add-ons.
-Previously, these add-ons wrapped ESPHome's native components with a few extra lines to stop them
+Previously, these add-ons wrapped ESPHome's native components with custom code to stop them
 before starting a TFT upload (as full memory is required at that moment).
 
-With this release, we have moved that stop routine to a lower level, using ESP-IDF's native methods. This means the add-ons are no longer needed.
-You can still use those components by following ESPHome's official documentation (just be mindful of memory usage, as they are memory-hungry).
-Removing them also reduces the number of files we have to maintain.
+With this release, we have moved that stop routine to a lower level, using ESP-IDF's native methods. This means the custom add-ons are no longer needed.
+You can now use ESPHome's native components directly without any customizations (just be mindful of memory usage, as they are memory-hungry).
+This simplification also reduces the number of files we have to maintain.
 
 ### Automatic TFT Updates
 
@@ -64,7 +74,7 @@ Please refer to our migration documentation for guidance on updated file locatio
 
 - **Removed Add-ons:** BLE Tracker and Bluetooth Proxy add-ons have been removed.
 - **Reason:** Improved Bluetooth memory management now happens at a lower level and no longer requires specific component IDs for TFT uploads.
-- **Benefits:** Simplified setup, better user experience, reduced maintenance overhead.
+- **Benefits:** Simplified setup, better user experience, reduced maintenance overhead, native ESPHome component support without customizations.
 - **Migration:** Use native ESPHome components directly:
   - [ESPHome BLE Tracker](https://esphome.io/components/esp32_ble_tracker.html)
   - [ESPHome Bluetooth Proxy](https://esphome.io/components/bluetooth_proxy.html)
