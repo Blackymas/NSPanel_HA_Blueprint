@@ -1165,42 +1165,30 @@ script:
     then:
       - if:
           condition:
-            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+            - lambda: return !is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
           then:
-            - delay: 5s
-            - lambda: |-
-                for (uint8_t i = 0; i < 60; i++) {
-                  if (compare_versions("${version}", version_tft->state.c_str()) and compare_versions("${version}", version_blueprint->state.c_str()))
-                    break;
-                  delay(1000);
-                  App.feed_wdt();
-                }
-            - if:
-                condition:
-                  - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::TFT_UPLOAD_ACTIVE);
-                then:
-                  - logger.log: Version check stopped as a TFT upload was requested
-                else:
-                  - lambda: |-
-                      ESP_LOGD("${TAG_CORE}", "Versions:");
-                      ESP_LOGD("${TAG_CORE}", "  TFT:       %s", version_tft->state.c_str());
-                      ESP_LOGD("${TAG_CORE}", "  ESPHome:   ${version}");
-                      if (not compare_versions("${version}", version_tft->state.c_str()))
-                        ESP_LOGE("${TAG_CORE}", "TFT version mismatch!");
-                      ESP_LOGD("${TAG_CORE}", "  Blueprint: %s", version_blueprint->state.c_str());
-                      if (not compare_versions("${version}", version_blueprint->state.c_str()))
-                        ESP_LOGE("${TAG_CORE}", "Blueprint version mismatch!");
-                  - delay: 1s
-                  - homeassistant.event:
-                      event: esphome.nspanel_ha_blueprint
-                      data:
-                        device_name: !lambda return device_name->state.c_str();
-                        esphome_version: ${version}
-                        type: version
-                        tft: !lambda return version_tft->state.c_str();
-                        esphome: ${version}
-                        blueprint: !lambda return version_blueprint->state.c_str();
-                  - logger.log: Check version completed
+            - script.stop: check_versions
+      - delay: 5s
+      - script.execute: wait_for_versions
+      - script.wait: wait_for_versions
+      - lambda: |-
+          ESP_LOGD("${TAG_CORE}", "Versions:");
+          ESP_LOGD("${TAG_CORE}", "  TFT:       %s", version_tft->state.c_str());
+          ESP_LOGD("${TAG_CORE}", "  ESPHome:   ${version}");
+          ESP_LOGE_IF("${TAG_CORE}", not compare_versions("${version}", version_tft->state.c_str()), "TFT version mismatch!");
+          ESP_LOGD("${TAG_CORE}", "  Blueprint: %s", version_blueprint->state.c_str());
+          ESP_LOGE_IF("${TAG_CORE}", not compare_versions("${version}", version_blueprint->state.c_str()), "Blueprint version mismatch!");
+      - delay: 1s
+      - homeassistant.event:
+          event: esphome.nspanel_ha_blueprint
+          data:
+            device_name: !lambda return device_name->state.c_str();
+            esphome_version: ${version}
+            type: version
+            tft: !lambda return version_tft->state.c_str();
+            esphome: ${version}
+            blueprint: !lambda return version_blueprint->state.c_str();
+      - logger.log: Check version completed
 
   - id: display_embedded_temp
     mode: single
@@ -2475,6 +2463,7 @@ script:
     then:
       - script.stop: check_versions
       - script.stop: wait_for_blueprint
+      - script.stop: wait_for_versions
       - lambda: |-
           cleanupUtilitiesGroups();
           change_climate_state->stop();
@@ -2781,5 +2770,29 @@ script:
                       id: boot_log
                       category: "Boot"
                       log_message: "Waiting for Blueprint..."
+            - delay: 1s
+
+  - id: wait_for_versions
+    mode: single
+    then:
+      - repeat:
+          count: 60  # seconds
+          then:
+            - if:
+                condition:
+                  - lambda: |-
+                      return compare_versions("${version}", version_tft->state.c_str());
+                  - lambda: |-
+                      return compare_versions("${version}", version_blueprint->state.c_str());
+                then:
+                  - script.stop: wait_for_versions
+            - if:
+                condition:
+                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
+                then:
+                  - script.execute:
+                      id: boot_log
+                      category: "Boot"
+                      log_message: "Waiting for versions..."
             - delay: 1s
 ...
