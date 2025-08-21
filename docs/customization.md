@@ -542,7 +542,7 @@ time:
 ```
 
 ### Frameworks
-
+<!-- markdownlint-disable MD028 -->
 > [!WARNING]
 > **Arduino framework support has been deprecated as of v4.3.22**. While existing configurations may continue to work,
 > Arduino framework is no longer officially supported or tested. New users should use ESP-IDF framework only.
@@ -551,6 +551,7 @@ time:
 > When switching between frameworks, make sure to update the device with a serial cable as the partition table is different between the two frameworks
 > as [OTA Update Component](https://esphome.io/components/ota) updates will not change the partition table.
 > While it will appear to work, the device will boot the old framework after a reset.
+<!-- markdownlint-enable MD028 -->
 
 If you have absolute need to change framework via OTA, please ensure you flash your device twice in a row
 to increase the chances to have both partitions with the new firmware.
