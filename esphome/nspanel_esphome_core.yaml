@@ -231,6 +231,11 @@ globals:
     restore_value: true
     initial_value: 'true'
 
+  - id: set_climate_use_decimal
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+
   - id: mui_bytes_per_char
     type: uint8_t
     restore_value: true
@@ -2361,65 +2366,164 @@ script:
                 disp1->set_component_value("temp_step", temp_step);
                 char dec_separator_str[2] = {id(mui_decimal_separator), '\0'};
                 disp1->set_component_text("dec_separator", dec_separator_str);
+            - delay: ${DELAY_DEFAULT}ms
             - script.execute:
                 id: set_component_visibility
                 component_id: current_temp
                 show: true
+            - delay: ${DELAY_DEFAULT}ms
+            - globals.set:
+                id: set_climate_use_decimal
+                value: !lambda return (temp_step % 10 != 0);
+            - delay: ${DELAY_DEFAULT}ms
+            - if:
+                condition:
+                  - lambda: return (current_temp > -999);
+                then:
+                  - lambda: |-
+                      char buffer[15];
+                      snprintf(buffer, sizeof(buffer), (id(set_climate_use_decimal)) ? "%.1f°" : "%.0f°", current_temp);
+                      disp1->set_component_text("current_temp", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
+                else:
+                  - lambda: |-
+                      disp1->set_component_text("current_temp", id(mui_unavailable_global).c_str());
+            - delay: ${DELAY_DEFAULT}ms
+            - if:
+                condition:
+                  - lambda: return (target_temp > -999);  // Target temp enabled
+                then:
+                  - lambda: |-
+                      char buffer[15];
+                      disp1->set_component_value("active_slider", 0);
+                      snprintf(buffer, sizeof(buffer), (id(set_climate_use_decimal)) ? "%.1f°" : "%.0f°", target_temp);
+                      disp1->set_component_text("target_high", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
+                      disp1->set_component_value("climateslider", round(((10*target_temp) - temp_offset) / temp_step));
+                  - delay: ${DELAY_DEFAULT}ms
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: slider_high
+                      show: false
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: slider_low
+                      show: false
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: target_low
+                      show: false
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: target_high
+                      show: true
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: climateslider
+                      show: true
+                else:
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: "climate.slider_high"
+                      show: false
+                  - delay: ${DELAY_DEFAULT}ms
+                  - if:
+                      condition:
+                        - lambda: return (target_temp_low > -999);  // Target temp low enabled
+                      then:
+                        - lambda: |-
+                            disp1->set_component_value("active_slider", 2);
+                            char buffer[15];
+                            snprintf(buffer, sizeof(buffer),
+                                              (id(set_climate_use_decimal)) ? "%.1f°" : "%.0f°", target_temp_low);
+                            disp1->set_component_text("target_low",
+                                                    adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
+                            disp1->set_component_value("slider_low",
+                                    round(((10*target_temp_low) - temp_offset) / temp_step));
+                        - delay: ${DELAY_DEFAULT}ms
+                        - script.execute:
+                            id: set_component_visibility
+                            component_id: target_low
+                            show: true
+                        - script.execute:
+                            id: set_component_visibility
+                            component_id: slider_low
+                            show: true
+                      else:
+                        - script.execute:
+                            id: set_component_visibility
+                            component_id: target_low
+                            show: false
+                        - script.execute:
+                            id: set_component_visibility
+                            component_id: slider_low
+                            show: false
+                  - delay: ${DELAY_DEFAULT}ms
+                  - if:
+                      condition:
+                        - lambda: return (target_temp_high > -999);  // Target temp high enabled
+                      then:
+                        - lambda: |-
+                            disp1->set_component_value("active_slider", 1);
+                            char buffer[15];
+                            snprintf(buffer, sizeof(buffer), (id(set_climate_use_decimal)) ? "%.1f°" : "%.0f°", target_temp_high);
+                            disp1->set_component_text("target_high", adjustDecimalSeparator(buffer,
+                                                                    id(mui_decimal_separator)).c_str());
+                            disp1->set_component_value("slider_high", round(((10*target_temp_high) - temp_offset) / temp_step));
+                        - delay: ${DELAY_DEFAULT}ms
+                        - script.execute:
+                            id: set_component_visibility
+                            component_id: target_high
+                            show: true
+                        - script.execute:
+                            id: set_component_visibility
+                            component_id: slider_high
+                            show: true
+                      else:
+                        - script.execute:
+                            id: set_component_visibility
+                            component_id: target_high
+                            show: false
+                        - script.execute:
+                            id: set_component_visibility
+                            component_id: slider_high
+                            show: false
+            - delay: ${DELAY_DEFAULT}ms
+            - if:
+                condition:
+                  - or:
+                      - lambda: return (target_temp > -999);
+                      - lambda: return (target_temp_high > -999);
+                      - lambda: return (target_temp_low > -999);
+                then:
+                  - lambda: |-
+                      disp1->set_component_text("target_icon", climate_icon.c_str());
+                  - delay: ${DELAY_DEFAULT}ms
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: target_icon
+                      show: true
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: decrease_temp
+                      show: true
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: increase_temp
+                      show: true
+                else:
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: target_icon
+                      show: false
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: decrease_temp
+                      show: false
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: increase_temp
+                      show: false
+            - delay: ${DELAY_DEFAULT}ms
             - lambda: |-
-                const bool useDecimal = (temp_step % 10 != 0);
-                char buffer[15];
-                if (current_temp > -999) {
-                  snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", current_temp);
-                  disp1->set_component_text("current_temp", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-                } else {
-                  disp1->set_component_text("current_temp", id(mui_unavailable_global).c_str());
-                }
-
-                if (target_temp > -999) {  // Target temp enabled
-                  disp1->set_component_value("active_slider", 0);
-                  snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", target_temp);
-                  disp1->set_component_text("target_high", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-                  disp1->set_component_value("climateslider", round(((10*target_temp) - temp_offset) / temp_step));
-                  set_component_visibility->execute("slider_high", false);
-                  set_component_visibility->execute("slider_low", false);
-                  set_component_visibility->execute("target_low", false);
-                  set_component_visibility->execute("target_high", true);
-                  set_component_visibility->execute("climateslider", true);
-                } else {
-                  set_component_visibility->execute("climate.slider_high", false);
-                  if (target_temp_low > -999) {  // Target temp low enabled
-                    disp1->set_component_value("active_slider", 2);
-                    snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", target_temp_low);
-                    disp1->set_component_text("target_low", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-                    disp1->set_component_value("slider_low", round(((10*target_temp_low) - temp_offset) / temp_step));
-                    set_component_visibility->execute("target_low", true);
-                    set_component_visibility->execute("slider_low", true);
-                  } else {
-                    set_component_visibility->execute("target_low", false);
-                    set_component_visibility->execute("slider_low", false);
-                  }
-                  if (target_temp_high > -999) {  // Target temp high enabled
-                    disp1->set_component_value("active_slider", 1);
-                    snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", target_temp_high);
-                    disp1->set_component_text("target_high", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-                    disp1->set_component_value("slider_high", round(((10*target_temp_high) - temp_offset) / temp_step));
-                    set_component_visibility->execute("target_high", true);
-                    set_component_visibility->execute("slider_high", true);
-                  } else {
-                    set_component_visibility->execute("target_high", false);
-                    set_component_visibility->execute("slider_high", false);
-                  }
-                }
-                if (target_temp > -999 or target_temp_high > -999 or target_temp_low > -999) {
-                  disp1->set_component_text("target_icon", climate_icon.c_str());
-                  set_component_visibility->execute("target_icon", true);
-                  set_component_visibility->execute("decrease_temp", true);
-                  set_component_visibility->execute("increase_temp", true);
-                } else {
-                  set_component_visibility->execute("target_icon", false);
-                  set_component_visibility->execute("decrease_temp", false);
-                  set_component_visibility->execute("increase_temp", false);
-                }
                 disp1->set_component_value("embedded", (embedded_climate) ? 1 : 0);
 
   - id: set_component_visibility
@@ -2595,8 +2699,8 @@ script:
       state: string
     then:
       - lambda: |-
-          std::string alarm_icon = "\uEECC"; //mdi:shield-alert-outline
-          int alarm_color = 65535;
+          static std::string alarm_icon = "\uEECC"; //mdi:shield-alert-outline
+          static uint16_t alarm_color = 65535;
           if (state == "disarmed")
             {
               alarm_icon = "\uE99B"; //mdi:shield-off-outline
@@ -2737,7 +2841,7 @@ script:
           then:
             - if:
                 condition:
-                  - lambda: is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
+                  - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
                 then:
                   - script.stop: wait_for_api
             - if:
@@ -2824,7 +2928,7 @@ script:
           then:
             - if:
                 condition:
-                  - lambda: is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
+                  - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
                 then:
                   - script.stop: wait_for_wifi
             - if:
