@@ -173,48 +173,77 @@ script:
             - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
           then:
             - lambda: |-
-                auto CelsiusToFahrenheit = [](float celsius) -> float {
-                  return (celsius * 9 / 5) + 32;
+                // Temperature conversion function (constexpr for compile-time optimization)
+                constexpr auto celsius_to_fahrenheit = [](float celsius) constexpr -> float {
+                  return (celsius * 9.0f / 5.0f) + 32.0f;
                 };
-                const std::string temp_units = "${temp_units}";
-                const bool temp_unit_fahrenheit = (temp_units == "°F" || temp_units == "F" || temp_units == "°f" || temp_units == "f");
-                ClimateTraits traits = thermostat_embedded->get_traits();
+                
+                // Constants for better performance and readability
+                static const std::string temp_units = "${temp_units}";
+                static const bool temp_unit_fahrenheit = (temp_units == "°F" || temp_units == "F" ||
+                                                          temp_units == "°f" || temp_units == "f");
+                
+                // Get climate traits once
+                const ClimateTraits traits = thermostat_embedded->get_traits();
 
+                // Set page label and feed watchdog
                 disp1->set_component_text("page_label", id(addon_climate_friendly_name).c_str());
                 App.feed_wdt();
-                float temp_step = traits.get_visual_target_temperature_step();
-                float temp_offset = traits.get_visual_min_temperature();
-                float temp_max = traits.get_visual_max_temperature();
+
+                // Extract temperature values (static since they don't change during runtime)
+                static const float temp_step = traits.get_visual_target_temperature_step();
+                static const float temp_offset = traits.get_visual_min_temperature();
+                static const float temp_max = traits.get_visual_max_temperature();
+
+                // Calculate static values once
+                static float display_step, display_offset, total_steps;
+                static bool values_initialized = false;
+
+                if (!values_initialized) {
+                  if (temp_unit_fahrenheit) {
+                    display_step = std::ceil(temp_step * 1.8f);
+                    display_offset = celsius_to_fahrenheit(temp_offset);
+                    const float temp_max_f = celsius_to_fahrenheit(temp_max);
+                    total_steps = (temp_max_f - display_offset) / display_step;
+                  } else {
+                    display_step = temp_step;
+                    display_offset = temp_offset;
+                    total_steps = (temp_max - temp_offset) / temp_step;
+                  }
+                  values_initialized = true;
+                }
+
+                // Get dynamic temperature values
                 float temp_target = thermostat_embedded->target_temperature;
                 float temp_target_high = thermostat_embedded->target_temperature_high;
                 float temp_target_low = thermostat_embedded->target_temperature_low;
-                float temp_current = thermostat_embedded->current_temperature;
+                const float temp_current = thermostat_embedded->current_temperature;
+
+                // Convert dynamic values if using Fahrenheit
+                float display_current = temp_current;
                 if (temp_unit_fahrenheit) {
-                  //temp_step = CelsiusToFahrenheit(temp_step);
-                  temp_step = std::ceil(temp_step * 1.8);
-                  temp_offset = CelsiusToFahrenheit(temp_offset);
-                  temp_max = CelsiusToFahrenheit(temp_max);
-                  temp_target = CelsiusToFahrenheit(temp_target);
-                  temp_target_high = CelsiusToFahrenheit(temp_target_high);
-                  temp_target_low = CelsiusToFahrenheit(temp_target_low);
-                  temp_current = CelsiusToFahrenheit(temp_current);
+                  display_current = celsius_to_fahrenheit(temp_current);
+                  temp_target = celsius_to_fahrenheit(temp_target);
+                  temp_target_high = celsius_to_fahrenheit(temp_target_high);
+                  temp_target_low = celsius_to_fahrenheit(temp_target_low);
                 }
-                float total_steps = (temp_max-temp_offset)/temp_step;
-                set_climate->execute
-                  (
-                    temp_current,                                         // current_temp
-                    0,                                                    // supported_features
-                    ((${addon_climate_dual}) ? -999 : temp_target),       // target_temp
-                    ((${addon_climate_dual}) ? temp_target_high : -999),  // target_temp_high
-                    ((${addon_climate_dual}) ? temp_target_low : -999),   // target_temp_low
-                    int(round(temp_step*10)),                             // temp_step
-                    int(round(total_steps)),                              // total_steps
-                    int(round(temp_offset*10)),                           // temp_offset
-                    "",                                                   // climate_icon
-                    true                                                  // embedded_climate
-                  );
+
+                // Single call to set_climate
+                set_climate->execute(
+                  display_current,                                         // current_temp
+                  0,                                                       // supported_features
+                  ((${addon_climate_dual}) ? -999.0f : temp_target),       // target_temp
+                  ((${addon_climate_dual}) ? temp_target_high : -999.0f),  // target_temp_high
+                  ((${addon_climate_dual}) ? temp_target_low : -999.0f),   // target_temp_low
+                  static_cast<int>(std::round(display_step * 10.0f)),      // temp_step
+                  static_cast<int>(std::round(total_steps)),               // total_steps
+                  static_cast<int>(std::round(display_offset * 10.0f)),    // temp_offset
+                  "",                                                      // climate_icon
+                  true                                                     // embedded_climate
+                );
 
             # Update target temp icon
+            - delay: ${DELAY_DEFAULT}ms
             - script.execute:
                 id: update_climate_icon
                 component: target_icon
@@ -223,6 +252,7 @@ script:
 
             # Update buttons bar
             # Hide not supported hotspots
+            - delay: ${DELAY_DEFAULT}ms
             - lambda: |-
                 disp1->hide_component("button01");
                 if (${addon_climate_dual}) disp1->show_component("button02"); else disp1->hide_component("button02");
@@ -231,9 +261,10 @@ script:
                 disp1->hide_component("button05");
                 disp1->hide_component("button06");
                 disp1->show_component("button07"); //Off
-                App.feed_wdt();
 
-                // Set buttons colors
+            # Set buttons colors
+            - delay: ${DELAY_DEFAULT}ms
+            - lambda: |-
                 disp1->set_component_font_color("button01", 6339);
                 disp1->set_component_font_color("button02", (thermostat_embedded->mode==climate::CLIMATE_MODE_HEAT_COOL) ? 65535 : ((${addon_climate_dual}) ? 48631 : 6339));
                 disp1->set_component_font_color("button03", (thermostat_embedded->mode==climate::CLIMATE_MODE_HEAT) ? 64164 : ((${addon_climate_heat} or ${addon_climate_dual}) ? 48631 : 6339));
