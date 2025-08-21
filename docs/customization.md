@@ -573,8 +573,7 @@ by adding the following lines in your panel's yaml file.~~
 #### Framework `esp-idf` (RECOMMENDED)
 
 ```yaml
-# Change framework to `esp-idf`
-# (should not be required as this is the default)
+# Change framework to esp-idf - should not be required as this is the default
 esp32:
   framework:
     type: esp-idf
@@ -586,7 +585,7 @@ esp32:
 > **DEPRECATED:** Arduino framework support is no longer maintained or tested. Migration to ESP-IDF is strongly recommended.
 
 ```yaml
-# Change framework to `arduino` - NOT RECOMMENDED
+# Change framework to arduino - NOT RECOMMENDED
 esp32:
   framework:
     type: arduino
