@@ -12,22 +12,6 @@ substitutions:
   temp_units: "°C"
   invalid_cooldown: "100ms"
   bytes_per_char: "1"
-  ##############################
-
-  ##### DON'T CHANGE THIS ######
-  NSPANEL_HA_BLUEPRINT_CORE: "true"
-  NSPANEL_HA_BLUEPRINT_ADVANCED: "false"
-  NSPANEL_HA_BLUEPRINT_ADDON_BLE_TRACKER: "false"
-  NSPANEL_HA_BLUEPRINT_ADDON_BLUETOOTH_PROXY: "false"
-  NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT: "false"
-  NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE: "false"
-  NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL: "false"
-  NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL: "false"
-  NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT: "false"
-  NSPANEL_HA_BLUEPRINT_PREBUILT: "false"
-  NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY: "false"
-  ##############################
-  TAG_CORE: "nspanel.core"
   BAUD_RATE: '115200'
   GPIO_DISPLAY_POWER_PIN:
     number: 4
@@ -42,6 +26,10 @@ substitutions:
   DELAY_DEFAULT: 50  # delay in msec
   DELAY_LONG: 250    # delay in msec
   DELAY_SHORT: 10    # delay in msec
+  ##############################
+  ## Do not change            ##
+  TAG_CORE: "nspanel.core"
+  ##############################
 
 packages:
   # yamllint disable rule:colons
@@ -143,7 +131,7 @@ display:
     on_page:
       - if:
           condition:
-            - lambda: return !id(is_uploading_tft);
+            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
             - or:
                 - lambda: return (x == 9);
                 - lambda: return (current_page->state != page_names[x]);
@@ -156,7 +144,7 @@ display:
       - script.execute: timer_reset_all
       - if:
           condition:
-            - lambda: return !id(is_uploading_tft);
+            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
             - lambda: return (!touch_event);  // Only act with release
           then:
             - if:
@@ -281,12 +269,6 @@ globals:
     restore_value: true
     initial_value: '65535'
 
-  ##### Is uploading TFT #####
-  - id: is_uploading_tft
-    type: bool
-    restore_value: false
-    initial_value: 'false'
-
   ##### Media Player #####
   ###### Last volume level from Home Assistant ######
   - id: last_volume_level
@@ -390,8 +372,7 @@ binary_sensor:
     device_class: connectivity
     entity_category: diagnostic
     icon: mdi:tablet-dashboard
-    lambda: |-
-      return (!id(is_uploading_tft) and disp1->is_setup());
+    lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
     on_release:
       then:
         - lambda: clear_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::NEXTION_READY);
@@ -870,9 +851,7 @@ switch:
   - name: Relay 2
     platform: gpio
     id: relay_2
-    pin:
-      number: ${GPIO_RELAY_2_PIN}
-      inverted: ${GPIO_RELAY_2_INVERTED}
+    pin: ${GPIO_RELAY_2_PIN}
     restore_mode: RESTORE_DEFAULT_OFF
     on_turn_on:
       then:
@@ -979,7 +958,7 @@ text_sensor:
           return x;
     on_value:
       lambda: |-
-        if (!id(is_uploading_tft)) {
+        if (is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags)) {
           page_changed->execute();
         }
 
@@ -1165,7 +1144,7 @@ script:
       value: string
     then:
       - lambda: |-
-          if (!id(is_uploading_tft)) {
+          if (is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags)) {
             if (not embedded) {
               if (key == "temperature" or key == "target_temp_high" or key == "target_temp_low")
                 ha_call_action->execute("climate.set_temperature", key.c_str(), to_string(stof(value) / 10), detailed_entity->state.c_str());
@@ -1186,7 +1165,7 @@ script:
     then:
       - if:
           condition:
-            - lambda: return !id(is_uploading_tft);
+            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
           then:
             - delay: 5s
             - lambda: |-
@@ -1198,7 +1177,7 @@ script:
                 }
             - if:
                 condition:
-                  - lambda: return id(is_uploading_tft);
+                  - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::TFT_UPLOAD_ACTIVE);
                 then:
                   - logger.log: Version check stopped as a TFT upload was requested
                 else:
@@ -1423,7 +1402,7 @@ script:
       # Report Nextion status
       - binary_sensor.template.publish:
           id: nextion_init
-          state: !lambda return (!id(is_uploading_tft) and nextion_init->state and disp1->is_setup());
+          state: !lambda return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
       - lambda: |-
           ESP_LOGCONFIG("nspanel_ha_blueprint", "Nextion:");
           ESP_LOGCONFIG("nspanel_ha_blueprint", "  Queue size:  %d", disp1->queue_size());
@@ -2079,7 +2058,7 @@ script:
     mode: single
     then:
       - lambda: |-
-          if (!id(is_uploading_tft))
+          if (is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags))
             display_wrapped_text->execute("confirm.title", id(mui_please_confirm_global).c_str(), 15);
 
   - id: page_cover
@@ -2153,7 +2132,12 @@ script:
     then:
       - lambda: |-
           disp1->set_component_text("notification.notifi_label", notification_label->state.c_str());
-          display_wrapped_text->execute("notification.notifi_text01", notification_text->state.c_str(), display_mode->state == 2 ? 23 : 32);
+      - script.execute:
+          id: display_wrapped_text
+          component: "notification.notifi_text01"
+          text_to_display: !lambda return notification_text->state;
+          line_length_limit: !lambda |-
+                                return display_mode->state == 2 ? 23 : 32;
 
   - id: page_qrcode
     mode: single
@@ -2162,24 +2146,42 @@ script:
   - id: page_screensaver
     mode: single
     then:
-      - lambda: |-
-          if (current_page->state == "screensaver" and !id(is_uploading_tft)) {
-            disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
-            if (id(screensaver_display_time)) {
-              disp1->set_component_font("screensaver.text", id(screensaver_display_time_font));
-              disp1->set_component_font_color("screensaver.text", id(screensaver_display_time_color));
-              set_component_visibility->execute("screensaver.text", true);
-              refresh_datetime->execute();
-            }
-            set_brightness->execute(display_sleep_brightness->state);
-          }
+      - if:
+          condition:
+            - lambda: return not is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::TFT_UPLOAD_ACTIVE);
+            - text_sensor.state:
+                id: current_page
+                state: screensaver
+          then:
+            - lambda: |-
+                disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
+            - if:
+                condition:
+                  - lambda: return id(screensaver_display_time);
+                then:
+                  - lambda: |-
+                      disp1->set_component_font("screensaver.text", id(screensaver_display_time_font));
+                      disp1->set_component_font_color("screensaver.text", id(screensaver_display_time_color));
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: "screensaver.text"
+                      show: true
+                  - script.execute: refresh_datetime
+            - script.execute:
+                id: set_brightness
+                brightness: !lambda return int(display_sleep_brightness->state);
 
   - id: page_settings
     mode: single
     then:
-      - lambda: |-
-          set_component_visibility->execute("page_settings.lbl_sleep", false);
-          set_component_visibility->execute("page_settings.bt_sleep", false);
+      - script.execute:
+          id: set_component_visibility
+          component_id: "page_settings.lbl_sleep"
+          show: false
+      - script.execute:
+          id: set_component_visibility
+          component_id: "page_settings.bt_sleep"
+          show: false
 
   - id: page_utilities
     mode: single
@@ -2229,7 +2231,7 @@ script:
     then:
       - if:
           condition:
-            - lambda: return !id(is_uploading_tft);
+            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
           then:
             # Chip - Relay 1
             - if:
@@ -2251,7 +2253,7 @@ script:
     then:
       - if:
           condition:
-            - lambda: return !id(is_uploading_tft);
+            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
           then:
             - lambda: |-
                 disp1->send_command_printf("api=%i",
@@ -2362,7 +2364,7 @@ script:
       brightness: float
     then:
       - lambda: |-
-          if (id(is_uploading_tft))
+          if (is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags))
             return;
           disp1->set_backlight_brightness(brightness / 100.0f);
           current_brightness->update();
@@ -2381,72 +2383,81 @@ script:
       climate_icon: string
       embedded_climate: bool
     then:
-      - lambda: |-
-          if (!id(is_uploading_tft) and current_page->state == "climate") {
-            bool useDecimal = (temp_step % 10 != 0);
-            char buffer[15];
-            disp1->send_command_printf("climateslider.maxval=%i", total_steps);
-            disp1->send_command_printf("slider_high.maxval=%i", total_steps);
-            disp1->send_command_printf("slider_low.maxval=%i", total_steps);
-            disp1->set_component_value("temp_offset", temp_offset);
-            disp1->set_component_value("temp_step", temp_step);
-            char dec_separator_str[2] = {id(mui_decimal_separator), '\0'};
-            disp1->set_component_text("dec_separator", dec_separator_str);
-            set_component_visibility->execute("current_temp", true);
-            if (current_temp > -999) {
-              snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", current_temp);
-              disp1->set_component_text("current_temp", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-            }
-            else
-              disp1->set_component_text("current_temp", id(mui_unavailable_global).c_str());
+      - if:
+          condition:
+            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+            - text_sensor.state:
+                id: current_page
+                state: climate
+          then:
+            - lambda: |-
+                disp1->send_command_printf("climateslider.maxval=%i", total_steps);
+                disp1->send_command_printf("slider_high.maxval=%i", total_steps);
+                disp1->send_command_printf("slider_low.maxval=%i", total_steps);
+                disp1->set_component_value("temp_offset", temp_offset);
+                disp1->set_component_value("temp_step", temp_step);
+                char dec_separator_str[2] = {id(mui_decimal_separator), '\0'};
+                disp1->set_component_text("dec_separator", dec_separator_str);
+            - script.execute:
+                id: set_component_visibility
+                component_id: current_temp
+                show: true
+            - lambda: |-
+                const bool useDecimal = (temp_step % 10 != 0);
+                char buffer[15];
+                if (current_temp > -999) {
+                  snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", current_temp);
+                  disp1->set_component_text("current_temp", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
+                } else {
+                  disp1->set_component_text("current_temp", id(mui_unavailable_global).c_str());
+                }
 
-            if (target_temp > -999) {  // Target temp enabled
-              disp1->set_component_value("active_slider", 0);
-              snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", target_temp);
-              disp1->set_component_text("target_high", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-              disp1->set_component_value("climateslider", round(((10*target_temp) - temp_offset) / temp_step));
-              set_component_visibility->execute("slider_high", false);
-              set_component_visibility->execute("slider_low", false);
-              set_component_visibility->execute("target_low", false);
-              set_component_visibility->execute("target_high", true);
-              set_component_visibility->execute("climateslider", true);
-            } else {
-              set_component_visibility->execute("climate.slider_high", false);
-              if (target_temp_low > -999) {  // Target temp low enabled
-                disp1->set_component_value("active_slider", 2);
-                snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", target_temp_low);
-                disp1->set_component_text("target_low", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-                disp1->set_component_value("slider_low", round(((10*target_temp_low) - temp_offset) / temp_step));
-                set_component_visibility->execute("target_low", true);
-                set_component_visibility->execute("slider_low", true);
-              } else {
-                set_component_visibility->execute("target_low", false);
-                set_component_visibility->execute("slider_low", false);
-              }
-              if (target_temp_high > -999) {  // Target temp high enabled
-                disp1->set_component_value("active_slider", 1);
-                snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", target_temp_high);
-                disp1->set_component_text("target_high", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-                disp1->set_component_value("slider_high", round(((10*target_temp_high) - temp_offset) / temp_step));
-                set_component_visibility->execute("target_high", true);
-                set_component_visibility->execute("slider_high", true);
-              } else {
-                set_component_visibility->execute("target_high", false);
-                set_component_visibility->execute("slider_high", false);
-              }
-            }
-            if (target_temp > -999 or target_temp_high > -999 or target_temp_low > -999) {
-              disp1->set_component_text("target_icon", climate_icon.c_str());
-              set_component_visibility->execute("target_icon", true);
-              set_component_visibility->execute("decrease_temp", true);
-              set_component_visibility->execute("increase_temp", true);
-            } else {
-              set_component_visibility->execute("target_icon", false);
-              set_component_visibility->execute("decrease_temp", false);
-              set_component_visibility->execute("increase_temp", false);
-            }
-            disp1->set_component_value("embedded", (embedded_climate) ? 1 : 0);
-          }
+                if (target_temp > -999) {  // Target temp enabled
+                  disp1->set_component_value("active_slider", 0);
+                  snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", target_temp);
+                  disp1->set_component_text("target_high", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
+                  disp1->set_component_value("climateslider", round(((10*target_temp) - temp_offset) / temp_step));
+                  set_component_visibility->execute("slider_high", false);
+                  set_component_visibility->execute("slider_low", false);
+                  set_component_visibility->execute("target_low", false);
+                  set_component_visibility->execute("target_high", true);
+                  set_component_visibility->execute("climateslider", true);
+                } else {
+                  set_component_visibility->execute("climate.slider_high", false);
+                  if (target_temp_low > -999) {  // Target temp low enabled
+                    disp1->set_component_value("active_slider", 2);
+                    snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", target_temp_low);
+                    disp1->set_component_text("target_low", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
+                    disp1->set_component_value("slider_low", round(((10*target_temp_low) - temp_offset) / temp_step));
+                    set_component_visibility->execute("target_low", true);
+                    set_component_visibility->execute("slider_low", true);
+                  } else {
+                    set_component_visibility->execute("target_low", false);
+                    set_component_visibility->execute("slider_low", false);
+                  }
+                  if (target_temp_high > -999) {  // Target temp high enabled
+                    disp1->set_component_value("active_slider", 1);
+                    snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", target_temp_high);
+                    disp1->set_component_text("target_high", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
+                    disp1->set_component_value("slider_high", round(((10*target_temp_high) - temp_offset) / temp_step));
+                    set_component_visibility->execute("target_high", true);
+                    set_component_visibility->execute("slider_high", true);
+                  } else {
+                    set_component_visibility->execute("target_high", false);
+                    set_component_visibility->execute("slider_high", false);
+                  }
+                }
+                if (target_temp > -999 or target_temp_high > -999 or target_temp_low > -999) {
+                  disp1->set_component_text("target_icon", climate_icon.c_str());
+                  set_component_visibility->execute("target_icon", true);
+                  set_component_visibility->execute("decrease_temp", true);
+                  set_component_visibility->execute("increase_temp", true);
+                } else {
+                  set_component_visibility->execute("target_icon", false);
+                  set_component_visibility->execute("decrease_temp", false);
+                  set_component_visibility->execute("increase_temp", false);
+                }
+                disp1->set_component_value("embedded", (embedded_climate) ? 1 : 0);
 
   - id: set_component_visibility
     mode: queued
