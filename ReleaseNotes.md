@@ -4,9 +4,13 @@
 
 ### GPIO Pin Customization System
 
-Building on the foundation laid in v4.3.20, we've completed the **GPIO pin customization system** using ESPHome substitutions. All GPIO pins can now be reassigned through simple substitution keys, enabling seamless adaptation to custom hardware layouts without modifying core project files. This feature supports both basic pin reassignments and complex configurations with advanced options, making the blueprint compatible with a wide range of hardware variants while preserving all functionality.
+Building on the foundation laid in v4.3.20, we've completed the **GPIO pin customization system** using ESPHome substitutions.
+All GPIO pins can now be reassigned through simple substitution keys, enabling seamless adaptation to custom hardware layouts without modifying core project files.
+This feature supports both basic pin reassignments and complex configurations with advanced options,
+making the blueprint compatible with a wide range of hardware variants while preserving all functionality.
 
-**This feature is primarily intended for users running this firmware on devices other than the standard Sonoff NSPanel.** For complete documentation, configuration examples, and troubleshooting guidance, see the [GPIO Pin Customization Guide](docs/pins_customization.md).
+**This feature is primarily intended for users running this firmware on devices other than the standard Sonoff NSPanel.**
+For complete documentation, configuration examples, and troubleshooting guidance, see the [GPIO Pin Customization Guide](docs/pins_customization.md).
 
 ## ⚠️ Breaking Changes
 
