@@ -1178,11 +1178,27 @@ script:
       - script.wait: wait_for_versions
       - lambda: |-
           ESP_LOGD("${TAG_CORE}", "Versions:");
-          ESP_LOGD("${TAG_CORE}", "  TFT:       %s", version_tft->state.c_str());
-          ESP_LOGD("${TAG_CORE}", "  ESPHome:   ${version}");
-          ESP_LOGE_IF("${TAG_CORE}", not compare_versions("${version}", version_tft->state.c_str()), "TFT version mismatch!");
           ESP_LOGD("${TAG_CORE}", "  Blueprint: %s", version_blueprint->state.c_str());
-          ESP_LOGE_IF("${TAG_CORE}", not compare_versions("${version}", version_blueprint->state.c_str()), "Blueprint version mismatch!");
+          ESP_LOGD("${TAG_CORE}", "  ESPHome:   ${version}");
+          ESP_LOGD("${TAG_CORE}", "  TFT:       %s", version_tft->state.c_str());
+      - if:
+          condition:
+            - not:
+                - text_sensor.state:
+                    id: version_blueprint
+                    state: ${version}
+          then:
+            - lambda: |-
+                ESP_LOGE("${TAG_CORE}", "Blueprint version mismatch!");
+      - if:
+          condition:
+            - not:
+                - text_sensor.state:
+                    id: version_tft
+                    state: ${version}
+          then:
+            - lambda: |-
+                ESP_LOGE("${TAG_CORE}", "TFT version mismatch!");
       - delay: 1s
       - homeassistant.event:
           event: esphome.nspanel_ha_blueprint
@@ -2544,6 +2560,8 @@ script:
       - script.stop: wait_for_api
       - script.stop: wait_for_blueprint
       - script.stop: wait_for_uart_available
+      - script.stop: wait_for_version_blueprint
+      - script.stop: wait_for_version_tft
       - script.stop: wait_for_versions
       - script.stop: wait_for_wifi
       - lambda: |-
@@ -2896,7 +2914,7 @@ script:
                       log_message: "Waiting for UART empty queue..."
             - delay: 1s
 
-  - id: wait_for_versions
+  - id: wait_for_version_blueprint
     mode: single
     then:
       - repeat:
@@ -2904,12 +2922,11 @@ script:
           then:
             - if:
                 condition:
-                  - lambda: |-
-                      return compare_versions("${version}", version_tft->state.c_str());
-                  - lambda: |-
-                      return compare_versions("${version}", version_blueprint->state.c_str());
+                  - text_sensor.state:  # compare_versions("${version}", version_blueprint->state.c_str());
+                      id: version_blueprint
+                      state: ${version}
                 then:
-                  - script.stop: wait_for_versions
+                  - script.stop: wait_for_version_blueprint
             - if:
                 condition:
                   - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
@@ -2917,8 +2934,39 @@ script:
                   - script.execute:
                       id: boot_log
                       category: "Boot"
-                      log_message: "Waiting for versions..."
+                      log_message: "Waiting for Blueprint version..."
             - delay: 1s
+
+  - id: wait_for_version_tft
+    mode: single
+    then:
+      - repeat:
+          count: 60  # seconds
+          then:
+            - if:
+                condition:
+                  - text_sensor.state:  # compare_versions("${version}", version_tft->state.c_str());
+                      id: version_tft
+                      state: ${version}
+                then:
+                  - script.stop: wait_for_version_tft
+            - if:
+                condition:
+                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
+                then:
+                  - script.execute:
+                      id: boot_log
+                      category: "Boot"
+                      log_message: "Waiting for TFT version..."
+            - delay: 1s
+
+  - id: wait_for_versions
+    mode: single
+    then:
+      - script.execute: wait_for_version_blueprint
+      - script.execute: wait_for_version_tft
+      - script.wait: wait_for_version_blueprint
+      - script.wait: wait_for_version_tft
 
   - id: wait_for_wifi
     mode: single
