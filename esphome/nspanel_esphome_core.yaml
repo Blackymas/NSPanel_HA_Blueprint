@@ -1229,7 +1229,7 @@ script:
                       data:
                         device_name: !lambda return device_name->state.c_str();
                         esphome_version: ${version}
-                        type: "version"
+                        type: version
                         tft: !lambda return version_tft->state.c_str();
                         esphome: ${version}
                         blueprint: !lambda return version_blueprint->state.c_str();
@@ -1835,18 +1835,8 @@ script:
             - script.execute:
                 id: boot_event
                 init: true
-            - delay: ${DELAY_DEFAULT}ms
-            - script.execute:
-                id: boot_log
-                category: Boot
-                log_message: "Waiting for Blueprint"
-            - lambda: |-
-                for (uint8_t i = 0; i < 30; i++) {
-                  if (is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT))
-                    break;
-                  delay(1000);
-                  App.feed_wdt();
-                }
+            - script.execute: wait_for_blueprint
+            - script.wait: wait_for_blueprint
             - if:
                 condition:
                   - lambda: return is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT);
@@ -2485,6 +2475,7 @@ script:
     mode: single
     then:
       - script.stop: check_versions
+      - script.stop: wait_for_blueprint
       - lambda: |-
           cleanupUtilitiesGroups();
           change_climate_state->stop();
@@ -2771,4 +2762,25 @@ script:
             - lambda: return version_tft->state.empty();
           then:
             - lambda: version_tft->update();
+
+  - id: wait_for_blueprint
+    mode: single
+    then:
+      - repeat:
+          count: 120  # 120 seconds total
+          then:
+            - if:
+                condition:
+                  - lambda: return is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT);
+                then:
+                  - script.stop: wait_for_blueprint
+            - if:
+                condition:
+                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
+                then:
+                  - script.execute:
+                      id: boot_log
+                      category: "Boot"
+                      log_message: "Waiting for Blueprint..."
+            - delay: 1s
 ...
