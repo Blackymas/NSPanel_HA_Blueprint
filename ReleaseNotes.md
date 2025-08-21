@@ -1,37 +1,94 @@
-# v4.3.21 - Enhanced Boot Stability for ESPHome 2025.8.0+
+## ⚠️ Breaking Changes
 
-## Summary
+### Arduino Framework Support Deprecated
 
-This hotfix addresses persistent boot issues with ESPHome 2025.8.0 by implementing a more robust boot sequence with enhanced logging and timing adjustments.
+**Arduino framework support has been officially deprecated and is no longer tested in production builds.**
 
-## Key Improvements
+#### What This Means
+- **ESP-IDF is now the only officially supported framework** for this project
+- Arduino framework builds may still work but are **not guaranteed**
+- **No bug fixes or support** will be provided for Arduino framework issues
+- Production CI pipeline now only tests ESP-IDF builds, significantly **reducing release time**
 
-### Enhanced Boot Stability
+#### Why This Change?
+- **Aligns with ESPHome recommendations** - ESP-IDF is the default/recommended framework for new users
+- **Better memory optimization** - ESP-IDF provides superior flash memory management (critical for this project)
+- **Enhanced feature support** - Modern ESPHome features are primarily developed for ESP-IDF
+- **Simplified maintenance** - Reduces complexity and improves release reliability
+- **Faster development cycle** - Reduced CI time allows for quicker releases
 
-**Improved boot engine reliability** for ESPHome 2025.8.0 and later versions. 
-This release introduces timing optimizations and enables serial logging (required for proper boot sequence execution)
-to address remaining boot issues that some users experienced after the v4.3.20 update.
+#### Migration Guide
+If you're currently using Arduino framework:
 
-**Changes include:**
-- Added strategic delays during boot sequence to reduce system intensity
-- Enabled serial logging (required for boot sequences to execute properly with ESPHome 2025.8.0+)
-- Rebuilt boot engine with more conservative timing approach
+1. **Remove from your YAML configuration:**
+   ```yaml
+   esp32:
+     framework:
+       type: arduino
+   ```
 
-**Trade-offs:**
-- Slightly longer boot times in exchange for improved stability
-- Additional warning messages in logs about components taking longer than expected (will be addressed in future releases)
+2. **Review component compatibility** - Most components work seamlessly with ESP-IDF
+3. **Test your configuration** - ESP-IDF generally provides better performance
+4. **Update any custom components** if needed (rare)
 
-**Issues Reference:**
-- #2685
-- #2686
+#### For Advanced Users
+- Daily development builds still include Arduino framework testing for compatibility monitoring
+- Arduino framework files remain in the repository but are considered legacy
+- Community contributions for Arduino-specific issues will be reviewed on a case-by-case basis
 
-## Technical Details
+#### Need Help?
+- Check the [ESPHome ESP-IDF documentation](https://esphome.io/guides/getting_started_command_line.html#esp-idf-framework)
+- Open an issue if you encounter migration problems with ESP-IDF
+- Join the discussion in our community channels
 
-This release prioritizes boot reliability over speed, implementing a more conservative approach to system initialization.
-The enhanced logging will help identify any remaining edge cases, while the timing adjustments provide more breathing room for system components during startup.
+**We strongly recommend migrating to ESP-IDF framework for the best experience and future compatibility.**
 
-Users who previously experienced successful boots with v4.3.20 will see minimal changes, while those who continued to experience issues should see improved stability.
+### Beta Branch Discontinued
 
----
+**The `beta` branch has been discontinued as it was not being used for its intended purpose.**
 
-*This hotfix continues our commitment to ensuring reliable operation across all supported ESPHome versions.*
+#### What This Means
+- **The `beta` branch will no longer be updated** and is considered deprecated
+- Users referencing `ref: beta` in their configurations will need to update their references
+- **Two supported branches remain:** `main` (stable) and `dev` (bleeding edge)
+
+#### Migration for Beta Users
+If you're currently using `ref: beta` in your `remote_package`:
+
+**Change from:**
+```yaml
+packages:
+  remote_package:
+    url: https://github.com/Blackymas/NSPanel_HA_Blueprint
+    ref: beta  # Change this line
+    refresh: 300s
+    files:
+      - nspanel_esphome.yaml
+```
+
+**Change to:**
+```yaml
+# For stable releases (recommended)
+packages:
+  remote_package:
+    url: https://github.com/Blackymas/NSPanel_HA_Blueprint
+    ref: main  # Use main for stable releases
+    refresh: 300s
+    files:
+      - nspanel_esphome.yaml
+
+# OR for latest development code (may be unstable)
+packages:
+  remote_package:
+    url: https://github.com/Blackymas/NSPanel_HA_Blueprint
+    ref: dev  # Use dev for bleeding edge features
+    refresh: 300s
+    files:
+      - nspanel_esphome.yaml
+```
+
+#### Branch Strategy Going Forward
+- **`main`** - Stable releases, thoroughly tested, recommended for production use
+- **`dev`** - Latest development code, may contain bugs, for testing new features
+
+**Users currently on `beta` should migrate to `main` for stability or `dev` for the latest features.**
