@@ -11,7 +11,7 @@ CODEOWNERS = ["@edwardtfn"]
 nspanel_ha_blueprint_ns = cg.esphome_ns.namespace('nspanel_ha_blueprint')
 
 PSRAM_CLK_PIN = "psram_clk_pin"
-PSRAM_CS_PIN  = "psram_cs_pin"
+PSRAM_CS_PIN = "psram_cs_pin"
 
 CONFIG_SCHEMA = cv.Schema({
     cv.Optional(PSRAM_CLK_PIN): pins.internal_gpio_output_pin_number,
