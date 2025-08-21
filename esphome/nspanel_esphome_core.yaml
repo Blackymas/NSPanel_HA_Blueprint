@@ -1658,13 +1658,8 @@ script:
           category: Boot
           log_message: "Waiting for Wi-Fi"
       - delay: ${DELAY_DEFAULT}ms
-      - lambda: |-
-          for (uint8_t i = 0; i < 10; i++) {
-            if (is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY))
-              break;
-            delay(1000);
-            App.feed_wdt();
-          }
+      - script.execute: wait_for_wifi
+      - script.wait: wait_for_wifi
       - if:
           condition:
             - lambda: |-
@@ -1696,17 +1691,8 @@ script:
                   - script.execute:
                       id: set_brightness
                       brightness: 100
-            - script.execute:
-                id: boot_log
-                category: Boot
-                log_message: "Waiting for API"
-            - lambda: |-
-                for (uint8_t i = 0; i < 10; i++) {
-                  if (is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::API_READY))
-                    break;
-                  delay(1000);
-                  App.feed_wdt();
-                }
+            - script.execute: wait_for_api
+            - script.wait: wait_for_api
             - if:
                 condition:
                   - lambda: |-
@@ -1856,13 +1842,12 @@ script:
           id: boot_log
           category: Boot
           log_message: "Wait to finish"
-      - lambda: |-
-          for (uint8_t i = 0; i < 10; i++) {
-            if (are_all_system_flags_set(nspanel_ha_blueprint::system_flags, {NSPanelFlag::WIFI_READY, NSPanelFlag::API_READY, NSPanelFlag::BLUEPRINT_READY}))
-              break;
-            delay(1000);
-            App.feed_wdt();
-          }
+      - script.execute: wait_for_wifi
+      - script.execute: wait_for_api
+      - script.execute: wait_for_blueprint
+      - script.wait: wait_for_wifi
+      - script.wait: wait_for_api
+      - script.wait: wait_for_blueprint
       - script.execute:
           id: boot_progress
           step: 9
@@ -2322,24 +2307,14 @@ script:
             - lambda: |-
                 ESP_LOGD("script.set_baud_rate", "Baud rate changing from %" PRIu32 " to %" PRIu32 " bps", tf_uart->get_baud_rate(), target_baud_rate);
                 ESP_LOGD("script.set_baud_rate", "Flush UART");
-            - lambda: |-
-                for (uint8_t i = 0; i < 5; i++) {
-                  if (tf_uart->available() < 1)
-                    break;
-                  delay(1000);
-                  App.feed_wdt();
-                }
+            - script.execute: wait_for_uart_available
+            - script.wait: wait_for_uart_available
             - lambda: |-
                 ESP_LOGD("script.set_baud_rate", "Sending instruction '%s=%" PRIu32 "' to Nextion", definitive ? "bauds" : "baud", target_baud_rate);
                 disp1->send_command_printf("%s=%" PRIu32, definitive ? "bauds" : "baud", target_baud_rate);
                 ESP_LOGD("script.set_baud_rate", "Flush UART");
-            - lambda: |-
-                for (uint8_t i = 0; i < 5; i++) {
-                  if (tf_uart->available() < 1)
-                    break;
-                  delay(1000);
-                  App.feed_wdt();
-                }
+            - script.execute: wait_for_uart_available
+            - script.wait: wait_for_uart_available
             - lambda: |-
                 ESP_LOGD("script.set_baud_rate", "Set ESPHome new baud rate to %" PRIu32 " bps", target_baud_rate);
                 tf_uart->set_baud_rate(target_baud_rate);
@@ -2462,8 +2437,11 @@ script:
     mode: single
     then:
       - script.stop: check_versions
+      - script.stop: wait_for_api
       - script.stop: wait_for_blueprint
+      - script.stop: wait_for_uart_available
       - script.stop: wait_for_versions
+      - script.stop: wait_for_wifi
       - lambda: |-
           cleanupUtilitiesGroups();
           change_climate_state->stop();
@@ -2751,6 +2729,27 @@ script:
           then:
             - lambda: version_tft->update();
 
+  - id: wait_for_api
+    mode: single
+    then:
+      - repeat:
+          count: 60  # seconds
+          then:
+            - if:
+                condition:
+                  - lambda: is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
+                then:
+                  - script.stop: wait_for_api
+            - if:
+                condition:
+                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
+                then:
+                  - script.execute:
+                      id: boot_log
+                      category: "Boot"
+                      log_message: "Waiting for API..."
+            - delay: 1s
+
   - id: wait_for_blueprint
     mode: single
     then:
@@ -2770,6 +2769,27 @@ script:
                       id: boot_log
                       category: "Boot"
                       log_message: "Waiting for Blueprint..."
+            - delay: 1s
+
+  - id: wait_for_uart_available
+    mode: single
+    then:
+      - repeat:
+          count: 60  # seconds
+          then:
+            - if:
+                condition:
+                  - lambda: return (tf_uart->available() < 1);
+                then:
+                  - script.stop: wait_for_uart_available
+            - if:
+                condition:
+                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
+                then:
+                  - script.execute:
+                      id: boot_log
+                      category: "Boot"
+                      log_message: "Waiting for UART empty queue..."
             - delay: 1s
 
   - id: wait_for_versions
@@ -2794,5 +2814,26 @@ script:
                       id: boot_log
                       category: "Boot"
                       log_message: "Waiting for versions..."
+            - delay: 1s
+
+  - id: wait_for_wifi
+    mode: single
+    then:
+      - repeat:
+          count: 60  # seconds
+          then:
+            - if:
+                condition:
+                  - lambda: is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
+                then:
+                  - script.stop: wait_for_wifi
+            - if:
+                condition:
+                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
+                then:
+                  - script.execute:
+                      id: boot_log
+                      category: "Boot"
+                      log_message: "Waiting for Wi-Fi..."
             - delay: 1s
 ...
