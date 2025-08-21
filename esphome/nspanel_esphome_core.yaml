@@ -45,9 +45,9 @@ substitutions:
   GPIO_RELAY_2_INVERTED: 'false'
   GPIO_TEMPERATURE_ADC_PIN: '38'
 
-  DELAY_DEFAULT: 200  # delay in msec
-  DELAY_LONG: 350     # delay in msec
-  DELAY_SHORT: 50     # delay in msec
+  DELAY_DEFAULT: 50  # delay in msec
+  DELAY_LONG: 250    # delay in msec
+  DELAY_SHORT: 10    # delay in msec
 
 packages:
   # yamllint disable rule:colons
@@ -67,86 +67,30 @@ esphome:
       - -D NSPANEL_HA_BLUEPRINT_CORE
 
   on_boot:
-    - priority: 600.0  # This is where most sensors are set up.
+    - priority: 1000.0  # This is where most sensors are set up.
       then:
-        - script.execute:
-            id: boot_log
-            category: on_boot
-            log_message: "Publish Blueprint progress (0)"
-        - if:
-            condition:
-              - lambda: return isnan(blueprint_status->raw_state);
-            then:
-              - sensor.template.publish:
-                  id: blueprint_status
-                  state: 0
-        - script.execute:
-            id: boot_log
-            category: on_boot
-            log_message: "Publish firmware version"
+        - lambda: set_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI);
+        - sensor.template.publish:
+            id: blueprint_status
+            state: 0
+        - delay: ${DELAY_DEFAULT}ms
         - text_sensor.template.publish:
             id: version_esphome
             state: "${version}"
-        - script.execute:
-            id: boot_log
-            category: on_boot
-            log_message: "Publish device name"
+        - delay: ${DELAY_DEFAULT}ms
         - text_sensor.template.publish:
             id: device_name
             state: "${name}"
-        - script.execute:
-            id: boot_log
-            category: on_boot
-            log_message: "Reset notification entities"
+        - delay: ${DELAY_DEFAULT}ms
         - text_sensor.template.publish:
             id: notification_label
             state: ""
+        - delay: ${DELAY_DEFAULT}ms
         - text_sensor.template.publish:
             id: notification_text
             state: ""
+        - delay: ${DELAY_DEFAULT}ms
         - switch.turn_off: notification_unread
-        - lambda: |-
-            for (uint8_t i = 0; i < 60; i++) {
-              if (not isnan(std::stoi(baud_rate->state)))
-                break;
-              delay(1000);
-              App.feed_wdt();
-            }
-        - script.execute:
-            id: boot_log
-            category: on_boot
-            log_message: "Set baud rate"
-        - if:
-            condition:
-              - lambda: return (std::stoi(baud_rate->state) != tf_uart->get_baud_rate());
-            then:
-              - script.execute:
-                  id: set_baud_rate
-                  target_baud_rate: !lambda return std::stoi(baud_rate->state);
-                  definitive: true
-        - if:
-            condition:
-              - lambda: return (!isnan(std::stoi(baud_rate->state)));
-            then:
-              - lambda: set_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::BAUD_RATE);
-        - lambda: |-
-            for (uint8_t i = 0; i < 60; i++) {
-              if (disp1->is_setup())
-                break;
-              delay(1000);
-              App.feed_wdt();
-            }
-        - if:
-            condition:
-              - lambda: return not disp1->is_detected();
-            then:
-              - script.execute:
-                  id: boot_log
-                  category: on_boot
-                  log_message: "Restart Nextion"
-              - switch.turn_off: screen_power
-              - delay: 2s
-              - switch.turn_on: screen_power
 
 esp32:
   board: esp32dev
@@ -156,7 +100,6 @@ esp32:
 ##### WIFI SETUP #####
 wifi:
   id: wifi_component
-  power_save_mode: LIGHT
   networks:
     - id: wifi_default
       ssid: ${wifi_ssid}
@@ -201,85 +144,105 @@ display:
     on_setup:
       - lambda: |-
           set_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::NEXTION);
-          if (id(is_uploading_tft))
-            return;
-          nextion_init->publish_state(true);
-          version_tft->update();
+      - binary_sensor.template.publish:
+          id: nextion_init
+          state: true
 
     on_page:
-      - lambda: |-
-          if (id(is_uploading_tft))
-            return;
-          if (current_page->state != page_names[x] or x == 9)
-            current_page->publish_state(page_names[x]);
+      - if:
+          condition:
+            - lambda: return !id(is_uploading_tft);
+            - or:
+                - lambda: return (x == 9);
+                - lambda: return (current_page->state != page_names[x]);
+          then:
+            - text_sensor.template.publish:
+                id: current_page
+                state: !lambda return page_names[x];
 
     on_touch:
-      - lambda: |-
-          if (id(is_uploading_tft))
-            return;
-          timer_reset_all->execute();
-          switch (page_id) {
-            case 0:  // Boot
-              switch (component_id) {
-                case 24:  // Reboot button
-                  if (!touch_event) {  // Release
-                    arch_restart();
-                  }
-                  break;
-              }
-              break;
-            case 8:  // Settings
-              switch (component_id) {
-                case 9:  // Reboot button
-                  if (!touch_event) {  // Release
-                    arch_restart();
-                  }
-                  break;
-              }
-              break;
-            case 10:  // light
-              switch (component_id) {
-                case 32:  // power_button
-                  if (!touch_event) {  // Release
-                    ha_call_action->execute("light.toggle", "", "", detailed_entity->state.c_str());
-                  }
-                  break;
-              }
-              break;
-            case 16:  // notification
-              switch (component_id) {
-                case 7:  // bt_accept
-                  if (!touch_event) {  // Release
-                    notification_label->publish_state("");
-                    notification_text->publish_state("");
-                    notification_unread->turn_off();
-                    goto_page->execute("home");
-                    set_component_visibility->execute("home.bt_notific", false);
-                  }
-                break;
-                case 8:  // bt_clear
-                  if (!touch_event) {  // Release
-                    notification_unread->turn_off();
-                    goto_page->execute("home");
-                  }
-                break;
-              }
-              break;
-            case 22:  // fan
-              switch (component_id) {
-                case 13:  // bt_oscillate
-                  if (!touch_event) {  // Release
-                    ha_call_action->execute("fan.oscillate", "oscillating", "toggle", detailed_entity->state.c_str());
-                  }
-                  break;
-                case 14:  // power_button
-                  if (!touch_event) {  // Release
-                    ha_call_action->execute("fan.toggle", "", "", detailed_entity->state.c_str());
-                  }
-                  break;
-              }
-              break;
-          }
+      - script.execute: timer_reset_all
+      - if:
+          condition:
+            - lambda: return !id(is_uploading_tft);
+            - lambda: return (!touch_event);  // Only act with release
+          then:
+            - if:
+                condition:
+                  - or:
+                      - and:
+                          - lambda: return (page_id == 0);  // Page boot
+                          - lambda: return (component_id == 24);  // Reboot button
+                      - and:
+                          - lambda: return (page_id == 8);  // Page settings
+                          - lambda: return (component_id == 9);  // Reboot button
+                then:
+                  - lambda: App.safe_reboot();
+            - if:
+                condition:
+                  - lambda: return (page_id == 10);  // Page light
+                  - lambda: return (component_id == 32);  // power button
+                then:
+                  - script.execute:
+                      id: ha_call_action
+                      service: "light.toggle"
+                      key: ""
+                      value: ""
+                      entity: !lambda return detailed_entity->state.c_str();
+            - if:
+                condition:
+                  - lambda: return (page_id == 16);  // Page notification
+                then:
+                  - if:
+                      condition:
+                        - lambda: return (component_id == 7);  // bt_accept
+                      then:
+                        - text_sensor.template.publish:
+                            id: notification_label
+                            state: ""
+                        - text_sensor.template.publish:
+                            id: notification_text
+                            state: ""
+                        - switch.turn_off: notification_unread
+                        - script.execute:
+                            id: goto_page
+                            page: home
+                        - script.execute:
+                            id: set_component_visibility
+                            component_id: "home.bt_notific"
+                            show: false
+                  - if:
+                      condition:
+                        - lambda: return (component_id == 8);  // bt_clear
+                      then:
+                        - switch.turn_off: notification_unread
+                        - script.execute:
+                            id: goto_page
+                            page: home
+            - if:
+                condition:
+                  - lambda: return (page_id == 22);  // Page fan
+                then:
+                  - if:
+                      condition:
+                        - lambda: return (component_id == 13);  // bt_oscillate
+                      then:
+                        - script.execute:
+                            id: ha_call_action
+                            service: "fan.oscillate"
+                            key: oscillating
+                            value: toggle
+                            entity: !lambda return detailed_entity->state.c_str();
+                  - if:
+                      condition:
+                        - lambda: return (component_id == 14);  // power_button
+                      then:
+                        - script.execute:
+                            id: ha_call_action
+                            service: "fan.toggle"
+                            key: ""
+                            value: ""
+                            entity: !lambda return detailed_entity->state.c_str();
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
@@ -437,6 +400,9 @@ binary_sensor:
     icon: mdi:tablet-dashboard
     lambda: |-
       return (!id(is_uploading_tft) and disp1->is_setup());
+    on_release:
+      then:
+        - lambda: clear_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::NEXTION);
 
 ##### START - BUTTON CONFIGURATION #####
 button:
@@ -472,12 +438,26 @@ number:
         - lambda: |-
             disp1->send_command_printf("brightness=%i", int(x));
             disp1->set_component_value("settings.brightslider", int(x));
-            if (current_page->state != "screensaver") {
-              set_brightness->execute(x);
-              timer_dim->execute();
-              timer_sleep->execute();
-              if (current_page->state == "settings") disp1->set_component_text_printf("bright_text", "%i%%", int(x));
-            }
+        - if:
+            condition:
+              - not:
+                  - text_sensor.state:
+                      id: current_page
+                      state: screensaver
+            then:
+              - script.execute:
+                  id: set_brightness
+                  brightness: !lambda return int(x);
+              - script.execute: timer_dim
+              - script.execute: timer_sleep
+              - if:
+                  condition:
+                    - text_sensor.state:
+                        id: current_page
+                        state: settings
+                  then:
+                    - lambda: |-
+                        disp1->set_component_text_printf("bright_text", "%i%%", int(x));
 
   ##### SCREEN BRIGHTNESS DIMMED DOWN #####
   - id: display_dim_brightness
@@ -496,11 +476,26 @@ number:
         - lambda: |-
             disp1->send_command_printf("brightness_dim=%i", int(x));
             disp1->set_component_value("settings.dimslider", int(x));
-            if (current_page->state != "screensaver" and current_brightness->state != x) {
-              set_brightness->execute(x);
-              timer_sleep->execute();
-              if (current_page->state == "settings") disp1->set_component_text_printf("dim_text", "%i%%", int(x));
-            }
+        - if:
+            condition:
+              - not:
+                  - text_sensor.state:
+                      id: current_page
+                      state: screensaver
+              - lambda: return (current_brightness->state != x);
+            then:
+              - script.execute:
+                  id: set_brightness
+                  brightness: !lambda return int(x);
+              - script.execute: timer_sleep
+              - if:
+                  condition:
+                    - text_sensor.state:
+                        id: current_page
+                        state: settings
+                  then:
+                    - lambda: |-
+                        disp1->set_component_text_printf("dim_text", "%i%%", int(x));
 
   ##### SCREEN BRIGHTNESS SLEEP #####
   - id: display_sleep_brightness
@@ -567,7 +562,7 @@ number:
     icon: mdi:timer
     unit_of_measurement: "s"
     on_value:
-      - lambda: timer_dim->execute();
+      - script.execute: timer_dim
   - name: Timeout Sleep
     platform: template
     id: timeout_sleep
@@ -581,10 +576,18 @@ number:
     icon: mdi:timer
     unit_of_measurement: "s"
     on_value:
-      - lambda: |-
-          if (x == 0 and current_page->state == "screensaver") goto_page->execute(wakeup_page_name->state.c_str());
-          timer_dim->execute();
-          timer_sleep->execute();
+      - if:
+          condition:
+            - lambda: return (x == 0);
+            - text_sensor.state:
+                id: current_page
+                state: screensaver
+          then:
+            - script.execute:
+                id: goto_page
+                page: !lambda return wakeup_page_name->state.c_str();
+      - script.execute: timer_dim
+      - script.execute: timer_sleep
 
 ##### START - SELECT CONFIGURATION #####
 select:
@@ -675,7 +678,23 @@ sensor:
             return 0;
     on_value:
       then:
-        - script.execute: refresh_wifi_icon
+        - if:
+            condition:
+              - lambda: return (x == 100);
+              - lambda: return !is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT);
+            then:
+              - lambda: |-
+                  set_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT);
+              - script.execute: refresh_wifi_icon
+            else:
+              - if:
+                  condition:
+                    - lambda: return (x != 100);
+                    - lambda: return is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT);
+                  then:
+                    - lambda: |-
+                        clear_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT);
+                    - script.execute: refresh_wifi_icon
 
   ##### INTERNAL TEMPERATURE SENSOR, ADC VALUE #####
   - id: ntc_source
@@ -683,7 +702,6 @@ sensor:
     pin: ${GPIO_TEMPERATURE_ADC_PIN}
     attenuation: 12db
     samples: 4
-    update_interval: 10s
     filters:
       - sliding_window_moving_average:
           window_size: 6
@@ -723,11 +741,13 @@ sensor:
     internal: true
     on_value:
       then:
-        - number.set:
-            id: display_brightness
-            value: !lambda return int(x);
-        - lambda: |-
-            timer_reset_all->execute();
+        - if:
+            condition:
+              - lambda: return (int(display_brightness->state) != int(x));
+            then:
+              - number.set:
+                  id: display_brightness
+                  value: !lambda return int(x);
 
   ###### Display DIM Brightness GET VALUE FROM NSPanel SLIDER #####
   - id: dimslider
@@ -737,11 +757,13 @@ sensor:
     internal: true
     on_value:
       then:
-        - number.set:
-            id: display_dim_brightness
-            value: !lambda return int(x);
-        - lambda: |-
-            timer_reset_all->execute();
+        - if:
+            condition:
+              - lambda: return (int(display_dim_brightness->state) != int(x));
+            then:
+              - number.set:
+                  id: display_dim_brightness
+                  value: !lambda return int(x);
 
   ###### Display Brightness - Current value (%) #####
   - id: current_brightness
@@ -897,8 +919,10 @@ switch:
     internal: true
     disabled_by_default: false
     on_turn_off:
-      - lambda: |-
-          nextion_init->publish_state(false);
+      then:
+        - binary_sensor.template.publish:
+            id: nextion_init
+            state: false
 
 ##### START - TEXT SENSOR CONFIGURATION #####
 text_sensor:
@@ -1162,59 +1186,79 @@ script:
             }
           }
 
-  - id: check_versions
-    mode: restart
+  - id: check_version_tft
+    mode: single
     then:
       - delay: 5s
       - lambda: |-
-          for (uint8_t i = 0; i < 60; i++) {
-            if (compare_versions("${version}", version_tft->state.c_str()) and compare_versions("${version}", version_blueprint->state.c_str()))
-              break;
-            delay(1000);
-            App.feed_wdt();
-          }
+          version_tft->update();
+
+  - id: check_versions
+    mode: single
+    then:
       - if:
           condition:
-            - lambda: return id(is_uploading_tft);
+            - lambda: return !id(is_uploading_tft);
           then:
-            - script.stop: check_versions
-          else:
+            - delay: 5s
             - lambda: |-
-                ESP_LOGD("${TAG_CORE}", "Versions:");
-                ESP_LOGD("${TAG_CORE}", "  TFT:       %s", version_tft->state.c_str());
-                ESP_LOGD("${TAG_CORE}", "  ESPHome:   ${version}");
-                if (not compare_versions("${version}", version_tft->state.c_str()))
-                  ESP_LOGE("${TAG_CORE}", "TFT version mismatch!");
-                ESP_LOGD("${TAG_CORE}", "  Blueprint: %s", version_blueprint->state.c_str());
-                if (not compare_versions("${version}", version_blueprint->state.c_str()))
-                  ESP_LOGE("${TAG_CORE}", "Blueprint version mismatch!");
-            - delay: 1s
-            - homeassistant.event:
-                event: esphome.nspanel_ha_blueprint
-                data:
-                  device_name: !lambda return device_name->state.c_str();
-                  esphome_version: ${version}
-                  type: "version"
-                  tft: !lambda return version_tft->state.c_str();
-                  esphome: ${version}
-                  blueprint: !lambda return version_blueprint->state.c_str();
-      - logger.log: Check version completed
+                for (uint8_t i = 0; i < 60; i++) {
+                  if (compare_versions("${version}", version_tft->state.c_str()) and compare_versions("${version}", version_blueprint->state.c_str()))
+                    break;
+                  delay(1000);
+                  App.feed_wdt();
+                }
+            - if:
+                condition:
+                  - lambda: return id(is_uploading_tft);
+                then:
+                  - logger.log: Version check stopped as a TFT upload was requested
+                else:
+                  - lambda: |-
+                      ESP_LOGD("${TAG_CORE}", "Versions:");
+                      ESP_LOGD("${TAG_CORE}", "  TFT:       %s", version_tft->state.c_str());
+                      ESP_LOGD("${TAG_CORE}", "  ESPHome:   ${version}");
+                      if (not compare_versions("${version}", version_tft->state.c_str()))
+                        ESP_LOGE("${TAG_CORE}", "TFT version mismatch!");
+                      ESP_LOGD("${TAG_CORE}", "  Blueprint: %s", version_blueprint->state.c_str());
+                      if (not compare_versions("${version}", version_blueprint->state.c_str()))
+                        ESP_LOGE("${TAG_CORE}", "Blueprint version mismatch!");
+                  - delay: 1s
+                  - homeassistant.event:
+                      event: esphome.nspanel_ha_blueprint
+                      data:
+                        device_name: !lambda return device_name->state.c_str();
+                        esphome_version: ${version}
+                        type: "version"
+                        tft: !lambda return version_tft->state.c_str();
+                        esphome: ${version}
+                        blueprint: !lambda return version_blueprint->state.c_str();
+                  - logger.log: Check version completed
 
   - id: display_embedded_temp
-    mode: restart
+    mode: single
     then:
-      - lambda: |-
-          if (id(embedded_indoor_temp) or !wifi_component->is_connected() or !api_server->is_connected()) {
-            const std::string temp_units = "${temp_units}";
-            const bool temp_unit_fahrenheit = (temp_units == "°F" || temp_units == "F" || temp_units == "°f" || temp_units == "f");
-            char buffer[15]; // Buffer for formatted temperature string
-            if (temp_unit_fahrenheit) {
-              snprintf(buffer, sizeof(buffer), "%.0f${temp_units}", (id(temp_nspanel).state * 9.0 / 5.0) + 32); // Fahrenheit with no decimal
-            } else {
-              snprintf(buffer, sizeof(buffer), "%.1f${temp_units}", id(temp_nspanel).state); // Celsius with one decimal
-            }
-            id(disp1)->set_component_text("home.indr_temp", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-          }
+      - if:
+          condition:
+            - or:
+                - lambda: return id(embedded_indoor_temp);
+                - lambda: return !is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::API);
+                - lambda: return !is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI);
+          then:
+            - lambda: |-
+                static const std::string temp_units = "${temp_units}";
+                static const bool temp_unit_fahrenheit =
+                                  (temp_units == "°F" || temp_units == "F" || temp_units == "°f" || temp_units == "f");
+                static char buffer[15]; // Buffer for formatted temperature string
+                if (temp_unit_fahrenheit) {
+                  snprintf(buffer, sizeof(buffer), "%.0f${temp_units}",
+                                    (temp_nspanel->state * 9.0 / 5.0) + 32); // Fahrenheit with no decimal
+                } else {
+                  snprintf(buffer, sizeof(buffer), "%.1f${temp_units}",
+                                    temp_nspanel->state); // Celsius with one decimal
+                }
+                disp1->set_component_text("home.indr_temp",
+                                            adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
 
   - id: display_wrapped_text
     mode: parallel
@@ -1224,78 +1268,81 @@ script:
       text_to_display: string
       line_length_limit: uint
     then:
-      - lambda: |-
-          // Safety check for overly long text
-          if (text_to_display.length() > 1000) {
-            ESP_LOGW("display_wrapped_text", "Text too long: %zu chars, truncating", text_to_display.length());
-            disp1->set_component_text(component.c_str(), "Text too long");
-            return;
-          }
+      - if:
+          condition:
+            - lambda: return (text_to_display.length() > 1000);  // Safety check for overly long text
+          then:
+            - lambda: |-
+                ESP_LOGW("display_wrapped_text", "Text too long");
+                disp1->set_component_text(component.c_str(), "ERROR: Text too long");
+          else:
+            - if:
+                condition:
+                  - lambda: |-
+                      return (text_to_display.find("\\r") != std::string::npos);  // Early exit for already formatted text
+                then:
+                  - lambda: |-
+                      disp1->set_component_text(component.c_str(), text_to_display.c_str());
+                else:
+                  - lambda: |-
+                      const uint16_t max_line_length = line_length_limit * id(mui_bytes_per_char);
+                      const uint16_t text_len = text_to_display.length();
 
-          // Early exit for already formatted text
-          if (text_to_display.find("\\r") != std::string::npos) {
-            disp1->set_component_text(component.c_str(), text_to_display.c_str());
-            return;
-          }
+                      // If text is short enough, no wrapping needed
+                      if (text_len <= max_line_length) {
+                        disp1->set_component_text(component.c_str(), text_to_display.c_str());
+                        return;
+                      }
 
-          const uint16_t max_line_length = line_length_limit * id(mui_bytes_per_char);
-          const uint16_t text_len = text_to_display.length();
+                      // Pre-allocate string to avoid reallocations
+                      std::string wrapped_text;
+                      wrapped_text.reserve(text_len + 20);  // Reserve space for line breaks
 
-          // If text is short enough, no wrapping needed
-          if (text_len <= max_line_length) {
-            disp1->set_component_text(component.c_str(), text_to_display.c_str());
-            return;
-          }
+                      uint16_t start = 0;
 
-          // Pre-allocate string to avoid reallocations
-          std::string wrapped_text;
-          wrapped_text.reserve(text_len + 20);  // Reserve space for line breaks
+                      while (start < text_len) {
+                        // Skip leading spaces
+                        while (start < text_len && text_to_display[start] == ' ') {
+                          start++;
+                        }
 
-          uint16_t start = 0;
+                        if (start >= text_len) break;
 
-          while (start < text_len) {
-            // Skip leading spaces
-            while (start < text_len && text_to_display[start] == ' ') {
-              start++;
-            }
+                        // Find end position
+                        uint16_t end = start + max_line_length;
+                        if (end >= text_len) {
+                          end = text_len;
+                        } else {
+                          // Find word boundary by looking backwards for space
+                          uint16_t word_end = end;
+                          while (word_end > start && text_to_display[word_end] != ' ') {
+                            word_end--;
+                          }
 
-            if (start >= text_len) break;
+                          // If we found a space within reasonable distance, use it
+                          if (word_end > start) {
+                            end = word_end;
+                          }
+                          // Otherwise force break at max_line_length (handles long words)
+                        }
 
-            // Find end position
-            uint16_t end = start + max_line_length;
-            if (end >= text_len) {
-              end = text_len;
-            } else {
-              // Find word boundary by looking backwards for space
-              uint16_t word_end = end;
-              while (word_end > start && text_to_display[word_end] != ' ') {
-                word_end--;
-              }
+                        // Add text segment
+                        wrapped_text.append(text_to_display, start, end - start);
 
-              // If we found a space within reasonable distance, use it
-              if (word_end > start) {
-                end = word_end;
-              }
-              // Otherwise force break at max_line_length (handles long words)
-            }
+                        // Add line break if not at end of text
+                        if (end < text_len) {
+                          wrapped_text += "\\r";
 
-            // Add text segment
-            wrapped_text.append(text_to_display, start, end - start);
+                          // Skip spaces at the break point to avoid leading spaces on next line
+                          while (end < text_len && text_to_display[end] == ' ') {
+                            end++;
+                          }
+                        }
 
-            // Add line break if not at end of text
-            if (end < text_len) {
-              wrapped_text += "\\r";
+                        start = end;
+                      }
 
-              // Skip spaces at the break point to avoid leading spaces on next line
-              while (end < text_len && text_to_display[end] == ' ') {
-                end++;
-              }
-            }
-
-            start = end;
-          }
-
-          disp1->set_component_text(component.c_str(), wrapped_text.c_str());
+                      disp1->set_component_text(component.c_str(), wrapped_text.c_str());
 
   - id: !extend dump_config
     then:
@@ -1324,7 +1371,7 @@ script:
 
           // Report blueprint version
           ESP_LOGCONFIG("nspanel_ha_blueprint", "Blueprint:");
-          if (blueprint_status->state > 99) {
+          if (is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT)) {
             ESP_LOGCONFIG("nspanel_ha_blueprint", "  Version:     %s", version_blueprint->state.c_str());
             ESP_LOGCONFIG("nspanel_ha_blueprint", "  Init steps:  %i (%0.1f%%)", int(blueprint_status->raw_state), blueprint_status->state);
           } else {
@@ -1386,8 +1433,10 @@ script:
           ESP_LOGCONFIG("nspanel_ha_blueprint", "  Queue size:  %d", tf_uart->available());
 
       # Report Nextion status
+      - binary_sensor.template.publish:
+          id: nextion_init
+          state: !lambda return (!id(is_uploading_tft) and nextion_init->state and disp1->is_setup());
       - lambda: |-
-          nextion_init->publish_state(!id(is_uploading_tft) and nextion_init->state and disp1->is_setup());
           ESP_LOGCONFIG("nspanel_ha_blueprint", "Nextion:");
           ESP_LOGCONFIG("nspanel_ha_blueprint", "  Queue size:  %d", disp1->queue_size());
           if (disp1->is_setup())
@@ -1462,7 +1511,7 @@ script:
           #endif
 
   - id: global_settings
-    mode: restart
+    mode: single
     parameters:
       blueprint_version: string
       ent_value_xcen: int
@@ -1563,7 +1612,7 @@ script:
       - lambda: if (current_page->state != page) disp1->goto_page(page.c_str());
 
   - id: init_hardware_climate
-    mode: restart
+    mode: single
     parameters:
       embedded_climate: bool                  # Indicates if climate control is integrated.
       embedded_climate_friendly_name: string  # Friendly name for the climate control feature.
@@ -1578,11 +1627,11 @@ script:
           display_embedded_temp->execute();
 
   - id: page_alarm
-    mode: restart
+    mode: single
     then:  # There's nothing here so far
 
   - id: page_blank
-    mode: restart
+    mode: single
     then:
       - lambda: |-
           ESP_LOGW("script.page_blank", "Construct blank page");
@@ -1602,22 +1651,29 @@ script:
           id: boot_log
           category: Boot
           log_message: "Starting sequence"
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: boot_progress
           step: 0
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: set_brightness
           brightness: 100
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute: update_tft_info
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: boot_log
           category: Boot
           log_message: "ESPHome FW v${version}"
+      - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
           disp1->set_component_text("ver_firmware", "Firmware: ${version}");  // ESPHome version
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: boot_progress
           step: 1
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: boot_log
           category: Boot
@@ -1628,6 +1684,7 @@ script:
                           return "Framework is ESP-IDF";
                           #endif
                           return "Framework is unknown";
+      - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
           #ifdef ARDUINO
           disp1->set_component_text("sys_framework", "Framework: Arduino");
@@ -1636,13 +1693,16 @@ script:
           #else
           disp1->set_component_text("sys_framework", "Framework: Unknown");
           #endif
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: boot_progress
           step: 2
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: boot_log
           category: Boot
           log_message: "Waiting for Wi-Fi"
+      - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
           for (uint8_t i = 0; i < 10; i++) {
             if (is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI))
@@ -1664,6 +1724,7 @@ script:
                 id: boot_log
                 category: Boot
                 log_message: "Wi-Fi connected"
+            - delay: ${DELAY_DEFAULT}ms
             - script.execute:
                 id: boot_progress
                 step: 3
@@ -1673,8 +1734,10 @@ script:
                       id: current_page
                       state: boot
                 then:
+                  - delay: ${DELAY_DEFAULT}ms
                   - lambda: |-
                       disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());
+                  - delay: ${DELAY_DEFAULT}ms
                   - script.execute:
                       id: set_brightness
                       brightness: 100
@@ -1694,11 +1757,13 @@ script:
                   - lambda: |-
                       return !is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::API);
                 then:
+                  - delay: ${DELAY_DEFAULT}ms
                   - script.execute:
                       id: boot_log
                       category: Boot
                       log_message: "API not available"
                 else:  # API connected
+                  - delay: ${DELAY_DEFAULT}ms
                   - script.execute:
                       id: boot_log
                       category: Boot
@@ -1706,42 +1771,14 @@ script:
                   - script.execute:
                       id: boot_progress
                       step: 4
-                  - if:
-                      condition:
-                        - lambda: return (blueprint_status->state <= 99);
-                      then:
-                        - script.execute:
-                            id: boot_event
-                            init: true
-                        - script.execute:
-                            id: boot_log
-                            category: Boot
-                            log_message: "Waiting for Blueprint"
-                        - lambda: |-
-                            for (uint8_t i = 0; i < 5; i++) {
-                              if (blueprint_status->state > 99)
-                                break;
-                              delay(1000);
-                              App.feed_wdt();
-                            }
-                        - if:
-                            condition:
-                              - lambda: return (blueprint_status->state > 99);
-                            then:
-                              - script.execute:
-                                  id: boot_progress
-                                  step: 5
-                            else:
-                              - script.execute:
-                                  id: boot_log
-                                  category: Boot
-                                  log_message: "Blueprint not available"
 
       # Display settings
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: boot_log
           category: Boot
           log_message: "Sending display settings"
+      - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
           disp1->send_command_printf("brightness=%i", int(display_brightness->state));
           disp1->set_component_value("settings.brightslider", int(display_brightness->state));
@@ -1749,56 +1786,104 @@ script:
           disp1->set_component_value("settings.dimslider", int(display_dim_brightness->state));
           disp1->send_command_printf("brightness_sleep=%i", int(display_sleep_brightness->state));
           disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: boot_progress
-          step: 6
+          step: 5
 
       # Publish Nextion state
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: boot_log
           category: Boot
           log_message: "Publish Nextion state"
+      - delay: ${DELAY_DEFAULT}ms
       - binary_sensor.template.publish:
           id: nextion_init
           state: !lambda return disp1->is_setup();
 
-      # Inform Home Assistant when Nextio is initialized
+      # Inform Home Assistant when Nextion is initialized
+      - delay: ${DELAY_DEFAULT}ms
       - if:
           condition:
             - lambda: |-
                 return is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::API);
             - lambda: return disp1->is_setup();
           then:
+            - delay: ${DELAY_DEFAULT}ms
+            - script.execute:
+                id: boot_log
+                category: Boot
+                log_message: "Send `nextion_init` event to Home Assistant"
             - homeassistant.event:
                 event: esphome.nspanel_ha_blueprint
                 data:
                   device_name: !lambda return device_name->state.c_str();
-                  esphome_version: "${version}"
-                  type: "boot"
-                  step: "nextion_init"
-
-      # Setup Home page
+                  esphome_version: ${version}
+                  type: boot
+                  step: nextion_init
       - script.execute:
           id: boot_progress
-          step: 7
+          step: 6
+
+      # Wait for a response from the blueprint
+      - if:
+          condition:
+            - lambda: return not is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT);
+          then:
+            - delay: ${DELAY_DEFAULT}ms
+            - script.execute:
+                id: boot_event
+                init: true
+            - delay: ${DELAY_DEFAULT}ms
+            - script.execute:
+                id: boot_log
+                category: Boot
+                log_message: "Waiting for Blueprint"
+            - lambda: |-
+                for (uint8_t i = 0; i < 30; i++) {
+                  if (is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT))
+                    break;
+                  delay(1000);
+                  App.feed_wdt();
+                }
+            - if:
+                condition:
+                  - lambda: return is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT);
+                then:
+                  - delay: ${DELAY_DEFAULT}ms
+                  - script.execute:
+                      id: boot_progress
+                      step: 7
+                else:
+                  - script.execute:
+                      id: boot_log
+                      category: Boot
+                      log_message: "Blueprint not available"
+
+      # Setup Home page
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: boot_log
           category: Boot
           log_message: "Set Home page elements"
 
       # Chips icon size
+      - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
           for (uint8_t i = 1; i <= 7; ++i) {
             disp1->send_command_printf("home.chip%02d.font=%i", i, id(home_chip_font_id));
           }
 
       # Custom buttons icon size
+      - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
           for (uint8_t i = 1; i <= 7; ++i) {
             disp1->send_command_printf("home.button%02d.font=%i", i, id(home_custom_buttons_font_id));
           }
 
       # Other components icons size and color
+      - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
           disp1->set_component_font("home.bt_notific", id(home_custom_buttons_font_id));
           disp1->set_component_font("home.bt_qrcode", id(home_custom_buttons_font_id));
@@ -1808,6 +1893,7 @@ script:
           disp1->set_component_font_color("home.chip_relay2", id(home_relay2_icon_color));
 
       # Bluetooth icon
+      - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
           #if defined(USE_ESP32_BLE_SERVER) || defined(USE_ESP32_BLE_CLIENT) || defined(USE_BLUETOOTH_PROXY) || defined(USE_IMPROV)
           disp1->set_component_text("home.bt_icon", "\uE0AE");
@@ -1816,16 +1902,18 @@ script:
           #endif
 
       # Wrap-up
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: boot_progress
           step: 8
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: boot_log
           category: Boot
           log_message: "Wait to finish"
       - lambda: |-
           for (uint8_t i = 0; i < 10; i++) {
-            if (is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI) and api_server->is_connected() and blueprint_status->state > 99)
+            if (are_all_boot_flags_set(nspanel_ha_blueprint::boot_flags, {BootFlag::WIFI, BootFlag::API, BootFlag::BLUEPRINT}))
               break;
             delay(1000);
             App.feed_wdt();
@@ -1833,9 +1921,9 @@ script:
       - script.execute:
           id: boot_progress
           step: 9
-      - delay: 2s
 
       # Boot beep
+      - delay: ${DELAY_DEFAULT}ms
       - if:
           condition:
             switch.is_on: notification_sound
@@ -1846,20 +1934,24 @@ script:
                 log_message: "Play boot sound"
             - rtttl.play: "two short:d=4,o=5,b=100:16e6,16e6"
 
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: boot_progress
           step: 10
-      - delay: 1s
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: set_brightness
           brightness: !lambda return display_brightness->state;
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: boot_log
           category: Boot
           log_message: "Jump to wake-up page"
 
+      - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
           ESP_LOGD("script.page_boot", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
+      - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: goto_page
           page: !lambda return wakeup_page_name->state.c_str();
@@ -1870,25 +1962,25 @@ script:
       page_number: uint
     then:  # There's nothing here so far
   - id: page_buttonpage01
-    mode: restart
+    mode: single
     then:
       - script.execute:
           id: page_buttonpage
           page_number: 1
   - id: page_buttonpage02
-    mode: restart
+    mode: single
     then:
       - script.execute:
           id: page_buttonpage
           page_number: 2
   - id: page_buttonpage03
-    mode: restart
+    mode: single
     then:
       - script.execute:
           id: page_buttonpage
           page_number: 3
   - id: page_buttonpage04
-    mode: restart
+    mode: single
     then:
       - script.execute:
           id: page_buttonpage
@@ -2002,22 +2094,22 @@ script:
           button_mask: 3
 
   - id: page_climate
-    mode: restart
+    mode: single
     then:  # There's nothing here so far
 
   - id: page_confirm
-    mode: restart
+    mode: single
     then:
       - lambda: |-
           if (!id(is_uploading_tft))
             display_wrapped_text->execute("confirm.title", id(mui_please_confirm_global).c_str(), 15);
 
   - id: page_cover
-    mode: restart
+    mode: single
     then:  # There's nothing here so far
 
   - id: page_entitypage
-    mode: restart
+    mode: single
     parameters:
       page_number: uint
     then:
@@ -2030,36 +2122,36 @@ script:
           }
 
   - id: page_entitypage01
-    mode: restart
+    mode: single
     then:
       - script.execute:
           id: page_entitypage
           page_number: 1
   - id: page_entitypage02
-    mode: restart
+    mode: single
     then:
       - script.execute:
           id: page_entitypage
           page_number: 2
   - id: page_entitypage03
-    mode: restart
+    mode: single
     then:
       - script.execute:
           id: page_entitypage
           page_number: 3
   - id: page_entitypage04
-    mode: restart
+    mode: single
     then:
       - script.execute:
           id: page_entitypage
           page_number: 4
 
   - id: page_fan
-    mode: restart
+    mode: single
     then:  # There's nothing here so far
 
   - id: page_home
-    mode: restart
+    mode: single
     then:
       - script.execute:
           id: refresh_relays
@@ -2067,30 +2159,30 @@ script:
       - script.execute: refresh_wifi_icon
 
   - id: page_keyb_num
-    mode: restart
+    mode: single
     then:  # There's nothing here so far
 
   - id: page_light
-    mode: restart
+    mode: single
     then:  # There's nothing here so far
 
   - id: page_media_player
-    mode: restart
+    mode: single
     then:  # There's nothing here so far
 
   - id: page_notification
-    mode: restart
+    mode: single
     then:
       - lambda: |-
           disp1->set_component_text("notification.notifi_label", notification_label->state.c_str());
           display_wrapped_text->execute("notification.notifi_text01", notification_text->state.c_str(), display_mode->state == 2 ? 23 : 32);
 
   - id: page_qrcode
-    mode: restart
+    mode: single
     then:  # There's nothing here so far
 
   - id: page_screensaver
-    mode: restart
+    mode: single
     then:
       - lambda: |-
           if (current_page->state == "screensaver" and !id(is_uploading_tft)) {
@@ -2105,83 +2197,103 @@ script:
           }
 
   - id: page_settings
-    mode: restart
+    mode: single
     then:
       - lambda: |-
           set_component_visibility->execute("page_settings.lbl_sleep", false);
           set_component_visibility->execute("page_settings.bt_sleep", false);
 
   - id: page_utilities
-    mode: restart
+    mode: single
     then:
       - lambda: if (UtilitiesGroups == nullptr) resetUtilitiesGroups();
 
   - id: page_weather
-    mode: restart
+    mode: single
     parameters:
       page_number: uint
     then:  # There's nothing here so far
   - id: page_weather01
-    mode: restart
+    mode: single
     then:
       - script.execute:
           id: page_weather
           page_number: 1
   - id: page_weather02
-    mode: restart
+    mode: single
     then:
       - script.execute:
           id: page_weather
           page_number: 2
   - id: page_weather03
-    mode: restart
+    mode: single
     then:
       - script.execute:
           id: page_weather
           page_number: 3
   - id: page_weather04
-    mode: restart
+    mode: single
     then:
       - script.execute:
           id: page_weather
           page_number: 4
   - id: page_weather05
-    mode: restart
+    mode: single
     then:
       - script.execute:
           id: page_weather
           page_number: 5
 
   - id: refresh_relays
-    mode: restart
+    mode: single
     parameters:
       relay_mask: uint8_t
     then:
-      - lambda: |-
-          // Chips - Relays
-          if (!id(is_uploading_tft) and relay_mask & 1) disp1->set_component_text("home.chip_relay1", (relay_1->state) ? id(home_relay1_icon) : "\uFFFF");
-          if (!id(is_uploading_tft) and relay_mask & 2) disp1->set_component_text("home.chip_relay2", (relay_2->state) ? id(home_relay2_icon) : "\uFFFF");
+      - if:
+          condition:
+            - lambda: return !id(is_uploading_tft);
+          then:
+            # Chip - Relay 1
+            - if:
+                condition:
+                  - lambda: return (relay_mask & 1);
+                then:
+                  - lambda: |-
+                      disp1->set_component_text("home.chip_relay1", (relay_1->state) ? id(home_relay1_icon) : "\uFFFF");
+            # Chip - Relay 2
+            - if:
+                condition:
+                  - lambda: return (relay_mask & 2);
+                then:
+                  - lambda: |-
+                      disp1->set_component_text("home.chip_relay2", (relay_2->state) ? id(home_relay2_icon) : "\uFFFF");
 
   - id: refresh_wifi_icon
-    mode: restart
+    mode: single
     then:
-      - lambda: |-
-          if (!id(is_uploading_tft)) {
-            disp1->send_command_printf("api=%i", (wifi_component->is_connected() and api_server->is_connected() and blueprint_status->state > 99) ? 1 : 0);
-            // Update Wi-Fi icon color
-            disp1->set_component_font_color("home.wifi_icon", (blueprint_status->state > 99) ? (wifi_rssi->state > -70 ? 33808 : 64992) : 63488);
-            // Update Wi-Fi icon
-            disp1->set_component_text("home.wifi_icon",
-                                      wifi_component->is_connected() ?
-                                        (api_server->is_connected() ?
-                                          ((blueprint_status->state > 99) ? "\uE5A8" :  // mdi:wifi - All right!
-                                          "\uE7CF") :                                   // mdi:home-assistant - Blueprint is out
-                                        "\uF256") :                                     // mdi:api-off
-                                      "\uE5A9");                                        // mdi:wifi-off
-          }
+      - if:
+          condition:
+            - lambda: return !id(is_uploading_tft);
+          then:
+            - lambda: |-
+                disp1->send_command_printf("api=%i",
+                          are_all_boot_flags_set(nspanel_ha_blueprint::boot_flags, {BootFlag::WIFI, BootFlag::API, BootFlag::BLUEPRINT})
+                          ? 1 : 0);
+                // Update Wi-Fi icon color
+                disp1->set_component_font_color("home.wifi_icon", (is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT)) ?
+                                                                  (wifi_rssi->state > -70 ? 33808 : 64992) : 63488);
+                // Update Wi-Fi icon
+                disp1->set_component_text("home.wifi_icon",
+                                          is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI) ?
+                                            (is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::API) ?
+                                              ((is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT)) ?
+                                                "\uE5A8" :  // mdi:wifi - All right!
+                                              "\uE7CF") :   // mdi:home-assistant - Blueprint is out
+                                            "\uF256") :     // mdi:api-off
+                                          "\uE5A9");        // mdi:wifi-off
 
   - id: service_call_alarm_control_panel
-    mode: restart
+    mode: single
     parameters:
       entity: string
       key: string
@@ -2225,7 +2337,7 @@ script:
                   code: !lambda return pin;
 
   - id: set_baud_rate
-    mode: restart
+    mode: single
     parameters:
       target_baud_rate: uint32_t
       definitive: bool
@@ -2267,7 +2379,7 @@ script:
                 ESP_LOGD("script.set_baud_rate", "Current baud rate: %" PRIu32 " bps", tf_uart->get_baud_rate());
 
   - id: set_brightness
-    mode: restart
+    mode: single
     parameters:
       brightness: float
     then:
@@ -2278,7 +2390,7 @@ script:
           current_brightness->update();
 
   - id: set_climate
-    mode: restart
+    mode: single
     parameters:
       current_temp: float
       supported_features: int
@@ -2360,7 +2472,7 @@ script:
 
   - id: set_component_visibility
     mode: queued
-    max_runs: 15
+    max_runs: 3
     parameters:
       component_id: string
       show: bool
@@ -2370,7 +2482,7 @@ script:
           if (component.is_current_page) disp1->send_command_printf("vis %s,%i", component.component_id, show ? 1 : 0);
 
   - id: !extend stop_all
-    mode: restart
+    mode: single
     then:
       - script.stop: check_versions
       - lambda: |-
@@ -2429,12 +2541,12 @@ script:
 
   ###### Timers ######
   - id: timer_reset_all  # Global timer reset - Triggered with a touch on the screen
-    mode: restart
+    mode: single
     then:
-      - lambda: |-
-          timer_page->execute();
-          timer_dim->execute();
-          timer_sleep->execute();
+      - lambda: ESP_LOGV("script.timer_reset_all", "Reset timers");
+      - script.execute: timer_page
+      - script.execute: timer_dim
+      - script.execute: timer_sleep
   - id: timer_page       # Handles the fallback to home page after a timeout
     mode: restart
     then:
@@ -2464,24 +2576,43 @@ script:
   - id: timer_dim        # Handles the brightness dimming after a timeout
     mode: restart
     then:
-      - lambda: |-
-          if (current_brightness->state <= display_dim_brightness->state
-              and current_page->state != "screensaver"
-              and current_page->state != "boot") {
-            ESP_LOGD("script.timer_dim", "Waking up on page: %s", current_page->state.c_str());
-            set_brightness->execute(display_brightness->state);
-          }
+      - if:
+          condition:
+            - lambda: return (current_brightness->state <= display_dim_brightness->state);
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: screensaver
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: boot
+          then:
+            - lambda: |-
+                ESP_LOGD("script.timer_dim", "Waking up on page: %s", current_page->state.c_str());
+            - script.execute:
+                id: set_brightness
+                brightness: !lambda return int(display_brightness->state);
       - if:
           condition:
             - lambda: return (timeout_dim->state >= 1);
           then:
             - delay: !lambda return (int(timeout_dim->state) *1000);
-            - lambda: |-
-                if (current_page->state != "screensaver" and
-                    current_page->state != "boot" and
-                    timeout_dim->state >= 1) {
-                  set_brightness->execute(display_dim_brightness->state);
-                }
+            - if:
+                condition:
+                  - lambda: return (timeout_dim->state >= 1);
+                  - not:
+                      - text_sensor.state:
+                          id: current_page
+                          state: screensaver
+                  - not:
+                      - text_sensor.state:
+                          id: current_page
+                          state: boot
+                then:
+                  - script.execute:
+                      id: set_brightness
+                      brightness: !lambda return int(display_dim_brightness->state);
   - id: timer_sleep  # Handles the sleep (go to screensaver page) after a timeout
     mode: restart
     then:
@@ -2501,7 +2632,7 @@ script:
                 }
 
   - id: update_alarm_icon  # To do: Move to blueprint
-    mode: restart
+    mode: single
     parameters:
       component: string
       state: string
@@ -2558,7 +2689,7 @@ script:
           disp1->set_component_font_color(component.c_str(), alarm_color);
 
   - id: update_climate_icon
-    mode: restart
+    mode: single
     parameters:
       component: string
       action: uint
@@ -2623,19 +2754,21 @@ script:
             }
 
   - id: update_tft_info
-    mode: restart
+    mode: single
     then:
-      - while:
+      - if:
           condition:
-            - lambda: return (isnan(display_charset->state) or isnan(display_mode->state) or version_tft->state.empty());
+            - lambda: return isnan(display_charset->state);
           then:
-            - lambda: |-
-                ESP_LOGD("script.update_tft_info", "Updating TFT info");
-                if (isnan(display_charset->state)) display_charset->update();
-                if (isnan(display_mode->state)) display_mode->update();
-                if (version_tft->state.empty()) version_tft->update();
-            - wait_until:
-                condition:
-                  - lambda: return (!isnan(display_charset->state) and !isnan(display_mode->state) and !(version_tft->state.empty()));
-                timeout: 10s
+            - lambda: display_charset->update();
+      - if:
+          condition:
+            - lambda: return isnan(display_mode->state);
+          then:
+            - lambda: display_mode->update();
+      - if:
+          condition:
+            - lambda: return version_tft->state.empty();
+          then:
+            - lambda: version_tft->update();
 ...
