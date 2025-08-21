@@ -31,6 +31,7 @@ For complete documentation, configuration examples, and troubleshooting guidance
 - **Simplified maintenance** - Reduces complexity and improves release reliability
 - **Faster development cycle** - Reduced CI time allows for quicker releases
 
+
 #### Migration Guide
 If you're currently using Arduino framework:
 
