@@ -8,17 +8,12 @@
 ---
 substitutions:
   BOOT_STEP_BOOT: '1'
-  TAG_BOOT: nspanel_ha_blueprint.boot
+  TAG_BOOT: nspanel.boot
 
 esphome:
   platformio_options:
     build_flags:
       - -D NSPANEL_HA_BLUEPRINT_CORE_BOOT
-
-display:
-  - id: !extend disp1
-    on_setup:
-      lambda: boot_log->execute("${TAG_BOOT}", "on_setup");
 
 globals:
   - id: boot_completed
@@ -51,8 +46,10 @@ script:
     then:
       - if:
           condition:
-            - lambda: return (init);
+            - lambda: return init;
           then:
+            - lambda: |-
+                ESP_LOGD("${TAG_BOOT}", "Asking Blueprint to start sending data");
             - homeassistant.event:
                 event: esphome.nspanel_ha_blueprint
                 data:
@@ -62,13 +59,17 @@ script:
                   step: start
       - while:
           condition:
-            - lambda: return (blueprint_status->state < 99);
+            - lambda: return not is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT);
           then:
+            - lambda: |-
+                ESP_LOGD("${TAG_BOOT}", "Give some time for the blueprint to respond");
             - delay: 10s
             - if:
                 condition:
-                  - lambda: return (blueprint_status->state < 99);
+                  - lambda: return not is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT);
                 then:
+                  - lambda: |-
+                      ESP_LOGW("${TAG_BOOT}", "Inform Blueprint that no data was received yet");
                   - homeassistant.event:
                       event: esphome.nspanel_ha_blueprint
                       data:
@@ -76,13 +77,14 @@ script:
                         esphome_version: ${version}
                         type: boot
                         step: timeout
+      - lambda: |-
+          ESP_LOGD("${TAG_BOOT}", "Boot event response (from Blueprint) was successful");
 
   - id: boot_progress
     mode: restart
     parameters:
       step: uint
     then:
-      - script.execute: timer_reset_all
       - if:
           condition:
             - lambda: return (step == 10);
