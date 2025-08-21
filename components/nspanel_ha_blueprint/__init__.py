@@ -5,8 +5,12 @@ import esphome.config_validation as cv
 from esphome.components.esp32 import add_idf_sdkconfig_option
 from esphome.core import CORE, coroutine_with_priority
 from esphome import pins
+import logging
+import warnings
 
 CODEOWNERS = ["@edwardtfn"]
+
+_LOGGER = logging.getLogger(__name__)
 
 nspanel_ha_blueprint_ns = cg.esphome_ns.namespace('nspanel_ha_blueprint')
 
@@ -21,6 +25,10 @@ CONFIG_SCHEMA = cv.Schema({
 
 @coroutine_with_priority(1.0)
 async def to_code(config):
+    # Arduino framework deprecation warning
+    if CORE.using_arduino:
+        _LOGGER.warning("Arduino framework deprecated in v4.3.22. Migrate to ESP-IDF: https://github.com/Blackymas/NSPanel_HA_Blueprint/blob/main/docs/customization.md#frameworks")
+
     if PSRAM_CLK_PIN in config:
         clk_pin = config[PSRAM_CLK_PIN]
 
