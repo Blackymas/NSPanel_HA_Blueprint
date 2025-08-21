@@ -3,28 +3,9 @@ name: Validate and Build ESPHome (Dev)
 
 # yamllint disable-line rule:truthy
 on:
-  push:
-    paths:
-      - "nspanel_esphome*.yaml"
-      - "esphome/nspanel_esphome*.yaml"
-      - "prebuilt/nspanel_esphome*.yaml"
-      - "prebuilt/wall_display*.yaml"
-      - ".test/*.yaml"
-      - "*.h"
-      - "*.c"
-      - "*.cpp"
-      - "*.py"
-  pull_request:
-    paths:
-      - "nspanel_esphome*.yaml"
-      - "esphome/nspanel_esphome*.yaml"
-      - "prebuilt/nspanel_esphome*.yaml"
-      - "prebuilt/wall_display*.yaml"
-      - ".test/*.yaml"
-      - "*.h"
-      - "*.c"
-      - "*.cpp"
-      - "*.py"
+  schedule:
+    # Run daily at 10:00 AM UTC
+    - cron: '0 10 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -32,28 +13,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Common setup and validation
   setup_dependencies:
     name: Setup & Cache Dependencies
     runs-on: ubuntu-latest
     outputs:
-      cache-hit-idf-v4: ${{ steps.cache-idf-v4.outputs.cache-hit }}
+      cache-hit-idf: ${{ steps.cache-idf.outputs.cache-hit }}
       cache-hit-arduino: ${{ steps.cache-arduino.outputs.cache-hit }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@main
 
-      - name: Cache ESP-IDF v4 Dependencies
-        id: cache-idf-v4
+      - name: Cache ESP-IDF Dependencies
+        id: cache-idf
         uses: actions/cache@main
         with:
           path: |
             ~/.esphome/cache
             ~/.platformio/packages
             ~/.platformio/platforms
-          key: ${{ runner.os }}-esp-idf-v4-${{ hashFiles('**/esphome_idf_basic.yaml') }}
+          key: ${{ runner.os }}-esp-idf-${{ hashFiles('**/esphome_idf_basic.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-esp-idf-v4-
+            ${{ runner.os }}-esp-idf-
 
       - name: Cache Arduino Dependencies
         id: cache-arduino
@@ -86,241 +68,251 @@ jobs:
       - name: Validate YAML files
         run: find . -name "*.yaml" -exec yamllint -c ./.rules/yamllint.yml {} +
 
-  build_cores:
-    name: Core
+  # ESP-IDF Framework Chain
+  build_idf_core:
+    name: ESP-IDF Core
     needs: [code_scan, setup_dependencies]
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - id: idf
-            yaml_file: ".test/esphome_idf_basic.yaml"
-            cache-hit: ${{ needs.setup_dependencies.outputs.cache-hit-idf-v4 }}
-          - id: ard
-            yaml_file: ".test/esphome_ard_basic.yaml"
-            cache-hit: ${{ needs.setup_dependencies.outputs.cache-hit-arduino }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@main
 
-      - name: Build Firmware
-        if: matrix.cache-hit != 'true'
+      - name: Build ESP-IDF Core Firmware
+        if: needs.setup_dependencies.outputs.cache-hit-idf != 'true'
         uses: esphome/build-action@main
         with:
-          yaml-file: ${{ matrix.yaml_file }}
+          yaml-file: ".test/esphome_idf_basic.yaml"
           version: dev
 
-  build_advanced:
-    name: Advanced
-    needs: build_cores
+  build_idf_advanced:
+    name: ESP-IDF Advanced
+    needs: build_idf_core
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - id: idf
-            base: idf
-            yaml-file: ".test/esphome_idf_advanced.yaml"
-          - id: ard
-            base: ard
-            yaml-file: ".test/esphome_ard_advanced.yaml"
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@main
 
-      - name: Build Advanced Firmware
+      - name: Build ESP-IDF Advanced Firmware
         uses: esphome/build-action@main
         with:
-          yaml-file: ${{ matrix.yaml-file }}
+          yaml-file: ".test/esphome_idf_advanced.yaml"
           version: dev
 
-  build_ble_tracker:
-    name: BLE Tracker
-    needs: build_cores
+  build_idf_ble_tracker:
+    name: ESP-IDF BLE Tracker
+    needs: build_idf_core
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - id: idf
-            base: idf
-            yaml-file: ".test/esphome_idf_ble_tracker.yaml"
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@main
 
-      - name: Build BLE Tracker Firmware
+      - name: Build ESP-IDF BLE Tracker Firmware
         uses: esphome/build-action@main
         with:
-          yaml-file: ${{ matrix.yaml-file }}
+          yaml-file: ".test/esphome_idf_ble_tracker.yaml"
           version: dev
 
-  build_bluetooth_proxy:
-    name: Bluetooth Proxy
-    needs: build_cores
+  build_idf_bluetooth_proxy:
+    name: ESP-IDF Bluetooth Proxy
+    needs: build_idf_core
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - id: idf
-            base: idf
-            yaml-file: ".test/esphome_idf_bluetooth_proxy.yaml"
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@main
 
-      - name: Build Bluetooth Proxy Firmware
+      - name: Build ESP-IDF Bluetooth Proxy Firmware
         uses: esphome/build-action@main
         with:
-          yaml-file: ${{ matrix.yaml-file }}
+          yaml-file: ".test/esphome_idf_bluetooth_proxy.yaml"
           version: dev
 
-  build_climate_cool:
-    name: Climate Cool
-    needs: build_cores
+  build_idf_climate_cool:
+    name: ESP-IDF Climate Cool
+    needs: build_idf_core
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - id: idf
-            base: idf
-            yaml-file: ".test/esphome_idf_climate_cool.yaml"
-          - id: ard
-            base: ard
-            yaml-file: ".test/esphome_ard_climate_cool.yaml"
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@main
 
-      - name: Build Climate Cool Firmware
+      - name: Build ESP-IDF Climate Cool Firmware
         uses: esphome/build-action@main
         with:
-          yaml-file: ${{ matrix.yaml-file }}
+          yaml-file: ".test/esphome_idf_climate_cool.yaml"
           version: dev
 
-  build_climate_heat:
-    name: Climate Heat
-    needs: build_cores
+  build_idf_climate_heat:
+    name: ESP-IDF Climate Heat
+    needs: build_idf_core
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - id: idf
-            base: idf
-            yaml-file: ".test/esphome_idf_climate_heat.yaml"
-          - id: ard
-            base: ard
-            yaml-file: ".test/esphome_ard_climate_heat.yaml"
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@main
 
-      - name: Build Climate Heat Firmware
+      - name: Build ESP-IDF Climate Heat Firmware
         uses: esphome/build-action@main
         with:
-          yaml-file: ${{ matrix.yaml-file }}
+          yaml-file: ".test/esphome_idf_climate_heat.yaml"
           version: dev
 
-  build_climate_dual:
-    name: Climate Dual
-    needs: build_cores
+  build_idf_climate_dual:
+    name: ESP-IDF Climate Dual
+    needs: build_idf_core
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - id: idf
-            base: idf
-            yaml-file: ".test/esphome_idf_climate_dual.yaml"
-          - id: ard
-            base: ard
-            yaml-file: ".test/esphome_ard_climate_dual.yaml"
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@main
 
-      - name: Build Climate Dual Firmware
+      - name: Build ESP-IDF Climate Dual Firmware
         uses: esphome/build-action@main
         with:
-          yaml-file: ${{ matrix.yaml-file }}
+          yaml-file: ".test/esphome_idf_climate_dual.yaml"
           version: dev
 
-  build_customizations:
-    name: Customizations
+  build_idf_cover:
+    name: ESP-IDF Cover
+    needs: build_idf_core
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Build ESP-IDF Cover Firmware
+        uses: esphome/build-action@main
+        with:
+          yaml-file: ".test/esphome_idf_cover.yaml"
+          version: dev
+
+  build_idf_customizations:
+    name: ESP-IDF Customizations
     needs:
-      - build_advanced
-      - build_climate_heat
+      - build_idf_advanced
+      - build_idf_climate_heat
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - id: idf
-            base: idf
-            yaml-file: ".test/esphome_idf_advanced_climate_heat_customizations.yaml"
-          - id: ard
-            base: ard
-            yaml-file: ".test/esphome_ard_advanced_climate_heat_customizations.yaml"
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@main
 
-      - name: Build Customizations Firmware
+      - name: Build ESP-IDF Customizations Firmware
         uses: esphome/build-action@main
         with:
-          yaml-file: ${{ matrix.yaml-file }}
+          yaml-file: ".test/esphome_idf_advanced_climate_heat_customizations.yaml"
           version: dev
 
-  build_climate_ble_proxy:
-    name: Climate Cool + Bluetooth Proxy
+  build_idf_climate_ble_proxy:
+    name: ESP-IDF Climate Cool + Bluetooth Proxy
     needs:
-      - build_climate_cool
-      - build_bluetooth_proxy
+      - build_idf_climate_cool
+      - build_idf_bluetooth_proxy
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - id: idf
-            base: idf
-            yaml-file: ".test/esphome_idf_climate_cool_bluetooth_proxy.yaml"
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@main
 
-      - name: Build Customizations Firmware
+      - name: Build ESP-IDF Climate Cool + BLE Proxy Firmware
         uses: esphome/build-action@main
         with:
-          yaml-file: ${{ matrix.yaml-file }}
+          yaml-file: ".test/esphome_idf_climate_cool_bluetooth_proxy.yaml"
           version: dev
 
-  build_cover:
-    name: Cover
-    needs:
-      - build_cores
+  # Arduino Framework Chain
+  build_arduino_core:
+    name: Arduino Core
+    needs: [code_scan, setup_dependencies]
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - id: idf
-            base: idf
-            yaml-file: ".test/esphome_idf_cover.yaml"
-          - id: ard
-            base: ard
-            yaml-file: ".test/esphome_ard_cover.yaml"
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@main
 
-      - name: Build Cover Firmware
+      - name: Build Arduino Core Firmware
+        if: needs.setup_dependencies.outputs.cache-hit-arduino != 'true'
         uses: esphome/build-action@main
         with:
-          yaml-file: ${{ matrix.yaml-file }}
+          yaml-file: ".test/esphome_ard_basic.yaml"
+          version: dev
+
+  build_arduino_advanced:
+    name: Arduino Advanced
+    needs: build_arduino_core
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Build Arduino Advanced Firmware
+        uses: esphome/build-action@main
+        with:
+          yaml-file: ".test/esphome_ard_advanced.yaml"
+          version: dev
+
+  build_arduino_climate_cool:
+    name: Arduino Climate Cool
+    needs: build_arduino_core
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Build Arduino Climate Cool Firmware
+        uses: esphome/build-action@main
+        with:
+          yaml-file: ".test/esphome_ard_climate_cool.yaml"
+          version: dev
+
+  build_arduino_climate_heat:
+    name: Arduino Climate Heat
+    needs: build_arduino_core
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Build Arduino Climate Heat Firmware
+        uses: esphome/build-action@main
+        with:
+          yaml-file: ".test/esphome_ard_climate_heat.yaml"
+          version: dev
+
+  build_arduino_climate_dual:
+    name: Arduino Climate Dual
+    needs: build_arduino_core
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Build Arduino Climate Dual Firmware
+        uses: esphome/build-action@main
+        with:
+          yaml-file: ".test/esphome_ard_climate_dual.yaml"
+          version: dev
+
+  build_arduino_cover:
+    name: Arduino Cover
+    needs: build_arduino_core
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Build Arduino Cover Firmware
+        uses: esphome/build-action@main
+        with:
+          yaml-file: ".test/esphome_ard_cover.yaml"
+          version: dev
+
+  build_arduino_customizations:
+    name: Arduino Customizations
+    needs:
+      - build_arduino_advanced
+      - build_arduino_climate_heat
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+
+      - name: Build Arduino Customizations Firmware
+        uses: esphome/build-action@main
+        with:
+          yaml-file: ".test/esphome_ard_advanced_climate_heat_customizations.yaml"
           version: dev
 ...
