@@ -571,6 +571,7 @@ Consequently, this project uses `esp-idf` as the default framework since `v4.3.0
 by adding the following lines in your panel's yaml file.~~
 
 #### Framework `esp-idf` (RECOMMENDED)
+
 ```yaml
 # Change framework to `esp-idf`
 # (should not be required as this is the default)
@@ -580,6 +581,7 @@ esp32:
 ```
 
 #### Framework `arduino` (DEPRECATED)
+
 > [!WARNING]
 > **DEPRECATED:** Arduino framework support is no longer maintained or tested. Migration to ESP-IDF is strongly recommended.
 
@@ -592,14 +594,7 @@ esp32:
 
 ### Logger via UART
 
-By default, the logging via hardware UART is disable in this project.
-You can enable it by setting the baud rate accordingly to your interface:
-
-```yaml
-# Enable hardware UART serial logging
-logger:
-  baud_rate: 115200
-```
+By default, the logging via hardware UART is enabled in this project since v4.3.22.
 
 ### Climate custom presets
 

@@ -1,10 +1,12 @@
+# v4.3.22 - Release notes
+
 ## ⚠️ Breaking Changes
 
 ### Arduino Framework Support Deprecated
 
 **Arduino framework support has been officially deprecated and is no longer tested in production builds.**
 
-#### What This Means
+#### Impact
 - **ESP-IDF is now the only officially supported framework** for this project
 - Arduino framework builds may still work but are **not guaranteed**
 - **No bug fixes or support** will be provided for Arduino framework issues
@@ -47,8 +49,8 @@ If you're currently using Arduino framework:
 
 **The `beta` branch has been discontinued as it was not being used for its intended purpose.**
 
-#### What This Means
-- **The `beta` branch will no longer be updated** and is considered deprecated
+#### Key Changes
+- **The `beta` branch will be deleted** and is no longer available
 - Users referencing `ref: beta` in their configurations will need to update their references
 - **Two supported branches remain:** `main` (stable) and `dev` (bleeding edge)
 
