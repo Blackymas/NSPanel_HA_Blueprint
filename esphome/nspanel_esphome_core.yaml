@@ -23,9 +23,9 @@ substitutions:
   GPIO_RELAY_2_PIN: 19
   GPIO_TEMPERATURE_ADC_PIN: 38
 
-  DELAY_DEFAULT: 50  # delay in msec
-  DELAY_LONG: 250    # delay in msec
-  DELAY_SHORT: 10    # delay in msec
+  DELAY_DEFAULT: 10  # delay in msec
+  DELAY_LONG: 50     # delay in msec
+  DELAY_SHORT: 1     # delay in msec
   ##############################
   ## Do not change            ##
   TAG_CORE: "nspanel.core"
@@ -962,10 +962,11 @@ text_sensor:
           x.shrink_to_fit();
           return x;
     on_value:
-      lambda: |-
-        if (is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags)) {
-          page_changed->execute();
-        }
+      - if:
+          condition:
+            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+          then:
+            - script.execute: page_changed
 
   - id: notification_label
     name: Notification Label
@@ -1905,6 +1906,8 @@ script:
     parameters:
       page_number: uint
     then:  # There's nothing here so far
+      - lambda: |-
+          ESP_LOGD("script.page_buttonpage", "This page is constructed by the Blueprint");
   - id: page_buttonpage01
     mode: single
     then:
@@ -1940,8 +1943,10 @@ script:
       # Stop if page is empty
       - if:
           condition:
-            - lambda: return (current_page->state.empty());
+            - lambda: return current_page->state.empty();
           then:
+            - lambda: |-
+                ESP_LOGE("script.page_changed", "No page to open - Fallback to boot");
             - script.execute:
                 id: goto_page
                 page: boot
@@ -1949,6 +1954,7 @@ script:
 
       # Reset globals
       - lambda: |-
+          ESP_LOGD("script.page_changed", "Reset globals");
           if (current_page->state != "alarm" &&
               current_page->state != "climate" &&
               current_page->state != "cover" &&
@@ -1975,6 +1981,8 @@ script:
                 ESP_LOGD("script.page_changed", "Entity shown: %s", detailed_entity->state.c_str());
 
       # Update buttons bars on screen
+      - lambda: |-
+          ESP_LOGD("script.page_changed", "Update buttons bars on screen");
       - script.execute:
           id: refresh_hardware_buttons_bars
           button_mask: 3
@@ -1987,9 +1995,15 @@ script:
                 id: current_page
                 state: screensaver
           then:
+            - delay: ${DELAY_DEFAULT}ms
+            - lambda: |-
+                ESP_LOGD("script.page_changed", "Reset timers");
             - script.execute: timer_reset_all
 
-      # Report new page to Home Assistant
+      # Report new page to Blueprint
+      - delay: ${DELAY_DEFAULT}ms
+      - lambda: |-
+          ESP_LOGD("script.page_changed", "Report new page to Blueprint");
       - homeassistant.event:
           event: esphome.nspanel_ha_blueprint
           data:
@@ -2000,6 +2014,9 @@ script:
             entity: !lambda return detailed_entity->state.c_str();
 
       # Call page constructor
+      - delay: ${DELAY_DEFAULT}ms
+      - lambda: |-
+          ESP_LOGD("script.page_changed", "Call page constructor");
       - lambda: |-
           if (current_page->state == "alarm") page_alarm->execute();
           else if (current_page->state == "blank") page_blank->execute();
@@ -2033,6 +2050,8 @@ script:
 
       # Update buttons bars on screen
       - delay: 1s
+      - lambda: |-
+          ESP_LOGD("script.page_changed", "Update buttons bars on screen");
       - script.execute:
           id: refresh_hardware_buttons_bars
           button_mask: 3
@@ -2550,6 +2569,7 @@ script:
     mode: single
     then:
       - script.stop: check_versions
+      - script.stop: page_changed
       - script.stop: wait_for_api
       - script.stop: wait_for_blueprint
       - script.stop: wait_for_uart_available
@@ -2573,7 +2593,6 @@ script:
           page_buttonpage04->stop();
           page_buttonpage->stop();
           page_climate->stop();
-          page_changed->stop();
           page_confirm->stop();
           page_cover->stop();
           page_entitypage01->stop();
