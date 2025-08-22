@@ -17,7 +17,7 @@ substitutions:
   project_tag: nspanel_ha_blueprint
   ##############################
   BOOT_STEP_BASE: '0'
-  TAG_BASE: nspanel_ha_blueprint.base
+  TAG_BASE: nspanel.base
   GPIO_PSRAM_CLK_PIN: '5'
   GPIO_PSRAM_CS_PIN: '18'
 
@@ -44,7 +44,17 @@ esphome:
     build_flags:
       - -Wno-missing-field-initializers
       - -D NSPANEL_HA_BLUEPRINT_CORE_BASE
-  min_version: 2025.7.0
+  min_version: 2025.8.0
+  on_boot:
+    then:
+      - if:
+          condition:
+            - switch.is_off: screen_power
+          then:
+            - switch.turn_on: screen_power
+  on_shutdown:
+    then:
+      - switch.turn_off: screen_power
 
 external_components:
   - source:
@@ -58,8 +68,6 @@ external_components:
 logger:
 
 nspanel_ha_blueprint:  # Adds custom library for NSPanel HA Blueprint project
-  psram_clk_pin: ${GPIO_PSRAM_CLK_PIN}
-  psram_cs_pin: ${GPIO_PSRAM_CS_PIN}
 
 ota:
   - id: ota_std
@@ -74,10 +82,34 @@ script:
   - id: dump_config
     mode: restart
     then:
-      - delay: 10s
+      - delay: 5s
+
+  - id: report_device_not_available
+    mode: single
+    parameters:
+      request: string
+    then:
+      - lambda: |-
+          std::string blocking_flags = "";
+          if (is_system_flag_set(system_flags, NSPanelFlag::OTA_IN_PROGRESS)) {
+            if (!blocking_flags.empty()) blocking_flags += ", ";
+            blocking_flags += "OTA";
+          }  // if OTA in progress
+          if (is_system_flag_set(system_flags, NSPanelFlag::TFT_UPLOAD_ACTIVE)) {
+            if (!blocking_flags.empty()) blocking_flags += ", ";
+            blocking_flags += "TFT_UPLOAD";
+          }  // if TFT upload active
+          if (is_system_flag_set(system_flags, NSPanelFlag::SAFE_MODE_ACTIVE)) {
+            if (!blocking_flags.empty()) blocking_flags += ", ";
+            blocking_flags += "SAFE_MODE";
+          }  // if safe mode active
+
+          ESP_LOGW("${TAG_BASE}", "Device not available - cannot handle '%s' request (blocking: %s)",
+                                  request.c_str(), blocking_flags.c_str());
 
   - id: stop_all
     mode: restart
     then:
       - script.stop: dump_config
+      - script.stop: report_device_not_available
 ...

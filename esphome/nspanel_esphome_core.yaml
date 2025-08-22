@@ -12,42 +12,24 @@ substitutions:
   temp_units: "°C"
   invalid_cooldown: "100ms"
   bytes_per_char: "1"
-  ##############################
-
-  ##### DON'T CHANGE THIS ######
-  NSPANEL_HA_BLUEPRINT_CORE: "true"
-  NSPANEL_HA_BLUEPRINT_ADVANCED: "false"
-  NSPANEL_HA_BLUEPRINT_ADDON_BLE_TRACKER: "false"
-  NSPANEL_HA_BLUEPRINT_ADDON_BLUETOOTH_PROXY: "false"
-  NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT: "false"
-  NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_BASE: "false"
-  NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL: "false"
-  NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL: "false"
-  NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT: "false"
-  NSPANEL_HA_BLUEPRINT_PREBUILT: "false"
-  NSPANEL_HA_BLUEPRINT_PREBUILT_WALL_DISPLAY: "false"
-  ##############################
-  TAG_CORE: "nspanel.core"
   BAUD_RATE: '115200'
-  GPIO_BUTTON_LEFT_PIN: '14'
-  GPIO_BUTTON_LEFT_INVERTED: 'true'
-  GPIO_BUTTON_RIGHT_PIN: '27'
-  GPIO_BUTTON_RIGHT_INVERTED: 'true'
-  GPIO_DISPLAY_POWER_PIN: '4'
-  GPIO_DISPLAY_POWER_INVERTED: 'true'
-  GPIO_DISPLAY_NEXTION_TX_PIN: '16'
-  GPIO_DISPLAY_NEXTION_RX_PIN: '17'
-  GPIO_BUZZER_OUTPUT_PIN: '21'
-  GPIO_BUZZER_OUTPUT_INVERTED: 'false'
-  GPIO_RELAY_1_PIN: '22'
-  GPIO_RELAY_1_INVERTED: 'false'
-  GPIO_RELAY_2_PIN: '19'
-  GPIO_RELAY_2_INVERTED: 'false'
-  GPIO_TEMPERATURE_ADC_PIN: '38'
+  GPIO_DISPLAY_POWER_PIN:
+    number: 4
+    inverted: true
+  GPIO_DISPLAY_NEXTION_TX_PIN: 16
+  GPIO_DISPLAY_NEXTION_RX_PIN: 17
+  GPIO_BUZZER_OUTPUT_PIN: 21
+  GPIO_RELAY_1_PIN: 22
+  GPIO_RELAY_2_PIN: 19
+  GPIO_TEMPERATURE_ADC_PIN: 38
 
   DELAY_DEFAULT: 50  # delay in msec
   DELAY_LONG: 250    # delay in msec
   DELAY_SHORT: 10    # delay in msec
+  ##############################
+  ## Do not change            ##
+  TAG_CORE: "nspanel.core"
+  ##############################
 
 packages:
   # yamllint disable rule:colons
@@ -69,7 +51,7 @@ esphome:
   on_boot:
     - priority: 1000.0  # This is where most sensors are set up.
       then:
-        - lambda: set_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI);
+        - lambda: set_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
         - sensor.template.publish:
             id: blueprint_status
             state: 0
@@ -106,11 +88,11 @@ wifi:
       password: ${wifi_password}
   on_connect:
     then:
-      - lambda: set_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI);
+      - lambda: set_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
       - script.execute: refresh_wifi_icon
   on_disconnect:
     then:
-      - lambda: clear_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI);
+      - lambda: clear_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
       - script.execute: refresh_wifi_icon
 
 ##### ENABLE RINGTONE MUSIC SUPPORT #####
@@ -123,9 +105,7 @@ output:
   ##### BUZZER FOR PLAYING RINGTONES #####
   - id: buzzer_out
     platform: ledc
-    pin:
-      number: ${GPIO_BUZZER_OUTPUT_PIN}
-      inverted: ${GPIO_BUZZER_OUTPUT_INVERTED}
+    pin: ${GPIO_BUZZER_OUTPUT_PIN}
 
 ##### UART FOR NEXTION DISPLAY #####
 uart:
@@ -143,7 +123,7 @@ display:
     uart_id: tf_uart
     on_setup:
       - lambda: |-
-          set_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::NEXTION);
+          set_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::NEXTION_READY);
       - binary_sensor.template.publish:
           id: nextion_init
           state: true
@@ -151,7 +131,7 @@ display:
     on_page:
       - if:
           condition:
-            - lambda: return !id(is_uploading_tft);
+            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
             - or:
                 - lambda: return (x == 9);
                 - lambda: return (current_page->state != page_names[x]);
@@ -164,7 +144,7 @@ display:
       - script.execute: timer_reset_all
       - if:
           condition:
-            - lambda: return !id(is_uploading_tft);
+            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
             - lambda: return (!touch_event);  // Only act with release
           then:
             - if:
@@ -251,6 +231,11 @@ globals:
     restore_value: true
     initial_value: 'true'
 
+  - id: set_climate_use_decimal
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+
   - id: mui_bytes_per_char
     type: uint8_t
     restore_value: true
@@ -288,12 +273,6 @@ globals:
     type: uint16_t
     restore_value: true
     initial_value: '65535'
-
-  ##### Is uploading TFT #####
-  - id: is_uploading_tft
-    type: bool
-    restore_value: false
-    initial_value: 'false'
 
   ##### Media Player #####
   ###### Last volume level from Home Assistant ######
@@ -398,11 +377,10 @@ binary_sensor:
     device_class: connectivity
     entity_category: diagnostic
     icon: mdi:tablet-dashboard
-    lambda: |-
-      return (!id(is_uploading_tft) and disp1->is_setup());
+    lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
     on_release:
       then:
-        - lambda: clear_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::NEXTION);
+        - lambda: clear_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::NEXTION_READY);
 
 ##### START - BUTTON CONFIGURATION #####
 button:
@@ -681,19 +659,19 @@ sensor:
         - if:
             condition:
               - lambda: return (x == 100);
-              - lambda: return !is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT);
+              - lambda: return !is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
             then:
               - lambda: |-
-                  set_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT);
+                  set_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
               - script.execute: refresh_wifi_icon
             else:
               - if:
                   condition:
                     - lambda: return (x != 100);
-                    - lambda: return is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT);
+                    - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
                   then:
                     - lambda: |-
-                        clear_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT);
+                        clear_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
                     - script.execute: refresh_wifi_icon
 
   ##### INTERNAL TEMPERATURE SENSOR, ADC VALUE #####
@@ -850,9 +828,7 @@ switch:
   - name: Relay 1
     platform: gpio
     id: relay_1
-    pin:
-      number: ${GPIO_RELAY_1_PIN}
-      inverted: ${GPIO_RELAY_1_INVERTED}
+    pin: ${GPIO_RELAY_1_PIN}
     restore_mode: RESTORE_DEFAULT_OFF
     on_turn_on:
       then:
@@ -880,9 +856,7 @@ switch:
   - name: Relay 2
     platform: gpio
     id: relay_2
-    pin:
-      number: ${GPIO_RELAY_2_PIN}
-      inverted: ${GPIO_RELAY_2_INVERTED}
+    pin: ${GPIO_RELAY_2_PIN}
     restore_mode: RESTORE_DEFAULT_OFF
     on_turn_on:
       then:
@@ -912,9 +886,7 @@ switch:
     platform: gpio
     id: screen_power
     entity_category: diagnostic
-    pin:
-      number: 4
-      inverted: true
+    pin: ${GPIO_DISPLAY_POWER_PIN}
     restore_mode: ALWAYS_ON
     internal: true
     disabled_by_default: false
@@ -991,7 +963,7 @@ text_sensor:
           return x;
     on_value:
       lambda: |-
-        if (!id(is_uploading_tft)) {
+        if (is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags)) {
           page_changed->execute();
         }
 
@@ -1177,7 +1149,7 @@ script:
       value: string
     then:
       - lambda: |-
-          if (!id(is_uploading_tft)) {
+          if (is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags)) {
             if (not embedded) {
               if (key == "temperature" or key == "target_temp_high" or key == "target_temp_low")
                 ha_call_action->execute("climate.set_temperature", key.c_str(), to_string(stof(value) / 10), detailed_entity->state.c_str());
@@ -1186,54 +1158,51 @@ script:
             }
           }
 
-  - id: check_version_tft
-    mode: single
-    then:
-      - delay: 5s
-      - lambda: |-
-          version_tft->update();
-
   - id: check_versions
     mode: single
     then:
       - if:
           condition:
-            - lambda: return !id(is_uploading_tft);
+            - lambda: return !is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
           then:
-            - delay: 5s
+            - script.stop: check_versions
+      - delay: 5s
+      - script.execute: wait_for_versions
+      - script.wait: wait_for_versions
+      - lambda: |-
+          ESP_LOGD("${TAG_CORE}", "Versions:");
+          ESP_LOGD("${TAG_CORE}", "  Blueprint: %s", version_blueprint->state.c_str());
+          ESP_LOGD("${TAG_CORE}", "  ESPHome:   ${version}");
+          ESP_LOGD("${TAG_CORE}", "  TFT:       %s", version_tft->state.c_str());
+      - if:
+          condition:
+            - not:
+                - text_sensor.state:
+                    id: version_blueprint
+                    state: ${version}
+          then:
             - lambda: |-
-                for (uint8_t i = 0; i < 60; i++) {
-                  if (compare_versions("${version}", version_tft->state.c_str()) and compare_versions("${version}", version_blueprint->state.c_str()))
-                    break;
-                  delay(1000);
-                  App.feed_wdt();
-                }
-            - if:
-                condition:
-                  - lambda: return id(is_uploading_tft);
-                then:
-                  - logger.log: Version check stopped as a TFT upload was requested
-                else:
-                  - lambda: |-
-                      ESP_LOGD("${TAG_CORE}", "Versions:");
-                      ESP_LOGD("${TAG_CORE}", "  TFT:       %s", version_tft->state.c_str());
-                      ESP_LOGD("${TAG_CORE}", "  ESPHome:   ${version}");
-                      if (not compare_versions("${version}", version_tft->state.c_str()))
-                        ESP_LOGE("${TAG_CORE}", "TFT version mismatch!");
-                      ESP_LOGD("${TAG_CORE}", "  Blueprint: %s", version_blueprint->state.c_str());
-                      if (not compare_versions("${version}", version_blueprint->state.c_str()))
-                        ESP_LOGE("${TAG_CORE}", "Blueprint version mismatch!");
-                  - delay: 1s
-                  - homeassistant.event:
-                      event: esphome.nspanel_ha_blueprint
-                      data:
-                        device_name: !lambda return device_name->state.c_str();
-                        esphome_version: ${version}
-                        type: version
-                        tft: !lambda return version_tft->state.c_str();
-                        esphome: ${version}
-                        blueprint: !lambda return version_blueprint->state.c_str();
-                  - logger.log: Check version completed
+                ESP_LOGE("${TAG_CORE}", "Blueprint version mismatch!");
+      - if:
+          condition:
+            - not:
+                - text_sensor.state:
+                    id: version_tft
+                    state: ${version}
+          then:
+            - lambda: |-
+                ESP_LOGE("${TAG_CORE}", "TFT version mismatch!");
+      - delay: 1s
+      - homeassistant.event:
+          event: esphome.nspanel_ha_blueprint
+          data:
+            device_name: !lambda return device_name->state.c_str();
+            esphome_version: ${version}
+            type: version
+            tft: !lambda return version_tft->state.c_str();
+            esphome: ${version}
+            blueprint: !lambda return version_blueprint->state.c_str();
+      - logger.log: Check version completed
 
   - id: display_embedded_temp
     mode: single
@@ -1242,8 +1211,8 @@ script:
           condition:
             - or:
                 - lambda: return id(embedded_indoor_temp);
-                - lambda: return !is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::API);
-                - lambda: return !is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI);
+                - lambda: return !is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::API_READY);
+                - lambda: return !is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
           then:
             - lambda: |-
                 static const std::string temp_units = "${temp_units}";
@@ -1348,7 +1317,7 @@ script:
     then:
       # Report Wi-Fi status
       - lambda: |-
-          if (is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI)) {
+          if (is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY)) {
             float rssi = wifi_rssi->state;
             const char *rssi_status = "Unknown"; // Use const char* to avoid dynamic memory allocation
             if (rssi > -50) rssi_status = "Excellent";
@@ -1366,17 +1335,17 @@ script:
 
       # Report API status
       - lambda: |-
-          if (!are_all_boot_flags_set(nspanel_ha_blueprint::boot_flags, {BootFlag::WIFI, BootFlag::API}))
+          if (!are_all_system_flags_set(nspanel_ha_blueprint::system_flags, {NSPanelFlag::WIFI_READY, NSPanelFlag::API_READY}))
             blueprint_status->publish_state(0);
 
           // Report blueprint version
           ESP_LOGCONFIG("nspanel_ha_blueprint", "Blueprint:");
-          if (is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT)) {
+          if (is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY)) {
             ESP_LOGCONFIG("nspanel_ha_blueprint", "  Version:     %s", version_blueprint->state.c_str());
             ESP_LOGCONFIG("nspanel_ha_blueprint", "  Init steps:  %i (%0.1f%%)", int(blueprint_status->raw_state), blueprint_status->state);
           } else {
             ESP_LOGW("nspanel_ha_blueprint", "  Init steps:  %i (%0.1f%%)", int(blueprint_status->raw_state), blueprint_status->state);
-            ESP_LOGW("nspanel_ha_blueprint", "  State:       %s", (are_all_boot_flags_set(nspanel_ha_blueprint::boot_flags, {BootFlag::WIFI, BootFlag::API}))
+            ESP_LOGW("nspanel_ha_blueprint", "  State:       %s", (are_all_system_flags_set(nspanel_ha_blueprint::system_flags, {NSPanelFlag::WIFI_READY, NSPanelFlag::API_READY}))
                                                                   ? "Pending" : "DISCONNECTED");
             ESP_LOGCONFIG("nspanel_ha_blueprint", "Requesting blueprint settings");
             boot_event->execute(false);
@@ -1435,7 +1404,7 @@ script:
       # Report Nextion status
       - binary_sensor.template.publish:
           id: nextion_init
-          state: !lambda return (!id(is_uploading_tft) and nextion_init->state and disp1->is_setup());
+          state: !lambda return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
       - lambda: |-
           ESP_LOGCONFIG("nspanel_ha_blueprint", "Nextion:");
           ESP_LOGCONFIG("nspanel_ha_blueprint", "  Queue size:  %d", disp1->queue_size());
@@ -1540,8 +1509,8 @@ script:
           disp1->set_component_text_printf("ver_blueprint", "Blueprint: %s", blueprint_version.c_str());
       - lambda: |-
           ESP_LOGD("script.global_settings", "Checking versions");
-      #- delay: ${DELAY_DEFAULT}ms
-      #- script.execute: check_versions
+      - delay: ${DELAY_DEFAULT}ms
+      - script.execute: check_versions
 
       # MUI strings
       - lambda: |-
@@ -1703,17 +1672,12 @@ script:
           category: Boot
           log_message: "Waiting for Wi-Fi"
       - delay: ${DELAY_DEFAULT}ms
-      - lambda: |-
-          for (uint8_t i = 0; i < 10; i++) {
-            if (is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI))
-              break;
-            delay(1000);
-            App.feed_wdt();
-          }
+      - script.execute: wait_for_wifi
+      - script.wait: wait_for_wifi
       - if:
           condition:
             - lambda: |-
-                return !is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI);
+                return !is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
           then:
             - script.execute:
                 id: boot_log
@@ -1741,21 +1705,12 @@ script:
                   - script.execute:
                       id: set_brightness
                       brightness: 100
-            - script.execute:
-                id: boot_log
-                category: Boot
-                log_message: "Waiting for API"
-            - lambda: |-
-                for (uint8_t i = 0; i < 10; i++) {
-                  if (is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::API))
-                    break;
-                  delay(1000);
-                  App.feed_wdt();
-                }
+            - script.execute: wait_for_api
+            - script.wait: wait_for_api
             - if:
                 condition:
                   - lambda: |-
-                      return !is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::API);
+                      return !is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::API_READY);
                 then:
                   - delay: ${DELAY_DEFAULT}ms
                   - script.execute:
@@ -1807,7 +1762,7 @@ script:
       - if:
           condition:
             - lambda: |-
-                return is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::API);
+                return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::API_READY);
             - lambda: return disp1->is_setup();
           then:
             - delay: ${DELAY_DEFAULT}ms
@@ -1829,7 +1784,7 @@ script:
       # Wait for a response from the blueprint
       - if:
           condition:
-            - lambda: return not is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT);
+            - lambda: return not is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
           then:
             - delay: ${DELAY_DEFAULT}ms
             - script.execute:
@@ -1839,7 +1794,7 @@ script:
             - script.wait: wait_for_blueprint
             - if:
                 condition:
-                  - lambda: return is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT);
+                  - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
                 then:
                   - delay: ${DELAY_DEFAULT}ms
                   - script.execute:
@@ -1901,13 +1856,12 @@ script:
           id: boot_log
           category: Boot
           log_message: "Wait to finish"
-      - lambda: |-
-          for (uint8_t i = 0; i < 10; i++) {
-            if (are_all_boot_flags_set(nspanel_ha_blueprint::boot_flags, {BootFlag::WIFI, BootFlag::API, BootFlag::BLUEPRINT}))
-              break;
-            delay(1000);
-            App.feed_wdt();
-          }
+      - script.execute: wait_for_wifi
+      - script.execute: wait_for_api
+      - script.execute: wait_for_blueprint
+      - script.wait: wait_for_wifi
+      - script.wait: wait_for_api
+      - script.wait: wait_for_blueprint
       - script.execute:
           id: boot_progress
           step: 9
@@ -2091,7 +2045,7 @@ script:
     mode: single
     then:
       - lambda: |-
-          if (!id(is_uploading_tft))
+          if (is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags))
             display_wrapped_text->execute("confirm.title", id(mui_please_confirm_global).c_str(), 15);
 
   - id: page_cover
@@ -2165,7 +2119,12 @@ script:
     then:
       - lambda: |-
           disp1->set_component_text("notification.notifi_label", notification_label->state.c_str());
-          display_wrapped_text->execute("notification.notifi_text01", notification_text->state.c_str(), display_mode->state == 2 ? 23 : 32);
+      - script.execute:
+          id: display_wrapped_text
+          component: "notification.notifi_text01"
+          text_to_display: !lambda return notification_text->state;
+          line_length_limit: !lambda |-
+                                return display_mode->state == 2 ? 23 : 32;
 
   - id: page_qrcode
     mode: single
@@ -2174,24 +2133,42 @@ script:
   - id: page_screensaver
     mode: single
     then:
-      - lambda: |-
-          if (current_page->state == "screensaver" and !id(is_uploading_tft)) {
-            disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
-            if (id(screensaver_display_time)) {
-              disp1->set_component_font("screensaver.text", id(screensaver_display_time_font));
-              disp1->set_component_font_color("screensaver.text", id(screensaver_display_time_color));
-              set_component_visibility->execute("screensaver.text", true);
-              refresh_datetime->execute();
-            }
-            set_brightness->execute(display_sleep_brightness->state);
-          }
+      - if:
+          condition:
+            - lambda: return not is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::TFT_UPLOAD_ACTIVE);
+            - text_sensor.state:
+                id: current_page
+                state: screensaver
+          then:
+            - lambda: |-
+                disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
+            - if:
+                condition:
+                  - lambda: return id(screensaver_display_time);
+                then:
+                  - lambda: |-
+                      disp1->set_component_font("screensaver.text", id(screensaver_display_time_font));
+                      disp1->set_component_font_color("screensaver.text", id(screensaver_display_time_color));
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: "screensaver.text"
+                      show: true
+                  - script.execute: refresh_datetime
+            - script.execute:
+                id: set_brightness
+                brightness: !lambda return int(display_sleep_brightness->state);
 
   - id: page_settings
     mode: single
     then:
-      - lambda: |-
-          set_component_visibility->execute("page_settings.lbl_sleep", false);
-          set_component_visibility->execute("page_settings.bt_sleep", false);
+      - script.execute:
+          id: set_component_visibility
+          component_id: "page_settings.lbl_sleep"
+          show: false
+      - script.execute:
+          id: set_component_visibility
+          component_id: "page_settings.bt_sleep"
+          show: false
 
   - id: page_utilities
     mode: single
@@ -2241,7 +2218,7 @@ script:
     then:
       - if:
           condition:
-            - lambda: return !id(is_uploading_tft);
+            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
           then:
             # Chip - Relay 1
             - if:
@@ -2263,20 +2240,20 @@ script:
     then:
       - if:
           condition:
-            - lambda: return !id(is_uploading_tft);
+            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
           then:
             - lambda: |-
                 disp1->send_command_printf("api=%i",
-                          are_all_boot_flags_set(nspanel_ha_blueprint::boot_flags, {BootFlag::WIFI, BootFlag::API, BootFlag::BLUEPRINT})
+                          are_all_system_flags_set(nspanel_ha_blueprint::system_flags, {NSPanelFlag::WIFI_READY, NSPanelFlag::API_READY, NSPanelFlag::BLUEPRINT_READY})
                           ? 1 : 0);
                 // Update Wi-Fi icon color
-                disp1->set_component_font_color("home.wifi_icon", (is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT)) ?
+                disp1->set_component_font_color("home.wifi_icon", (is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY)) ?
                                                                   (wifi_rssi->state > -70 ? 33808 : 64992) : 63488);
                 // Update Wi-Fi icon
                 disp1->set_component_text("home.wifi_icon",
-                                          is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::WIFI) ?
-                                            (is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::API) ?
-                                              ((is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT)) ?
+                                          is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY) ?
+                                            (is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::API_READY) ?
+                                              ((is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY)) ?
                                                 "\uE5A8" :  // mdi:wifi - All right!
                                               "\uE7CF") :   // mdi:home-assistant - Blueprint is out
                                             "\uF256") :     // mdi:api-off
@@ -2336,7 +2313,7 @@ script:
           condition:
             - lambda: return !isnan(target_baud_rate);
           then:
-            - lambda: set_boot_flag(nspanel_ha_blueprint::boot_flags, BootFlag::BAUD_RATE);
+            - lambda: set_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::BAUD_RATE_SET);
       - if:
           condition:
             - lambda: return (tf_uart->get_baud_rate() != target_baud_rate);
@@ -2344,24 +2321,14 @@ script:
             - lambda: |-
                 ESP_LOGD("script.set_baud_rate", "Baud rate changing from %" PRIu32 " to %" PRIu32 " bps", tf_uart->get_baud_rate(), target_baud_rate);
                 ESP_LOGD("script.set_baud_rate", "Flush UART");
-            - lambda: |-
-                for (uint8_t i = 0; i < 5; i++) {
-                  if (tf_uart->available() < 1)
-                    break;
-                  delay(1000);
-                  App.feed_wdt();
-                }
+            - script.execute: wait_for_uart_available
+            - script.wait: wait_for_uart_available
             - lambda: |-
                 ESP_LOGD("script.set_baud_rate", "Sending instruction '%s=%" PRIu32 "' to Nextion", definitive ? "bauds" : "baud", target_baud_rate);
                 disp1->send_command_printf("%s=%" PRIu32, definitive ? "bauds" : "baud", target_baud_rate);
                 ESP_LOGD("script.set_baud_rate", "Flush UART");
-            - lambda: |-
-                for (uint8_t i = 0; i < 5; i++) {
-                  if (tf_uart->available() < 1)
-                    break;
-                  delay(1000);
-                  App.feed_wdt();
-                }
+            - script.execute: wait_for_uart_available
+            - script.wait: wait_for_uart_available
             - lambda: |-
                 ESP_LOGD("script.set_baud_rate", "Set ESPHome new baud rate to %" PRIu32 " bps", target_baud_rate);
                 tf_uart->set_baud_rate(target_baud_rate);
@@ -2374,7 +2341,7 @@ script:
       brightness: float
     then:
       - lambda: |-
-          if (id(is_uploading_tft))
+          if (is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags))
             return;
           disp1->set_backlight_brightness(brightness / 100.0f);
           current_brightness->update();
@@ -2393,72 +2360,180 @@ script:
       climate_icon: string
       embedded_climate: bool
     then:
-      - lambda: |-
-          if (!id(is_uploading_tft) and current_page->state == "climate") {
-            bool useDecimal = (temp_step % 10 != 0);
-            char buffer[15];
-            disp1->send_command_printf("climateslider.maxval=%i", total_steps);
-            disp1->send_command_printf("slider_high.maxval=%i", total_steps);
-            disp1->send_command_printf("slider_low.maxval=%i", total_steps);
-            disp1->set_component_value("temp_offset", temp_offset);
-            disp1->set_component_value("temp_step", temp_step);
-            char dec_separator_str[2] = {id(mui_decimal_separator), '\0'};
-            disp1->set_component_text("dec_separator", dec_separator_str);
-            set_component_visibility->execute("current_temp", true);
-            if (current_temp > -999) {
-              snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", current_temp);
-              disp1->set_component_text("current_temp", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-            }
-            else
-              disp1->set_component_text("current_temp", id(mui_unavailable_global).c_str());
-
-            if (target_temp > -999) {  // Target temp enabled
-              disp1->set_component_value("active_slider", 0);
-              snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", target_temp);
-              disp1->set_component_text("target_high", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-              disp1->set_component_value("climateslider", round(((10*target_temp) - temp_offset) / temp_step));
-              set_component_visibility->execute("slider_high", false);
-              set_component_visibility->execute("slider_low", false);
-              set_component_visibility->execute("target_low", false);
-              set_component_visibility->execute("target_high", true);
-              set_component_visibility->execute("climateslider", true);
-            } else {
-              set_component_visibility->execute("climate.slider_high", false);
-              if (target_temp_low > -999) {  // Target temp low enabled
-                disp1->set_component_value("active_slider", 2);
-                snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", target_temp_low);
-                disp1->set_component_text("target_low", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-                disp1->set_component_value("slider_low", round(((10*target_temp_low) - temp_offset) / temp_step));
-                set_component_visibility->execute("target_low", true);
-                set_component_visibility->execute("slider_low", true);
-              } else {
-                set_component_visibility->execute("target_low", false);
-                set_component_visibility->execute("slider_low", false);
-              }
-              if (target_temp_high > -999) {  // Target temp high enabled
-                disp1->set_component_value("active_slider", 1);
-                snprintf(buffer, sizeof(buffer), (useDecimal) ? "%.1f°" : "%.0f°", target_temp_high);
-                disp1->set_component_text("target_high", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
-                disp1->set_component_value("slider_high", round(((10*target_temp_high) - temp_offset) / temp_step));
-                set_component_visibility->execute("target_high", true);
-                set_component_visibility->execute("slider_high", true);
-              } else {
-                set_component_visibility->execute("target_high", false);
-                set_component_visibility->execute("slider_high", false);
-              }
-            }
-            if (target_temp > -999 or target_temp_high > -999 or target_temp_low > -999) {
-              disp1->set_component_text("target_icon", climate_icon.c_str());
-              set_component_visibility->execute("target_icon", true);
-              set_component_visibility->execute("decrease_temp", true);
-              set_component_visibility->execute("increase_temp", true);
-            } else {
-              set_component_visibility->execute("target_icon", false);
-              set_component_visibility->execute("decrease_temp", false);
-              set_component_visibility->execute("increase_temp", false);
-            }
-            disp1->set_component_value("embedded", (embedded_climate) ? 1 : 0);
-          }
+      - if:
+          condition:
+            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+            - text_sensor.state:
+                id: current_page
+                state: climate
+          then:
+            - lambda: |-
+                disp1->send_command_printf("climateslider.maxval=%i", total_steps);
+                disp1->send_command_printf("slider_high.maxval=%i", total_steps);
+                disp1->send_command_printf("slider_low.maxval=%i", total_steps);
+                disp1->set_component_value("temp_offset", temp_offset);
+                disp1->set_component_value("temp_step", temp_step);
+                char dec_separator_str[2] = {id(mui_decimal_separator), '\0'};
+                disp1->set_component_text("dec_separator", dec_separator_str);
+            - delay: ${DELAY_DEFAULT}ms
+            - script.execute:
+                id: set_component_visibility
+                component_id: current_temp
+                show: true
+            - delay: ${DELAY_DEFAULT}ms
+            - globals.set:
+                id: set_climate_use_decimal
+                value: !lambda return (temp_step % 10 != 0);
+            - delay: ${DELAY_DEFAULT}ms
+            - if:
+                condition:
+                  - lambda: return (current_temp > -999);
+                then:
+                  - lambda: |-
+                      char buffer[15];
+                      snprintf(buffer, sizeof(buffer), (id(set_climate_use_decimal)) ? "%.1f°" : "%.0f°", current_temp);
+                      disp1->set_component_text("current_temp", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
+                else:
+                  - lambda: |-
+                      disp1->set_component_text("current_temp", id(mui_unavailable_global).c_str());
+            - delay: ${DELAY_DEFAULT}ms
+            - if:
+                condition:
+                  - lambda: return (target_temp > -999);  // Target temp enabled
+                then:
+                  - lambda: |-
+                      char buffer[15];
+                      disp1->set_component_value("active_slider", 0);
+                      snprintf(buffer, sizeof(buffer), (id(set_climate_use_decimal)) ? "%.1f°" : "%.0f°", target_temp);
+                      disp1->set_component_text("target_high", adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
+                      disp1->set_component_value("climateslider", round(((10*target_temp) - temp_offset) / temp_step));
+                  - delay: ${DELAY_DEFAULT}ms
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: slider_high
+                      show: false
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: slider_low
+                      show: false
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: target_low
+                      show: false
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: target_high
+                      show: true
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: climateslider
+                      show: true
+                else:
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: "climate.slider_high"
+                      show: false
+                  - delay: ${DELAY_DEFAULT}ms
+                  - if:
+                      condition:
+                        - lambda: return (target_temp_low > -999);  // Target temp low enabled
+                      then:
+                        - lambda: |-
+                            disp1->set_component_value("active_slider", 2);
+                            char buffer[15];
+                            snprintf(buffer, sizeof(buffer),
+                                              (id(set_climate_use_decimal)) ? "%.1f°" : "%.0f°", target_temp_low);
+                            disp1->set_component_text("target_low",
+                                                    adjustDecimalSeparator(buffer, id(mui_decimal_separator)).c_str());
+                            disp1->set_component_value("slider_low",
+                                    round(((10*target_temp_low) - temp_offset) / temp_step));
+                        - delay: ${DELAY_DEFAULT}ms
+                        - script.execute:
+                            id: set_component_visibility
+                            component_id: target_low
+                            show: true
+                        - script.execute:
+                            id: set_component_visibility
+                            component_id: slider_low
+                            show: true
+                      else:
+                        - script.execute:
+                            id: set_component_visibility
+                            component_id: target_low
+                            show: false
+                        - script.execute:
+                            id: set_component_visibility
+                            component_id: slider_low
+                            show: false
+                  - delay: ${DELAY_DEFAULT}ms
+                  - if:
+                      condition:
+                        - lambda: return (target_temp_high > -999);  // Target temp high enabled
+                      then:
+                        - lambda: |-
+                            disp1->set_component_value("active_slider", 1);
+                            char buffer[15];
+                            snprintf(buffer, sizeof(buffer), (id(set_climate_use_decimal)) ? "%.1f°" : "%.0f°", target_temp_high);
+                            disp1->set_component_text("target_high", adjustDecimalSeparator(buffer,
+                                                                    id(mui_decimal_separator)).c_str());
+                            disp1->set_component_value("slider_high", round(((10*target_temp_high) - temp_offset) / temp_step));
+                        - delay: ${DELAY_DEFAULT}ms
+                        - script.execute:
+                            id: set_component_visibility
+                            component_id: target_high
+                            show: true
+                        - script.execute:
+                            id: set_component_visibility
+                            component_id: slider_high
+                            show: true
+                      else:
+                        - script.execute:
+                            id: set_component_visibility
+                            component_id: target_high
+                            show: false
+                        - script.execute:
+                            id: set_component_visibility
+                            component_id: slider_high
+                            show: false
+            - delay: ${DELAY_DEFAULT}ms
+            - if:
+                condition:
+                  - or:
+                      - lambda: return (target_temp > -999);
+                      - lambda: return (target_temp_high > -999);
+                      - lambda: return (target_temp_low > -999);
+                then:
+                  - lambda: |-
+                      disp1->set_component_text("target_icon", climate_icon.c_str());
+                  - delay: ${DELAY_DEFAULT}ms
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: target_icon
+                      show: true
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: decrease_temp
+                      show: true
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: increase_temp
+                      show: true
+                else:
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: target_icon
+                      show: false
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: decrease_temp
+                      show: false
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: increase_temp
+                      show: false
+            - delay: ${DELAY_DEFAULT}ms
+            - lambda: |-
+                disp1->set_component_value("embedded", (embedded_climate) ? 1 : 0);
 
   - id: set_component_visibility
     mode: queued
@@ -2475,7 +2550,13 @@ script:
     mode: single
     then:
       - script.stop: check_versions
+      - script.stop: wait_for_api
       - script.stop: wait_for_blueprint
+      - script.stop: wait_for_uart_available
+      - script.stop: wait_for_version_blueprint
+      - script.stop: wait_for_version_tft
+      - script.stop: wait_for_versions
+      - script.stop: wait_for_wifi
       - lambda: |-
           cleanupUtilitiesGroups();
           change_climate_state->stop();
@@ -2629,8 +2710,8 @@ script:
       state: string
     then:
       - lambda: |-
-          std::string alarm_icon = "\uEECC"; //mdi:shield-alert-outline
-          int alarm_color = 65535;
+          static std::string alarm_icon = "\uEECC"; //mdi:shield-alert-outline
+          static uint16_t alarm_color = 65535;
           if (state == "disarmed")
             {
               alarm_icon = "\uE99B"; //mdi:shield-off-outline
@@ -2763,6 +2844,27 @@ script:
           then:
             - lambda: version_tft->update();
 
+  - id: wait_for_api
+    mode: single
+    then:
+      - repeat:
+          count: 60  # seconds
+          then:
+            - if:
+                condition:
+                  - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
+                then:
+                  - script.stop: wait_for_api
+            - if:
+                condition:
+                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
+                then:
+                  - script.execute:
+                      id: boot_log
+                      category: "Boot"
+                      log_message: "Waiting for API..."
+            - delay: 1s
+
   - id: wait_for_blueprint
     mode: single
     then:
@@ -2771,7 +2873,7 @@ script:
           then:
             - if:
                 condition:
-                  - lambda: return is_boot_flag_set(nspanel_ha_blueprint::boot_flags, BootFlag::BLUEPRINT);
+                  - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
                 then:
                   - script.stop: wait_for_blueprint
             - if:
@@ -2782,5 +2884,107 @@ script:
                       id: boot_log
                       category: "Boot"
                       log_message: "Waiting for Blueprint..."
+            - delay: 1s
+
+  - id: wait_for_uart_available
+    mode: single
+    then:
+      - repeat:
+          count: 60  # seconds
+          then:
+            - if:
+                condition:
+                  - lambda: return (tf_uart->available() < 1);
+                then:
+                  - script.stop: wait_for_uart_available
+            - if:
+                condition:
+                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
+                then:
+                  - script.execute:
+                      id: boot_log
+                      category: "Boot"
+                      log_message: "Waiting for UART empty queue..."
+            - delay: 1s
+
+  - id: wait_for_version_blueprint
+    mode: single
+    then:
+      - repeat:
+          count: 60  # seconds
+          then:
+            - if:
+                condition:
+                  - text_sensor.state:  # compare_versions("${version}", version_blueprint->state.c_str());
+                      id: version_blueprint
+                      state: ${version}
+                then:
+                  - script.stop: wait_for_version_blueprint
+            - if:
+                condition:
+                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
+                then:
+                  - script.execute:
+                      id: boot_log
+                      category: "Boot"
+                      log_message: "Waiting for Blueprint version..."
+            - delay: 1s
+
+  - id: wait_for_version_tft
+    mode: single
+    then:
+      - script.execute: update_tft_info
+      - repeat:
+          count: 180  # seconds
+          then:
+            - if:
+                condition:
+                  - text_sensor.state:  # compare_versions("${version}", version_tft->state.c_str());
+                      id: version_tft
+                      state: ${version}
+                then:
+                  - script.stop: wait_for_version_tft
+            - if:
+                condition:
+                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
+                then:
+                  - script.execute:
+                      id: boot_log
+                      category: "Boot"
+                      log_message: "Waiting for TFT version..."
+            - if:
+                condition:
+                  - lambda: return (iteration % 10 == 1);  // Request an update every 10s
+                then:
+                  - script.execute: update_tft_info
+            - delay: 1s
+
+  - id: wait_for_versions
+    mode: single
+    then:
+      - script.execute: wait_for_version_blueprint
+      - script.execute: wait_for_version_tft
+      - script.wait: wait_for_version_blueprint
+      - script.wait: wait_for_version_tft
+
+  - id: wait_for_wifi
+    mode: single
+    then:
+      - repeat:
+          count: 60  # seconds
+          then:
+            - if:
+                condition:
+                  - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
+                then:
+                  - script.stop: wait_for_wifi
+            - if:
+                condition:
+                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
+                then:
+                  - script.execute:
+                      id: boot_log
+                      category: "Boot"
+                      log_message: "Waiting for Wi-Fi..."
             - delay: 1s
 ...

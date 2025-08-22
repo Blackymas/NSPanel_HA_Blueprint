@@ -112,20 +112,27 @@ This duration helps ensure that the system resets to a clean state.
 
 ### Consider changing the framework
 - **Issue**: You might be facing some situation where the transfer engine used by your framework cannot handle it properly.
-- **Solution**: Temporarily switch between the frameworks.
-- **Additional Guidance**: This project supports both `arduino` (ESPHome default) or `esp-idf` (this project default) frameworks.
-The upload TFT engines have some differences, so changing the framework may solve some issue.
+- **Solution**: ~~Temporarily switch between the frameworks~~ If you're using the deprecated Arduino framework, migrate to ESP-IDF framework.
+- **Additional Guidance**: ~~This project supports both `arduino` (ESPHome default) or `esp-idf` (this project default) frameworks.~~
+This project officially supports only `esp-idf` framework as of v4.3.22. Arduino framework has been deprecated.
+The upload TFT engines have some differences, so using ESP-IDF framework may solve some issues.
+
+> [!WARNING]
+> **Arduino framework is deprecated** as of v4.3.22 and no longer officially supported. If you're experiencing issues with Arduino framework, please migrate to ESP-IDF.
 
 You can set the framework you want by adding this to your ESPHome yaml:
 
-#### ESP-IDF
+#### ESP-IDF (RECOMMENDED)
 ```yaml
 esp32:
   framework:
     type: esp-idf
 ```
 
-#### Arduino
+#### Arduino (DEPRECATED - NOT SUPPORTED)
+> [!WARNING]
+> **DEPRECATED:** Arduino framework support has been discontinued as of v4.3.22.
+
 ```yaml
 esp32:
   framework:

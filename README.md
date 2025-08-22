@@ -9,6 +9,13 @@ Our goal? To make the customization of your NSPanel seamless, intuitive, and com
 
 [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FBlackymas%2FNSPanel_HA_Blueprint%2Fblob%2Fmain%2Fnspanel_blueprint.yaml)
 
+## Framework Support Notice
+
+> **ℹ️ As of v4.3.22, this project uses ESP-IDF framework only.**
+> 
+> **New users:** No action needed - the project defaults to ESP-IDF automatically.  
+> **Existing users:** If you have Arduino framework configured, see our [migration guide](docs/customization.md#frameworks).
+
 ## Table of Contents
 
 1. [Project Highlights](#-project-highlights)
