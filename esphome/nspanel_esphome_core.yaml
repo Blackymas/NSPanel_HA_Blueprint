@@ -23,9 +23,9 @@ substitutions:
   GPIO_RELAY_2_PIN: 19
   GPIO_TEMPERATURE_ADC_PIN: 38
 
-  DELAY_DEFAULT: 10  # delay in msec
-  DELAY_LONG: 50     # delay in msec
-  DELAY_SHORT: 1     # delay in msec
+  DELAY_DEFAULT: 25  # delay in msec
+  DELAY_LONG: 125    # delay in msec
+  DELAY_SHORT: 5     # delay in msec
   ##############################
   ## Do not change            ##
   TAG_CORE: "nspanel.core"
@@ -2000,6 +2000,10 @@ script:
                 ESP_LOGD("script.page_changed", "Reset timers");
             - script.execute: timer_reset_all
 
+      # Stop previous constructors
+      - script.execute: page_constructors_stop
+      - script.wait: page_constructors_stop
+
       # Report new page to Blueprint
       - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
@@ -2049,12 +2053,10 @@ script:
           else if (current_page->state == "weather05") page_weather05->execute();
 
       # Update buttons bars on screen
-      - delay: 1s
-      - lambda: |-
-          ESP_LOGD("script.page_changed", "Update buttons bars on screen");
       - script.execute:
-          id: refresh_hardware_buttons_bars
+          id: refresh_hardware_buttons_bars_with_delay
           button_mask: 3
+          delay: 1000
 
   - id: page_climate
     mode: single
@@ -2066,6 +2068,41 @@ script:
       - lambda: |-
           if (is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags))
             display_wrapped_text->execute("confirm.title", id(mui_please_confirm_global).c_str(), 15);
+
+  - id: page_constructors_stop
+    mode: single
+    then:
+      - script.stop: page_alarm
+      - script.stop: page_blank
+      - script.stop: page_boot
+      - script.stop: page_buttonpage
+      - script.stop: page_buttonpage01
+      - script.stop: page_buttonpage02
+      - script.stop: page_buttonpage03
+      - script.stop: page_buttonpage04
+      - script.stop: page_climate
+      - script.stop: page_confirm
+      - script.stop: page_cover
+      - script.stop: page_entitypage
+      - script.stop: page_entitypage01
+      - script.stop: page_entitypage02
+      - script.stop: page_entitypage03
+      - script.stop: page_entitypage04
+      - script.stop: page_fan
+      # Page home is an exception, as it can be constructed in the background
+      - script.stop: page_keyb_num
+      - script.stop: page_light
+      - script.stop: page_media_player
+      - script.stop: page_notification
+      - script.stop: page_qrcode
+      - script.stop: page_screensaver
+      - script.stop: page_settings
+      - script.stop: page_utilities
+      - script.stop: page_weather
+      - script.stop: page_weather01
+      - script.stop: page_weather02
+      - script.stop: page_weather03
+      - script.stop: page_weather04
 
   - id: page_cover
     mode: single
@@ -2565,11 +2602,29 @@ script:
           NextionComponent component = extractNextionComponent(component_id, current_page->state);
           if (component.is_current_page) disp1->send_command_printf("vis %s,%i", component.component_id, show ? 1 : 0);
 
+  - id: set_component_visibility_with_delay
+    mode: queued
+    max_runs: 16
+    parameters:
+      component_id: string
+      show: bool
+      delay: uint16_t
+    then:
+      - delay: !lambda return delay;
+      - script.execute:
+          id: set_component_visibility
+          component_id: !lambda return component_id;
+          show: !lambda return show;
+
   - id: !extend stop_all
     mode: single
     then:
+      - script.execute: page_constructors_stop
       - script.stop: check_versions
       - script.stop: page_changed
+      - script.stop: page_home
+      - script.stop: set_component_visibility
+      - script.stop: set_component_visibility_with_delay
       - script.stop: wait_for_api
       - script.stop: wait_for_blueprint
       - script.stop: wait_for_uart_available
@@ -2578,44 +2633,11 @@ script:
       - script.stop: wait_for_versions
       - script.stop: wait_for_wifi
       - lambda: |-
-          cleanupUtilitiesGroups();
           change_climate_state->stop();
           display_embedded_temp->stop();
           display_wrapped_text->stop();
           global_settings->stop();
           init_hardware_climate->stop();
-          page_alarm->stop();
-          page_blank->stop();
-          page_boot->stop();
-          page_buttonpage01->stop();
-          page_buttonpage02->stop();
-          page_buttonpage03->stop();
-          page_buttonpage04->stop();
-          page_buttonpage->stop();
-          page_climate->stop();
-          page_confirm->stop();
-          page_cover->stop();
-          page_entitypage01->stop();
-          page_entitypage02->stop();
-          page_entitypage03->stop();
-          page_entitypage04->stop();
-          page_entitypage->stop();
-          page_fan->stop();
-          page_home->stop();
-          page_keyb_num->stop();
-          page_light->stop();
-          page_media_player->stop();
-          page_notification->stop();
-          page_qrcode->stop();
-          page_screensaver->stop();
-          page_settings->stop();
-          page_utilities->stop();
-          page_weather01->stop();
-          page_weather02->stop();
-          page_weather03->stop();
-          page_weather04->stop();
-          page_weather05->stop();
-          page_weather->stop();
           refresh_relays->stop();
           refresh_wifi_icon->stop();
           service_call_alarm_control_panel->stop();
@@ -2629,6 +2651,7 @@ script:
           update_alarm_icon->stop();
           update_climate_icon->stop();
           update_tft_info->stop();
+          cleanupUtilitiesGroups();
 
   ###### Timers ######
   - id: timer_reset_all  # Global timer reset - Triggered with a touch on the screen
@@ -2852,11 +2875,13 @@ script:
             - lambda: return isnan(display_charset->state);
           then:
             - lambda: display_charset->update();
+      - delay: ${DELAY_DEFAULT}ms
       - if:
           condition:
             - lambda: return isnan(display_mode->state);
           then:
             - lambda: display_mode->update();
+      - delay: ${DELAY_DEFAULT}ms
       - if:
           condition:
             - lambda: return version_tft->state.empty();
@@ -2934,9 +2959,10 @@ script:
           then:
             - if:
                 condition:
-                  - text_sensor.state:  # compare_versions("${version}", version_blueprint->state.c_str());
-                      id: version_blueprint
-                      state: ${version}
+                  - lambda: return not version_blueprint->state.empty();
+                  # - text_sensor.state:  # compare_versions("${version}", version_blueprint->state.c_str());
+                  #     id: version_blueprint
+                  #     state: ${version}
                 then:
                   - script.stop: wait_for_version_blueprint
             - if:
@@ -2958,9 +2984,10 @@ script:
           then:
             - if:
                 condition:
-                  - text_sensor.state:  # compare_versions("${version}", version_tft->state.c_str());
-                      id: version_tft
-                      state: ${version}
+                  - lambda: return not version_tft->state.empty();
+                  # - text_sensor.state:  # compare_versions("${version}", version_tft->state.c_str());
+                  #     id: version_tft
+                  #     state: ${version}
                 then:
                   - script.stop: wait_for_version_tft
             - if:
