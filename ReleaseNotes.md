@@ -2,7 +2,9 @@
 
 ## Summary
 
-This release introduces **comprehensive GPIO pin customization** for custom hardware variants and **modernizes our development framework** by focusing exclusively on ESP-IDF. Additionally, this release continues our ongoing work to **resolve boot compatibility issues** with ESPHome 2025.8.0.
+This release introduces **comprehensive GPIO pin customization** for custom hardware variants
+and **modernizes our development framework** by focusing exclusively on ESP-IDF.
+Additionally, this release continues our ongoing work to **resolve boot compatibility issues** with ESPHome 2025.8.0.
 
 ---
 
@@ -11,7 +13,8 @@ This release introduces **comprehensive GPIO pin customization** for custom hard
 ### GPIO Pin Customization System
 
 Building on the foundation laid in v4.3.20, we've completed the **GPIO pin customization system** using ESPHome substitutions.
-All GPIO pins can now be reassigned through simple substitution keys, enabling seamless adaptation to custom hardware layouts without modifying core project files.
+All GPIO pins can now be reassigned through simple substitution keys,
+enabling seamless adaptation to custom hardware layouts without modifying core project files.
 This feature supports both basic pin reassignments and complex configurations with advanced options,
 making the blueprint compatible with a wide range of hardware variants while preserving all functionality.
 
@@ -20,9 +23,12 @@ For complete documentation, configuration examples, and troubleshooting guidance
 
 ### Continued ESPHome 2025.8.0 Compatibility Work
 
-**Ongoing efforts to resolve boot issues** with ESPHome 2025.8.0 continue in this release. While previous versions (v4.3.20, v4.3.21) addressed many compatibility issues, some users may still experience problems. This release includes additional improvements to the boot sequence.
+**Ongoing efforts to resolve boot issues** with ESPHome 2025.8.0 continue in this release.
+While previous versions (v4.3.20, v4.3.21) addressed many compatibility issues, some users may still experience problems.
+This release includes additional improvements to the boot sequence.
 
-**We are committed to ensuring full compatibility** and will continue releasing updates until all ESPHome 2025.8.0 issues are resolved. Additional releases focusing specifically on remaining compatibility issues are planned if needed.
+**We are committed to ensuring full compatibility** and will continue releasing updates until all ESPHome 2025.8.0 issues are resolved.
+Additional releases focusing specifically on remaining compatibility issues are planned if needed.
 
 ---
 
@@ -125,7 +131,8 @@ packages:
 
 ## Looking Ahead
 
-**Thank you for your patience** as we work through these ESPHome compatibility challenges. We understand that boot issues can be frustrating, and we're committed to resolving them completely.
+**Thank you for your patience** as we work through these ESPHome compatibility challenges.
+We understand that boot issues can be frustrating, and we're committed to resolving them completely.
 
 **Our approach moving forward:**
 - **Focused releases** - Additional targeted releases will address any remaining ESPHome 2025.8.0 issues
