@@ -1,6 +1,12 @@
-# v4.3.22 - Release notes
+# v4.3.22 - Advanced GPIO Customization and Framework Modernization
 
-## 🎯 New Features
+## Summary
+
+This release introduces **comprehensive GPIO pin customization** for custom hardware variants and **modernizes our development framework** by focusing exclusively on ESP-IDF. Additionally, this release continues our ongoing work to **resolve boot compatibility issues** with ESPHome 2025.8.0.
+
+---
+
+## New Features
 
 ### GPIO Pin Customization System
 
@@ -12,7 +18,15 @@ making the blueprint compatible with a wide range of hardware variants while pre
 **This feature is primarily intended for users running this firmware on devices other than the standard Sonoff NSPanel.**
 For complete documentation, configuration examples, and troubleshooting guidance, see the [GPIO Pin Customization Guide](docs/pins_customization.md).
 
-## ⚠️ Breaking Changes
+### Continued ESPHome 2025.8.0 Compatibility Work
+
+**Ongoing efforts to resolve boot issues** with ESPHome 2025.8.0 continue in this release. While previous versions (v4.3.20, v4.3.21) addressed many compatibility issues, some users may still experience problems. This release includes additional improvements to the boot sequence.
+
+**We are committed to ensuring full compatibility** and will continue releasing updates until all ESPHome 2025.8.0 issues are resolved. Additional releases focusing specifically on remaining compatibility issues are planned if needed.
+
+---
+
+## Breaking Changes
 
 ### Arduino Framework Support Deprecated
 
@@ -30,7 +44,6 @@ For complete documentation, configuration examples, and troubleshooting guidance
 - **Enhanced feature support** - Modern ESPHome features are primarily developed for ESP-IDF
 - **Simplified maintenance** - Reduces complexity and improves release reliability
 - **Faster development cycle** - Reduced CI time allows for quicker releases
-
 
 #### Migration Guide
 If you're currently using Arduino framework:
@@ -107,3 +120,20 @@ packages:
 - **`dev`** - Latest development code, may contain bugs, for testing new features
 
 **Users currently on `beta` should migrate to `main` for stability or `dev` for the latest features.**
+
+---
+
+## Looking Ahead
+
+**Thank you for your patience** as we work through these ESPHome compatibility challenges. We understand that boot issues can be frustrating, and we're committed to resolving them completely.
+
+**Our approach moving forward:**
+- **Focused releases** - Additional targeted releases will address any remaining ESPHome 2025.8.0 issues
+- **Transparent communication** - We'll keep you informed about progress and any additional fixes needed
+- **Community feedback** - Your reports help us identify and fix edge cases
+
+**Your continued support and detailed bug reports** are invaluable in helping us deliver a stable, reliable experience for everyone.
+
+---
+
+*We appreciate your patience and continued support as we modernize the project foundation and resolve compatibility challenges.*
