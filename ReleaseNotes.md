@@ -1,17 +1,30 @@
-# v4.3.23 - Hotfix for display turning off after upload causing `System ERROR` message on display
+# v4.3.24 - Button Display Reliability Fix
 
-## Looking Ahead
+## Summary
 
-**Thank you for your patience** as we work through these ESPHome compatibility challenges.
-We understand that boot issues can be frustrating, and we're committed to resolving them completely.
+This hotfix resolves a button display issue that emerged after the boot timing improvements in v4.3.21,
+ensuring all buttons are properly rendered on the display.
 
-**Our approach moving forward:**
-- **Focused releases** - Additional targeted releases will address any remaining ESPHome 2025.8.0 issues
-- **Transparent communication** - We'll keep you informed about progress and any additional fixes needed
-- **Community feedback** - Your reports help us identify and fix edge cases
+## Key Improvements
 
-**Your continued support and detailed bug reports** are invaluable in helping us deliver a stable, reliable experience for everyone.
+### Button Display Queue System
+
+**Fixed missing buttons on display** caused by timing conflicts between button rendering requests.
+The boot delays implemented in v4.3.21 to resolve ESPHome 2025.8.0 compatibility inadvertently caused individual button rendering to take longer,
+leading to subsequent button requests either failing or canceling previous ones.
+
+**Solution implemented:**
+- **Moved button constructor to a queued script system** that processes button rendering requests sequentially
+- **Ensures all buttons are properly displayed** by preventing timing conflicts between multiple button requests
+- **Maintains boot stability improvements** from previous releases while fixing the display issue
+
+**Result:** All buttons now render reliably, regardless of system timing constraints.
+
+## Technical Details
+
+This issue demonstrates how performance optimizations can sometimes reveal secondary timing dependencies.
+The sequential queuing approach ensures robust button rendering while preserving the boot stability improvements that were essential for ESPHome 2025.8.0 compatibility.
 
 ---
 
-*We appreciate your patience and continued support as we modernize the project foundation and resolve compatibility challenges.*
+*This targeted fix ensures complete button functionality while maintaining the stability improvements from recent releases.*
