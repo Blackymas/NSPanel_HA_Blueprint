@@ -6,7 +6,6 @@ from esphome.components.esp32 import add_idf_sdkconfig_option
 from esphome.core import CORE, coroutine_with_priority
 from esphome import pins
 import logging
-import warnings
 
 CODEOWNERS = ["@edwardtfn"]
 
