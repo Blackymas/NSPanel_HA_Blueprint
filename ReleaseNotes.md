@@ -82,7 +82,8 @@ applying lessons learned from the button rendering fix to the broader system.
 The optimized delays and component loading order strike a better balance between performance and reliability,
 with Wi-Fi initialization deferred to reduce early boot system load.
 
-The removal of the advanced package aligns with our focus on core functionality and user-controlled customization, particularly important given the memory constraints revealed during recent compatibility challenges.
+The removal of the advanced package aligns with our focus on core functionality and user-controlled customization,
+particularly important given the memory constraints revealed during recent compatibility challenges.
 
 **Result:** More responsive system performance with robust component rendering across all display elements.
 
