@@ -27,16 +27,11 @@ to prevent rendering conflicts across all affected components.
 The timing adjustments have been fine-tuned to provide better performance
 without compromising the stability improvements that resolved the original boot issues.
 
-**Boot sequence optimization:**
-- **Wi-Fi component initialization moved later** in the boot process to reduce early-stage system load
-- **Core components load first** ensuring essential functionality is established before network connectivity
-- **Reduced boot crashes** by distributing component loading more evenly across the boot timeline
-
 **Performance improvements:**
 
-- **More efficient boot sequence** with optimized delay timing and component loading order
+- **More efficient boot sequence** with optimized delay timing
 - **Faster overall boot times** while preserving compatibility fixes
-- **Reduced system overhead** through smarter timing management and load distribution
+- **Reduced system overhead** through smarter timing management
 
 ## Breaking Changes
 
@@ -77,10 +72,9 @@ If you were using the advanced package:
 
 ## Technical Details
 
-This release represents a comprehensive approach to display timing management and boot sequence optimization,
+This release represents a comprehensive approach to display timing management,
 applying lessons learned from the button rendering fix to the broader system.
-The optimized delays and component loading order strike a better balance between performance and reliability,
-with Wi-Fi initialization deferred to reduce early boot system load.
+The optimized delays strike a better balance between performance and reliability.
 
 The removal of the advanced package aligns with our focus on core functionality and user-controlled customization,
 particularly important given the memory constraints revealed during recent compatibility challenges.
