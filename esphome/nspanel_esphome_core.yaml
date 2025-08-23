@@ -40,6 +40,7 @@ packages:
   datetime:   !include nspanel_esphome_core_datetime.yaml
   hw_buttons: !include nspanel_esphome_core_hw_buttons.yaml
   hw_memory:  !include nspanel_esphome_core_hw_memory.yaml
+  hw_wifi:    !include nspanel_esphome_core_hw_wifi.yaml
   # yamllint enable rule:colons
 
 ##### ESPHOME CONFIGURATION #####
@@ -78,22 +79,6 @@ esp32:
   board: esp32dev
   framework:
     type: esp-idf
-
-##### WIFI SETUP #####
-wifi:
-  id: wifi_component
-  networks:
-    - id: wifi_default
-      ssid: ${wifi_ssid}
-      password: ${wifi_password}
-  on_connect:
-    then:
-      - lambda: set_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
-      - script.execute: refresh_wifi_icon
-  on_disconnect:
-    then:
-      - lambda: clear_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
-      - script.execute: refresh_wifi_icon
 
 ##### ENABLE RINGTONE MUSIC SUPPORT #####
 rtttl:
@@ -2156,7 +2141,6 @@ script:
       - script.execute:
           id: refresh_relays
           relay_mask: 3
-      - script.execute: refresh_wifi_icon
 
   - id: page_keyb_num
     mode: single
@@ -2290,30 +2274,6 @@ script:
                 then:
                   - lambda: |-
                       disp1->set_component_text("home.chip_relay2", (relay_2->state) ? id(home_relay2_icon) : "\uFFFF");
-
-  - id: refresh_wifi_icon
-    mode: single
-    then:
-      - if:
-          condition:
-            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-          then:
-            - lambda: |-
-                disp1->send_command_printf("api=%i",
-                          are_all_system_flags_set(nspanel_ha_blueprint::system_flags, {NSPanelFlag::WIFI_READY, NSPanelFlag::API_READY, NSPanelFlag::BLUEPRINT_READY})
-                          ? 1 : 0);
-                // Update Wi-Fi icon color
-                disp1->set_component_font_color("home.wifi_icon", (is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY)) ?
-                                                                  (wifi_rssi->state > -70 ? 33808 : 64992) : 63488);
-                // Update Wi-Fi icon
-                disp1->set_component_text("home.wifi_icon",
-                                          is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY) ?
-                                            (is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::API_READY) ?
-                                              ((is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY)) ?
-                                                "\uE5A8" :  // mdi:wifi - All right!
-                                              "\uE7CF") :   // mdi:home-assistant - Blueprint is out
-                                            "\uF256") :     // mdi:api-off
-                                          "\uE5A9");        // mdi:wifi-off
 
   - id: service_call_alarm_control_panel
     mode: single
@@ -2631,7 +2591,6 @@ script:
       - script.stop: wait_for_version_blueprint
       - script.stop: wait_for_version_tft
       - script.stop: wait_for_versions
-      - script.stop: wait_for_wifi
       - lambda: |-
           change_climate_state->stop();
           display_embedded_temp->stop();
@@ -2639,7 +2598,6 @@ script:
           global_settings->stop();
           init_hardware_climate->stop();
           refresh_relays->stop();
-          refresh_wifi_icon->stop();
           service_call_alarm_control_panel->stop();
           set_baud_rate->stop();
           set_brightness->stop();
@@ -3012,25 +2970,4 @@ script:
       - script.execute: wait_for_version_tft
       - script.wait: wait_for_version_blueprint
       - script.wait: wait_for_version_tft
-
-  - id: wait_for_wifi
-    mode: single
-    then:
-      - repeat:
-          count: 60  # seconds
-          then:
-            - if:
-                condition:
-                  - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
-                then:
-                  - script.stop: wait_for_wifi
-            - if:
-                condition:
-                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
-                then:
-                  - script.execute:
-                      id: boot_log
-                      category: "Boot"
-                      log_message: "Waiting for Wi-Fi..."
-            - delay: 1s
 ...
