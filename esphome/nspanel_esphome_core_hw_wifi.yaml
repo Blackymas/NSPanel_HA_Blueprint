@@ -1,0 +1,132 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - HARDWARE - Wi-Fi                                                           #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+---
+substitutions:
+  BOOT_STEP_HW_WIFI: '9'
+  MDI_ICON_API_OFF: "\uF256"         # mdi:api-off
+  MDI_ICON_HOME_ASSISTANT: "\uE7CF"  # mdi:home-assistant
+  MDI_ICON_RESTART: "\uE708"         # mdi:restart
+  MDI_ICON_WIFI: "\uE5A8"            # mdi:wifi
+  MDI_ICON_WIFI_OFF: "\uE5A9"        # mdi:wifi-off
+  TAG_HW_WIFI: nspanel.hw.wifi
+
+api:
+  on_client_connected:
+    then:
+      - script.execute: refresh_wifi_icon
+  on_client_disconnected:
+    then:
+      - script.execute: refresh_wifi_icon
+      - script.execute: wait_for_wifi
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_CORE_HW_WIFI
+  on_boot:
+    - priority: 600.${BOOT_STEP_HW_WIFI}  # This is where most sensors are set up
+      then:
+        - if:
+            condition: &condition_NOT_safe_mode
+              - lambda: return nspanel_ha_blueprint::current_panel_state != nspanel_ha_blueprint::PanelState::SAFE_MODE;
+            then:
+              - text_sensor.template.publish:
+                  id: device_name
+                  state: ${name}
+
+    - priority: 100.${BOOT_STEP_HW_WIFI}  # Almost everything should be initialized at this point
+      then:
+        - script.execute: wait_for_wifi
+
+script:
+  - id: !extend page_home
+    then:
+      - script.execute: refresh_wifi_icon
+
+  - id: refresh_wifi_icon
+    mode: single
+    then:
+      - if:
+          condition:
+            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+          then:
+            - lambda: |-
+                disp1->send_command_printf("api=%i",
+                          are_all_system_flags_set(nspanel_ha_blueprint::system_flags, {NSPanelFlag::WIFI_READY, NSPanelFlag::API_READY, NSPanelFlag::BLUEPRINT_READY})
+                          ? 1 : 0);
+                // Update Wi-Fi icon color
+                disp1->set_component_font_color("home.wifi_icon", (is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY)) ?
+                                                                  (wifi_rssi->state > -70 ? 33808 : 64992) : 63488);
+                // Update Wi-Fi icon
+                disp1->set_component_text("home.wifi_icon",
+                                          is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY) ?
+                                            (is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::API_READY) ?
+                                              ((is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY)) ?
+                                                "${MDI_ICON_WIFI}" :  // mdi:wifi - All right!
+                                              "${MDI_ICON_HOME_ASSISTANT}") :   // mdi:home-assistant - Blueprint is out
+                                            "${MDI_ICON_API_OFF}") :     // mdi:api-off
+                                          "${MDI_ICON_WIFI_OFF}");        // mdi:wifi-off
+
+  - id: !extend stop_all
+    then:
+      - script.stop: refresh_wifi_icon
+      - script.stop: wait_for_wifi
+
+  - id: wait_for_wifi
+    mode: single
+    then:
+      - if:
+          condition:
+            - not:
+                - wifi.enabled:
+          then:
+            - wifi.enable:
+            - delay: 2s
+      - if:
+          condition:
+            - not:
+                - wifi.connected:
+          then:
+            - wifi.enable:
+            - lambda: |-
+                ESP_LOGW("DEBUG", "Retrying Wi-Fi connection");
+                wifi_component->retry_connect();
+      - repeat:
+          count: 300  # seconds
+          then:
+            - if:
+                condition:
+                  - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
+                then:
+                  - script.stop: wait_for_wifi
+            - if:
+                condition:
+                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
+                then:
+                  - script.execute:
+                      id: boot_log
+                      category: "Boot"
+                      log_message: "Waiting for Wi-Fi..."
+            - delay: 1s
+
+
+wifi:
+  id: wifi_component
+  enable_on_boot: false
+  networks:
+    - id: wifi_default
+      ssid: ${wifi_ssid}
+      password: ${wifi_password}
+  on_connect:
+    then:
+      - lambda: set_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
+      - script.execute: refresh_wifi_icon
+  on_disconnect:
+    then:
+      - lambda: clear_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
+      - script.execute: refresh_wifi_icon
+...
