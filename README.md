@@ -1,5 +1,12 @@
 # NSPanel Custom with HA Blueprint
 
+[![GitHub Release][releases-shield]][releases]
+[![GitHub Activity][commits-shield]][commits]
+[![Last Commit][last-commit-shield]][commits]
+[![Platform][platform-shield]](https://github.com/esphome)
+[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/donate/?hosted_button_id=S974SWQMB8PB2)
+
+
 This innovative solution is designed to revolutionize how you interact with your Sonoff NSPanel.
 Our goal? To make the customization of your NSPanel seamless, intuitive, and completely code-free!
 
@@ -230,3 +237,11 @@ And special thanks for the other projects which inspired us:
 Are you happy with our version for NSPanel? Please consider supporting us with a donation.
 
 [![Paypal](https://user-images.githubusercontent.com/41958506/212499642-b2fd097a-0938-4bfc-b37b-74df64592c58.png)](https://www.paypal.com/donate/?hosted_button_id=S974SWQMB8PB2)
+
+
+[commits-shield]: https://img.shields.io/github/commit-activity/y/Blackymas/NSPanel_HA_Blueprint
+[commits]: https://github.com/Blackymas/NSPanel_HA_Blueprint/commits/main
+[releases-shield]: https://img.shields.io/github/v/release/Blackymas/NSPanel_HA_Blueprint
+[releases]: https://github.com/Blackymas/NSPanel_HA_Blueprint/releases
+[last-commit-shield]: https://img.shields.io/github/last-commit/Blackymas/NSPanel_HA_Blueprint
+[platform-shield]: https://img.shields.io/badge/platform-Home%20Assistant%20&%20ESPHome-blue
