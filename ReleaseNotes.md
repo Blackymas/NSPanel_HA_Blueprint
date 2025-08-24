@@ -27,10 +27,16 @@ to prevent rendering conflicts across all affected components.
 The timing adjustments have been fine-tuned to provide better performance
 without compromising the stability improvements that resolved the original boot issues.
 
+**Timing refinements:**
+- **Reverted some earlier delays** that were causing issues with page construction and updates
+- **Balanced approach** maintaining boot stability while improving page responsiveness
+- **Fine-tuned timing** to address both boot compatibility and runtime performance
+
 **Performance improvements:**
 
 - **More efficient boot sequence** with optimized delay timing
 - **Faster overall boot times** while preserving compatibility fixes
+- **Improved page construction speed** through selective delay adjustments
 - **Reduced system overhead** through smarter timing management
 
 ## Breaking Changes

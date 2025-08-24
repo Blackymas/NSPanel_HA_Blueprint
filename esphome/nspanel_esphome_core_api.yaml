@@ -75,18 +75,10 @@ api:
       variables:
         cmd: string  # Command string to be sent. Refer to the Nextion Instruction Set for supported commands: https://nextion.tech/instruction-set/
       then:
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.command
-            else:
-              - script.execute:
-                  id: send_command_with_delay
-                  cmd: !lambda return cmd;
-                  delay: ${DELAY_DEFAULT}
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: command");
+            ESP_LOGV("${TAG_API}", "  cmd: %s", cmd.c_str());
+            disp1->send_command(cmd.c_str());
 
     # Changes the foreground color of a specified component on the display.
     - action: component_color
@@ -94,19 +86,11 @@ api:
         id: string    # Identifier of the component to change color. Ensure this matches the component's ID in your display layout.
         color: int[]  # New color for the component, specified as an RGB array (e.g., [255, 0, 0] for red).
       then:
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.component_color
-            else:
-              - script.execute:
-                  id: set_component_font_color_with_delay
-                  component_id: !lambda return id;
-                  color: !lambda return rgbTo565(color);
-                  delay: ${DELAY_DEFAULT}
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: component_color");
+            ESP_LOGV("${TAG_API}", "  id: %s", id.c_str());
+            ESP_LOGV("${TAG_API}", "  color: %i", rgbTo565(color));
+            disp1->set_component_font_color(id.c_str(), rgbTo565(color));
 
     # Updates the text of a specified component on the display.
     - action: component_text
@@ -114,19 +98,11 @@ api:
         id: string   # Identifier of the component. Ensure it matches the component's ID in your display layout.
         txt: string  # New text content to be displayed. Supports both static and dynamic content.
       then:
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.component_text
-            else:
-              - script.execute:
-                  id: set_component_text_with_delay
-                  component_id: !lambda return id;
-                  txt: !lambda return txt;
-                  delay: ${DELAY_DEFAULT}
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: component_text");
+            ESP_LOGV("${TAG_API}", "  component_id: %s", id.c_str());
+            ESP_LOGV("${TAG_API}", "  txt: %s", txt.c_str());
+            disp1->set_component_text(id.c_str(), txt.c_str());
 
     # Updates the value of a specified component on the display.
     - action: component_val
@@ -134,19 +110,11 @@ api:
         id: string  # Identifier of the component to update. Must match the component's ID in the display layout.
         val: int    # New integer value to set for the component. Adjust based on the data type you're displaying.
       then:
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.component_val
-            else:
-              - script.execute:
-                  id: set_component_value_with_delay
-                  component_id: !lambda return id;
-                  val: !lambda return val;
-                  delay: ${DELAY_DEFAULT}
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: component_val");
+            ESP_LOGV("${TAG_API}", "  id: %s", id.c_str());
+            ESP_LOGV("${TAG_API}", "  val: %i", val);
+            disp1->set_component_value(id.c_str(), val);
 
     # Hides or shows a specified component on the display.
     - action: components_visibility
@@ -154,20 +122,16 @@ api:
         ids: string[]  # Identifier of the component to be hidden/shown. Ensure this matches the component's ID in your display layout.
         visible: bool  # Set to true to show the component, or false to hide it.
       then:
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.components_visibility
-            else:
-              - lambda: |-
-                  for (const std::string& component_id : ids) {
-                    if (not component_id.empty()) {
-                      set_component_visibility_with_delay->execute(component_id.c_str(), visible, ${DELAY_DEFAULT});
-                    }
-                  }
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: components_visibility");
+            for (const std::string& component_id : ids) {
+              if (not component_id.empty()) {
+                ESP_LOGV("${TAG_API}", "  id: %s", component_id.c_str());
+                set_component_visibility->execute(component_id.c_str(), visible);
+              }
+            }
+            ESP_LOGV("${TAG_API}", "  ids count: %i", ids.size());
+            ESP_LOGV("${TAG_API}", "  visible: %s", YESNO(visible));
 
     # Displays detailed information for a specific entity.
     - action: entity_details_show
@@ -232,34 +196,17 @@ api:
         icon_color: int[]  # RGB color array for the icon, e.g., [0, 255, 0] for green.
         visible: bool      # Set to `true` for visible or `false` for hidden.
       then:
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.icon
-            else:
-              - script.execute:
-                  id: set_component_text_with_delay
-                  component_id: !lambda return id;
-                  txt: !lambda |-
-                          return visible ? icon.c_str() : "";
-                  delay: ${DELAY_DEFAULT}
-              - if:
-                  condition:
-                    - lambda: return (icon_color.size() == 3);
-                  then:
-                    - script.execute:
-                        id: set_component_font_color_with_delay
-                        component_id: !lambda return id;
-                        color: !lambda return rgbTo565(icon_color);
-                        delay: ${DELAY_DEFAULT}
-              - script.execute:
-                  id: set_component_visibility_with_delay
-                  component_id: !lambda return id;
-                  show: !lambda return visible;
-                  delay: ${DELAY_DEFAULT}
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: icon");
+            ESP_LOGV("${TAG_API}", "  id: %s", id.c_str());
+            ESP_LOGV("${TAG_API}", "  icon: %s", icon.c_str());
+            ESP_LOGV("${TAG_API}", "  icon_color: %" PRIu16, rgbTo565(icon_color));
+            ESP_LOGV("${TAG_API}", "  visible: %s", YESNO(visible));
+            disp1->set_component_text(id.c_str(), visible ? icon.c_str() : "");
+            if (icon_color.size() == 3) {
+              disp1->set_component_font_color(id.c_str(), rgbTo565(icon_color));
+            }
+            set_component_visibility->execute(id.c_str(), visible);
 
     # Transfers global settings from the blueprint to ESPHome, configuring the necessary parameters for optimal operation.
     - action: init_global
@@ -1268,101 +1215,67 @@ api:
         value: string       # Actual value to display (e.g., "75°F").
         value_color: int[]  # RGB color array for the value text (e.g., [255, 255, 0] for yellow).
       then:
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.value
-            else:
-              - if:
-                  condition:
-                    - lambda: return id.empty();
-                  then:
-                    - lambda: ESP_LOGW("${TAG_API}", "`id` is empty");
-                  else:
-                    # Icon
-                    - if:
-                        condition:
-                          - lambda: return !(icon.empty());
-                        then:
-                          - script.execute:
-                              id: set_component_text_with_delay
-                              component_id: !lambda return (id + "_icon").c_str();
-                              txt: !lambda return icon;
-                              delay: ${DELAY_DEFAULT}
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: value");
+            ESP_LOGV("${TAG_API}", "  id: %s", id.c_str());
+            ESP_LOGV("${TAG_API}", "  icon: %s", icon.c_str());
+            ESP_LOGV("${TAG_API}", "  icon_color: %" PRIu16, rgbTo565(value_color));
+            ESP_LOGV("${TAG_API}", "  name: %s", name.c_str());
+            ESP_LOGV("${TAG_API}", "  value: %s", value.c_str());
+            ESP_LOGV("${TAG_API}", "  value_color: %" PRIu16, rgbTo565(value_color));
 
-                    # Icon color
-                    - if:
-                        condition:
-                          - lambda: return (icon_color.size() == 3);
-                        then:
-                          - script.execute:
-                              id: set_component_font_color_with_delay
-                              component_id: !lambda return (id + "_icon").c_str();
-                              color: !lambda return rgbTo565(icon_color);
-                              delay: ${DELAY_DEFAULT}
+            // Stop if Id is empty
+            if (id.empty()) {
+              ESP_LOGW("${TAG_API}", "`id` is empty");
+              return;
+            }
 
-                    # Label
-                    - if:
-                        condition:
-                          - lambda: return (!(name.empty()));
-                        then:
-                          - script.execute:
-                              id: set_component_text_with_delay
-                              component_id: !lambda return (id + "_label").c_str();
-                              txt: !lambda return name;
-                              delay: ${DELAY_DEFAULT}
+            // Icon
+            if (not icon.empty()) {
+              disp1->set_component_text((id + "_icon").c_str(), icon.c_str());
+            }
 
-                    # Value
-                    - if:
-                        condition:
-                          - lambda: return (!(value.empty()));
-                        then:
-                          - script.execute:
-                              id: set_component_text_with_delay
-                              component_id: !lambda return id;
-                              txt: !lambda return adjustDecimalSeparator(value, id(mui_decimal_separator));
-                              delay: ${DELAY_DEFAULT}
+            // Icon color
+            if (icon_color.size() == 3) {
+              disp1->set_component_font_color((id + "_icon").c_str(), rgbTo565(icon_color));
+            }
 
-                    # Value color
-                    - if:
-                        condition:
-                          - lambda: return (value_color.size() == 3);
-                        then:
-                          - script.execute:
-                              id: set_component_font_color_with_delay
-                              component_id: !lambda return id;
-                              color: !lambda return rgbTo565(value_color);
-                              delay: ${DELAY_DEFAULT}
+            // Label
+            if (not name.empty()) {
+              disp1->set_component_text((id + "_label").c_str(), name.c_str());
+            }
 
-                    # Value font
-                    - if:
-                        condition:
-                          - lambda: return !(value.empty());
-                          - lambda: return (current_page->state.find("entitypage") == 0);
-                        then:
-                          - lambda: |-
-                              // Adjusted length starts at 0
-                              float adjusted_length = 0.0;
+            // Value
+            if (not value.empty()) {
+              disp1->set_component_text(id.c_str(), adjustDecimalSeparator(value, id(mui_decimal_separator)).c_str());
+            }
 
-                              // Iterate over each character in the string
-                              for (char const &c: value) {
-                                // Check if character is a space or other specified exceptions
-                                if (display_charset->state == 2 or std::string(" iljtIf'-,;:!.\"|()[]{}").find(c) != std::string::npos) {
-                                  adjusted_length += 0.5; // Count these as half
-                                } else {
-                                  adjusted_length += 1.0; // Count all other characters as 1
-                                }
-                              }
+            // Value color
+            if (value_color.size() == 3)
+              disp1->set_component_font_color(id.c_str(), rgbTo565(value_color));
 
-                              // Decide which font to use based on adjusted length
-                              if (adjusted_length > 8.0 and adjusted_length <= 12.0) {
-                                set_component_font_with_delay->execute(id.c_str(), 1, ${DELAY_DEFAULT});
-                              } else if (adjusted_length > 12.0) {
-                                set_component_font_with_delay->execute(id.c_str(), 0, ${DELAY_DEFAULT});
-                              }
+            // Value font
+            if ((not value.empty()) and (current_page->state.find("entitypage") == 0)) {
+              // Adjusted length starts at 0
+              float adjusted_length = 0.0;
+
+              // Iterate over each character in the string
+              for (char const &c: value) {
+                // Check if character is a space or other specified exceptions
+                if (display_charset->state == 2 or std::string(" iljtIf'-,;:!.\"|()[]{}").find(c) != std::string::npos) {
+                  adjusted_length += 0.5; // Count these as half
+                } else {
+                  adjusted_length += 1.0; // Count all other characters as 1
+                }
+              }
+
+              // Decide which font to use based on adjusted length
+              if (adjusted_length > 8.0 and adjusted_length <= 12.0) {
+                disp1->set_component_font(id.c_str(), 1);
+              } else if (adjusted_length > 12.0) {
+              disp1->set_component_font(id.c_str(), 0);
+              }
+            }
 
     # Wake Up Service
     - action: wake_up
@@ -1437,7 +1350,7 @@ script:
                   - lambda: return (page != current_page->state);
                 then:
                   - lambda: |-
-                      ESP_LOGD("${TAG_API}", "Page '%s' visible while '%s' was expected", current_page->state.c_str(), page.c_str());
+                      ESP_LOGW("${TAG_API}", "Page '%s' visible while '%s' was expected", current_page->state.c_str(), page.c_str());
                   - script.stop: action_button
                 else:
                   - lambda: |-
@@ -1507,7 +1420,7 @@ script:
     then:
       - script.execute: timer_reset_all
       - homeassistant.event:
-          event: esphome.nspanel_ha_blueprint
+          event: ${EVENT_NAME}
           data:
             device_name: !lambda return device_name->state.c_str();
             esphome_version: ${version}
@@ -1530,7 +1443,7 @@ script:
             - lambda: return !service.empty();
           then:
             - homeassistant.event:
-                event: esphome.nspanel_ha_blueprint
+                event: ${EVENT_NAME}
                 data:
                   device_name: !lambda return device_name->state.c_str();
                   esphome_version: ${version}
@@ -1544,72 +1457,8 @@ script:
     then:
       - script.stop: action_button
 
-  - id: send_command_with_delay
-    mode: queued
-    max_runs: 16
-    parameters:
-      cmd: string
-      delay: uint16_t
-    then:
-      - delay: !lambda return delay;
-      - lambda: |-
-          disp1->send_command(cmd.c_str());
-
-  - id: set_component_font_with_delay
-    mode: queued
-    max_runs: 16
-    parameters:
-      component_id: string
-      font_id: uint8_t
-      delay: uint16_t
-    then:
-      - delay: !lambda return delay;
-      - lambda: |-
-          disp1->set_component_font(component_id.c_str(), font_id);
-
-  - id: set_component_font_color_with_delay
-    mode: queued
-    max_runs: 16
-    parameters:
-      component_id: string
-      color: uint16_t
-      delay: uint16_t
-    then:
-      - delay: !lambda return delay;
-      - lambda: |-
-          disp1->set_component_font_color(component_id.c_str(), color);
-
-  - id: set_component_text_with_delay
-    mode: queued
-    max_runs: 16
-    parameters:
-      component_id: string
-      txt: string
-      delay: uint16_t
-    then:
-      - delay: !lambda return delay;
-      - lambda: |-
-          disp1->set_component_text(component_id.c_str(), txt.c_str());
-
-  - id: set_component_value_with_delay
-    mode: queued
-    max_runs: 16
-    parameters:
-      component_id: string
-      val: int
-      delay: uint16_t
-    then:
-      - delay: !lambda return delay;
-      - lambda: |-
-          disp1->set_component_value(component_id.c_str(), val);
-
   - id: !extend stop_all
     then:
       - script.stop: ha_button
       - script.stop: ha_call_action
-      - script.stop: send_command_with_delay
-      - script.stop: set_component_font_with_delay
-      - script.stop: set_component_font_color_with_delay
-      - script.stop: set_component_text_with_delay
-      - script.stop: set_component_value_with_delay
 ...
