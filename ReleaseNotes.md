@@ -2,42 +2,34 @@
 
 ## Summary
 
-This release extends the queuing system introduced in v4.3.24 to additional display components,
-optimizes boot timing for better performance without compromising stability,
+This release primarily fixes page construction issues that were introduced by earlier boot timing adjustments
 and removes support for the advanced package to simplify memory management.
+The queuing system introduced in v4.3.24 has been removed as it became obsolete after timing optimizations.
 
 ## Key Improvements
 
-### Comprehensive Component Queue System
+### Queuing System Removal
 
-**Extended queued rendering system** beyond button pages to cover additional display components that
-could experience similar timing conflicts.
-Building on the successful button fix in v4.3.24, this release applies the same sequential processing approach
-to prevent rendering conflicts across all affected components.
+**Removed the queuing system introduced in v4.3.24** as it became obsolete after optimizing the timing approach.
+By reverting the problematic delays that were causing page construction issues, 
+the sequential queuing is no longer necessary to prevent timing conflicts.
 
-**Components now using queued processing:**
+**Simplification achieved:**
+- **Direct component rendering restored** without queuing overhead
+- **Cleaner code architecture** by removing unnecessary complexity
+- **Better performance** through more direct component interaction
 
-- Button pages (previously fixed in v4.3.24)
-- Additional display components susceptible to timing conflicts
-- All components that interact with display rendering during boot sequence
+### Page Construction Issue Resolution
 
-### Optimized Boot Timing
+**Fixed page construction and update problems** that were introduced when boot timing adjustments were also applied to page constructors.
+While the boot delays were necessary for ESPHome 2025.8.0 compatibility, applying similar delays to page construction caused rendering issues.
 
-**Refined boot delays for improved efficiency** while maintaining ESPHome 2025.8.0 compatibility.
-The timing adjustments have been fine-tuned to provide better performance
-without compromising the stability improvements that resolved the original boot issues.
+**Solution implemented:**
+- **Removed delays from page constructors** while keeping essential boot delays intact
+- **Maintained boot stability** for ESPHome 2025.8.0 compatibility
+- **Restored normal page rendering speed** without timing interference
 
-**Timing refinements:**
-- **Reverted some earlier delays** that were causing issues with page construction and updates
-- **Balanced approach** maintaining boot stability while improving page responsiveness
-- **Fine-tuned timing** to address both boot compatibility and runtime performance
-
-**Performance improvements:**
-
-- **More efficient boot sequence** with optimized delay timing
-- **Faster overall boot times** while preserving compatibility fixes
-- **Improved page construction speed** through selective delay adjustments
-- **Reduced system overhead** through smarter timing management
+**Result:** Pages now construct and update properly while boot stability improvements remain in place.
 
 ## Breaking Changes
 
@@ -78,9 +70,9 @@ If you were using the advanced package:
 
 ## Technical Details
 
-This release represents a comprehensive approach to display timing management,
-applying lessons learned from the button rendering fix to the broader system.
-The optimized delays strike a better balance between performance and reliability.
+This release represents a simplification approach, removing unnecessary complexity introduced during the boot crisis resolution.
+By finding the optimal timing balance, both the queuing system and problematic delays could be removed,
+resulting in cleaner code and better performance.
 
 The removal of the advanced package aligns with our focus on core functionality and user-controlled customization,
 particularly important given the memory constraints revealed during recent compatibility challenges.
