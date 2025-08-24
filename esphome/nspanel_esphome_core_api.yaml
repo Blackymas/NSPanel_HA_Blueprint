@@ -10,11 +10,9 @@ substitutions:
   ##############################
   ## Change only in your      ##
   ## local yaml substitutions ##
-  device_name: nspanel
-  name: ${device_name}
   ##############################
   BOOT_STEP_API: '30'
-  TAG_API: nspanel.core.api
+  TAG_API: nspanel.api
   EVENT_NAME: esphome.nspanel_ha_blueprint
 
 api:
@@ -61,33 +59,49 @@ api:
         bri: string        # Brightness level or other dynamic info to be displayed close to the icon.
         label: string      # Main text label for the button.
       then:
-        - script.execute:
-            id: action_button
-            page: !lambda return page;
-            button_id: !lambda return id;
-            state: !lambda return state;
-            icon: !lambda return icon;
-            icon_color: !lambda return rgbTo565(icon_color);
-            icon_font: !lambda return icon_font;
-            bri: !lambda return bri;
-            label: !lambda return label;
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action `button` triggered:");
+            ESP_LOGV("${TAG_API}", "  page: %s", page.c_str());
+            ESP_LOGV("${TAG_API}", "  id: %s", id.c_str());
+            ESP_LOGV("${TAG_API}", "  state: %s", ONOFF(state));
+            ESP_LOGV("${TAG_API}", "  icon_color: %" PRIu16, icon_color);
+            ESP_LOGV("${TAG_API}", "  icon_font: %i", icon_font);
+            ESP_LOGV("${TAG_API}", "  bri: %s", bri.c_str());
+            ESP_LOGV("${TAG_API}", "  label: %s", label.c_str());
+
+            if (page != current_page->state) {
+              ESP_LOGW("${TAG_API}", "Page '%s' visible while '%s' was expected", current_page->state.c_str(), page.c_str());
+              return;
+            }
+
+            disp1->set_component_picc((id + "pic").c_str(), state ? 47 : 46);
+            disp1->set_component_picc((id + "bri").c_str(), state ? 47 : 46);
+            disp1->set_component_picc((id + "text").c_str(), state ? 47 : 46);
+            disp1->set_component_picc((id + "icon").c_str(), state ? 47 : 46);
+            disp1->set_component_font((id + "icon").c_str(), icon_font);
+            disp1->set_component_foreground_color((id + "bri").c_str(), state ? 10597 : 65535);
+            disp1->set_component_foreground_color((id + "text").c_str(), state ? 10597 : 65535);
+            disp1->set_component_font_color((id + "icon").c_str(), rgbTo565(icon_color));
+            disp1->set_component_text((id + "icon").c_str(), icon.c_str());
+
+            display_wrapped_text->execute((id + "text").c_str(), label.c_str(), 10);
+            disp1->set_component_text((id + "bri").c_str(), (strcmp(bri.c_str(), "0") == 0) ? " " : bri.c_str());
+
+            set_component_visibility->execute((id + "pic").c_str(), true);
+            set_component_visibility->execute((id + "icon").c_str(), true);
+            set_component_visibility->execute((id + "text").c_str(), true);
+            set_component_visibility->execute((id + "bri").c_str(), true);
+            set_component_visibility->execute(id.c_str(), true);
 
     # Sends custom commands directly to the display for dynamic interactions and updates.
     - action: command
       variables:
         cmd: string  # Command string to be sent. Refer to the Nextion Instruction Set for supported commands: https://nextion.tech/instruction-set/
       then:
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.command
-            else:
-              - delay: ${DELAY_DEFAULT}ms
-              - lambda: |-
-                  disp1->send_command(cmd.c_str());
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: command");
+            ESP_LOGV("${TAG_API}", "  cmd: %s", cmd.c_str());
+            disp1->send_command(cmd.c_str());
 
     # Changes the foreground color of a specified component on the display.
     - action: component_color
@@ -95,17 +109,11 @@ api:
         id: string    # Identifier of the component to change color. Ensure this matches the component's ID in your display layout.
         color: int[]  # New color for the component, specified as an RGB array (e.g., [255, 0, 0] for red).
       then:
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.component_color
-            else:
-              - delay: ${DELAY_DEFAULT}ms
-              - lambda: |-
-                  disp1->set_component_font_color(id.c_str(), rgbTo565(color));
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: component_color");
+            ESP_LOGV("${TAG_API}", "  id: %s", id.c_str());
+            ESP_LOGV("${TAG_API}", "  color: %i", rgbTo565(color));
+            disp1->set_component_font_color(id.c_str(), rgbTo565(color));
 
     # Updates the text of a specified component on the display.
     - action: component_text
@@ -113,17 +121,11 @@ api:
         id: string   # Identifier of the component. Ensure it matches the component's ID in your display layout.
         txt: string  # New text content to be displayed. Supports both static and dynamic content.
       then:
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.component_text
-            else:
-              - delay: ${DELAY_DEFAULT}ms
-              - lambda: |-
-                  disp1->set_component_text(id.c_str(), txt.c_str());
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: component_text");
+            ESP_LOGV("${TAG_API}", "  component_id: %s", id.c_str());
+            ESP_LOGV("${TAG_API}", "  txt: %s", txt.c_str());
+            disp1->set_component_text(id.c_str(), txt.c_str());
 
     # Updates the value of a specified component on the display.
     - action: component_val
@@ -131,17 +133,11 @@ api:
         id: string  # Identifier of the component to update. Must match the component's ID in the display layout.
         val: int    # New integer value to set for the component. Adjust based on the data type you're displaying.
       then:
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.component_val
-            else:
-              - delay: ${DELAY_DEFAULT}ms
-              - lambda: |-
-                  disp1->set_component_value(id.c_str(), val);
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: component_val");
+            ESP_LOGV("${TAG_API}", "  id: %s", id.c_str());
+            ESP_LOGV("${TAG_API}", "  val: %i", val);
+            disp1->set_component_value(id.c_str(), val);
 
     # Hides or shows a specified component on the display.
     - action: components_visibility
@@ -149,21 +145,16 @@ api:
         ids: string[]  # Identifier of the component to be hidden/shown. Ensure this matches the component's ID in your display layout.
         visible: bool  # Set to true to show the component, or false to hide it.
       then:
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.components_visibility
-            else:
-              - lambda: |-
-                  for (const std::string& component_id : ids) {
-                    if (is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags) and !component_id.empty()) {
-                      set_component_visibility->execute(component_id.c_str(), visible);
-                      delay(${DELAY_DEFAULT});
-                    }
-                  }
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: components_visibility");
+            for (const std::string& component_id : ids) {
+              if (not component_id.empty()) {
+                ESP_LOGV("${TAG_API}", "  id: %s", component_id.c_str());
+                set_component_visibility->execute(component_id.c_str(), visible);
+              }
+            }
+            ESP_LOGV("${TAG_API}", "  ids count: %i", ids.size());
+            ESP_LOGV("${TAG_API}", "  visible: %s", YESNO(visible));
 
     # Displays detailed information for a specific entity.
     - action: entity_details_show
@@ -216,7 +207,6 @@ api:
                     update_bitwise_setting(id(buttons_settings), state, ButtonSettings::ButtonRight_State);
 
               # Refreshes the indication bars on the display
-              - delay: ${DELAY_DEFAULT}ms
               - script.execute:
                   id: refresh_hardware_buttons_bars
                   button_mask: !lambda return button_mask;
@@ -229,29 +219,17 @@ api:
         icon_color: int[]  # RGB color array for the icon, e.g., [0, 255, 0] for green.
         visible: bool      # Set to `true` for visible or `false` for hidden.
       then:
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.icon
-            else:
-              - delay: ${DELAY_DEFAULT}ms
-              - lambda: |-
-                  disp1->set_component_text(id.c_str(), visible ? icon.c_str() : "");
-              - if:
-                  condition:
-                    - lambda: return (icon_color.size() == 3);
-                  then:
-                    - delay: ${DELAY_DEFAULT}ms
-                    - lambda: |-
-                        disp1->set_component_font_color(id.c_str(), rgbTo565(icon_color));
-              - delay: ${DELAY_DEFAULT}ms
-              - script.execute:
-                  id: set_component_visibility
-                  component_id: !lambda return id;
-                  show: !lambda return visible;
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: icon");
+            ESP_LOGV("${TAG_API}", "  id: %s", id.c_str());
+            ESP_LOGV("${TAG_API}", "  icon: %s", icon.c_str());
+            ESP_LOGV("${TAG_API}", "  icon_color: %" PRIu16, rgbTo565(icon_color));
+            ESP_LOGV("${TAG_API}", "  visible: %s", YESNO(visible));
+            disp1->set_component_text(id.c_str(), visible ? icon.c_str() : "");
+            if (icon_color.size() == 3) {
+              disp1->set_component_font_color(id.c_str(), rgbTo565(icon_color));
+            }
+            set_component_visibility->execute(id.c_str(), visible);
 
     # Transfers global settings from the blueprint to ESPHome, configuring the necessary parameters for optimal operation.
     - action: init_global
@@ -375,7 +353,7 @@ api:
                     - lambda: return (button_bar_color_off.size() == 3);
                   then:
                     - globals.set:
-                        id: buttons_color_on
+                        id: buttons_color_off
                         value: !lambda return rgbTo565(button_bar_color_off);
 
               # Update relays icons
@@ -1260,92 +1238,67 @@ api:
         value: string       # Actual value to display (e.g., "75°F").
         value_color: int[]  # RGB color array for the value text (e.g., [255, 255, 0] for yellow).
       then:
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.value
-            else:
-              - if:
-                  condition:
-                    - lambda: return id.empty();
-                  then:
-                    - lambda: ESP_LOGW("${TAG_API}", "`id` is empty");
-                  else:
-                    # Icon
-                    - if:
-                        condition:
-                          - lambda: return !(icon.empty());
-                        then:
-                          - delay: ${DELAY_DEFAULT}ms
-                          - lambda: |-
-                              disp1->set_component_text((id + "_icon").c_str(), icon.c_str());
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: value");
+            ESP_LOGV("${TAG_API}", "  id: %s", id.c_str());
+            ESP_LOGV("${TAG_API}", "  icon: %s", icon.c_str());
+            ESP_LOGV("${TAG_API}", "  icon_color: %" PRIu16, rgbTo565(value_color));
+            ESP_LOGV("${TAG_API}", "  name: %s", name.c_str());
+            ESP_LOGV("${TAG_API}", "  value: %s", value.c_str());
+            ESP_LOGV("${TAG_API}", "  value_color: %" PRIu16, rgbTo565(value_color));
 
-                    # Icon color
-                    - if:
-                        condition:
-                          - lambda: return (icon_color.size() == 3);
-                        then:
-                          - delay: ${DELAY_DEFAULT}ms
-                          - lambda: |-
-                              disp1->set_component_font_color((id + "_icon").c_str(), rgbTo565(icon_color));
+            // Stop if Id is empty
+            if (id.empty()) {
+              ESP_LOGW("${TAG_API}", "`id` is empty");
+              return;
+            }
 
-                    # Label
-                    - if:
-                        condition:
-                          - lambda: return (!(name.empty()));
-                        then:
-                          - delay: ${DELAY_DEFAULT}ms
-                          - lambda: |-
-                              disp1->set_component_text((id + "_label").c_str(), name.c_str());
+            // Icon
+            if (not icon.empty()) {
+              disp1->set_component_text((id + "_icon").c_str(), icon.c_str());
+            }
 
-                    # Value
-                    - if:
-                        condition:
-                          - lambda: return (!(value.empty()));
-                        then:
-                          - delay: ${DELAY_DEFAULT}ms
-                          - lambda: |-
-                              disp1->set_component_text(id.c_str(), adjustDecimalSeparator(value, id(mui_decimal_separator)).c_str());
+            // Icon color
+            if (icon_color.size() == 3) {
+              disp1->set_component_font_color((id + "_icon").c_str(), rgbTo565(icon_color));
+            }
 
-                    # Value color
-                    - if:
-                        condition:
-                          - lambda: return (value_color.size() == 3);
-                        then:
-                          - delay: ${DELAY_DEFAULT}ms
-                          - lambda: |-
-                              disp1->set_component_font_color(id.c_str(), rgbTo565(value_color));
+            // Label
+            if (not name.empty()) {
+              disp1->set_component_text((id + "_label").c_str(), name.c_str());
+            }
 
-                    # Value font
-                    - if:
-                        condition:
-                          - lambda: return !(value.empty());
-                          - lambda: return (current_page->state.find("entitypage") == 0);
-                        then:
-                          - delay: ${DELAY_DEFAULT}ms
-                          - lambda: |-
-                              // Adjusted length starts at 0
-                              float adjusted_length = 0.0;
+            // Value
+            if (not value.empty()) {
+              disp1->set_component_text(id.c_str(), adjustDecimalSeparator(value, id(mui_decimal_separator)).c_str());
+            }
 
-                              // Iterate over each character in the string
-                              for (char const &c: value) {
-                                // Check if character is a space or other specified exceptions
-                                if (display_charset->state == 2 or std::string(" iljtIf'-,;:!.\"|()[]{}").find(c) != std::string::npos) {
-                                  adjusted_length += 0.5; // Count these as half
-                                } else {
-                                  adjusted_length += 1.0; // Count all other characters as 1
-                                }
-                              }
+            // Value color
+            if (value_color.size() == 3)
+              disp1->set_component_font_color(id.c_str(), rgbTo565(value_color));
 
-                              // Decide which font to use based on adjusted length
-                              if (adjusted_length > 8.0 and adjusted_length <= 12.0) {
-                                disp1->set_component_font(id.c_str(), 1);
-                              } else if (adjusted_length > 12.0) {
-                                disp1->set_component_font(id.c_str(), 0);
-                              }
+            // Value font
+            if ((not value.empty()) and (current_page->state.find("entitypage") == 0)) {
+              // Adjusted length starts at 0
+              float adjusted_length = 0.0;
+
+              // Iterate over each character in the string
+              for (char const &c: value) {
+                // Check if character is a space or other specified exceptions
+                if (display_charset->state == 2 or std::string(" iljtIf'-,;:!.\"|()[]{}").find(c) != std::string::npos) {
+                  adjusted_length += 0.5; // Count these as half
+                } else {
+                  adjusted_length += 1.0; // Count all other characters as 1
+                }
+              }
+
+              // Decide which font to use based on adjusted length
+              if (adjusted_length > 8.0 and adjusted_length <= 12.0) {
+                disp1->set_component_font(id.c_str(), 1);
+              } else if (adjusted_length > 12.0) {
+              disp1->set_component_font(id.c_str(), 0);
+              }
+            }
 
     # Wake Up Service
     - action: wake_up
@@ -1384,86 +1337,6 @@ esphome:
       - -D NSPANEL_HA_BLUEPRINT_CORE_API
 
 script:
-  - id: action_button
-    mode: queued
-    max_runs: 20
-    parameters:
-      page: string          # Identifier of the page where the button is located.
-      button_id: string     # Unique identifier for the button.
-      state: bool           # Determines the button's state, influencing background and other visual aspects.
-      icon: string          # Icon codepoint from HASwitchPlate Material Design Icons. Example: "\uE6E8" for mdi:lightbulb-on-outline.
-      icon_color: uint16_t  # RGB color for the icon.
-      icon_font: int        # Nextion font identifier for the icon, default is 8.
-      bri: string           # Brightness level or other dynamic info to be displayed close to the icon.
-      label: string         # Main text label for the button.
-    then:
-      - lambda: |-
-          ESP_LOGV("${TAG_API}", "Action `button` triggered:");
-          ESP_LOGV("${TAG_API}", "  page: %s", page.c_str());
-          ESP_LOGV("${TAG_API}", "  id: %s", button_id.c_str());
-          ESP_LOGV("${TAG_API}", "  state: %s", ONOFF(state));
-          ESP_LOGV("${TAG_API}", "  icon_color: %" PRIu16, icon_color);
-          ESP_LOGV("${TAG_API}", "  icon_font: %i", icon_font);
-          ESP_LOGV("${TAG_API}", "  bri: %s", bri.c_str());
-          ESP_LOGV("${TAG_API}", "  label: %s", label.c_str());
-      - if:
-          condition:
-            - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-          then:
-            - script.execute:
-                id: report_device_not_available
-                request: action.button
-            - script.stop: action_button
-          else:
-            - if:
-                condition:
-                  - lambda: return (page != current_page->state);
-                then:
-                  - lambda: |-
-                      ESP_LOGD("${TAG_API}", "Page '%s' visible while '%s' was expected", current_page->state.c_str(), page.c_str());
-                  - script.stop: action_button
-                else:
-                  - lambda: |-
-                      disp1->set_component_picc((button_id + "pic").c_str(), state ? 47 : 46);
-                      disp1->set_component_picc((button_id + "bri").c_str(), state ? 47 : 46);
-                      disp1->set_component_picc((button_id + "text").c_str(), state ? 47 : 46);
-                      disp1->set_component_picc((button_id + "icon").c_str(), state ? 47 : 46);
-                      disp1->set_component_font((button_id + "icon").c_str(), icon_font);
-                      disp1->set_component_foreground_color((button_id + "bri").c_str(), state ? 10597 : 65535);
-                      disp1->set_component_foreground_color((button_id + "text").c_str(), state ? 10597 : 65535);
-                      disp1->set_component_font_color((button_id + "icon").c_str(), icon_color);
-                      disp1->set_component_text((button_id + "icon").c_str(), icon.c_str());
-                  - delay: ${DELAY_DEFAULT}ms
-                  - script.execute:
-                      id: display_wrapped_text
-                      component: !lambda return (button_id + "text");
-                      text_to_display: !lambda return label;
-                      line_length_limit: 10
-                  - delay: ${DELAY_DEFAULT}ms
-                  - lambda: |-
-                      disp1->set_component_text((button_id + "bri").c_str(), (strcmp(bri.c_str(), "0") == 0) ? " " : bri.c_str());
-                  - delay: ${DELAY_DEFAULT}ms
-                  - script.execute:
-                      id: set_component_visibility
-                      component_id: !lambda return (button_id + "pic");
-                      show: true
-                  - script.execute:
-                      id: set_component_visibility
-                      component_id: !lambda return (button_id + "icon");
-                      show: true
-                  - script.execute:
-                      id: set_component_visibility
-                      component_id: !lambda return (button_id + "text");
-                      show: true
-                  - script.execute:
-                      id: set_component_visibility
-                      component_id: !lambda return (button_id + "bri");
-                      show: true
-                  - script.execute:
-                      id: set_component_visibility
-                      component_id: !lambda return button_id;
-                      show: true
-
   - id: !extend dump_config
     then:
       - if:
@@ -1490,7 +1363,7 @@ script:
     then:
       - script.execute: timer_reset_all
       - homeassistant.event:
-          event: esphome.nspanel_ha_blueprint
+          event: ${EVENT_NAME}
           data:
             device_name: !lambda return device_name->state.c_str();
             esphome_version: ${version}
@@ -1513,7 +1386,7 @@ script:
             - lambda: return !service.empty();
           then:
             - homeassistant.event:
-                event: esphome.nspanel_ha_blueprint
+                event: ${EVENT_NAME}
                 data:
                   device_name: !lambda return device_name->state.c_str();
                   esphome_version: ${version}
@@ -1525,7 +1398,6 @@ script:
 
   - id: !extend stop_all
     then:
-      - script.stop: action_button
       - script.stop: ha_button
       - script.stop: ha_call_action
 ...
