@@ -1,0 +1,70 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - Page Light                                                                 #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+substitutions:
+  BOOT_STEP_PAGE_LIGHT: '19'
+  PAGE_ID_LIGHT: '10'
+  TAG_PAGE_LIGHT: nspanel.page.light
+
+display:
+  - id: !extend disp1
+    on_touch:
+      then:
+        - if:
+            condition:
+              - lambda: return (!touch_event);  // Release
+              - lambda: return (page_id == 10);  // Page light
+              - lambda: return (component_id == 32);  // power button
+            then:
+              - script.execute:
+                  id: ha_call_action
+                  service: "light.toggle"
+                  key: ""
+                  value: ""
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_STANDARD_PAGE_LIGHT
+
+script:
+  - id: !extend event_from_display
+    then:
+      - if:
+          condition:
+            - lambda: return (page == "light");
+          then:
+            - lambda: |-
+                ESP_LOGD("${TAG_PAGE_LIGHT}", "New event from display on page 'light'");
+                const std::string key = json["key"];
+                const std::string component = json["component"];
+                if (key == "brightness_pct" or key == "color_temp") {
+                  ESP_LOGD("${TAG_PAGE_LIGHT}", "Set light attributes");
+                  const std::string value = json["value"];
+                  ha_call_action->execute("light.turn_on", key.c_str(), value.c_str());
+                } else if (component == "rgb_color") {
+                  JsonArray rgb_color = json["value"];
+                  // Send event to Home Assistant
+                  if (rgb_color.size() == 3) {
+                    ESP_LOGD("${TAG_PAGE_LIGHT}", "Setting light color");
+                    esphome::api::CustomAPIDevice ha_event;
+                    ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
+                      {"device_name", id(device_name).state},
+                      {"esphome_version", "${version}"},
+                      {"type", "action_call"},
+                      {"action", "light.turn_on"},
+                      {"key", "rgb_color"},
+                      {"red",to_string(rgb_color[0].as<int>())},
+                      {"green",to_string(rgb_color[1].as<int>())},
+                      {"blue",to_string(rgb_color[2].as<int>())},
+                      {"entity", detailed_entity->state.c_str()},
+                      {"tag", "${TAG_PAGE_LIGHT}"}
+                    });
+                  }
+                }
+...
