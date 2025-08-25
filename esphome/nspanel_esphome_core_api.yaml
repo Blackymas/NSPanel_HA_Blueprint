@@ -162,28 +162,23 @@ api:
         entity: string     # The ID of the entity for which details are shown. Supports "embedded_climate" for built-in climate control.
         back_page: string  # Specifies the page to return to. Accepts "home" or "buttonpage01" to "buttonpage04".
       then:
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.entity_details_show
-            else:
-              - lambda: |-
-                  HomeAssistantEntity entity_id = extractHomeAssistantEntity(entity);
-                  if (entity == "embedded_climate") entity_id.domain = "climate";
-                  else if (entity_id.domain == "alarm_control_panel") entity_id.domain = "alarm";
-                  if (entity_id.domain != "invalid" or entity == "embedded_climate") {
-                    detailed_entity->publish_state(entity);
-                    delay(${DELAY_DEFAULT});
-                    goto_page->execute(entity_id.domain.c_str());
-                    delay(${DELAY_DEFAULT});
-                    disp1->send_command_printf("back_page_id=%" PRIu8, get_page_id(back_page.c_str()));
-                    if (entity_id.domain == "climate")
-                      delay(${DELAY_DEFAULT});
-                      disp1->set_component_value("climate.embedded", (entity == "embedded_climate") ? 1 : 0);
-                  }
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: entity_details_show");
+            ESP_LOGV("${TAG_API}", "  entity: %s", entity.c_str());
+            ESP_LOGV("${TAG_API}", "  back_page: %s", back_page.c_str());
+            HomeAssistantEntity entity_id = extractHomeAssistantEntity(entity);
+            if (entity == "embedded_climate") entity_id.domain = "climate";
+            else if (entity_id.domain == "alarm_control_panel") entity_id.domain = "alarm";
+            if (entity_id.domain != "invalid" or entity == "embedded_climate") {
+              detailed_entity->publish_state(entity);
+              delay(${DELAY_DEFAULT});
+              goto_page->execute(entity_id.domain.c_str());
+              delay(${DELAY_DEFAULT});
+              disp1->send_command_printf("back_page_id=%" PRIu8, get_page_id(back_page.c_str()));
+              if (entity_id.domain == "climate")
+                delay(${DELAY_DEFAULT});
+                disp1->set_component_value("climate.embedded", (entity == "embedded_climate") ? 1 : 0);
+            }
 
     # Hardware Button State Indication Service
     - action: hw_button_state
@@ -191,25 +186,20 @@ api:
         button_mask: int  # Bitwise value for buttons: 1 for "left button", 2 for "right button", 3 for both buttons
         state: bool       # State for the button(s) indication: true for active, false for inactive
       then:
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.hw_button_state
-            else:  # Updates the visual state indication for hardware buttons
-              # Use bitwise AND to check specific bits
-              - lambda: |-
-                  if (button_mask & 1) // Checks if the least significant bit is set (left button)
-                    update_bitwise_setting(id(buttons_settings), state, ButtonSettings::ButtonLeft_State);
-                  if (button_mask & 2) // Checks if the second least significant bit is set (right button)
-                    update_bitwise_setting(id(buttons_settings), state, ButtonSettings::ButtonRight_State);
-
-              # Refreshes the indication bars on the display
-              - script.execute:
-                  id: refresh_hardware_buttons_bars
-                  button_mask: !lambda return button_mask;
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: hw_button_state");
+            ESP_LOGV("${TAG_API}", "  button_mask: %i", button_mask);
+            ESP_LOGV("${TAG_API}", "  state: %s", ONOFF(state));
+            // Updates the visual state indication for hardware buttons
+            // Use bitwise AND to check specific bits
+            if (button_mask & 1) // Checks if the least significant bit is set (left button)
+              update_bitwise_setting(id(buttons_settings), state, ButtonSettings::ButtonLeft_State);
+            if (button_mask & 2) // Checks if the second least significant bit is set (right button)
+              update_bitwise_setting(id(buttons_settings), state, ButtonSettings::ButtonRight_State);
+        # Refreshes the indication bars on the display
+        - script.execute:
+            id: refresh_hardware_buttons_bars
+            button_mask: !lambda return button_mask;
 
     # Icon Service
     - action: icon
@@ -816,36 +806,42 @@ api:
         embedded_climate: bool   # Indicates if climate control is integrated into the interface.
         entity: string           # Entity ID of the climate device, allowing for direct control and status updates.
       then:
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: page_climate");
+            ESP_LOGV("${TAG_API}", "  current_temp: %f", current_temp);
+            ESP_LOGV("${TAG_API}", "  supported_features: %i", supported_features);
+            ESP_LOGV("${TAG_API}", "  target_temp: %i", target_temp);
+            ESP_LOGV("${TAG_API}", "  target_temp_high: %f", target_temp_high);
+            ESP_LOGV("${TAG_API}", "  target_temp_low: %f", target_temp_low);
+            ESP_LOGV("${TAG_API}", "  temp_step: %i", temp_step);
+            ESP_LOGV("${TAG_API}", "  total_steps: %i", total_steps);
+            ESP_LOGV("${TAG_API}", "  temp_offset: %i", temp_offset);
+            ESP_LOGV("${TAG_API}", "  climate_icon: %s", climate_icon.c_str());
+            ESP_LOGV("${TAG_API}", "  embedded_climate: %s", YESNO(embedded_climate));
+            ESP_LOGV("${TAG_API}", "  entity: %s", entity.c_str());
         - if:
             condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.page_climate
-            else:
-              - if:
-                  condition:
-                    - text_sensor.state:
-                        id: current_page
-                        state: climate
-                  then:  # Update climate page
-                    # Set detailed entity sensor
-                    - text_sensor.template.publish:
-                        id: detailed_entity
-                        state: !lambda return entity;
-              - script.execute:
-                  id: set_climate
-                  current_temp: !lambda return current_temp;
-                  supported_features: !lambda return supported_features;
-                  target_temp: !lambda return target_temp;
-                  target_temp_high: !lambda return target_temp_high;
-                  target_temp_low: !lambda return target_temp_low;
-                  temp_step: !lambda return temp_step;
-                  total_steps: !lambda return total_steps;
-                  temp_offset: !lambda return temp_offset;
-                  climate_icon: !lambda return climate_icon;
-                  embedded_climate: !lambda return embedded_climate;
+              - text_sensor.state:
+                  id: current_page
+                  state: climate
+            then:  # Update climate page
+              # Set detailed entity sensor
+              - text_sensor.template.publish:
+                  id: detailed_entity
+                  state: !lambda return entity;
+        - script.execute:
+            id: set_climate
+            current_temp: !lambda return current_temp;
+            supported_features: !lambda return supported_features;
+            target_temp: !lambda return target_temp;
+            target_temp_high: !lambda return target_temp_high;
+            target_temp_low: !lambda return target_temp_low;
+            temp_step: !lambda return temp_step;
+            total_steps: !lambda return total_steps;
+            temp_offset: !lambda return temp_offset;
+            climate_icon: !lambda return climate_icon;
+            embedded_climate: !lambda return embedded_climate;
+        - delay: 1s
 
     # Dynamically updates the media player page with current state and media information.
     - action: page_media_player
@@ -1378,13 +1374,18 @@ script:
       service: string
       key: string
       value: string
-      entity: string
     then:
+      - lambda: |-
+          ESP_LOGV("${TAG_API}", "Home Assistand Call Action:");
+          ESP_LOGV("${TAG_API}", "  service: %s", service.c_str());
+          ESP_LOGV("${TAG_API}", "  key:     %s", key.c_str());
+          ESP_LOGV("${TAG_API}", "  value:   %s", value.c_str());
       - if:
           condition:
-            - lambda: return !is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
             - lambda: return !service.empty();
           then:
+            - lambda: |-
+                ESP_LOGVV("${TAG_API}", "  Sending to Home Assistant...");
             - homeassistant.event:
                 event: ${EVENT_NAME}
                 data:
@@ -1394,7 +1395,9 @@ script:
                   service: !lambda return service;
                   key: !lambda return key;
                   value: !lambda return value;
-                  entity: !lambda return entity;
+                  entity: !lambda return detailed_entity->state.c_str();
+            - lambda: |-
+                ESP_LOGVV("${TAG_API}", "  Action call sent!");
 
   - id: !extend stop_all
     then:

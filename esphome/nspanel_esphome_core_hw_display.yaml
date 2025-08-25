@@ -59,88 +59,54 @@ display:
                 state: !lambda return page_names[x];
 
     on_touch:
-      - script.execute: timer_reset_all
-      - if:
-          condition:
-            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            - lambda: return (!touch_event);  // Only act with release
-          then:
-            - if:
-                condition:
-                  - or:
-                      - and:
-                          - lambda: return (page_id == 0);  // Page boot
-                          - lambda: return (component_id == 24);  // Reboot button
-                      - and:
-                          - lambda: return (page_id == 8);  // Page settings
-                          - lambda: return (component_id == 9);  // Reboot button
-                then:
-                  - lambda: App.safe_reboot();
-            - if:
-                condition:
-                  - lambda: return (page_id == 10);  // Page light
-                  - lambda: return (component_id == 32);  // power button
-                then:
-                  - script.execute:
-                      id: ha_call_action
-                      service: "light.toggle"
-                      key: ""
-                      value: ""
-                      entity: !lambda return detailed_entity->state.c_str();
-            - if:
-                condition:
-                  - lambda: return (page_id == 16);  // Page notification
-                then:
-                  - if:
-                      condition:
-                        - lambda: return (component_id == 7);  // bt_accept
-                      then:
-                        - text_sensor.template.publish:
-                            id: notification_label
-                            state: ""
-                        - text_sensor.template.publish:
-                            id: notification_text
-                            state: ""
-                        - switch.turn_off: notification_unread
-                        - script.execute:
-                            id: goto_page
-                            page: home
-                        - script.execute:
-                            id: set_component_visibility
-                            component_id: "home.bt_notific"
-                            show: false
-                  - if:
-                      condition:
-                        - lambda: return (component_id == 8);  // bt_clear
-                      then:
-                        - switch.turn_off: notification_unread
-                        - script.execute:
-                            id: goto_page
-                            page: home
-            - if:
-                condition:
-                  - lambda: return (page_id == 22);  // Page fan
-                then:
-                  - if:
-                      condition:
-                        - lambda: return (component_id == 13);  // bt_oscillate
-                      then:
-                        - script.execute:
-                            id: ha_call_action
-                            service: "fan.oscillate"
-                            key: oscillating
-                            value: toggle
-                            entity: !lambda return detailed_entity->state.c_str();
-                  - if:
-                      condition:
-                        - lambda: return (component_id == 14);  // power_button
-                      then:
-                        - script.execute:
-                            id: ha_call_action
-                            service: "fan.toggle"
-                            key: ""
-                            value: ""
-                            entity: !lambda return detailed_entity->state.c_str();
+      then:
+        - script.execute: timer_reset_all
+        - if:
+            condition:
+              - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+              - lambda: return (!touch_event);  // Only act with release
+            then:
+              - if:
+                  condition:
+                    - or:
+                        - and:
+                            - lambda: return (page_id == 0);  // Page boot
+                            - lambda: return (component_id == 24);  // Reboot button
+                        - and:
+                            - lambda: return (page_id == 8);  // Page settings
+                            - lambda: return (component_id == 9);  // Reboot button
+                  then:
+                    - lambda: App.safe_reboot();
+              - if:
+                  condition:
+                    - lambda: return (page_id == 16);  // Page notification
+                  then:
+                    - if:
+                        condition:
+                          - lambda: return (component_id == 7);  // bt_accept
+                        then:
+                          - text_sensor.template.publish:
+                              id: notification_label
+                              state: ""
+                          - text_sensor.template.publish:
+                              id: notification_text
+                              state: ""
+                          - switch.turn_off: notification_unread
+                          - script.execute:
+                              id: goto_page
+                              page: home
+                          - script.execute:
+                              id: set_component_visibility
+                              component_id: "home.bt_notific"
+                              show: false
+                    - if:
+                        condition:
+                          - lambda: return (component_id == 8);  // bt_clear
+                        then:
+                          - switch.turn_off: notification_unread
+                          - script.execute:
+                              id: goto_page
+                              page: home
 
 external_components:
   - source: github://pr#10402  # To-do: remove this when PR is released
@@ -361,6 +327,104 @@ script:
           else
             ESP_LOGCONFIG("nspanel_ha_blueprint", "  TFT:         %s", version_tft->state.c_str());
 
+  - id: event_from_display
+    mode: parallel
+    parameters:
+      json: JsonDocument
+      page: string
+    then:
+      # Extended by:
+      #   - nspanel_esphome_standard_page_alarm.yaml
+      #   - nspanel_esphome_standard_page_climate.yaml
+      #   - nspanel_esphome_standard_page_cover.yaml
+      #   - nspanel_esphome_standard_page_fan.yaml
+      #   - nspanel_esphome_standard_page_keyb_num.yaml
+      #   - nspanel_esphome_standard_page_light.yaml
+      #   - nspanel_esphome_standard_page_media_player.yaml
+      #   - nspanel_esphome_standard_versioning.yaml
+      - lambda: |-
+          if (page.empty()) {
+            ESP_LOGW("${TAG_HW_DISPLAY}", "Empty page");
+            return;
+          }
+
+          // Extract required fields with validation
+          if (json["event"].isNull()) {
+            ESP_LOGW("${TAG_HW_DISPLAY}", "Missing 'event' key");
+            // return;
+          }
+
+          // Start extracting info from event's json
+          ESP_LOGD("${TAG_HW_DISPLAY}", "New event from display on page '%s':", page.c_str());
+          const std::string event = json["event"].as<std::string>();
+          const std::string component = json["component"].isNull() ? "" :
+            json["component"].as<std::string>();
+          const std::string value = json["value"].isNull() ? "" :
+            json["value"].as<std::string>();
+
+          ESP_LOGD("${TAG_HW_DISPLAY}", "Event: '%s.%s', type=%s", page.c_str(), component.c_str(), event.c_str());
+
+          // Handle special events
+          if (event == "params") {
+            if (json["display_mode"].isNull() || json["charset"].isNull()) {
+              ESP_LOGW("${TAG_HW_DISPLAY}", "Missing 'display' key");
+              return;
+            }
+
+            // Parse display parameters
+            display_mode->publish_state(json["display_mode"].as<uint8_t>());
+            display_charset->publish_state(json["charset"].as<uint8_t>());
+
+            ESP_LOGV("${TAG_HW_DISPLAY}", "Display:");
+            ESP_LOGV("${TAG_HW_DISPLAY}", "  Mode:    %" PRIu8, display_mode->state);
+            ESP_LOGV("${TAG_HW_DISPLAY}", "  Charset: %" PRIu8, display_charset->state);
+
+            id(disp1).send_command("tm_esphome.en=0");
+            return;
+          }
+
+          // Send event to Home Assistant
+          esphome::api::CustomAPIDevice ha_event;
+
+          if (event == "short_click" || event == "long_click") {
+            if (component.empty()) {
+              ESP_LOGW("${TAG_HW_DISPLAY}", "Click event missing component");
+              return;
+            }
+
+            // Button click event
+            ha_event.fire_homeassistant_event("${EVENT_NAME}", {
+              {"device_name", id(device_name).state},
+              {"esphome_version", "${version}"},
+              {"type", "button_click"},
+              {"page", page.c_str()},
+              {"component", component.c_str()},
+              {"command", event.c_str()},
+              {"tag", "${TAG_HW_DISPLAY}"}
+            });
+          } else {
+            // Generic event
+            ha_event.fire_homeassistant_event("${EVENT_NAME}", {
+              {"device_name", id(device_name).state},
+              {"esphome_version", "${version}"},
+              {"type", "button_click"},
+              {"page", page.c_str()},
+              {"component", component.c_str()},
+              {"event", event.c_str()},
+              {"value", value.c_str()},
+              {"entity", id(detailed_entity).state.c_str()},
+              {"tag", "${TAG_HW_DISPLAY}"}
+            });
+          }
+
+          ESP_LOGV("${TAG_HW_DISPLAY}", "HA event sent");
+
+          if (id(version_tft).state.empty() and event == "params") {
+            ESP_LOGV("${TAG_VERSIONING}", "Nextion event");
+            id(version_tft).publish_state(json["version"].as<std::string>());
+            id(check_versions).execute();
+          }
+
   - id: page_changed
     mode: restart
     then:
@@ -379,6 +443,9 @@ script:
                 id: goto_page
                 page: boot
             - script.stop: page_changed
+
+      # Stop previous constructors
+      - script.execute: page_constructors_stop
 
       # Reset globals
       - lambda: |-
@@ -425,17 +492,16 @@ script:
           then:
             - delay: ${DELAY_DEFAULT}ms
             - lambda: |-
-                ESP_LOGD("script.page_changed", "Reset timers");
+                ESP_LOGV("script.page_changed", "Reset timers");
             - script.execute: timer_reset_all
 
-      # Stop previous constructors
-      - script.execute: page_constructors_stop
+      # Wait for other constructors to stop before telling the blueprint about a new page
       - script.wait: page_constructors_stop
 
       # Report new page to Blueprint
       - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
-          ESP_LOGD("script.page_changed", "Report new page to Blueprint");
+          ESP_LOGV("script.page_changed", "Report new page to Blueprint");
       - homeassistant.event:
           event: ${EVENT_NAME}
           data:
@@ -448,7 +514,7 @@ script:
       # Call page constructor
       - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
-          ESP_LOGD("script.page_changed", "Call page constructor");
+          ESP_LOGV("script.page_changed", "Call page constructor");
       - lambda: |-
           if (current_page->state == "alarm") page_alarm->execute();
           else if (current_page->state == "blank") page_blank->execute();
@@ -509,7 +575,6 @@ script:
       # Page home is an exception, as it can be constructed in the background
       - script.stop: page_keyb_num
       - script.stop: page_light
-      - script.stop: page_media_player
       - script.stop: page_notification
       - script.stop: page_qrcode
       - script.stop: page_screensaver
@@ -588,7 +653,6 @@ script:
           id: set_component_visibility
           component_id: !lambda return component_id;
           show: !lambda return show;
-
 
   - id: !extend stop_all
     then:
@@ -933,7 +997,26 @@ text_sensor:
     internal: false
     disabled_by_default: false
 
-  - id: disp1_local_event  # NSPanel event - Execute actions from ESPHome - NO push to HA
+  #- id: disp1_local_event  # NSPanel event - Execute actions from ESPHome - NO directly push to HA
+  #  name: NSPanel local event
+  #  platform: nextion
+  #  nextion_id: disp1
+  #  component_name: localevent
+  #  internal: true
+  #  on_value:
+  #    then:
+  #      - lambda: |-
+  #          JsonDocument json;
+  #          DeserializationError error = deserializeJson(json, x.c_str());
+  #          if (error) {
+  #            ESP_LOGE("${TAG_HW_DISPLAY}", "JSON parse error: %s", x.c_str());
+  #            ESP_LOGE("${TAG_HW_DISPLAY}", "Error: %s", error.c_str());
+  #            return;
+  #          }
+  #          const std::string page = json["page"];
+  #          id(event_from_display).execute(json, page.c_str());
+
+  - id: disp1_local_event
     name: NSPanel local event
     platform: nextion
     nextion_id: disp1
@@ -997,11 +1080,11 @@ text_sensor:
                 const uint8_t embedded = json["embedded"];
                 change_climate_state->execute(embedded == 1, key.c_str(), value.c_str());
               } else if (page == "cover") {
-                if (key == "position") ha_call_action->execute("cover.set_cover_position", key.c_str(), value.c_str(), detailed_entity->state.c_str());
-                else ha_call_action->execute(("cover." + key).c_str(), "", "", detailed_entity->state.c_str());
+                if (key == "position") ha_call_action->execute("cover.set_cover_position", key.c_str(), value.c_str());
+                else ha_call_action->execute(("cover." + key).c_str(), "", "");
               } else if (page == "fan") {
-                if (key == "stop" or value == "0") ha_call_action->execute("fan.turn_off", "", "", detailed_entity->state.c_str());
-                else ha_call_action->execute("fan.turn_on", key.c_str(), value.c_str(), detailed_entity->state.c_str());
+                if (key == "stop" or value == "0") ha_call_action->execute("fan.turn_off", "", "");
+                else ha_call_action->execute("fan.turn_on", key.c_str(), value.c_str());
               } else if (page == "keyb_num") {
                 const std::string base_domain = json["base_domain"];
                 if (base_domain == "alarm") {
@@ -1012,7 +1095,7 @@ text_sensor:
                 goto_page->execute(base_domain.empty() ? "home" : base_domain.c_str());
               } else if (page == "light") {
                 if (key == "brightness_pct" or key == "color_temp") {
-                  ha_call_action->execute("light.turn_on", key.c_str(), value.c_str(), detailed_entity->state.c_str());
+                  ha_call_action->execute("light.turn_on", key.c_str(), value.c_str());
                 } else if (component == "rgb_color") {
                   JsonArray rgb_color = json["value"];
                   if (rgb_color.size() == 3) {
@@ -1032,12 +1115,12 @@ text_sensor:
                 }
               } else if (page == "media_player") {
                 if (key == "volume_mute") {
-                  ha_call_action->execute("media_player.volume_mute", "is_volume_muted", value.c_str(), detailed_entity->state.c_str());
+                  ha_call_action->execute("media_player.volume_mute", "is_volume_muted", value.c_str());
                 } else if (key == "volume_set") {
                   const float value_float = json["value"].as<float>();
-                  ha_call_action->execute("media_player.volume_set", "volume_level", to_string(value_float / 100.0f), detailed_entity->state.c_str());
+                  ha_call_action->execute("media_player.volume_set", "volume_level", to_string(value_float / 100.0f));
                 } else if (!key.empty()) {
-                  ha_call_action->execute((std::string("media_player.") + key.c_str()), "", "", detailed_entity->state.c_str());
+                  ha_call_action->execute((std::string("media_player.") + key.c_str()), "", "");
                 }
               }
             }
