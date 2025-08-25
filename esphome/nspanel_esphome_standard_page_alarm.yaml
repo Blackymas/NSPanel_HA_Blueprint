@@ -1,0 +1,79 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - ALARM PAGE                                                                 #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+---
+substitutions:
+  BOOT_STEP_PAGE_ALARM: '10'
+  PAGE_ID_ALARM: '23'
+  TAG_PAGE_ALARM: nspanel.page.alarm
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_STANDARD_PAGE_ALARM
+
+script:
+  - id: !extend event_from_display
+    then:
+      - if:
+          condition:
+            - lambda: return page == "alarm";
+          then:
+            - lambda: |-
+                const std::string key = json["key"];
+                const std::string code_format = json["code_format"];
+                const std::string code_arm_req = json["code_arm_req"];
+                if (code_format == "number" and (key == "disarm" or code_arm_req == "1")) {
+                  goto_page->execute("keyb_num");  // goto_page_id->execute(${PAGE_ID_KEYB_NUM}, true);
+                  const std::string value = json["value"];
+                  const std::string mui = json["mui"];
+                  disp1->set_component_value("page_id", ${PAGE_ID_ALARM});
+                  disp1->set_component_text("domain", page.c_str());
+                  disp1->set_component_text("key", key.c_str());
+                  disp1->set_component_text("value", value.c_str());
+                  disp1->set_component_text("entity", detailed_entity->state.c_str());
+                  disp1->set_component_text("title", mui.c_str());
+                } else {
+                  alarm_control_panel_action->execute(detailed_entity->state.c_str(), key.c_str(),
+                                                      code_format.c_str(), "");
+                }
+
+  - id: alarm_control_panel_action
+    mode: restart
+    parameters:
+      entity: string
+      key: string
+      code_format: string
+      pin: string
+    then:
+      - if:
+          condition:
+            - lambda: return pin.empty();
+          then:
+            - homeassistant.action:
+                action: &alarm_control_panel_action !lambda |-
+                  return "alarm_control_panel.alarm_" + ((key == "bypass") ? "custom_bypass" : key);
+                data:
+                  entity_id: !lambda return entity;
+          else:
+            - homeassistant.action:
+                action: *alarm_control_panel_action
+                data:
+                  entity_id: !lambda return entity;
+                  code: !lambda return pin;
+
+  - id: !extend dump_config  # Defined by nspanel_esphome_core_base.yaml
+    then:
+      - lambda: |-
+          // Check for requirements
+          #if !defined(NSPANEL_HA_BLUEPRINT_STANDARD_PAGE_KEYB_NUM)
+            #error "The package nspanel_esphome_standard_page_keyb_num.yaml is required."
+          #endif
+
+  - id: !extend stop_all
+    then:
+      - script.stop: alarm_control_panel_action
+...

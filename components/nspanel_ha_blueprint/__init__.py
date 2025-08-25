@@ -15,10 +15,12 @@ nspanel_ha_blueprint_ns = cg.esphome_ns.namespace('nspanel_ha_blueprint')
 
 PSRAM_CLK_PIN = "psram_clk_pin"
 PSRAM_CS_PIN = "psram_cs_pin"
+DISABLE_BOOTLOADER_LOGS = "disable_bootloader_logs"
 
 CONFIG_SCHEMA = cv.Schema({
     cv.Optional(PSRAM_CLK_PIN): pins.internal_gpio_output_pin_number,
-    cv.Optional(PSRAM_CS_PIN):  pins.internal_gpio_output_pin_number,
+    cv.Optional(PSRAM_CS_PIN): pins.internal_gpio_output_pin_number,
+    cv.Optional(DISABLE_BOOTLOADER_LOGS): cv.boolean,
 })
 
 
@@ -45,6 +47,16 @@ async def to_code(config):
 
         if CORE.using_esp_idf:
             add_idf_sdkconfig_option("CONFIG_D0WD_PSRAM_CS_IO", cs_pin)
+
+    # Handle bootloader logs configuration - Only when explicitly disabled
+    if DISABLE_BOOTLOADER_LOGS in config and config[DISABLE_BOOTLOADER_LOGS]:
+        if CORE.using_esp_idf:
+            add_idf_sdkconfig_option("CONFIG_BOOTLOADER_LOG_LEVEL_NONE", True)
+            add_idf_sdkconfig_option("CONFIG_BOOTLOADER_LOG_LEVEL", 0)
+        else:
+            # Arduino framework - add build flags for compatibility
+            cg.add_build_flag("-DCONFIG_BOOTLOADER_LOG_LEVEL_NONE")
+            cg.add_build_flag("-DCONFIG_BOOTLOADER_LOG_LEVEL=0")
 
     if CORE.using_esp_idf:
         add_idf_sdkconfig_option("CONFIG_BT_ALLOCATION_FROM_SPIRAM_FIRST", True)
