@@ -603,7 +603,7 @@ packages:
 
 The core package includes memory reporting functionality. Monitor your device's memory usage through ESPHome logs:
 
-```
+```log
 [nspanel_ha_blueprint] ESPHome:
 [nspanel_ha_blueprint]   Version:     2024.12.0
 [nspanel_ha_blueprint]   Free heap:
