@@ -450,7 +450,8 @@ Consider creating a [Pull Request](https://github.com/Blackymas/NSPanel_HA_Bluep
 
 ### Understanding Package Organization and Memory Management
 
-The NSPanel HA Blueprint utilizes a modular package structure designed for flexibility and optimal memory usage. Understanding this architecture enables advanced users to customize their installation based on specific needs and memory constraints.
+The NSPanel HA Blueprint utilizes a modular package structure designed for flexibility and optimal memory usage.
+Understanding this architecture enables advanced users to customize their installation based on specific needs and memory constraints.
 
 #### Package Structure Overview
 
@@ -473,7 +474,8 @@ Each package serves a specific purpose:
 
 #### Memory Optimization Strategies
 
-The ESP32 in the NSPanel has limited flash memory, and advanced users may need to optimize memory usage when adding custom components like Bluetooth Proxy, additional sensors, or custom automations.
+The ESP32 in the NSPanel has limited flash memory, and advanced users may need to optimize memory usage when adding custom components like Bluetooth Proxy,
+additional sensors, or custom automations.
 
 ##### Granular Package Selection
 
@@ -761,7 +763,8 @@ script:
 
 ### Advanced Blueprint Configuration
 
-The Blueprint file `nspanel_blueprint.yaml` can be customized for specific use cases. While the standard Blueprint handles most scenarios, advanced users may need specialized automations.
+The Blueprint file `nspanel_blueprint.yaml` can be customized for specific use cases.
+While the standard Blueprint handles most scenarios, advanced users may need specialized automations.
 
 For local Blueprint modifications:
 1. Download `nspanel_blueprint.yaml` from the repository
@@ -819,7 +822,8 @@ logger:
 If problems persist after troubleshooting, visit the [Issues](https://github.com/Blackymas/NSPanel_HA_Blueprint/issues) page.
 Feel free to create a new issue for personalized assistance, providing details such as:
 1. A description or picture of what is displayed on your screen.
-2. Information on whether you are updating from a previous version of this project, migrating from another NSPanel customization, or customizing a panel with the original Sonoff settings.
+2. Information on whether you are updating from a previous version of this project,
+   migrating from another NSPanel customization, or customizing a panel with the original Sonoff settings.
 3. ESPHome logs from the start of your panel to the point where the upload fails.
 4. A description of what you have already tried.
 
