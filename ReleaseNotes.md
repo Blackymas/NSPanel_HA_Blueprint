@@ -1,37 +1,63 @@
-# v4.3.26 - Stability Improvements
+# v4.3.27 - Boot Loop Improvements and System Stability
 
 ## Summary
 
-This release primarily addresses issues introduced in v4.3.20 during the early response to the ESPHome 2025.8.0 boot crisis.
-Additionally, includes some adjustments aimed at helping with the ongoing boot compatibility issues.
+This release focuses on significant improvements to the boot loop issues affecting ESPHome 2025.8.0+ compatibility.
+While not a complete solution, testing shows meaningful progress in boot reliability,
+particularly for configurations that were previously failing consistently.
 
 ## Key Improvements
 
-### Crisis-Introduced Issue Resolution
+### Boot Loop Issue Progress
 
-**Fixed multiple issues that were introduced in v4.3.20** when implementing the initial emergency response to the ESPHome 2025.8.0 boot problems.
-The early crisis fixes, while addressing the immediate boot failures, inadvertently created secondary issues that affected system stability and functionality.
+**Significant improvements to boot reliability** based on extensive testing and refinements to the boot sequence.
+While the root cause investigation continues, this release shows measurable progress in reducing boot failures.
 
-**Issues resolved:**
-- Restored functionality that was impacted by emergency timing adjustments
-- Improved system stability after boot sequence completion
+**Testing results:**
+- **Climate add-on now boots successfully** - no longer breaks the boot sequence in testing
+- **Overall system stability improved** - fewer random crashes during boot
+- **Better recovery rates** for most configurations
 
-### Additional Boot Crisis Improvements
+**Current compatibility status:**
+- ✅ **Climate add-on** - appears to boot reliably now
+- ⚠️ **Cover add-on** - still causes boot issues, but OTA recovery possible during safe mode (remove add-on to recover)
+- ❌ **Bluetooth components** - still problematic, may require USB/TTL recovery
 
-**Implemented further adjustments** in an ongoing effort to resolve the remaining ESPHome 2025.8.0 boot compatibility issues.
-While the root cause remains under investigation, these changes aim to improve boot reliability for affected users.
+### System Stability Enhancements
 
-**Boot-related improvements:**
-- Continued optimization of boot timing and component loading
-- Enhanced compatibility with ESPHome 2025.8.0+ versions
+**Resolved additional issues** introduced during the early crisis response in v4.3.20.
+Users should experience more stable system behavior overall,
+with fewer side effects from the emergency compatibility measures.
+
+**Stability improvements:**
+- Reduced system instability after successful boot
+- Better overall performance and responsiveness
+- Fewer unexpected behaviors during normal operation
+
+## Current Boot Issue Status
+
+**We're making progress, but there's still work to do.**
+
+**If you're currently stable - don't change anything yet!**
+
+**If you've been affected by boot loops:**
+- **Climate add-on users** - this release should resolve your boot issues
+- **Cover add-on users** - remove the add-on temporarily, update, then consider re-adding cautiously
+- **Bluetooth users** - continue to avoid these components for now
+
+**For persistent boot issues:**
+- Basic configurations should work more reliably with this release
+- USB/TTL flashing may still be needed for severe cases
 
 ## Technical Details
 
-This release demonstrates the iterative nature of crisis resolution - sometimes initial emergency fixes create secondary issues that need to be addressed in subsequent releases.
-The focus here is on stabilizing the system after the emergency response period while continuing to work toward a complete solution for the boot compatibility issues.
+This release represents continued iteration on boot sequence optimization and component loading timing.
+The improvements are based on systematic testing and gradual refinement rather than major architectural changes,
+resulting in more predictable behavior across different configuration types.
 
-**Result:** More stable system behavior with reduced side effects from crisis response measures, while maintaining improvements in boot compatibility.
+**Result:** Measurably improved boot success rates while maintaining system stability,
+with particular success for climate add-on configurations that were previously failing.
 
 ---
 
-*This cleanup release ensures system stability while we continue working on the underlying boot compatibility challenges.*
+*Significant progress made - we're getting closer to resolving the ESPHome 2025.8.0 compatibility challenges.*
