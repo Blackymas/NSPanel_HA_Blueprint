@@ -294,7 +294,8 @@ ESPHome will compile the firmware with the new settings and automatically transf
    - The compilation and transfer process may take a few minutes.
    - Once complete, your panel will restart automatically with the new firmware.
 
-Using OTA for firmware updates is a time-efficient way to keep your NSPanel updated with the latest changes and enhancements, ensuring a smooth and hassle-free user experience.
+Using OTA for firmware updates is a time-efficient way to keep your NSPanel updated with the latest changes and enhancements,
+ensuring a smooth and hassle-free user experience.
 
 ### Updating Your NSPanel Firmware
 Regularly updating your NSPanel firmware ensures that you have the latest features and improvements from this project and ESPHome.
@@ -378,9 +379,11 @@ Once the right model is selected, please press the button **Update TFT display**
 In a few seconds your display should start transferring the file correspondent to the selected model.
 The transfer screen shows a progress bar with a percentage counter with a black background.
 
-If the transfer don't starts in a few seconds, ESPHome will retry automatically a few times, with different transfer parameters, so the transfer can take up to a minute to start.
+If the transfer don't starts in a few seconds, ESPHome will retry automatically a few times,
+with different transfer parameters, so the transfer can take up to a minute to start.
 
-Once started, the transfer shouldn't take more than 10 to 20 minutes. If after this time it isn't close to finnish, please cancel the process by restarting your device, then try it again.
+Once started, the transfer shouldn't take more than 10 to 20 minutes.
+If after this time it isn't close to finnish, please cancel the process by restarting your device, then try it again.
 
 > [!TIP]
 > For troubleshooting TFT transfer issues, consult our [TFT Transfer Troubleshooting Guide](tft_upload.md).
@@ -459,23 +462,22 @@ The main `nspanel_esphome.yaml` file includes several sub-packages:
 
 ```yaml
 packages:
-  bare_package: !include esphome/nspanel_esphome_bare.yaml      # Essential ESPHome configuration
   core_package: !include esphome/nspanel_esphome_core.yaml      # Core NSPanel functionality (display, PSRAM, etc.)
-  standard_package: !include esphome/nspanel_esphome_standard.yaml  # Standard UI and features
+  standard_package: !include esphome/nspanel_esphome_standard.yaml  # Standard UI and features  
   upload_tft_package: !include esphome/nspanel_esphome_addon_upload_tft.yaml  # TFT upload capabilities
 ```
 
 Each package serves a specific purpose:
 
-- **`bare_package`**: Contains the minimal ESPHome configuration required for basic functionality
-- **`core_package`**: Provides essential NSPanel hardware support including display communication, PSRAM configuration, and base sensors
+- **`core_package`**: Contains essential ESPHome configuration and NSPanel hardware support including display communication,
+   PSRAM configuration, base sensors, and fundamental device functionality
 - **`standard_package`**: Implements the standard user interface elements and basic automation features documented in our guides
 - **`upload_tft_package`**: Includes components necessary for TFT file transfer to the Nextion display
 
 #### Memory Optimization Strategies
 
-The ESP32 in the NSPanel has limited flash memory, and advanced users may need to optimize memory usage when adding custom components like Bluetooth Proxy,
-additional sensors, or custom automations.
+The ESP32 in the NSPanel has limited flash memory, and advanced users may need to optimize memory usage
+when adding custom components like Bluetooth Proxy, additional sensors, or custom automations.
 
 ##### Granular Package Selection
 
@@ -513,7 +515,6 @@ packages:
     ref: main
     refresh: 300s
     files:
-      - esphome/nspanel_esphome_bare.yaml        # Essential configuration
       - esphome/nspanel_esphome_core.yaml        # Core NSPanel functionality
       - esphome/nspanel_esphome_standard.yaml    # Standard features
       # - esphome/nspanel_esphome_addon_upload_tft.yaml  # Temporarily disabled
@@ -540,12 +541,17 @@ substitutions:
 ##### My customization - Start #####
 # Bluetooth components commented out during TFT updates
 # bluetooth_proxy:
-#   active: true
 # esp32_ble_tracker:
 #   scan_parameters:
-#     interval: 1100ms
-#     window: 1100ms
-#     active: true
+#     continuous: false
+# api:
+#   on_client_connected:
+#     then:
+#       - esp32_ble_tracker.start_scan:
+#           continuous: true
+#   on_client_disconnected:
+#     then:
+#       - esp32_ble_tracker.stop_scan:
 ##### My customization - End #####
 
 packages:
@@ -554,7 +560,6 @@ packages:
     ref: main
     refresh: 300s
     files:
-      - esphome/nspanel_esphome_bare.yaml
       - esphome/nspanel_esphome_core.yaml
       - esphome/nspanel_esphome_standard.yaml
       - esphome/nspanel_esphome_addon_upload_tft.yaml  # Enable for updates
@@ -593,7 +598,6 @@ packages:
     ref: main
     refresh: 300s
     files:
-      - esphome/nspanel_esphome_bare.yaml
       - esphome/nspanel_esphome_core.yaml
       - esphome/nspanel_esphome_standard.yaml
       # - esphome/nspanel_esphome_addon_upload_tft.yaml  # Disabled for memory
@@ -632,7 +636,6 @@ Here's a complete workflow for integrating Bluetooth Proxy while managing memory
    packages:
      remote_package:
        files:
-         - esphome/nspanel_esphome_bare.yaml
          - esphome/nspanel_esphome_core.yaml
          - esphome/nspanel_esphome_standard.yaml
          - esphome/nspanel_esphome_addon_upload_tft.yaml
@@ -669,7 +672,6 @@ Here's a complete workflow for integrating Bluetooth Proxy while managing memory
    packages:
      remote_package:
        files:
-         - esphome/nspanel_esphome_bare.yaml
          - esphome/nspanel_esphome_core.yaml
          - esphome/nspanel_esphome_standard.yaml
          # TFT upload package commented out to save memory
@@ -681,7 +683,8 @@ Here's a complete workflow for integrating Bluetooth Proxy while managing memory
 
 #### Local Package Management
 
-For advanced customization with ESPHome, you can use local copies of the package files. This approach provides greater control and faster compilation times:
+For advanced customization with ESPHome, you can use local copies of the package files.
+This approach provides greater control and faster compilation times:
 
 ```yaml
 substitutions:
@@ -696,7 +699,6 @@ substitutions:
 ##### My customization - End #####
 
 packages:
-  local_bare: !include packages/nspanel_esphome_bare.yaml
   local_core: !include packages/nspanel_esphome_core.yaml
   local_standard: !include packages/nspanel_esphome_standard.yaml
   # Optional packages based on your needs
@@ -804,7 +806,7 @@ When working with custom configurations:
 3. **Package Conflicts**: Ensure custom packages don't override essential functionality
 4. **Framework Issues**: Verify framework compatibility with custom components
 
-For debugging, enable verbose logging:
+For debugging, enable verbose logging for the specific components:
 
 ```yaml
 logger:
@@ -814,6 +816,9 @@ logger:
     esp32_ble_tracker: DEBUG
     bluetooth_proxy: DEBUG
 ```
+
+This enhanced documentation provides advanced users with the knowledge needed to optimize their NSPanel configurations
+while maintaining system stability and functionality.
 
 ## Additional Tips and Resources
 > [!TIP]
