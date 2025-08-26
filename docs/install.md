@@ -448,45 +448,369 @@ For homes with multiple panels:
 Before customizing your system, we encourage you to share any enhancements you make.
 Consider creating a [Pull Request](https://github.com/Blackymas/NSPanel_HA_Blueprint/pulls) to the `dev` branch to share your discoveries with the community.
 
-### Advanced ESPHome Configuration
-For advanced customization with ESPHome, start with "Customizations."
-We have a dedicated page for this, and your contributions are welcome: [Customization](customization.md).
+### Understanding Package Organization and Memory Management
 
-To use a local copy of `nspanel_esphome.yaml`, copy the file from GitHub to your local file system and include it in your ESPHome settings as follows:
+The NSPanel HA Blueprint utilizes a modular package structure designed for flexibility and optimal memory usage. Understanding this architecture enables advanced users to customize their installation based on specific needs and memory constraints.
+
+#### Package Structure Overview
+
+The main `nspanel_esphome.yaml` file includes several sub-packages:
+
+```yaml
+packages:
+  bare_package: !include esphome/nspanel_esphome_bare.yaml      # Essential ESPHome configuration
+  core_package: !include esphome/nspanel_esphome_core.yaml      # Core NSPanel functionality (display, PSRAM, etc.)
+  standard_package: !include esphome/nspanel_esphome_standard.yaml  # Standard UI and features
+  upload_tft_package: !include esphome/nspanel_esphome_addon_upload_tft.yaml  # TFT upload capabilities
+```
+
+Each package serves a specific purpose:
+
+- **`bare_package`**: Contains the minimal ESPHome configuration required for basic functionality
+- **`core_package`**: Provides essential NSPanel hardware support including display communication, PSRAM configuration, and base sensors
+- **`standard_package`**: Implements the standard user interface elements and basic automation features documented in our guides
+- **`upload_tft_package`**: Includes components necessary for TFT file transfer to the Nextion display
+
+#### Memory Optimization Strategies
+
+The ESP32 in the NSPanel has limited flash memory, and advanced users may need to optimize memory usage when adding custom components like Bluetooth Proxy, additional sensors, or custom automations.
+
+##### Granular Package Selection
+
+Instead of using the main `nspanel_esphome.yaml`, advanced users can reference individual packages directly:
 
 ```yaml
 substitutions:
-  # Editable settings
-  device_name: "YOUR_NSPANEL_NAME"
-  friendly_name: "Your panel's friendly name"
+  device_name: "your_nspanel_name"
+  friendly_name: "Your Panel Name"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
-  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"  # Optional
-  # Add-on configuration
-  # heater_relay: "1" - possible values: 1/2
 
 ##### My customization - Start #####
+# Add your custom components here
+# Bluetooth Proxy with smart scanning (only when HA is connected)
+bluetooth_proxy:
+
+esp32_ble_tracker:
+  scan_parameters:
+    continuous: false
+
+api:
+  on_client_connected:
+    then:
+      - esp32_ble_tracker.start_scan:
+          continuous: true
+  on_client_disconnected:
+    then:
+      - esp32_ble_tracker.stop_scan:
 ##### My customization - End #####
 
 packages:
-  local_package: !include packages/nspanel_esphome.yaml
+  remote_package:
+    url: https://github.com/Blackymas/NSPanel_HA_Blueprint
+    ref: main
+    refresh: 300s
+    files:
+      - esphome/nspanel_esphome_bare.yaml        # Essential configuration
+      - esphome/nspanel_esphome_core.yaml        # Core NSPanel functionality
+      - esphome/nspanel_esphome_standard.yaml    # Standard features
+      # - esphome/nspanel_esphome_addon_upload_tft.yaml  # Temporarily disabled
+```
+
+This approach allows you to:
+- Enable only required functionality
+- Temporarily disable memory-intensive components
+- Add custom components while maintaining core functionality
+
+##### Dynamic Memory Management
+
+For scenarios requiring temporary memory trade-offs (e.g., TFT updates vs. Bluetooth functionality):
+
+**Option 1: TFT Update Configuration**
+```yaml
+# Configuration for TFT updates - Disable Bluetooth temporarily
+substitutions:
+  device_name: "your_nspanel_name"
+  friendly_name: "Your Panel Name"
+  wifi_ssid: !secret wifi_ssid
+  wifi_password: !secret wifi_password
+
+##### My customization - Start #####
+# Bluetooth components commented out during TFT updates
+# bluetooth_proxy:
+#   active: true
+# esp32_ble_tracker:
+#   scan_parameters:
+#     interval: 1100ms
+#     window: 1100ms
+#     active: true
+##### My customization - End #####
+
+packages:
+  remote_package:
+    url: https://github.com/Blackymas/NSPanel_HA_Blueprint
+    ref: main
+    refresh: 300s
+    files:
+      - esphome/nspanel_esphome_bare.yaml
+      - esphome/nspanel_esphome_core.yaml
+      - esphome/nspanel_esphome_standard.yaml
+      - esphome/nspanel_esphome_addon_upload_tft.yaml  # Enable for updates
+```
+
+**Option 2: Runtime Configuration**
+```yaml
+# Configuration for normal operation - Enable Bluetooth, disable TFT upload
+substitutions:
+  device_name: "your_nspanel_name"
+  friendly_name: "Your Panel Name"
+  wifi_ssid: !secret wifi_ssid
+  wifi_password: !secret wifi_password
+
+##### My customization - Start #####
+# Bluetooth Proxy with smart scanning (only when HA is connected)
+bluetooth_proxy:
+
+esp32_ble_tracker:
+  scan_parameters:
+    continuous: false
+
+api:
+  on_client_connected:
+    then:
+      - esp32_ble_tracker.start_scan:
+          continuous: true
+  on_client_disconnected:
+    then:
+      - esp32_ble_tracker.stop_scan:
+##### My customization - End #####
+
+packages:
+  remote_package:
+    url: https://github.com/Blackymas/NSPanel_HA_Blueprint
+    ref: main
+    refresh: 300s
+    files:
+      - esphome/nspanel_esphome_bare.yaml
+      - esphome/nspanel_esphome_core.yaml
+      - esphome/nspanel_esphome_standard.yaml
+      # - esphome/nspanel_esphome_addon_upload_tft.yaml  # Disabled for memory
+```
+
+##### Memory Usage Monitoring
+
+The core package includes memory reporting functionality. Monitor your device's memory usage through ESPHome logs:
+
+```
+[nspanel_ha_blueprint] ESPHome:
+[nspanel_ha_blueprint]   Version:     2024.12.0
+[nspanel_ha_blueprint]   Free heap:
+[nspanel_ha_blueprint]     Internal:   45000 bytes (65.2%)
+[nspanel_ha_blueprint]     PSRAM:    3900000 bytes (95.1%)
+```
+
+Use this information to determine if additional components can be safely added or if memory optimization is required.
+
+#### Practical Example: Bluetooth Proxy Integration
+
+Here's a complete workflow for integrating Bluetooth Proxy while managing memory constraints:
+
+1. **Initial Setup with TFT Support**:
+   ```yaml
+   substitutions:
+     device_name: "your_nspanel_name"
+     friendly_name: "Your Panel Name"
+     wifi_ssid: !secret wifi_ssid
+     wifi_password: !secret wifi_password
+
+   ##### My customization - Start #####
+   # Bluetooth disabled during initial TFT upload
+   ##### My customization - End #####
+
+   packages:
+     remote_package:
+       files:
+         - esphome/nspanel_esphome_bare.yaml
+         - esphome/nspanel_esphome_core.yaml
+         - esphome/nspanel_esphome_standard.yaml
+         - esphome/nspanel_esphome_addon_upload_tft.yaml
+   ```
+
+2. **Flash firmware and upload TFT file**
+
+3. **Switch to Bluetooth Configuration**:
+   ```yaml
+   substitutions:
+     device_name: "your_nspanel_name"
+     friendly_name: "Your Panel Name"
+     wifi_ssid: !secret wifi_ssid
+     wifi_password: !secret wifi_password
+
+   ##### My customization - Start #####
+   # Bluetooth Proxy with smart scanning (only when HA is connected)
+   bluetooth_proxy:
+
+   esp32_ble_tracker:
+     scan_parameters:
+       continuous: false
+
+   api:
+     on_client_connected:
+       then:
+         - esp32_ble_tracker.start_scan:
+             continuous: true
+     on_client_disconnected:
+       then:
+         - esp32_ble_tracker.stop_scan:
+   ##### My customization - End #####
+
+   packages:
+     remote_package:
+       files:
+         - esphome/nspanel_esphome_bare.yaml
+         - esphome/nspanel_esphome_core.yaml
+         - esphome/nspanel_esphome_standard.yaml
+         # TFT upload package commented out to save memory
+   ```
+
+4. **For future TFT updates**: Temporarily revert to configuration from step 1, perform update, then switch back to step 3.
+
+### Advanced ESPHome Configuration
+
+#### Local Package Management
+
+For advanced customization with ESPHome, you can use local copies of the package files. This approach provides greater control and faster compilation times:
+
+```yaml
+substitutions:
+  device_name: "your_nspanel_name"
+  friendly_name: "Your Panel Name"
+  wifi_ssid: !secret wifi_ssid
+  wifi_password: !secret wifi_password
+  nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"
+
+##### My customization - Start #####
+# Your custom components and modifications
+##### My customization - End #####
+
+packages:
+  local_bare: !include packages/nspanel_esphome_bare.yaml
+  local_core: !include packages/nspanel_esphome_core.yaml
+  local_standard: !include packages/nspanel_esphome_standard.yaml
+  # Optional packages based on your needs
+  # local_upload_tft: !include packages/nspanel_esphome_addon_upload_tft.yaml
 ```
 
 > [!NOTE]
-> A sub-folder is recommended to prevent the file from being added as an additional device in the ESPHome dashboard.
-> Alternatively, you can name the file starting with `.` to exclude it from the device list.
+> A sub-folder is recommended to prevent package files from appearing as additional devices in the ESPHome dashboard.
+> Alternatively, you can prefix filenames with `.` to exclude them from the device list.
+
+#### Framework Considerations
+
+The choice of ESP32 framework significantly impacts memory usage and component compatibility:
+
+- **ESP-IDF Framework** (Recommended): Lower memory footprint, better Bluetooth support, optimal for advanced features
+- **Arduino Framework**: Higher memory usage, may cause compilation failures with memory-intensive components
+
+For Bluetooth-enabled configurations, always use ESP-IDF:
+
+```yaml
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+```
+
+#### Custom Component Integration
+
+When adding custom components, consider their memory impact and interaction with existing packages:
+
+```yaml
+##### My customization - Start #####
+# Example: Adding a custom sensor while monitoring memory
+sensor:
+  - platform: custom_sensor
+    name: "My Custom Sensor"
+    # Ensure this doesn't conflict with core functionality
+
+# Optimized Bluetooth Proxy configuration
+bluetooth_proxy:
+
+esp32_ble_tracker:
+  scan_parameters:
+    continuous: false
+
+api:
+  on_client_connected:
+    then:
+      - esp32_ble_tracker.start_scan:
+          continuous: true
+  on_client_disconnected:
+    then:
+      - esp32_ble_tracker.stop_scan:
+
+# Custom automations
+script:
+  - id: my_custom_script
+    then:
+      - lambda: |-
+          // Custom logic here
+          ESP_LOGI("custom", "Memory available: %d", ESP.getFreeHeap());
+##### My customization - End #####
+```
 
 ### Advanced Blueprint Configuration
-The Blueprint file `nspanel_blueprint.yaml` can be installed manually.
-You can also edit your local copy of the Blueprint, but be aware that reloading the Blueprint from the repository will overwrite local changes.
 
-### Advanced TFT File
-All `.HMI` files used in this project are available in our GitHub repository.
-Modify these files using the [Nextion Editor](https://nextion.tech/nextion-editor/) and create your own `.tft` files for your device.
+The Blueprint file `nspanel_blueprint.yaml` can be customized for specific use cases. While the standard Blueprint handles most scenarios, advanced users may need specialized automations.
 
-For guidance on using Nextion, refer to:
+For local Blueprint modifications:
+1. Download `nspanel_blueprint.yaml` from the repository
+2. Modify according to your requirements
+3. Import the local file instead of the remote URL
+
+> [!WARNING]
+> Local Blueprint modifications will not receive automatic updates. You'll need to manually merge changes from new releases.
+
+### Advanced TFT File Customization
+
+All `.HMI` source files are available in the repository for custom TFT development:
+
+1. **Download Nextion Editor**: [Nextion Editor](https://nextion.tech/nextion-editor/)
+2. **Modify `.HMI` files**: Customize the user interface according to your needs
+3. **Compile to `.TFT`**: Generate custom TFT files for your specific requirements
+4. **Host the file**: Make it accessible via HTTP for your panel
+
+For guidance on Nextion development:
 - [Nextion Instruction Set](https://nextion.tech/instruction-set)
 - [Nextion Editor Guide](https://nextion.tech/editor_guide/)
+
+### Memory Optimization Best Practices
+
+1. **Monitor Memory Usage**: Regularly check memory reports in ESPHome logs
+2. **Use Granular Packages**: Include only necessary functionality
+3. **Framework Selection**: Prefer ESP-IDF for advanced features
+4. **Temporary Configurations**: Switch configurations for specific tasks (TFT updates)
+5. **PSRAM Utilization**: Leverage the 8MB PSRAM for larger components while keeping core functionality in internal memory
+
+### Advanced Troubleshooting
+
+When working with custom configurations:
+
+1. **Compilation Errors**: Often related to memory constraints or conflicting dependencies
+2. **Runtime Issues**: Monitor memory usage and check for component conflicts
+3. **Package Conflicts**: Ensure custom packages don't override essential functionality
+4. **Framework Issues**: Verify framework compatibility with custom components
+
+For debugging, enable verbose logging:
+
+```yaml
+logger:
+  level: VERBOSE
+  logs:
+    nextion: VERBOSE
+    esp32_ble_tracker: DEBUG
+    bluetooth_proxy: DEBUG
+```
 
 ## Additional Tips and Resources
 > [!TIP]
