@@ -20,7 +20,7 @@ namespace nspanel_ha_blueprint {
         NEXTION_READY = 3,      ///< Nextion display communication ready
         BLUEPRINT_READY = 4,    ///< Blueprint component initialized
         TFT_READY = 5,          ///< TFT display ready
-        RESERVED_6 = 6,         ///< Reserved for future expansion
+        BOOT_COMPLETED = 6,     ///< Boot script is completed
         RESERVED_7 = 7,         ///< Reserved for future expansion
 
         // Runtime operation flags (8-15)
