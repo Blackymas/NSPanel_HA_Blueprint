@@ -11,15 +11,17 @@ substitutions:
   ## local yaml substitutions ##
   ##############################
   BAUD_RATE: '115200'
-  bytes_per_char: "1"
   BOOT_STEP_HW_DISPLAY: '5'
-  DISPLAY_CHARSET_INTERNATIONAL: '1'
+  bytes_per_char: "1"
   DISPLAY_CHARSET_CJK: '2'
+  DISPLAY_CHARSET_INTERNATIONAL: '1'
   GPIO_DISPLAY_NEXTION_RX_PIN: 17
   GPIO_DISPLAY_NEXTION_TX_PIN: 16
-  TAG_HW_DISPLAY: nspanel.hw.display
-  screen_power_on_delay_on_boot: 0s
+  GPIO_DISPLAY_POWER_PIN:
+    number: 4
+    inverted: true
   screen_power_off_on_shutdown: 'true'
+  TAG_HW_DISPLAY: nspanel.hw.display
 
 binary_sensor:
   - id: nextion_init  # Delays initial info from HA to the display
@@ -224,6 +226,14 @@ number:
             page_screensaver->execute();
 
 script:
+  - id: !extend boot_early_routines
+    then:
+      - if:
+          condition:
+            - switch.is_off: screen_power
+          then:
+            - switch.turn_on: screen_power
+
   - id: display_wrapped_text
     mode: parallel
     max_runs: 3
@@ -337,7 +347,7 @@ script:
             ESP_LOGCONFIG("nspanel_ha_blueprint", "  TFT:         %s", version_tft->state.c_str());
 
   - id: event_from_display
-    mode: parallel
+    mode: restart
     parameters:
       json: JsonDocument
       page: string
@@ -447,14 +457,11 @@ script:
             - lambda: return current_page->state.empty();
           then:
             - lambda: |-
-                ESP_LOGE("script.page_changed", "No page to open - Fallback to boot");
-            - script.execute:
-                id: goto_page
-                page: boot
+                ESP_LOGE("script.page_changed", "No page to open");
             - script.stop: page_changed
 
       # Stop previous constructors
-      - script.execute: page_constructors_stop
+      - script.execute: stop_page_constructors
 
       # Reset globals
       - lambda: |-
@@ -505,7 +512,7 @@ script:
             - script.execute: timer_reset_all
 
       # Wait for other constructors to stop before telling the blueprint about a new page
-      - script.wait: page_constructors_stop
+      - script.wait: stop_page_constructors
 
       # Report new page to Blueprint
       - delay: ${DELAY_DEFAULT}ms
@@ -561,40 +568,6 @@ script:
           button_mask: 3
           delay: 1000
 
-  - id: page_constructors_stop
-    mode: single
-    then:
-      - script.stop: page_alarm
-      - script.stop: page_blank
-      - script.stop: page_boot
-      - script.stop: page_buttonpage
-      - script.stop: page_buttonpage01
-      - script.stop: page_buttonpage02
-      - script.stop: page_buttonpage03
-      - script.stop: page_buttonpage04
-      - script.stop: page_climate
-      - script.stop: page_confirm
-      - script.stop: page_cover
-      - script.stop: page_entitypage
-      - script.stop: page_entitypage01
-      - script.stop: page_entitypage02
-      - script.stop: page_entitypage03
-      - script.stop: page_entitypage04
-      - script.stop: page_fan
-      # Page home is an exception, as it can be constructed in the background
-      - script.stop: page_keyb_num
-      - script.stop: page_light
-      - script.stop: page_notification
-      - script.stop: page_qrcode
-      - script.stop: page_screensaver
-      - script.stop: page_settings
-      - script.stop: page_utilities
-      - script.stop: page_weather
-      - script.stop: page_weather01
-      - script.stop: page_weather02
-      - script.stop: page_weather03
-      - script.stop: page_weather04
-
   - id: set_baud_rate
     mode: single
     parameters:
@@ -633,8 +606,6 @@ script:
       brightness: float
     then:
       - lambda: |-
-          if (is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags))
-            return;
           disp1->set_backlight_brightness(brightness / 100.0f);
           current_brightness->update();
 
@@ -665,7 +636,7 @@ script:
 
   - id: !extend stop_all
     then:
-      - script.execute: page_constructors_stop
+      - script.execute: stop_page_constructors
       - script.stop: display_wrapped_text
       - script.stop: page_changed
       - script.stop: set_baud_rate
@@ -679,6 +650,39 @@ script:
       - script.stop: update_tft_info
       - script.stop: wait_for_uart_available
       - script.stop: wait_for_version_tft
+
+  - id: stop_page_constructors
+    mode: single
+    then:
+      - script.stop: page_alarm
+      - script.stop: page_blank
+      - script.stop: page_buttonpage
+      - script.stop: page_buttonpage01
+      - script.stop: page_buttonpage02
+      - script.stop: page_buttonpage03
+      - script.stop: page_buttonpage04
+      - script.stop: page_climate
+      - script.stop: page_confirm
+      - script.stop: page_cover
+      - script.stop: page_entitypage
+      - script.stop: page_entitypage01
+      - script.stop: page_entitypage02
+      - script.stop: page_entitypage03
+      - script.stop: page_entitypage04
+      - script.stop: page_fan
+      # Page home is an exception, as it can be constructed in the background
+      - script.stop: page_keyb_num
+      - script.stop: page_light
+      - script.stop: page_notification
+      - script.stop: page_qrcode
+      - script.stop: page_screensaver
+      - script.stop: page_settings
+      - script.stop: page_utilities
+      - script.stop: page_weather
+      - script.stop: page_weather01
+      - script.stop: page_weather02
+      - script.stop: page_weather03
+      - script.stop: page_weather04
 
   ###### Timers ######
   - id: timer_dim        # Handles the brightness dimming after a timeout
@@ -965,7 +969,13 @@ sensor:
     entity_category: diagnostic
 
 switch:
-  - id: !extend screen_power  # Controls the display's power source
+  - id: screen_power  # Controls the display's power source
+    name: Nextion display - Power
+    platform: gpio
+    entity_category: diagnostic
+    pin: ${GPIO_DISPLAY_POWER_PIN}
+    restore_mode: ALWAYS_OFF
+    disabled_by_default: true
     internal: true
     on_turn_off:
       then:
@@ -983,13 +993,16 @@ text_sensor:
     disabled_by_default: false
     filters:
       - lambda: |-
-          x = x.c_str();
-          x.shrink_to_fit();
-          return x;
+          // Check if Nextion display is ready using system flags
+          if (is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::NEXTION_READY)) {
+            return x;  // Return page name
+          }
+          return {};  // Nextion not ready - return unavailable state
     on_value:
       - if:
           condition:
-            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+            - lambda: return !x.empty();  // Only execute page_changed script when we have a non-empty page value
+            - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::NEXTION_READY);
           then:
             - script.execute: page_changed
 

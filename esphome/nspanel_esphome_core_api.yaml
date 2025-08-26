@@ -17,6 +17,7 @@ substitutions:
 api:
   id: api_server
   homeassistant_services: true
+  reboot_timeout: 60min
 
   on_client_connected:
     then:
@@ -232,31 +233,21 @@ api:
         decimal_separator: string      # The char to be used as decimal separator.
       then:
         - lambda: boot_log->execute("Service", "init_global");
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.init_global
-            else:
-              - delay: ${DELAY_DEFAULT}ms
-              - script.execute:
-                  id: global_settings
-                  blueprint_version: !lambda return blueprint_version;
-                  ent_value_xcen: !lambda return ent_value_xcen;
-                  mui_please_confirm: !lambda return mui_please_confirm;
-                  mui_unavailable: !lambda return mui_unavailable;
-                  screensaver_time: !lambda return screensaver_time;
-                  screensaver_time_font: !lambda return screensaver_time_font;
-                  screensaver_time_color: !lambda return screensaver_time_color;
-                  decimal_separator: !lambda return decimal_separator;
-              - delay: ${DELAY_DEFAULT}ms
-              - script.wait: global_settings
-              - delay: ${DELAY_DEFAULT}ms
-              - sensor.template.publish:
-                  id: blueprint_status
-                  state: !lambda return (int(blueprint_status->raw_state) | (1 << 5));
+        - delay: ${DELAY_DEFAULT}ms
+        - script.execute:
+            id: global_settings
+            blueprint_version: !lambda return blueprint_version;
+            ent_value_xcen: !lambda return ent_value_xcen;
+            mui_please_confirm: !lambda return mui_please_confirm;
+            mui_unavailable: !lambda return mui_unavailable;
+            screensaver_time: !lambda return screensaver_time;
+            screensaver_time_font: !lambda return screensaver_time_font;
+            screensaver_time_color: !lambda return screensaver_time_color;
+            decimal_separator: !lambda return decimal_separator;
+        - script.wait: global_settings
+        - sensor.template.publish:
+            id: blueprint_status
+            state: !lambda return (int(blueprint_status->raw_state) | (1 << 5));
 
     # Configures NSPanel hardware (buttons, relays, etc.) settings
     - action: init_hardware
@@ -279,86 +270,78 @@ api:
         embedded_indoor_temperature: bool       # Enables indoor temperature display.
       then:
         - lambda: boot_log->execute("Service", "init_hardware");
+        - delay: ${DELAY_DEFAULT}ms
+        - script.execute:
+            id: init_hardware_climate
+            embedded_climate: !lambda return embedded_climate;
+            embedded_climate_friendly_name: !lambda return embedded_climate_friendly_name;
+            embedded_indoor_temperature: !lambda return embedded_indoor_temperature;
+
+        # Relay settings
+        - delay: ${DELAY_DEFAULT}ms
+        - lambda: |-
+            using namespace esphome::display;
+            update_bitwise_setting(id(relay_settings), relay1_local_control, RelaySettings::Relay1_Local);
+            update_bitwise_setting(id(relay_settings), relay1_fallback, RelaySettings::Relay1_Fallback);
+            update_bitwise_setting(id(relay_settings), relay2_local_control, RelaySettings::Relay2_Local);
+            update_bitwise_setting(id(relay_settings), relay2_fallback, RelaySettings::Relay2_Fallback);
+
+        # Relay icons
+        - delay: ${DELAY_DEFAULT}ms
+        - lambda: |-
+            using namespace esphome::display;
+            if (not relay1_icon.empty()) copyStringToCharArray(id(home_relay1_icon), relay1_icon);
+            if (not relay2_icon.empty()) copyStringToCharArray(id(home_relay2_icon), relay2_icon);
+
+            // Relay icon's colors
+            if (relay1_icon_color.size() == 3) {
+              id(home_relay1_icon_color) = rgbTo565(relay1_icon_color);
+              disp1->set_component_font_color("home.chip_relay1", id(home_relay1_icon_color));
+            }
+            if (relay2_icon_color.size() == 3) {
+              id(home_relay2_icon_color) = rgbTo565(relay2_icon_color);
+              disp1->set_component_font_color("home.chip_relay2", id(home_relay2_icon_color));
+            }
+
+        # Buttons bars settings
+        - delay: ${DELAY_DEFAULT}ms
+        - globals.set:
+            id: buttons_bars_pages
+            value: !lambda return button_bar_pages;
+        - lambda: |-
+            using namespace esphome::display;
+            update_bitwise_setting(id(buttons_settings), button_left, ButtonSettings::ButtonLeft_Enabled);
+            update_bitwise_setting(id(buttons_settings), button_right, ButtonSettings::ButtonRight_Enabled);
         - if:
             condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+              - lambda: return (button_bar_color_on.size() == 3);
             then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.init_hardware
-            else:
-              - delay: ${DELAY_DEFAULT}ms
-              - script.execute:
-                  id: init_hardware_climate
-                  embedded_climate: !lambda return embedded_climate;
-                  embedded_climate_friendly_name: !lambda return embedded_climate_friendly_name;
-                  embedded_indoor_temperature: !lambda return embedded_indoor_temperature;
-
-              # Relay settings
-              - delay: ${DELAY_DEFAULT}ms
-              - lambda: |-
-                  using namespace esphome::display;
-                  update_bitwise_setting(id(relay_settings), relay1_local_control, RelaySettings::Relay1_Local);
-                  update_bitwise_setting(id(relay_settings), relay1_fallback, RelaySettings::Relay1_Fallback);
-                  update_bitwise_setting(id(relay_settings), relay2_local_control, RelaySettings::Relay2_Local);
-                  update_bitwise_setting(id(relay_settings), relay2_fallback, RelaySettings::Relay2_Fallback);
-
-              # Relay icons
-              - delay: ${DELAY_DEFAULT}ms
-              - lambda: |-
-                  using namespace esphome::display;
-                  if (not relay1_icon.empty()) copyStringToCharArray(id(home_relay1_icon), relay1_icon);
-                  if (not relay2_icon.empty()) copyStringToCharArray(id(home_relay2_icon), relay2_icon);
-
-                  // Relay icon's colors
-                  if (relay1_icon_color.size() == 3) {
-                    id(home_relay1_icon_color) = rgbTo565(relay1_icon_color);
-                    disp1->set_component_font_color("home.chip_relay1", id(home_relay1_icon_color));
-                  }
-                  if (relay2_icon_color.size() == 3) {
-                    id(home_relay2_icon_color) = rgbTo565(relay2_icon_color);
-                    disp1->set_component_font_color("home.chip_relay2", id(home_relay2_icon_color));
-                  }
-
-              # Buttons bars settings
-              - delay: ${DELAY_DEFAULT}ms
               - globals.set:
-                  id: buttons_bars_pages
-                  value: !lambda return button_bar_pages;
-              - lambda: |-
-                  using namespace esphome::display;
-                  update_bitwise_setting(id(buttons_settings), button_left, ButtonSettings::ButtonLeft_Enabled);
-                  update_bitwise_setting(id(buttons_settings), button_right, ButtonSettings::ButtonRight_Enabled);
-              - if:
-                  condition:
-                    - lambda: return (button_bar_color_on.size() == 3);
-                  then:
-                    - globals.set:
-                        id: buttons_color_on
-                        value: !lambda return rgbTo565(button_bar_color_on);
-              - if:
-                  condition:
-                    - lambda: return (button_bar_color_off.size() == 3);
-                  then:
-                    - globals.set:
-                        id: buttons_color_off
-                        value: !lambda return rgbTo565(button_bar_color_off);
+                  id: buttons_color_on
+                  value: !lambda return rgbTo565(button_bar_color_on);
+        - if:
+            condition:
+              - lambda: return (button_bar_color_off.size() == 3);
+            then:
+              - globals.set:
+                  id: buttons_color_off
+                  value: !lambda return rgbTo565(button_bar_color_off);
 
-              # Update relays icons
-              - delay: ${DELAY_DEFAULT}ms
-              - script.execute:
-                  id: refresh_relays
-                  relay_mask: 3
-              # Update buttons bars
-              - delay: ${DELAY_DEFAULT}ms
-              - script.execute:
-                  id: refresh_hardware_buttons_bars
-                  button_mask: 3
-              # Update blueprint status
-              - delay: ${DELAY_DEFAULT}ms
-              - sensor.template.publish:
-                  id: blueprint_status
-                  state: !lambda return (int(blueprint_status->raw_state) | (1 << 4));
+        # Update relays icons
+        - delay: ${DELAY_DEFAULT}ms
+        - script.execute:
+            id: refresh_relays
+            relay_mask: 3
+        # Update buttons bars
+        - delay: ${DELAY_DEFAULT}ms
+        - script.execute:
+            id: refresh_hardware_buttons_bars
+            button_mask: 3
+        # Update blueprint status
+        - delay: ${DELAY_DEFAULT}ms
+        - sensor.template.publish:
+            id: blueprint_status
+            state: !lambda return (int(blueprint_status->raw_state) | (1 << 4));
 
     # Sets up the "Home" page in ESPHome with customized settings and UI elements as defined in the project blueprint.
     - action: init_page_home
@@ -380,101 +363,93 @@ api:
         outdoor_temp_font: int                 # Font Id for outdoor temperature indication on the "Home" page.
       then:
         - lambda: boot_log->execute("Service", "init_page_home");
+        # Localization
+        - delay: ${DELAY_DEFAULT}ms
+        - globals.set:
+            id: mui_time_format
+            value: !lambda return time_format;
         - if:
             condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+              - lambda: return (meridiem.size() == 2);
             then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.init_page_home
-            else:
-              # Localization
-              - delay: ${DELAY_DEFAULT}ms
-              - globals.set:
-                  id: mui_time_format
-                  value: !lambda return time_format;
-              - if:
-                  condition:
-                    - lambda: return (meridiem.size() == 2);
-                  then:
-                    - lambda: |-
-                        id(mui_meridiem)[0] = meridiem[0];
-                        id(mui_meridiem)[1] = meridiem[1];
-
-              # Date & Time colors
-              - delay: ${DELAY_DEFAULT}ms
-              - globals.set:
-                  id: home_date_color
-                  value: !lambda return rgbTo565(date_color);
-              - globals.set:
-                  id: home_time_color
-                  value: !lambda return rgbTo565(time_color);
               - lambda: |-
-                  disp1->set_component_font_color("home.date", id(home_date_color));
-                  disp1->set_component_font_color("home.time", id(home_time_color));
+                  id(mui_meridiem)[0] = meridiem[0];
+                  id(mui_meridiem)[1] = meridiem[1];
 
-              # Chips icon size
-              - delay: ${DELAY_DEFAULT}ms
-              - lambda: |-
-                  disp1->set_component_font("home.chip_relay1", chip_font);
-                  disp1->set_component_font("home.chip_relay2", chip_font);
-                  disp1->set_component_font("home.chip_climate", chip_font);
-                  for (int i = 1; i <= 7; ++i) {
-                    delay(${DELAY_DEFAULT});
-                    disp1->send_command_printf("home.chip%02d.font=%" PRIi32, i, chip_font);
-                  }
-                  disp1->set_component_font("home.wifi_icon", chip_font);
-              - globals.set:
-                  id: home_chip_font_id
-                  value: !lambda return chip_font;
+        # Date & Time colors
+        - delay: ${DELAY_DEFAULT}ms
+        - globals.set:
+            id: home_date_color
+            value: !lambda return rgbTo565(date_color);
+        - globals.set:
+            id: home_time_color
+            value: !lambda return rgbTo565(time_color);
+        - lambda: |-
+            disp1->set_component_font_color("home.date", id(home_date_color));
+            disp1->set_component_font_color("home.time", id(home_time_color));
 
-              # Custom buttons icon size
-              - delay: ${DELAY_DEFAULT}ms
-              - globals.set:
-                  id: home_custom_buttons_font_id
-                  value: !lambda return custom_buttons_font;
-              - lambda: |-
-                  for (int i = 1; i <= 7; ++i) {
-                    disp1->send_command_printf("home.button%02d.font=%" PRIu8, i, id(home_custom_buttons_font_id));
-                    delay(${DELAY_DEFAULT});
-                  }
-                  disp1->set_component_font("home.bt_notific", id(home_custom_buttons_font_id));
-                  disp1->set_component_font("home.bt_qrcode", id(home_custom_buttons_font_id));
-                  disp1->set_component_font("home.bt_entities", id(home_custom_buttons_font_id));
+        # Chips icon size
+        - delay: ${DELAY_DEFAULT}ms
+        - lambda: |-
+            disp1->set_component_font("home.chip_relay1", chip_font);
+            disp1->set_component_font("home.chip_relay2", chip_font);
+            disp1->set_component_font("home.chip_climate", chip_font);
+            for (int i = 1; i <= 7; ++i) {
+              delay(${DELAY_DEFAULT});
+              disp1->send_command_printf("home.chip%02d.font=%" PRIi32, i, chip_font);
+            }
+            disp1->set_component_font("home.wifi_icon", chip_font);
+        - globals.set:
+            id: home_chip_font_id
+            value: !lambda return chip_font;
 
-              # Outdoor temperature font size
-              - delay: ${DELAY_DEFAULT}ms
-              - lambda: |-
-                  disp1->set_component_font("home.outdoor_temp", outdoor_temp_font);
+        # Custom buttons icon size
+        - delay: ${DELAY_DEFAULT}ms
+        - globals.set:
+            id: home_custom_buttons_font_id
+            value: !lambda return custom_buttons_font;
+        - lambda: |-
+            for (int i = 1; i <= 7; ++i) {
+              disp1->send_command_printf("home.button%02d.font=%" PRIu8, i, id(home_custom_buttons_font_id));
+              delay(${DELAY_DEFAULT});
+            }
+            disp1->set_component_font("home.bt_notific", id(home_custom_buttons_font_id));
+            disp1->set_component_font("home.bt_qrcode", id(home_custom_buttons_font_id));
+            disp1->set_component_font("home.bt_entities", id(home_custom_buttons_font_id));
 
-              # QRCode button
-              - delay: ${DELAY_DEFAULT}ms
-              - script.execute:
-                  id: set_component_visibility
-                  component_id: "home.bt_qrcode"
-                  show: !lambda return qrcode;
-              - lambda: |-
-                  disp1->set_component_text("home.bt_qrcode", qrcode_icon.c_str());
-                  disp1->set_component_font_color("home.bt_qrcode", rgbTo565(qrcode_icon_color));
+        # Outdoor temperature font size
+        - delay: ${DELAY_DEFAULT}ms
+        - lambda: |-
+            disp1->set_component_font("home.outdoor_temp", outdoor_temp_font);
 
-              # Entities pages button
-              - delay: ${DELAY_DEFAULT}ms
-              - lambda: |-
-                  disp1->set_component_text("home.bt_entities", entities_pages_icon.c_str());
-                  disp1->set_component_font_color("home.bt_entities", rgbTo565(entities_pages_icon_color));
+        # QRCode button
+        - delay: ${DELAY_DEFAULT}ms
+        - script.execute:
+            id: set_component_visibility
+            component_id: "home.bt_qrcode"
+            show: !lambda return qrcode;
+        - lambda: |-
+            disp1->set_component_text("home.bt_qrcode", qrcode_icon.c_str());
+            disp1->set_component_font_color("home.bt_qrcode", rgbTo565(qrcode_icon_color));
 
-              # Utilities button
-              - delay: ${DELAY_DEFAULT}ms
-              - lambda: |-
-                  disp1->send_command_printf("is_utilities=%i", utilities ? 1 : 0);
-                  disp1->set_component_text("home.bt_utilities", utilities_icon.c_str());
-                  disp1->set_component_font_color("home.bt_utilities", rgbTo565(utilities_icon_color));
+        # Entities pages button
+        - delay: ${DELAY_DEFAULT}ms
+        - lambda: |-
+            disp1->set_component_text("home.bt_entities", entities_pages_icon.c_str());
+            disp1->set_component_font_color("home.bt_entities", rgbTo565(entities_pages_icon_color));
 
-              # Update blueprint status
-              - delay: ${DELAY_DEFAULT}ms
-              - sensor.template.publish:
-                  id: blueprint_status
-                  state: !lambda return (int(blueprint_status->raw_state) | (1 << 1));
+        # Utilities button
+        - delay: ${DELAY_DEFAULT}ms
+        - lambda: |-
+            disp1->send_command_printf("is_utilities=%i", utilities ? 1 : 0);
+            disp1->set_component_text("home.bt_utilities", utilities_icon.c_str());
+            disp1->set_component_font_color("home.bt_utilities", rgbTo565(utilities_icon_color));
+
+        # Update blueprint status
+        - delay: ${DELAY_DEFAULT}ms
+        - sensor.template.publish:
+            id: blueprint_status
+            state: !lambda return (int(blueprint_status->raw_state) | (1 << 1));
 
     # Populates the "Settings" page with user-configurable options, aligning with the project's blueprint for a cohesive and intuitive settings interface.
     - action: init_page_settings
@@ -484,70 +459,46 @@ api:
         bright: string      # Text label for the high brightness level slider, signaling a brighter screen option.
         dim: string         # Text label for the dim brightness level slider, signaling a lower light option for energy saving.
       then:
-        - lambda: boot_log->execute("Service", "init_page_settings");
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.init_page_settings
-            else:
-              - lambda: |-
-                  if (not reboot.empty()) disp1->set_component_text_printf("settings.lbl_reboot", " %s", reboot.c_str());
-                  disp1->set_component_text_printf("settings.lbl_brightness", " %s", brightness.c_str());
-              - delay: ${DELAY_DEFAULT}ms
-              - script.execute:
-                  id: display_wrapped_text
-                  component: "settings.lbl_bright"
-                  text_to_display: !lambda return bright;
-                  line_length_limit: !lambda |-
-                    return display_mode->state == 2 ? 25 : 10;
-              - delay: ${DELAY_DEFAULT}ms
-              - script.execute:
-                  id: display_wrapped_text
-                  component: "settings.lbl_dim"
-                  text_to_display: !lambda return dim;
-                  line_length_limit: !lambda |-
-                    return display_mode->state == 2 ? 25 : 10;
-              - delay: ${DELAY_DEFAULT}ms
-              # Update blueprint status
-              - delay: ${DELAY_DEFAULT}ms
-              - sensor.template.publish:
-                  id: blueprint_status
-                  state: !lambda return (int(blueprint_status->raw_state) | (1 << 3));
+        - lambda: |-
+            boot_log->execute("Service", "init_page_settings");
+            if (not reboot.empty()) disp1->set_component_text_printf("settings.lbl_reboot", " %s", reboot.c_str());
+            disp1->set_component_text_printf("settings.lbl_brightness", " %s", brightness.c_str());
+        - script.execute:
+            id: display_wrapped_text
+            component: "settings.lbl_bright"
+            text_to_display: !lambda return bright;
+            line_length_limit: !lambda |-
+              return display_mode->state == 2 ? 25 : 10;
+        - script.execute:
+            id: display_wrapped_text
+            component: "settings.lbl_dim"
+            text_to_display: !lambda return dim;
+            line_length_limit: !lambda |-
+              return display_mode->state == 2 ? 25 : 10;
+        # Update blueprint status
+        - sensor.template.publish:
+            id: blueprint_status
+            state: !lambda return (int(blueprint_status->raw_state) | (1 << 3));
 
     # This service removes any displayed notifications from the screen, helping to keep the user interface clean and focused on its primary functions.
     - action: notification_clear
       then:
         - if:
             condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+              - text_sensor.state:
+                  id: current_page
+                  state: notification
             then:
               - script.execute:
-                  id: report_device_not_available
-                  request: action.notification_clear
-            else:
-              - if:
-                  condition:
-                    - text_sensor.state:
-                        id: current_page
-                        state: notification
-                  then:
-                    - script.execute:
-                        id: goto_page
-                        page: home
-        - delay: ${DELAY_DEFAULT}ms
+                  id: goto_page
+                  page: home
         - text_sensor.template.publish:
             id: notification_label
             state: ""
-        - delay: ${DELAY_DEFAULT}ms
         - text_sensor.template.publish:
             id: notification_text
             state: ""
-        - delay: ${DELAY_DEFAULT}ms
         - switch.turn_off: notification_unread
-        - delay: ${DELAY_DEFAULT}ms
         - script.execute:
             id: set_component_visibility
             component_id: "home.bt_notific"
@@ -559,50 +510,34 @@ api:
         label: string    # Title or label for the notification, displayed in a prominent format.
         message: string  # Detailed message or content of the notification. Include `\r` to insert a line break, allowing for custom formatting.
       then:
+        - script.execute:
+            id: set_component_visibility
+            component_id: "home.bt_notific"
+            show: true
+        - script.execute:
+            id: goto_page
+            page: notification
+        - script.execute: timer_reset_all
+        - lambda: |-
+              disp1->set_component_text("notification.notifi_label", label.c_str());
+        - script.execute:
+            id: display_wrapped_text
+            component: "notification.notifi_text01"
+            text_to_display: !lambda return message;
+            line_length_limit: !lambda |-
+              return display_mode->state == 2 ? 23 : 32;
+        - text_sensor.template.publish:
+            id: notification_label
+            state: !lambda return label;
+        - text_sensor.template.publish:
+            id: notification_text
+            state: !lambda return message;
+        - switch.turn_on: notification_unread
         - if:
             condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+              - switch.is_on: notification_sound
             then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.notification_show
-            else:
-              - script.execute:
-                  id: set_component_visibility
-                  component_id: "home.bt_notific"
-                  show: true
-              - delay: ${DELAY_DEFAULT}ms
-              - script.execute:
-                  id: goto_page
-                  page: notification
-              - delay: ${DELAY_DEFAULT}ms
-              - script.execute: timer_reset_all
-              - delay: ${DELAY_DEFAULT}ms
-              - lambda: |-
-                    disp1->set_component_text("notification.notifi_label", label.c_str());
-              - delay: ${DELAY_DEFAULT}ms
-              - script.execute:
-                  id: display_wrapped_text
-                  component: "notification.notifi_text01"
-                  text_to_display: !lambda return message;
-                  line_length_limit: !lambda |-
-                    return display_mode->state == 2 ? 23 : 32;
-              - delay: ${DELAY_DEFAULT}ms
-              - text_sensor.template.publish:
-                  id: notification_label
-                  state: !lambda return label;
-              - delay: ${DELAY_DEFAULT}ms
-              - text_sensor.template.publish:
-                  id: notification_text
-                  state: !lambda return message;
-              - delay: ${DELAY_DEFAULT}ms
-              - switch.turn_on: notification_unread
-              - if:
-                  condition:
-                    - switch.is_on: notification_sound
-                  then:
-                    - delay: ${DELAY_DEFAULT}ms
-                    - rtttl.play: "two short:d=4,o=5,b=100:16e6,16e6"
+              - rtttl.play: "two short:d=4,o=5,b=100:16e6,16e6"
 
     # Updates the alarm settings page with current state and configuration, integrating with the panel's interface.
     - action: page_alarm
@@ -618,176 +553,155 @@ api:
         # To do: This page constructor should be moved to Blueprint
         - if:
             condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
+              - text_sensor.state:
+                  id: current_page
+                  state: alarm
+            then:  # Update alarm page
+
+              # Set detailed entity sensor
+              - text_sensor.template.publish:
+                  id: detailed_entity
+                  state: !lambda return entity;
+
+              # Page header - Icon
               - script.execute:
-                  id: report_device_not_available
-                  request: action.page_alarm
-            else:
+                  id: update_alarm_icon
+                  component: "icon_state"
+                  state: !lambda return state;
+              # Page header - Title
+              - lambda: |-
+                  if (page_title.find("\\r") != std::string::npos) {
+                    page_title = page_title.replace(page_title.find("\\r"), 2, " ");
+                  }
+                  disp1->set_component_text("page_label", page_title.c_str());
+
+              # Page - Params
+              - lambda: |-
+                  disp1->set_component_text("code_format", code_format.c_str());
+                  disp1->set_component_text("code_arm_req", code_arm_required ? "1" : "0");
+
+              # Buttons - Text
+              - script.execute:
+                  id: display_wrapped_text
+                  component: bt_away_text
+                  text_to_display: !lambda return mui_alarm[1].c_str();
+                  line_length_limit: 10
+              - script.execute:
+                  id: display_wrapped_text
+                  component: bt_night_text
+                  text_to_display: !lambda return mui_alarm[2].c_str();
+                  line_length_limit: 10
+              - script.execute:
+                  id: display_wrapped_text
+                  component: bt_vacat_text
+                  text_to_display: !lambda return mui_alarm[3].c_str();
+                  line_length_limit: 10
+              - script.execute:
+                  id: display_wrapped_text
+                  component: bt_bypass_text
+                  text_to_display: !lambda return mui_alarm[4].c_str();
+                  line_length_limit: 10
+              - script.execute:
+                  id: display_wrapped_text
+                  component: bt_disarm_text
+                  text_to_display: !lambda return mui_alarm[5].c_str();
+                  line_length_limit: 10
+
+              # Button - Home
               - if:
                   condition:
-                    - text_sensor.state:
-                        id: current_page
-                        state: alarm
-                  then:  # Update alarm page
-
-                    # Set detailed entity sensor
-                    - text_sensor.template.publish:
-                        id: detailed_entity
-                        state: !lambda return entity;
-
-                    # Page header - Icon
-                    - delay: ${DELAY_DEFAULT}ms
-                    - script.execute:
-                        id: update_alarm_icon
-                        component: "icon_state"
-                        state: !lambda return state;
-                    # Page header - Title
+                    - or:
+                        - lambda: return (supported_features & 1);
+                        - lambda: return (state == "armed_home");
+                  then:
                     - lambda: |-
-                        if (page_title.find("\\r") != std::string::npos) {
-                          page_title = page_title.replace(page_title.find("\\r"), 2, " ");
-                        }
-                        disp1->set_component_text("page_label", page_title.c_str());
-
-                    # Page - Params
-                    - delay: ${DELAY_DEFAULT}ms
-                    - lambda: |-
-                        disp1->set_component_text("code_format", code_format.c_str());
-                        disp1->set_component_text("code_arm_req", code_arm_required ? "1" : "0");
-
-                    # Buttons - Text
-                    - delay: ${DELAY_DEFAULT}ms
-                    - script.execute:
-                        id: display_wrapped_text
-                        component: bt_away_text
-                        text_to_display: !lambda return mui_alarm[1].c_str();
-                        line_length_limit: 10
-                    - delay: ${DELAY_DEFAULT}ms
-                    - script.execute:
-                        id: display_wrapped_text
-                        component: bt_night_text
-                        text_to_display: !lambda return mui_alarm[2].c_str();
-                        line_length_limit: 10
-                    - delay: ${DELAY_DEFAULT}ms
-                    - script.execute:
-                        id: display_wrapped_text
-                        component: bt_vacat_text
-                        text_to_display: !lambda return mui_alarm[3].c_str();
-                        line_length_limit: 10
-                    - delay: ${DELAY_DEFAULT}ms
-                    - script.execute:
-                        id: display_wrapped_text
-                        component: bt_bypass_text
-                        text_to_display: !lambda return mui_alarm[4].c_str();
-                        line_length_limit: 10
-                    - delay: ${DELAY_DEFAULT}ms
-                    - script.execute:
-                        id: display_wrapped_text
-                        component: bt_disarm_text
-                        text_to_display: !lambda return mui_alarm[5].c_str();
-                        line_length_limit: 10
-
-                    # Button - Home
-                    - if:
-                        condition:
-                          - or:
-                              - lambda: return (supported_features & 1);
-                              - lambda: return (state == "armed_home");
-                        then:
-                          - delay: ${DELAY_DEFAULT}ms
-                          - lambda: |-
-                              const bool is_current_state = (state == "armed_home");
-                              disp1->set_component_pic("bt_home_pic", is_current_state ? 43 : 42);
-                              disp1->set_component_background_color("bt_home_text", is_current_state ? 19818 : 52857);
-                              disp1->set_component_background_color("bt_home_icon", is_current_state ? 19818 : 52857);
-                              disp1->set_component_font_color("bt_home_text", is_current_state ? 65535 : 0);
-                              disp1->set_component_font_color("bt_home_icon", is_current_state ? 65535 : 0);
-                              delay(${DELAY_DEFAULT});
-                              set_component_visibility->execute("bt_home", not is_current_state);
-
-                    # Button - Away
-                    - if:
-                        condition:
-                          - or:
-                              - lambda: return (supported_features & 2);
-                              - lambda: return (state == "armed_away");
-                        then:
-                          - delay: ${DELAY_DEFAULT}ms
-                          - lambda: |-
-                              const bool is_current_state = (state == "armed_away");
-                              disp1->set_component_pic("bt_away_pic", is_current_state ? 43 : 42);
-                              disp1->set_component_background_color("bt_away_text", is_current_state ? 19818 : 52857);
-                              disp1->set_component_background_color("bt_away_icon", is_current_state ? 19818 : 52857);
-                              disp1->set_component_font_color("bt_away_text", is_current_state ? 65535 : 0);
-                              disp1->set_component_font_color("bt_away_icon", is_current_state ? 65535 : 0);
-                              delay(${DELAY_DEFAULT});
-                              set_component_visibility->execute("bt_away", not is_current_state);
-
-                    # Button - Night
-                    - if:
-                        condition:
-                          - or:
-                              - lambda: return (supported_features & 4);
-                              - lambda: return (state == "armed_night");
-                        then:
-                          - delay: ${DELAY_DEFAULT}ms
-                          - lambda: |-
-                              const bool is_current_state = (state == "armed_night");
-                              disp1->set_component_pic("bt_night_pic", is_current_state ? 43 : 42);
-                              disp1->set_component_background_color("bt_night_text", is_current_state ? 19818 : 52857);
-                              disp1->set_component_background_color("bt_night_icon", is_current_state ? 19818 : 52857);
-                              disp1->set_component_font_color("bt_night_text", is_current_state ? 65535 : 0);
-                              disp1->set_component_font_color("bt_night_icon", is_current_state ? 65535 : 0);
-                              delay(${DELAY_DEFAULT});
-                              set_component_visibility->execute("bt_night", not is_current_state);
-
-                    # Button - Vacation
-                    - if:
-                        condition:
-                          - or:
-                              - lambda: return (supported_features & 32);
-                              - lambda: return (state == "armed_vacation");
-                        then:
-                          - delay: ${DELAY_DEFAULT}ms
-                          - lambda: |-
-                              const bool is_current_state = (state == "armed_vacation");
-                              disp1->set_component_pic("bt_vacat_pic", is_current_state ? 43 : 42);
-                              disp1->set_component_background_color("bt_vacat_text", is_current_state ? 19818 : 52857);
-                              disp1->set_component_background_color("bt_vacat_icon", is_current_state ? 19818 : 52857);
-                              disp1->set_component_font_color("bt_vacat_text", is_current_state ? 65535 : 0);
-                              disp1->set_component_font_color("bt_vacat_icon", is_current_state ? 65535 : 0);
-                              delay(${DELAY_DEFAULT});
-                              set_component_visibility->execute("bt_vacat", not is_current_state);
-
-                    # Button - Custom bypass
-                    - if:
-                        condition:
-                          - or:
-                              - lambda: return (supported_features & 16);
-                              - lambda: return (state == "armed_bypass");
-                        then:
-                          - delay: ${DELAY_DEFAULT}ms
-                          - lambda: |-
-                              const bool is_current_state = (state == "armed_bypass");
-                              disp1->set_component_pic("bt_bypass_pic", is_current_state ? 43 : 42);
-                              disp1->set_component_background_color("bt_bypass_text", is_current_state ? 19818 : 52857);
-                              disp1->set_component_background_color("bt_bypass_icon", is_current_state ? 19818 : 52857);
-                              disp1->set_component_font_color("bt_bypass_text", is_current_state ? 65535 : 0);
-                              disp1->set_component_font_color("bt_bypass_icon", is_current_state ? 65535 : 0);
-                              delay(${DELAY_DEFAULT});
-                              set_component_visibility->execute("bt_bypass", not is_current_state);
-
-                    # Button - Disarm
-                    - delay: ${DELAY_DEFAULT}ms
-                    - lambda: |-
-                        const bool is_current_state = (state == "disarmed");
-                        disp1->set_component_pic("bt_disarm_pic", is_current_state ? 43 : 42);
-                        disp1->set_component_background_color("bt_disarm_text", is_current_state ? 19818 : 52857);
-                        disp1->set_component_background_color("bt_disarm_icon", is_current_state ? 19818 : 52857);
-                        disp1->set_component_font_color("bt_disarm_text", is_current_state ? 65535 : 0);
-                        disp1->set_component_font_color("bt_disarm_icon", is_current_state ? 65535 : 0);
+                        const bool is_current_state = (state == "armed_home");
+                        disp1->set_component_pic("bt_home_pic", is_current_state ? 43 : 42);
+                        disp1->set_component_background_color("bt_home_text", is_current_state ? 19818 : 52857);
+                        disp1->set_component_background_color("bt_home_icon", is_current_state ? 19818 : 52857);
+                        disp1->set_component_font_color("bt_home_text", is_current_state ? 65535 : 0);
+                        disp1->set_component_font_color("bt_home_icon", is_current_state ? 65535 : 0);
                         delay(${DELAY_DEFAULT});
-                        set_component_visibility->execute("bt_disarm", not is_current_state);
+                        set_component_visibility->execute("bt_home", not is_current_state);
+
+              # Button - Away
+              - if:
+                  condition:
+                    - or:
+                        - lambda: return (supported_features & 2);
+                        - lambda: return (state == "armed_away");
+                  then:
+                    - lambda: |-
+                        const bool is_current_state = (state == "armed_away");
+                        disp1->set_component_pic("bt_away_pic", is_current_state ? 43 : 42);
+                        disp1->set_component_background_color("bt_away_text", is_current_state ? 19818 : 52857);
+                        disp1->set_component_background_color("bt_away_icon", is_current_state ? 19818 : 52857);
+                        disp1->set_component_font_color("bt_away_text", is_current_state ? 65535 : 0);
+                        disp1->set_component_font_color("bt_away_icon", is_current_state ? 65535 : 0);
+                        delay(${DELAY_DEFAULT});
+                        set_component_visibility->execute("bt_away", not is_current_state);
+
+              # Button - Night
+              - if:
+                  condition:
+                    - or:
+                        - lambda: return (supported_features & 4);
+                        - lambda: return (state == "armed_night");
+                  then:
+                    - lambda: |-
+                        const bool is_current_state = (state == "armed_night");
+                        disp1->set_component_pic("bt_night_pic", is_current_state ? 43 : 42);
+                        disp1->set_component_background_color("bt_night_text", is_current_state ? 19818 : 52857);
+                        disp1->set_component_background_color("bt_night_icon", is_current_state ? 19818 : 52857);
+                        disp1->set_component_font_color("bt_night_text", is_current_state ? 65535 : 0);
+                        disp1->set_component_font_color("bt_night_icon", is_current_state ? 65535 : 0);
+                        delay(${DELAY_DEFAULT});
+                        set_component_visibility->execute("bt_night", not is_current_state);
+
+              # Button - Vacation
+              - if:
+                  condition:
+                    - or:
+                        - lambda: return (supported_features & 32);
+                        - lambda: return (state == "armed_vacation");
+                  then:
+                    - lambda: |-
+                        const bool is_current_state = (state == "armed_vacation");
+                        disp1->set_component_pic("bt_vacat_pic", is_current_state ? 43 : 42);
+                        disp1->set_component_background_color("bt_vacat_text", is_current_state ? 19818 : 52857);
+                        disp1->set_component_background_color("bt_vacat_icon", is_current_state ? 19818 : 52857);
+                        disp1->set_component_font_color("bt_vacat_text", is_current_state ? 65535 : 0);
+                        disp1->set_component_font_color("bt_vacat_icon", is_current_state ? 65535 : 0);
+                        delay(${DELAY_DEFAULT});
+                        set_component_visibility->execute("bt_vacat", not is_current_state);
+
+              # Button - Custom bypass
+              - if:
+                  condition:
+                    - or:
+                        - lambda: return (supported_features & 16);
+                        - lambda: return (state == "armed_bypass");
+                  then:
+                    - lambda: |-
+                        const bool is_current_state = (state == "armed_bypass");
+                        disp1->set_component_pic("bt_bypass_pic", is_current_state ? 43 : 42);
+                        disp1->set_component_background_color("bt_bypass_text", is_current_state ? 19818 : 52857);
+                        disp1->set_component_background_color("bt_bypass_icon", is_current_state ? 19818 : 52857);
+                        disp1->set_component_font_color("bt_bypass_text", is_current_state ? 65535 : 0);
+                        disp1->set_component_font_color("bt_bypass_icon", is_current_state ? 65535 : 0);
+                        delay(${DELAY_DEFAULT});
+                        set_component_visibility->execute("bt_bypass", not is_current_state);
+
+              # Button - Disarm
+              - lambda: |-
+                  const bool is_current_state = (state == "disarmed");
+                  disp1->set_component_pic("bt_disarm_pic", is_current_state ? 43 : 42);
+                  disp1->set_component_background_color("bt_disarm_text", is_current_state ? 19818 : 52857);
+                  disp1->set_component_background_color("bt_disarm_icon", is_current_state ? 19818 : 52857);
+                  disp1->set_component_font_color("bt_disarm_text", is_current_state ? 65535 : 0);
+                  disp1->set_component_font_color("bt_disarm_icon", is_current_state ? 65535 : 0);
+                  delay(${DELAY_DEFAULT});
+                  set_component_visibility->execute("bt_disarm", not is_current_state);
 
     # Dynamically updates the climate page with the latest climate control settings and status.
     - action: page_climate
@@ -858,220 +772,187 @@ api:
       then:
         - if:
             condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
+              - text_sensor.state:
+                  id: current_page
+                  state: media_player
+            then:  # Update media_player page
+              # Set detailed entity sensor
+              - text_sensor.template.publish:
+                  id: detailed_entity
+                  state: !lambda return entity;
+
+              # Page header
+              - lambda: |-
+                  disp1->set_component_text("page_label", friendly_name.c_str());
+
+              # Media title
               - script.execute:
-                  id: report_device_not_available
-                  request: action.page_media_player
-            else:
+                  id: display_wrapped_text
+                  component: track
+                  text_to_display: !lambda return media_title;
+                  line_length_limit: !lambda |-
+                                        return display_mode->state == 2 ? 16 : 27;
+
+              # Media artist
+              - script.execute:
+                  id: display_wrapped_text
+                  component: artist
+                  text_to_display: !lambda return media_artist;
+                  line_length_limit: !lambda |-
+                                        return display_mode->state == 2 ? 26 : 40;
+
+              # Button - ON/OFF
+              - lambda: |-
+                  if (supported_features & 128 and state == "off") {  //TURN_ON
+                    disp1->set_component_foreground_color("bt_on_off", 65535);
+                    set_component_visibility->execute("bt_on_off", true);
+                  } else if (supported_features & 256 and state != "off") {  //TURN_OFF
+                    disp1->set_component_foreground_color("bt_on_off", 10597);
+                    set_component_visibility->execute("bt_on_off", true);
+                  } else
+                    set_component_visibility->execute("bt_on_off", false);
+
+              # Button - Play/Pause
+              - lambda: |-
+                  if ((supported_features & 512 or supported_features & 16384) and state != "playing" and state != "off") {  //PLAY_MEDIA+PLAY
+                    disp1->set_component_text("bt_play_pause", "\uE409"); // mdi:play
+                    set_component_visibility->execute("bt_play_pause", true);
+                  } else if (supported_features & 1 and state == "playing" ) {  //PAUSE
+                    disp1->set_component_text("bt_play_pause", "\uE3E3"); // mdi:pause
+                    set_component_visibility->execute("bt_play_pause", true);
+                  } else
+                    set_component_visibility->execute("bt_play_pause", false);
+
+              # Button - Previous track
+              - script.execute:
+                  id: set_component_visibility
+                  component_id: bt_prev
+                  show: !lambda return (supported_features & 16 and state != "off");
+
+              # Button - Next track
+              - script.execute:
+                  id: set_component_visibility
+                  component_id: bt_next
+                  show: !lambda return (supported_features & 32 and state != "off");
+
+              # Button - Stop
+              - script.execute:
+                  id: set_component_visibility
+                  component_id: bt_stop
+                  show: !lambda return (supported_features & 4096 and (state == "playing" or state == "paused"));
+
+              # Button - Mute/Unmute
+              - lambda: |-
+                  disp1->set_component_value("is_muted", is_volume_muted ? 1 : 0);
+                  if (supported_features & 8 and is_volume_muted) {  // unmute
+                    disp1->set_component_text("bt_mute", "\uEE07"); // mdi:volume-variant-off
+                    set_component_visibility->execute("bt_mute", true);
+                  } else if (supported_features & 8) {  // mute
+                    disp1->set_component_text("bt_mute", "\uE57E"); // mdi:volume-low
+                    set_component_visibility->execute("bt_mute", true);
+                  } else
+                    set_component_visibility->execute("bt_mute", false);
+
+              # Volume set
               - if:
                   condition:
-                    - text_sensor.state:
-                        id: current_page
-                        state: media_player
-                  then:  # Update media_player page
-                    # Set detailed entity sensor
-                    - text_sensor.template.publish:
-                        id: detailed_entity
-                        state: !lambda return entity;
-
-                    # Page header
-                    - delay: ${DELAY_DEFAULT}ms
-                    - lambda: |-
-                        disp1->set_component_text("page_label", friendly_name.c_str());
-
-                    # Media title
-                    - delay: ${DELAY_DEFAULT}ms
+                    - lambda: return (supported_features & 4);
+                  then:
+                    - if:
+                        condition:
+                          - lambda: return (volume_level != id(last_volume_level));
+                        then:
+                          - globals.set:
+                              id: last_volume_level
+                              value: !lambda return volume_level;
+                          - lambda: |-
+                              disp1->set_component_text_printf("vol_text", "%" PRIu32 "%%", volume_level);
+                              disp1->set_component_value("vol_slider", volume_level);
                     - script.execute:
-                        id: display_wrapped_text
-                        component: track
-                        text_to_display: !lambda return media_title;
-                        line_length_limit: !lambda |-
-                                              return display_mode->state == 2 ? 16 : 27;
-
-                    # Media artist
-                    - delay: ${DELAY_DEFAULT}ms
+                        id: set_component_visibility
+                        component_id: vol_slider
+                        show: true
                     - script.execute:
-                        id: display_wrapped_text
-                        component: artist
-                        text_to_display: !lambda return media_artist;
-                        line_length_limit: !lambda |-
-                                              return display_mode->state == 2 ? 26 : 40;
-
-                    # Button - ON/OFF
-                    - delay: ${DELAY_DEFAULT}ms
-                    - lambda: |-
-                        if (supported_features & 128 and state == "off") {  //TURN_ON
-                          disp1->set_component_foreground_color("bt_on_off", 65535);
-                          set_component_visibility->execute("bt_on_off", true);
-                        } else if (supported_features & 256 and state != "off") {  //TURN_OFF
-                          disp1->set_component_foreground_color("bt_on_off", 10597);
-                          set_component_visibility->execute("bt_on_off", true);
-                        } else
-                          set_component_visibility->execute("bt_on_off", false);
-
-                    # Button - Play/Pause
-                    - delay: ${DELAY_DEFAULT}ms
-                    - lambda: |-
-                        if ((supported_features & 512 or supported_features & 16384) and state != "playing" and state != "off") {  //PLAY_MEDIA+PLAY
-                          disp1->set_component_text("bt_play_pause", "\uE409"); // mdi:play
-                          set_component_visibility->execute("bt_play_pause", true);
-                        } else if (supported_features & 1 and state == "playing" ) {  //PAUSE
-                          disp1->set_component_text("bt_play_pause", "\uE3E3"); // mdi:pause
-                          set_component_visibility->execute("bt_play_pause", true);
-                        } else
-                          set_component_visibility->execute("bt_play_pause", false);
-
-                    # Button - Previous track
+                        id: set_component_visibility
+                        component_id: bt_vol_down
+                        show: true
+                    - script.execute:
+                        id: set_component_visibility
+                        component_id: bt_vol_up
+                        show: true
+                    - script.execute:
+                        id: set_component_visibility
+                        component_id: vol_text
+                        show: true
+                  else:
                     - delay: ${DELAY_DEFAULT}ms
                     - script.execute:
                         id: set_component_visibility
-                        component_id: bt_prev
-                        show: !lambda return (supported_features & 16 and state != "off");
-
-                    # Button - Next track
-                    - delay: ${DELAY_DEFAULT}ms
+                        component_id: vol_slider
+                        show: false
                     - script.execute:
                         id: set_component_visibility
-                        component_id: bt_next
-                        show: !lambda return (supported_features & 32 and state != "off");
-
-                    # Button - Stop
-                    - delay: ${DELAY_DEFAULT}ms
+                        component_id: bt_vol_down
+                        show: false
                     - script.execute:
                         id: set_component_visibility
-                        component_id: bt_stop
-                        show: !lambda return (supported_features & 4096 and (state == "playing" or state == "paused"));
+                        component_id: bt_vol_up
+                        show: false
+                    - script.execute:
+                        id: set_component_visibility
+                        component_id: vol_text
+                        show: false
 
-                    # Button - Mute/Unmute
-                    - delay: ${DELAY_DEFAULT}ms
-                    - lambda: |-
-                        disp1->set_component_value("is_muted", is_volume_muted ? 1 : 0);
-                        if (supported_features & 8 and is_volume_muted) {  // unmute
-                          disp1->set_component_text("bt_mute", "\uEE07"); // mdi:volume-variant-off
-                          set_component_visibility->execute("bt_mute", true);
-                        } else if (supported_features & 8) {  // mute
-                          disp1->set_component_text("bt_mute", "\uE57E"); // mdi:volume-low
-                          set_component_visibility->execute("bt_mute", true);
-                        } else
-                          set_component_visibility->execute("bt_mute", false);
-
-                    # Volume set
+              # Media progress bar
+              - if:
+                  condition:
+                    - lambda: return (media_duration > 0);
+                  then:
                     - delay: ${DELAY_DEFAULT}ms
                     - if:
                         condition:
-                          - lambda: return (supported_features & 4);
+                          - or:
+                              - lambda: return (media_duration != id(last_media_duration));
+                              - lambda: return (media_position != id(last_media_position));
                         then:
-                          - if:
-                              condition:
-                                - lambda: return (volume_level != id(last_volume_level));
-                              then:
-                                - globals.set:
-                                    id: last_volume_level
-                                    value: !lambda return volume_level;
-                                - lambda: |-
-                                    disp1->set_component_text_printf("vol_text", "%" PRIu32 "%%", volume_level);
-                                    disp1->set_component_value("vol_slider", volume_level);
-                          - delay: ${DELAY_DEFAULT}ms
-                          - script.execute:
-                              id: set_component_visibility
-                              component_id: vol_slider
-                              show: true
-                          - delay: ${DELAY_DEFAULT}ms
-                          - script.execute:
-                              id: set_component_visibility
-                              component_id: bt_vol_down
-                              show: true
-                          - delay: ${DELAY_DEFAULT}ms
-                          - script.execute:
-                              id: set_component_visibility
-                              component_id: bt_vol_up
-                              show: true
-                          - delay: ${DELAY_DEFAULT}ms
-                          - script.execute:
-                              id: set_component_visibility
-                              component_id: vol_text
-                              show: true
-                        else:
-                          - delay: ${DELAY_DEFAULT}ms
-                          - script.execute:
-                              id: set_component_visibility
-                              component_id: vol_slider
-                              show: false
-                          - delay: ${DELAY_DEFAULT}ms
-                          - script.execute:
-                              id: set_component_visibility
-                              component_id: bt_vol_down
-                              show: false
-                          - delay: ${DELAY_DEFAULT}ms
-                          - script.execute:
-                              id: set_component_visibility
-                              component_id: bt_vol_up
-                              show: false
-                          - delay: ${DELAY_DEFAULT}ms
-                          - script.execute:
-                              id: set_component_visibility
-                              component_id: vol_text
-                              show: false
-
-                    # Media progress bar
-                    - if:
-                        condition:
-                          - lambda: return (media_duration > 0);
-                        then:
-                          - delay: ${DELAY_DEFAULT}ms
-                          - if:
-                              condition:
-                                - or:
-                                    - lambda: return (media_duration != id(last_media_duration));
-                                    - lambda: return (media_position != id(last_media_position));
-                              then:
-                                - globals.set:
-                                    id: last_media_duration
-                                    value: !lambda return media_duration;
-                                - globals.set:
-                                    id: last_media_position
-                                    value: !lambda return media_position;
-                                - lambda: |-
-                                    disp1->set_component_value("prg_current", int(round(min(media_position + media_position_delta, media_duration))));
-                          - delay: ${DELAY_DEFAULT}ms
+                          - globals.set:
+                              id: last_media_duration
+                              value: !lambda return media_duration;
+                          - globals.set:
+                              id: last_media_position
+                              value: !lambda return media_position;
                           - lambda: |-
-                              disp1->set_component_value("prg_total", int(round(media_duration)));
-                              disp1->send_command_printf("prg_timer.en=%i", (state == "playing") ? 1 : 0);
-                          - delay: ${DELAY_DEFAULT}ms
-                          - script.execute:
-                              id: set_component_visibility
-                              component_id: time_current
-                              show: true
-                          - delay: ${DELAY_DEFAULT}ms
-                          - script.execute:
-                              id: set_component_visibility
-                              component_id: time_total
-                              show: true
-                          - delay: ${DELAY_DEFAULT}ms
-                          - script.execute:
-                              id: set_component_visibility
-                              component_id: time_progress
-                              show: true
-                        else:
-                          - delay: ${DELAY_DEFAULT}ms
-                          - lambda: |-
-                              disp1->send_command("prg_timer.en=0");
-                          - delay: ${DELAY_DEFAULT}ms
-                          - script.execute:
-                              id: set_component_visibility
-                              component_id: time_current
-                              show: false
-                          - delay: ${DELAY_DEFAULT}ms
-                          - script.execute:
-                              id: set_component_visibility
-                              component_id: time_total
-                              show: false
-                          - delay: ${DELAY_DEFAULT}ms
-                          - script.execute:
-                              id: set_component_visibility
-                              component_id: time_progress
-                              show: false
+                              disp1->set_component_value("prg_current", int(round(min(media_position + media_position_delta, media_duration))));
+                    - lambda: |-
+                        disp1->set_component_value("prg_total", int(round(media_duration)));
+                        disp1->send_command_printf("prg_timer.en=%i", (state == "playing") ? 1 : 0);
+                    - script.execute:
+                        id: set_component_visibility
+                        component_id: time_current
+                        show: true
+                    - script.execute:
+                        id: set_component_visibility
+                        component_id: time_total
+                        show: true
+                    - script.execute:
+                        id: set_component_visibility
+                        component_id: time_progress
+                        show: true
+                  else:
+                    - lambda: |-
+                        disp1->send_command("prg_timer.en=0");
+                    - script.execute:
+                        id: set_component_visibility
+                        component_id: time_current
+                        show: false
+                    - script.execute:
+                        id: set_component_visibility
+                        component_id: time_total
+                        show: false
+                    - script.execute:
+                        id: set_component_visibility
+                        component_id: time_progress
+                        show: false
 
     # Dynamically displays QR codes on the ESPHome UI for sharing information such as WiFi passwords or website links.
     - action: qrcode
@@ -1080,49 +961,25 @@ api:
         qrcode: string  # Data or URL to be encoded into the QR code.
         show: bool      # Flag to immediately display the QR code page upon service invocation.
       then:
+        - script.execute:
+            id: set_component_visibility
+            component_id: "home.bt_qrcode"
+            show: !lambda return !(qrcode.empty());
+        - lambda: |-
+            disp1->set_component_text("qrcode.qrcode_label", title.c_str());
+            disp1->set_component_text("qrcode.qrcode_value", qrcode.c_str());
         - if:
             condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+              - lambda: return show;
             then:
               - script.execute:
-                  id: report_device_not_available
-                  request: action.qrcode
-            else:
-              - script.execute:
-                  id: set_component_visibility
-                  component_id: "home.bt_qrcode"
-                  show: !lambda return !(qrcode.empty());
-              - lambda: |-
-                  disp1->set_component_text("qrcode.qrcode_label", title.c_str());
-                  disp1->set_component_text("qrcode.qrcode_value", qrcode.c_str());
-              - if:
-                  condition:
-                    - lambda: return show;
-                  then:
-                    - script.execute:
-                        id: goto_page
-                        page: qrcode
+                  id: goto_page
+                  page: qrcode
 
-              # Update blueprint status
-              - delay: ${DELAY_DEFAULT}ms
-              - sensor.template.publish:
-                  id: blueprint_status
-                  state: !lambda return (int(blueprint_status->raw_state) | (1 << 2));
-
-    # Plays melodies encoded in RTTTL format, suitable for audio feedback, notifications, or simple tunes.
-    - action: rtttl_play
-      variables:
-        tone: string  # The RTTTL string for the melody to be played. It should follow the RTTTL format, including the melody's name, default settings, and a sequence of notes.
-      then:
-        - if:
-            condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.rtttl_play
-            else:
-              - rtttl.play: !lambda return tone;
+        # Update blueprint status
+        - sensor.template.publish:
+            id: blueprint_status
+            state: !lambda return (int(blueprint_status->raw_state) | (1 << 2));
 
     - action: set_bool
       variables:
@@ -1182,45 +1039,37 @@ api:
       then:
         - if:
             condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+              - lambda: return group_id.empty();
             then:
-              - script.execute:
-                  id: report_device_not_available
-                  request: action.utilities_group_refresh
+              - lambda: ESP_LOGW("${TAG_API}", "`group_id` is empty");
             else:
-              - if:
-                  condition:
-                    - lambda: return group_id.empty();
-                  then:
-                    - lambda: ESP_LOGW("${TAG_API}", "`group_id` is empty");
-                  else:
-                    - lambda: |-
-                        uint8_t id = findUtilitiesGroupIndex(group_id.c_str());
-                        if (id != UINT8_MAX) {
-                          // Update Value 1
-                          if (!value1.empty() and
-                              (constructor or strcmp(value1.c_str(), UtilitiesGroups[id].value1) != 0)) {
-                            copyStringToCharArray(UtilitiesGroups[id].value1, value1);
-                            disp1->set_component_text(group_id.c_str(), value1.c_str());
-                            delay(${DELAY_DEFAULT});
-                          }
+              - lambda: |-
+                  uint8_t id = findUtilitiesGroupIndex(group_id.c_str());
+                  if (id != UINT8_MAX) {
+                    // Update Value 1
+                    if (!value1.empty() and
+                        (constructor or strcmp(value1.c_str(), UtilitiesGroups[id].value1) != 0)) {
+                      copyStringToCharArray(UtilitiesGroups[id].value1, value1);
+                      disp1->set_component_text(group_id.c_str(), value1.c_str());
+                      delay(${DELAY_DEFAULT});
+                    }
 
-                          // Update Value 2
-                          if (!value2.empty() and
-                              (constructor or strcmp(value2.c_str(), UtilitiesGroups[id].value2) != 0)) {
-                            copyStringToCharArray(UtilitiesGroups[id].value2, value2);
-                            disp1->set_component_text((group_id + "b").c_str(), value2.c_str());
-                            delay(${DELAY_DEFAULT});
-                          }
+                    // Update Value 2
+                    if (!value2.empty() and
+                        (constructor or strcmp(value2.c_str(), UtilitiesGroups[id].value2) != 0)) {
+                      copyStringToCharArray(UtilitiesGroups[id].value2, value2);
+                      disp1->set_component_text((group_id + "b").c_str(), value2.c_str());
+                      delay(${DELAY_DEFAULT});
+                    }
 
-                          // Update direction
-                          if (group_id != "grid" and !isnan(direction) and
-                              (constructor or direction != UtilitiesGroups[id].direction)) {
-                            UtilitiesGroups[id].direction = direction;
-                            disp1->set_component_value((group_id + "_line_d").c_str(), direction);
-                            delay(${DELAY_DEFAULT});
-                          }
-                        }
+                    // Update direction
+                    if (group_id != "grid" and !isnan(direction) and
+                        (constructor or direction != UtilitiesGroups[id].direction)) {
+                      UtilitiesGroups[id].direction = direction;
+                      disp1->set_component_value((group_id + "_line_d").c_str(), direction);
+                      delay(${DELAY_DEFAULT});
+                    }
+                  }
 
     # Updates an entity to display specific values with dynamic icons, names, and color codes.
     - action: value
@@ -1301,29 +1150,21 @@ api:
       then:
         - if:
             condition:
-              - lambda: return not is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+              - text_sensor.state:
+                  id: current_page
+                  state: screensaver
             then:
               - script.execute:
-                  id: report_device_not_available
-                  request: action.wake_up
+                  id: goto_page
+                  page: !lambda return wakeup_page_name->state;
+        - if:
+            condition:
+              - lambda: return reset_timer;
+            then:
+              - script.execute: timer_reset_all
             else:
-              - if:
-                  condition:
-                    - text_sensor.state:
-                        id: current_page
-                        state: screensaver
-                  then:
-                    - script.execute:
-                        id: goto_page
-                        page: !lambda return wakeup_page_name->state;
-              - if:
-                  condition:
-                    - lambda: return reset_timer;
-                  then:
-                    - script.execute: timer_reset_all
-                  else:
-                    - script.execute: timer_sleep
-                    - script.execute: timer_dim
+              - script.execute: timer_sleep
+              - script.execute: timer_dim
 
 esphome:
   platformio_options:
@@ -1333,20 +1174,16 @@ esphome:
 script:
   - id: !extend dump_config
     then:
+      # Report API status
       - if:
           condition:
-            - lambda: return !is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+            - api.connected:
           then:
-            # Report API status
-            - if:
-                condition:
-                  - api.connected:
-                then:
-                  - lambda: |-
-                      ESP_LOGCONFIG("${TAG_API}", "API: Connected");
-                else:
-                  - lambda: |-
-                      ESP_LOGW("${TAG_API}", "API: DISCONNECTED");
+            - lambda: |-
+                ESP_LOGCONFIG("${TAG_API}", "API: Connected");
+          else:
+            - lambda: |-
+                ESP_LOGW("${TAG_API}", "API: DISCONNECTED");
 
   - id: ha_button
     mode: parallel
@@ -1367,7 +1204,7 @@ script:
             command: !lambda return command;
 
   - id: ha_call_action
-    mode: restart
+    mode: single
     parameters:
       service: string
       key: string

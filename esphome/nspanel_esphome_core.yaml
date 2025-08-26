@@ -12,7 +12,6 @@ substitutions:
   ##############################
   temp_units: "°C"
   invalid_cooldown: "100ms"
-  GPIO_BUZZER_OUTPUT_PIN: 21
   GPIO_RELAY_1_PIN: 22
   GPIO_RELAY_2_PIN: 19
   GPIO_TEMPERATURE_ADC_PIN: 38
@@ -34,6 +33,7 @@ packages:
   hw_display: !include nspanel_esphome_core_hw_display.yaml
   hw_memory:  !include nspanel_esphome_core_hw_memory.yaml
   hw_wifi:    !include nspanel_esphome_core_hw_wifi.yaml
+  page_boot:  !include nspanel_esphome_core_page_boot.yaml
   # yamllint enable rule:colons
 
 ##### ESPHOME CONFIGURATION #####
@@ -41,39 +41,6 @@ esphome:
   platformio_options:
     build_flags:
       - -D NSPANEL_HA_BLUEPRINT_CORE
-
-  on_boot:
-    - priority: 1000.0  # This is where most sensors are set up.
-      then:
-        - sensor.template.publish:
-            id: blueprint_status
-            state: 0
-        - delay: ${DELAY_DEFAULT}ms
-        - text_sensor.template.publish:
-            id: version_esphome
-            state: "${version}"
-        - delay: ${DELAY_DEFAULT}ms
-        - text_sensor.template.publish:
-            id: notification_label
-            state: ""
-        - delay: ${DELAY_DEFAULT}ms
-        - text_sensor.template.publish:
-            id: notification_text
-            state: ""
-        - delay: ${DELAY_DEFAULT}ms
-        - switch.turn_off: notification_unread
-
-##### ENABLE RINGTONE MUSIC SUPPORT #####
-rtttl:
-  id: buzzer
-  output: buzzer_out
-
-##### CONFIGURE INTERNAL BUZZER #####
-output:
-  ##### BUZZER FOR PLAYING RINGTONES #####
-  - id: buzzer_out
-    platform: ledc
-    pin: ${GPIO_BUZZER_OUTPUT_PIN}
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
@@ -576,6 +543,26 @@ text_sensor:
 
 ### Scripts ######
 script:
+  - id: !extend boot
+    then:
+      - sensor.template.publish:
+          id: blueprint_status
+          state: 0
+      - delay: ${DELAY_DEFAULT}ms
+      - text_sensor.template.publish:
+          id: version_esphome
+          state: "${version}"
+      - delay: ${DELAY_DEFAULT}ms
+      - text_sensor.template.publish:
+          id: notification_label
+          state: ""
+      - delay: ${DELAY_DEFAULT}ms
+      - text_sensor.template.publish:
+          id: notification_text
+          state: ""
+      - delay: ${DELAY_DEFAULT}ms
+      - switch.turn_off: notification_unread
+
   - id: change_climate_state
     mode: restart
     parameters:
@@ -933,294 +920,6 @@ script:
           disp1->set_component_text("framework", "ESP-IDF");
           #endif
           disp1->send_command("tm_esphome.en=0");
-
-  - id: page_boot
-    mode: single
-    then:
-      - logger.log: Page boot called
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: "Starting sequence"
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_progress
-          step: 0
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: set_brightness
-          brightness: 100
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute: update_tft_info
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: "ESPHome FW v${version}"
-      - delay: ${DELAY_DEFAULT}ms
-      - lambda: |-
-          disp1->set_component_text("ver_firmware", "Firmware: ${version}");  // ESPHome version
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_progress
-          step: 1
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: !lambda |-
-                          #ifdef ARDUINO
-                          return "Framework is Arduino";
-                          #elif defined(USE_ESP_IDF)
-                          return "Framework is ESP-IDF";
-                          #endif
-                          return "Framework is unknown";
-      - delay: ${DELAY_DEFAULT}ms
-      - lambda: |-
-          #ifdef ARDUINO
-          disp1->set_component_text("sys_framework", "Framework: Arduino");
-          #elif defined(USE_ESP_IDF)
-          disp1->set_component_text("sys_framework", "Framework: ESP-IDF");
-          #else
-          disp1->set_component_text("sys_framework", "Framework: Unknown");
-          #endif
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_progress
-          step: 2
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: "Waiting for Wi-Fi"
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute: wait_for_wifi
-      - script.wait: wait_for_wifi
-      - if:
-          condition:
-            - lambda: |-
-                return !is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
-          then:
-            - script.execute:
-                id: boot_log
-                category: Boot
-                log_message: "Wi-Fi not available"
-          else:  # Wi-Fi connected
-            - script.execute:
-                id: boot_log
-                category: Boot
-                log_message: "Wi-Fi connected"
-            - delay: ${DELAY_DEFAULT}ms
-            - script.execute:
-                id: boot_progress
-                step: 3
-            - if:
-                condition:
-                  - text_sensor.state:
-                      id: current_page
-                      state: boot
-                then:
-                  - delay: ${DELAY_DEFAULT}ms
-                  - lambda: |-
-                      disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());
-                  - delay: ${DELAY_DEFAULT}ms
-                  - script.execute:
-                      id: set_brightness
-                      brightness: 100
-            - script.execute: wait_for_api
-            - script.wait: wait_for_api
-            - if:
-                condition:
-                  - lambda: |-
-                      return !is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::API_READY);
-                then:
-                  - delay: ${DELAY_DEFAULT}ms
-                  - script.execute:
-                      id: boot_log
-                      category: Boot
-                      log_message: "API not available"
-                else:  # API connected
-                  - delay: ${DELAY_DEFAULT}ms
-                  - script.execute:
-                      id: boot_log
-                      category: Boot
-                      log_message: "API connected"
-                  - script.execute:
-                      id: boot_progress
-                      step: 4
-
-      # Display settings
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: "Sending display settings"
-      - delay: ${DELAY_DEFAULT}ms
-      - lambda: |-
-          disp1->send_command_printf("brightness=%i", int(display_brightness->state));
-          disp1->set_component_value("settings.brightslider", int(display_brightness->state));
-          disp1->send_command_printf("brightness_dim=%i", int(display_dim_brightness->state));
-          disp1->set_component_value("settings.dimslider", int(display_dim_brightness->state));
-          disp1->send_command_printf("brightness_sleep=%i", int(display_sleep_brightness->state));
-          disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_progress
-          step: 5
-
-      # Publish Nextion state
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: "Publish Nextion state"
-      - delay: ${DELAY_DEFAULT}ms
-      - binary_sensor.template.publish:
-          id: nextion_init
-          state: !lambda return disp1->is_setup();
-
-      # Inform Home Assistant when Nextion is initialized
-      - delay: ${DELAY_DEFAULT}ms
-      - if:
-          condition:
-            - lambda: |-
-                return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::API_READY);
-            - lambda: return disp1->is_setup();
-          then:
-            - delay: ${DELAY_DEFAULT}ms
-            - script.execute:
-                id: boot_log
-                category: Boot
-                log_message: "Send `nextion_init` event to Home Assistant"
-            - homeassistant.event:
-                event: ${EVENT_NAME}
-                data:
-                  device_name: !lambda return device_name->state.c_str();
-                  esphome_version: ${version}
-                  type: boot
-                  step: nextion_init
-      - script.execute:
-          id: boot_progress
-          step: 6
-
-      # Wait for a response from the blueprint
-      - if:
-          condition:
-            - lambda: return not is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
-          then:
-            - delay: ${DELAY_DEFAULT}ms
-            - script.execute:
-                id: boot_event
-                init: true
-            - script.execute: wait_for_blueprint
-            - script.wait: wait_for_blueprint
-            - if:
-                condition:
-                  - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
-                then:
-                  - delay: ${DELAY_DEFAULT}ms
-                  - script.execute:
-                      id: boot_progress
-                      step: 7
-                else:
-                  - script.execute:
-                      id: boot_log
-                      category: Boot
-                      log_message: "Blueprint not available"
-
-      # Setup Home page
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: "Set Home page elements"
-
-      # Chips icon size
-      - delay: ${DELAY_DEFAULT}ms
-      - lambda: |-
-          for (uint8_t i = 1; i <= 7; ++i) {
-            disp1->send_command_printf("home.chip%02d.font=%i", i, id(home_chip_font_id));
-          }
-
-      # Custom buttons icon size
-      - delay: ${DELAY_DEFAULT}ms
-      - lambda: |-
-          for (uint8_t i = 1; i <= 7; ++i) {
-            disp1->send_command_printf("home.button%02d.font=%i", i, id(home_custom_buttons_font_id));
-          }
-
-      # Other components icons size and color
-      - delay: ${DELAY_DEFAULT}ms
-      - lambda: |-
-          disp1->set_component_font("home.bt_notific", id(home_custom_buttons_font_id));
-          disp1->set_component_font("home.bt_qrcode", id(home_custom_buttons_font_id));
-          disp1->set_component_font("home.bt_entities", id(home_custom_buttons_font_id));
-          disp1->set_component_font("home.wifi_icon", id(home_chip_font_id));
-          disp1->set_component_font_color("home.chip_relay1", id(home_relay1_icon_color));
-          disp1->set_component_font_color("home.chip_relay2", id(home_relay2_icon_color));
-
-      # Bluetooth icon
-      - delay: ${DELAY_DEFAULT}ms
-      - lambda: |-
-          #if defined(USE_ESP32_BLE_SERVER) || defined(USE_ESP32_BLE_CLIENT) || defined(USE_BLUETOOTH_PROXY) || defined(USE_IMPROV)
-          disp1->set_component_text("home.bt_icon", "\uE0AE");
-          #else
-          disp1->set_component_text("home.bt_icon", "");
-          #endif
-
-      # Wrap-up
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_progress
-          step: 8
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: "Wait to finish"
-      - script.execute: wait_for_wifi
-      - script.execute: wait_for_api
-      - script.execute: wait_for_blueprint
-      - script.wait: wait_for_wifi
-      - script.wait: wait_for_api
-      - script.wait: wait_for_blueprint
-      - script.execute:
-          id: boot_progress
-          step: 9
-
-      # Boot beep
-      - delay: ${DELAY_DEFAULT}ms
-      - if:
-          condition:
-            switch.is_on: notification_sound
-          then:
-            - script.execute:
-                id: boot_log
-                category: Boot
-                log_message: "Play boot sound"
-            - rtttl.play: "two short:d=4,o=5,b=100:16e6,16e6"
-
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_progress
-          step: 10
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: set_brightness
-          brightness: !lambda return display_brightness->state;
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: "Jump to wake-up page"
-
-      - delay: ${DELAY_DEFAULT}ms
-      - lambda: |-
-          ESP_LOGD("script.page_boot", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: goto_page
-          page: !lambda return wakeup_page_name->state.c_str();
 
   - id: page_buttonpage
     mode: restart
