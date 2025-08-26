@@ -528,7 +528,7 @@ This approach allows you to:
 
 For scenarios requiring temporary memory trade-offs (e.g., TFT updates vs. Bluetooth functionality):
 
-**Option 1: TFT Update Configuration**
+###### Option 1: TFT Update Configuration
 ```yaml
 # Configuration for TFT updates - Disable Bluetooth temporarily
 substitutions:
@@ -560,7 +560,7 @@ packages:
       - esphome/nspanel_esphome_addon_upload_tft.yaml  # Enable for updates
 ```
 
-**Option 2: Runtime Configuration**
+###### Option 2: Runtime Configuration
 ```yaml
 # Configuration for normal operation - Enable Bluetooth, disable TFT upload
 substitutions:
