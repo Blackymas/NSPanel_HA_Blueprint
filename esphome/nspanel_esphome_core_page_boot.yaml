@@ -1,0 +1,97 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME - Page boot                                                                       #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+substitutions:
+  BOOT_STEP_PAGE_BOOT: '29'
+  PAGE_ID_BOOT: '0'
+  TAG_PAGE_BOOT: nspanel.page.boot
+
+script:
+  - id: !extend boot_log
+    then:
+      - if:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: boot
+          then:
+            - lambda: |-
+                disp1->send_command_printf("log_body.txt+=\"%s: %s\\r\"", category.c_str(), log_message.c_str());
+
+  - id: page_boot
+    mode: single
+    then:
+      - logger.log: Page boot called
+      - lambda: |-
+          disp1->set_component_text("ver_firmware", "Firmware: ${version}");  // ESPHome version
+          #ifdef ARDUINO
+          disp1->set_component_text("sys_framework", "Framework: Arduino");
+          #elif defined(USE_ESP_IDF)
+          disp1->set_component_text("sys_framework", "Framework: ESP-IDF");
+          #else
+          disp1->set_component_text("sys_framework", "Framework: Unknown");
+          #endif
+      - script.execute: page_boot_show_blueprint_version
+      - script.execute: page_boot_show_ip
+      - script.execute:
+          id: set_brightness
+          brightness: 100
+      - script.execute: wait_for_page_boot_exit
+
+  - id: page_boot_show_blueprint_version
+    mode: single
+    then:
+      - if:
+          condition:
+            - lambda: return !version_blueprint->state.empty();
+            - text_sensor.state:
+                id: current_page
+                state: boot
+          then:
+            - lambda: |-
+                disp1->set_component_text_printf("ver_blueprint", "Blueprint: %s", version_blueprint->state.c_str());
+
+  - id: page_boot_show_ip
+    mode: single
+    then:
+      - if:
+          condition:
+            - wifi.connected:
+            - text_sensor.state:
+                id: current_page
+                state: boot
+          then:
+            - lambda: |-
+                disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());
+
+  - id: !extend stop_all
+    then:
+      - script.stop: wait_for_page_boot_exit
+
+  - id: !extend stop_page_constructors
+    then:
+      - script.stop: page_boot
+      - script.stop: page_boot_show_blueprint_version
+      - script.stop: page_boot_show_ip
+
+  - id: wait_for_page_boot_exit
+    mode: single
+    then:
+      - while:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: boot
+          then:
+            - delay: 1s
+
+wifi:
+  on_connect:
+    then:
+      - script.execute: page_boot_show_ip
+...
