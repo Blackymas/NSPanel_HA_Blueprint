@@ -21,7 +21,7 @@ namespace nspanel_ha_blueprint {
         BLUEPRINT_READY = 4,    ///< Blueprint component initialized
         TFT_READY = 5,          ///< TFT display ready
         BOOT_COMPLETED = 6,     ///< Boot script is completed
-        RESERVED_7 = 7,         ///< Reserved for future expansion
+        VERSION_CHECK_OK  = 7,  ///< All component versions (TFT, ESPHome, Blueprint) verified as synchronized
 
         // Runtime operation flags (8-15)
         TFT_UPLOAD_ACTIVE = 8,  ///< TFT firmware upload in progress

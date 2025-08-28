@@ -291,19 +291,19 @@ sensor:
         - if:
             condition:
               - lambda: return (x == 100);
-              - lambda: return !is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
+              - lambda: return !is_system_flag_set(system_flags, NSPanelFlag::BLUEPRINT_READY);
             then:
               - lambda: |-
-                  set_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
+                  set_system_flag(system_flags, NSPanelFlag::BLUEPRINT_READY);
               - script.execute: refresh_wifi_icon
             else:
               - if:
                   condition:
                     - lambda: return (x != 100);
-                    - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
+                    - lambda: return is_system_flag_set(system_flags, NSPanelFlag::BLUEPRINT_READY);
                   then:
                     - lambda: |-
-                        clear_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
+                        clear_system_flag(system_flags, NSPanelFlag::BLUEPRINT_READY);
                     - script.execute: refresh_wifi_icon
 
   ##### INTERNAL TEMPERATURE SENSOR, ADC VALUE #####
@@ -529,7 +529,9 @@ text_sensor:
     update_interval: never
     on_value:
       then:
-        - script.execute: check_versions
+        - script.execute:
+            id: check_versions
+            reset_flag: !lambda return (x != "${version}");
 
   - id: version_esphome
     name: Version ESPHome
@@ -571,7 +573,7 @@ script:
       value: string
     then:
       - lambda: |-
-          if (is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags)) {
+          if (is_device_ready_for_tasks(system_flags)) {
             if (not embedded) {
               if (key == "temperature" or key == "target_temp_high" or key == "target_temp_low")
                 ha_call_action->execute("climate.set_temperature", key.c_str(), to_string(stof(value) / 10));
@@ -581,11 +583,21 @@ script:
           }
 
   - id: check_versions
-    mode: single
+    mode: restart
+    parameters:
+      reset_flag: bool
     then:
       - if:
           condition:
-            - lambda: return !is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+            - lambda: return reset_flag;
+          then:
+            - lambda: clear_system_flag(system_flags, NSPanelFlag::VERSION_CHECK_OK);
+
+      - if:
+          condition:
+            - or:
+                - lambda: return is_system_flag_set(system_flags, NSPanelFlag::VERSION_CHECK_OK);
+                - lambda: return !is_device_ready_for_tasks(system_flags);
           then:
             - script.stop: check_versions
       - delay: 5s
@@ -596,6 +608,7 @@ script:
           ESP_LOGD("${TAG_CORE}", "  Blueprint: %s", version_blueprint->state.c_str());
           ESP_LOGD("${TAG_CORE}", "  ESPHome:   ${version}");
           ESP_LOGD("${TAG_CORE}", "  TFT:       %s", version_tft->state.c_str());
+          set_system_flag(system_flags, NSPanelFlag::VERSION_CHECK_OK);
       - if:
           condition:
             - not:
@@ -605,6 +618,7 @@ script:
           then:
             - lambda: |-
                 ESP_LOGE("${TAG_CORE}", "Blueprint version mismatch!");
+                clear_system_flag(system_flags, NSPanelFlag::VERSION_CHECK_OK);
       - if:
           condition:
             - not:
@@ -614,6 +628,7 @@ script:
           then:
             - lambda: |-
                 ESP_LOGE("${TAG_CORE}", "TFT version mismatch!");
+                clear_system_flag(system_flags, NSPanelFlag::VERSION_CHECK_OK);
       - delay: 1s
       - homeassistant.event:
           event: ${EVENT_NAME}
@@ -633,8 +648,8 @@ script:
           condition:
             - or:
                 - lambda: return id(embedded_indoor_temp);
-                - lambda: return !is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::API_READY);
-                - lambda: return !is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
+                - lambda: return !is_system_flag_set(system_flags, NSPanelFlag::API_READY);
+                - lambda: return !is_system_flag_set(system_flags, NSPanelFlag::WIFI_READY);
           then:
             - lambda: |-
                 static const std::string temp_units = "${temp_units}";
@@ -655,7 +670,7 @@ script:
     then:
       # Report Wi-Fi status
       - lambda: |-
-          if (is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY)) {
+          if (is_system_flag_set(system_flags, NSPanelFlag::WIFI_READY)) {
             float rssi = wifi_rssi->state;
             const char *rssi_status = "Unknown"; // Use const char* to avoid dynamic memory allocation
             if (rssi > -50) rssi_status = "Excellent";
@@ -673,17 +688,17 @@ script:
 
       # Report API status
       - lambda: |-
-          if (!are_all_system_flags_set(nspanel_ha_blueprint::system_flags, {NSPanelFlag::WIFI_READY, NSPanelFlag::API_READY}))
+          if (!are_all_system_flags_set(system_flags, {NSPanelFlag::WIFI_READY, NSPanelFlag::API_READY}))
             blueprint_status->publish_state(0);
 
           // Report blueprint version
           ESP_LOGCONFIG("nspanel_ha_blueprint", "Blueprint:");
-          if (is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY)) {
+          if (is_system_flag_set(system_flags, NSPanelFlag::BLUEPRINT_READY)) {
             ESP_LOGCONFIG("nspanel_ha_blueprint", "  Version:     %s", version_blueprint->state.c_str());
             ESP_LOGCONFIG("nspanel_ha_blueprint", "  Init steps:  %i (%0.1f%%)", int(blueprint_status->raw_state), blueprint_status->state);
           } else {
             ESP_LOGW("nspanel_ha_blueprint", "  Init steps:  %i (%0.1f%%)", int(blueprint_status->raw_state), blueprint_status->state);
-            ESP_LOGW("nspanel_ha_blueprint", "  State:       %s", (are_all_system_flags_set(nspanel_ha_blueprint::system_flags, {NSPanelFlag::WIFI_READY, NSPanelFlag::API_READY}))
+            ESP_LOGW("nspanel_ha_blueprint", "  State:       %s", (are_all_system_flags_set(system_flags, {NSPanelFlag::WIFI_READY, NSPanelFlag::API_READY}))
                                                                   ? "Pending" : "DISCONNECTED");
             ESP_LOGCONFIG("nspanel_ha_blueprint", "Requesting blueprint settings");
             boot_event->execute(false);
@@ -816,10 +831,6 @@ script:
           state: !lambda return blueprint_version;
       - lambda: |-
           disp1->set_component_text_printf("ver_blueprint", "Blueprint: %s", blueprint_version.c_str());
-      - lambda: |-
-          ESP_LOGD("script.global_settings", "Checking versions");
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute: check_versions
 
       # MUI strings
       - lambda: |-
@@ -874,13 +885,7 @@ script:
       - lambda: |-
           ESP_LOGD("script.global_settings", "Update current page: %s", current_page->state.c_str());
       - delay: ${DELAY_DEFAULT}ms
-      - if:
-          condition:
-            - text_sensor.state:
-                id: current_page
-                state: boot
-          then:
-            - script.execute: page_changed
+      - script.execute: page_changed
 
   - id: goto_page
     mode: restart
@@ -961,7 +966,7 @@ script:
     mode: single
     then:
       - lambda: |-
-          if (is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags))
+          if (is_device_ready_for_tasks(system_flags))
             display_wrapped_text->execute("confirm.title", id(mui_please_confirm_global).c_str(), 15);
 
   - id: page_cover
@@ -1046,7 +1051,7 @@ script:
     then:
       - if:
           condition:
-            - lambda: return not is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::TFT_UPLOAD_ACTIVE);
+            - lambda: return not is_system_flag_set(system_flags, NSPanelFlag::TFT_UPLOAD_ACTIVE);
             - text_sensor.state:
                 id: current_page
                 state: screensaver
@@ -1129,7 +1134,7 @@ script:
     then:
       - if:
           condition:
-            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+            - lambda: return is_device_ready_for_tasks(system_flags);
           then:
             # Chip - Relay 1
             - if:
@@ -1206,7 +1211,7 @@ script:
     then:
       - if:
           condition:
-            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+            - lambda: return is_device_ready_for_tasks(system_flags);
             - text_sensor.state:
                 id: current_page
                 state: climate
@@ -1530,7 +1535,7 @@ script:
           then:
             - if:
                 condition:
-                  - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
+                  - lambda: return is_system_flag_set(system_flags, NSPanelFlag::WIFI_READY);
                 then:
                   - script.stop: wait_for_api
             - if:
@@ -1551,7 +1556,7 @@ script:
           then:
             - if:
                 condition:
-                  - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
+                  - lambda: return is_system_flag_set(system_flags, NSPanelFlag::BLUEPRINT_READY);
                 then:
                   - script.stop: wait_for_blueprint
             - if:

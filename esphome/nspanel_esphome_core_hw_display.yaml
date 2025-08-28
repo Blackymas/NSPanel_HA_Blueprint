@@ -48,16 +48,22 @@ display:
           state: true
 
     on_page:
+      - lambda: |-
+          ESP_LOGD("TAG_HW_DISPLAY", "New page trigger:");
+          ESP_LOGD("TAG_HW_DISPLAY", "  From: %s", current_page->state.c_str());
+          ESP_LOGD("TAG_HW_DISPLAY", "  To: %s (id: %" PRIu8 ")", page_names[x], x);
       - if:
           condition:
             - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
             - or:
-                - lambda: return (x == 9);
+                - lambda: return (x == 9);  // Screensaver
                 - lambda: return (current_page->state != page_names[x]);
           then:
             - text_sensor.template.publish:
                 id: current_page
                 state: !lambda return page_names[x];
+            - lambda: |-
+                ESP_LOGD("TAG_HW_DISPLAY", "  Page published!");
 
     on_touch:
       then:
@@ -441,7 +447,6 @@ script:
           if (id(version_tft).state.empty() and event == "params") {
             ESP_LOGV("${TAG_VERSIONING}", "Nextion event");
             id(version_tft).publish_state(json["version"].as<std::string>());
-            id(check_versions).execute();
           }
 
   - id: page_changed
@@ -986,23 +991,20 @@ switch:
 text_sensor:
   - id: current_page  # Current page name
     name: Current Page
-    platform: nextion
-    component_name: current_page
+    platform: template
+    #component_name: current_page
     icon: mdi:tablet-dashboard
     internal: false
     disabled_by_default: false
     filters:
       - lambda: |-
-          // Check if Nextion display is ready using system flags
-          if (is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::NEXTION_READY)) {
-            return x;  // Return page name
-          }
-          return {};  // Nextion not ready - return unavailable state
+          x = x.c_str();
+          x.shrink_to_fit();
+          return x;
     on_value:
       - if:
           condition:
-            - lambda: return !x.empty();  // Only execute page_changed script when we have a non-empty page value
-            - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::NEXTION_READY);
+            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
           then:
             - script.execute: page_changed
 
@@ -1151,7 +1153,9 @@ text_sensor:
     update_interval: never
     on_value:
       then:
-        - script.execute: check_versions
+        - script.execute:
+            id: check_versions
+            reset_flag: !lambda return (x != "${version}");
 
 uart:
   - id: tf_uart  # UART for Nextion display
