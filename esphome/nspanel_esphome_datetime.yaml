@@ -1,0 +1,186 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - DATE & TIME                                                                #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+substitutions:
+  ##############################
+  ## Change only in your      ##
+  ## local yaml substitutions ##
+  ##############################
+  BOOT_STEP_DATETIME: '2'
+  TAG_DATETIME: nspanel.datetime
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_CORE_DATETIME
+
+globals:
+  - id: mui_timezone
+    type: std::string
+    restore_value: true
+    initial_value: ""
+
+script:
+  - id: !extend boot
+    then:
+      - script.execute:
+          id: boot_log
+          category: "Date/Time"
+          log_message: Set time zone
+      - script.execute: set_timezone_from_globals
+
+  - id: !extend page_home
+    then:
+      - script.execute: refresh_datetime
+
+  - id: refresh_datetime
+    mode: restart
+    then:
+      - lambda: |-
+          std::string time_format_str = id(mui_time_format);
+          if (time_format_str.find("%-H") != std::string::npos) {
+            time_format_str = time_format_str.replace(time_format_str.find("%-H"), sizeof("%-H")-1,
+                                                      to_string((int)(id(time_provider).now().hour)));
+          }
+          if (time_format_str.find("%-I") != std::string::npos) {
+            if (id(time_provider).now().hour>12) {
+              time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1,
+                                                        to_string((int)(id(time_provider).now().hour-12)));
+            } else if (id(time_provider).now().hour==0) {
+              time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1, "12");
+            } else {
+              time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1,
+                                                        to_string((int)(id(time_provider).now().hour)));
+            }
+          }
+          std::string meridiem_text = (id(time_provider).now().hour<12) ? id(mui_meridiem)[0] : id(mui_meridiem)[1];
+          if (current_page->state == "screensaver" and id(screensaver_display_time)) {
+              std::string time_format_str_sleep = time_format_str;
+              if (time_format_str_sleep.find("%p") != std::string::npos)
+                time_format_str_sleep.replace(time_format_str_sleep.find("%p"), sizeof("%p")-1, meridiem_text.c_str());
+              disp1->set_component_text("text", id(time_provider).now().strftime(time_format_str_sleep).c_str());
+          }
+          disp1->set_component_text("home.meridiem", (time_format_str.find("%p") != std::string::npos) ? meridiem_text.c_str() : " ");
+          disp1->set_component_text("home.time", id(time_provider).now().strftime(time_format_str).c_str());
+
+  - id: set_timezone
+    mode: single
+    parameters:
+      timezone: string
+    then:
+      - if:
+          condition:
+            - lambda: return !timezone.empty();
+            - lambda: return (timezone != id(mui_timezone));
+          then:
+            - globals.set:
+                id: mui_timezone
+                value: !lambda return timezone;
+            - script.execute: set_timezone_from_globals
+
+  - id: set_timezone_from_globals
+    mode: single
+    then:
+      - lambda: |-
+          if (id(mui_timezone).empty()) {
+            ESP_LOGD("${TAG_DATETIME}", "Current timezone: %s", time_provider->get_timezone().c_str());
+            return;
+          }
+          ESP_LOGI("${TAG_DATETIME}", "Setting timezone: %s", id(mui_timezone).c_str());
+          const size_t start = id(mui_timezone).find('<');
+          if (start != std::string::npos) {
+            const size_t end = id(mui_timezone).find('>');
+            if (end != std::string::npos && end > start) {
+              id(mui_timezone).replace(start, (end - start) + 1, "UTC");
+            }  // if valid brackets found
+          }  // if formatting needed
+          time_provider->set_timezone(id(mui_timezone).c_str());
+          time_provider->call_setup();
+          time_provider->dump_config();
+          refresh_datetime->execute();
+
+  - id: !extend stop_all
+    then:
+      - script.stop: refresh_datetime
+      - script.stop: set_timezone
+      - script.stop: set_timezone_from_globals
+
+time:  # Keeps time display updated
+  - id: time_provider
+    platform: homeassistant
+    on_time:
+      - seconds: 0
+        then:
+          - script.execute: refresh_datetime
+          - script.execute:
+              id: refresh_relays
+              relay_mask: 3
+          - script.execute:
+              id: refresh_hardware_buttons_bars
+              button_mask: 3
+          - script.execute: refresh_wifi_icon
+      - seconds: 30  # Watchdog
+        then:
+          - if:
+              condition:
+                - not:
+                    - wifi.connected:
+                - not:
+                    - script.is_running: wait_for_wifi
+              then:
+                - script.execute: wait_for_wifi
+          - if:
+              condition:
+                - not:
+                    - api.connected:
+                - not:
+                    - text_sensor.state:
+                        id: current_page
+                        state: blank
+                - not:
+                    - text_sensor.state:
+                        id: current_page
+                        state: boot
+                - not:
+                    - text_sensor.state:
+                        id: current_page
+                        state: confirm
+                - not:
+                    - text_sensor.state:
+                        id: current_page
+                        state: home
+                - not:
+                    - text_sensor.state:
+                        id: current_page
+                        state: qrcode
+                - not:
+                    - text_sensor.state:
+                        id: current_page
+                        state: screensaver
+                - not:
+                    - text_sensor.state:
+                        id: current_page
+                        state: settings
+              then:
+                - lambda: |-
+                      ESP_LOGW("${TAG_DATETIME}", "API disconnected. Falling back to Home page.");
+                - script.execute:
+                    id: goto_page
+                    page: home
+                - sensor.template.publish:
+                    id: blueprint_status
+                    state: 0
+          - script.execute: refresh_wifi_icon
+
+    on_time_sync:
+      then:
+        - lambda: |-
+            ESP_LOGD("${TAG_DATETIME}", "System clock synchronized");
+            ESP_LOGD("${TAG_DATETIME}", "Timezone: %s", time_provider->get_timezone().c_str());
+        - script.execute: refresh_datetime
+...

@@ -51,6 +51,10 @@ namespace nspanel_ha_blueprint {
         "utilities"
     };
 
+    // Global system flags - initialized to 0 (all flags false)
+    extern uint8_t current_page_id;
+    extern uint8_t last_page_id;
+
     /**
     * Retrieves the index of a given page name within the page_names array.
     * 

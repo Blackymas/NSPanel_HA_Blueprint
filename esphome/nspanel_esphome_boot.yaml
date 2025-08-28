@@ -1,0 +1,381 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - BOOT                                                                       #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+substitutions:
+  ##############################
+  ## Change only in your      ##
+  ## local yaml substitutions ##
+  ##############################
+  BOOT_STEP_BOOT: '1'
+  TAG_BOOT: nspanel.boot
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_CORE_BOOT
+  on_boot:
+    - priority: -1000.${BOOT_STEP_BOOT}  # This should happen after ESPHome completed the startup
+      then:
+        - delay: 1s
+        - script.execute: boot
+        - script.wait: boot
+        - lambda: set_system_flag(NSPanelFlag::BOOT_COMPLETED);
+
+globals:
+  - id: boot_completed
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+
+script:
+  - id: boot
+    mode: single
+    then:  # Other packages will subscribe themselves to this to run after critical components and early routines
+      - lambda: blueprint_status_flags = 0;
+      - script.execute: boot_preparation
+      - script.execute: boot_critical_components
+      - script.wait: boot_critical_components
+      - script.execute: boot_early_routines
+      - script.wait: boot_early_routines
+
+      - delay: 1s
+      # This should be moved somewhere else
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: "Starting sequence"
+      - delay: ${DELAY_DEFAULT}ms
+      - script.execute:
+          id: boot_progress
+          step: 0
+      - delay: ${DELAY_DEFAULT}ms
+      - script.execute: update_tft_info
+      - delay: ${DELAY_DEFAULT}ms
+      - script.execute:
+          id: boot_progress
+          step: 1
+      - delay: ${DELAY_DEFAULT}ms
+      - script.execute:
+          id: boot_progress
+          step: 2
+      - delay: ${DELAY_DEFAULT}ms
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: "Waiting for Wi-Fi"
+      - delay: ${DELAY_DEFAULT}ms
+      - script.execute: wait_for_wifi
+      - script.wait: wait_for_wifi
+      - if:
+          condition:
+            - lambda: |-
+                return !is_system_flag_set(NSPanelFlag::WIFI_READY);
+          then:
+            - script.execute:
+                id: boot_log
+                category: Boot
+                log_message: "Wi-Fi not available"
+          else:  # Wi-Fi connected
+            - script.execute:
+                id: boot_log
+                category: Boot
+                log_message: "Wi-Fi connected"
+            - delay: ${DELAY_DEFAULT}ms
+            - script.execute:
+                id: boot_progress
+                step: 3
+            - if:
+                condition:
+                  - text_sensor.state:
+                      id: current_page
+                      state: boot
+                then:
+                  - delay: ${DELAY_DEFAULT}ms
+                  - lambda: |-
+                      disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());
+                  - delay: ${DELAY_DEFAULT}ms
+                  - script.execute:
+                      id: set_brightness
+                      brightness: 100
+            - script.execute: wait_for_api
+            - script.wait: wait_for_api
+            - if:
+                condition:
+                  - lambda: |-
+                      return !is_system_flag_set(NSPanelFlag::API_READY);
+                then:
+                  - delay: ${DELAY_DEFAULT}ms
+                  - script.execute:
+                      id: boot_log
+                      category: Boot
+                      log_message: "API not available"
+                else:  # API connected
+                  - delay: ${DELAY_DEFAULT}ms
+                  - script.execute:
+                      id: boot_log
+                      category: Boot
+                      log_message: "API connected"
+                  - script.execute:
+                      id: boot_progress
+                      step: 4
+
+      # Display settings
+      - delay: ${DELAY_DEFAULT}ms
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: "Sending display settings"
+      - delay: ${DELAY_DEFAULT}ms
+      - lambda: |-
+          disp1->send_command_printf("brightness=%i", int(display_brightness->state));
+          disp1->set_component_value("settings.brightslider", int(display_brightness->state));
+          disp1->send_command_printf("brightness_dim=%i", int(display_dim_brightness->state));
+          disp1->set_component_value("settings.dimslider", int(display_dim_brightness->state));
+          disp1->send_command_printf("brightness_sleep=%i", int(display_sleep_brightness->state));
+          disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
+      - delay: ${DELAY_DEFAULT}ms
+      - script.execute:
+          id: boot_progress
+          step: 5
+
+      # Publish Nextion state
+      - delay: ${DELAY_DEFAULT}ms
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: "Publish Nextion state"
+      - delay: ${DELAY_DEFAULT}ms
+      - binary_sensor.template.publish:
+          id: nextion_init
+          state: !lambda return disp1->is_setup();
+
+      # Inform Home Assistant when Nextion is initialized
+      - delay: ${DELAY_DEFAULT}ms
+      - if:
+          condition:
+            - lambda: |-
+                return is_system_flag_set(NSPanelFlag::API_READY);
+            - lambda: return disp1->is_setup();
+          then:
+            - delay: ${DELAY_DEFAULT}ms
+            - script.execute:
+                id: boot_log
+                category: Boot
+                log_message: "Send `nextion_init` event to Home Assistant"
+            - homeassistant.event:
+                event: ${EVENT_NAME}
+                data:
+                  device_name: !lambda return device_name->state.c_str();
+                  esphome_version: ${version}
+                  type: boot
+                  step: nextion_init
+      - script.execute:
+          id: boot_progress
+          step: 6
+
+      # Wait for a response from the blueprint
+      - if:
+          condition:
+            - lambda: return not is_system_flag_set(NSPanelFlag::BLUEPRINT_READY);
+          then:
+            - delay: ${DELAY_DEFAULT}ms
+            - script.execute:
+                id: boot_event
+                init: true
+            - script.execute: wait_for_blueprint
+            - script.wait: wait_for_blueprint
+            - if:
+                condition:
+                  - lambda: return is_system_flag_set(NSPanelFlag::BLUEPRINT_READY);
+                then:
+                  - delay: ${DELAY_DEFAULT}ms
+                  - script.execute:
+                      id: boot_progress
+                      step: 7
+                else:
+                  - script.execute:
+                      id: boot_log
+                      category: Boot
+                      log_message: "Blueprint not available"
+
+      # Setup Home page
+      - delay: ${DELAY_DEFAULT}ms
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: "Set Home page elements"
+
+      # Chips icon size
+      - delay: ${DELAY_DEFAULT}ms
+      - lambda: |-
+          for (uint8_t i = 1; i <= 7; ++i) {
+            disp1->send_command_printf("home.chip%02d.font=%i", i, id(home_chip_font_id));
+          }
+
+      # Custom buttons icon size
+      - delay: ${DELAY_DEFAULT}ms
+      - lambda: |-
+          for (uint8_t i = 1; i <= 7; ++i) {
+            disp1->send_command_printf("home.button%02d.font=%i", i, id(home_custom_buttons_font_id));
+          }
+
+      # Other components icons size and color
+      - delay: ${DELAY_DEFAULT}ms
+      - lambda: |-
+          disp1->set_component_font("home.bt_notific", id(home_custom_buttons_font_id));
+          disp1->set_component_font("home.bt_qrcode", id(home_custom_buttons_font_id));
+          disp1->set_component_font("home.bt_entities", id(home_custom_buttons_font_id));
+          disp1->set_component_font("home.wifi_icon", id(home_chip_font_id));
+          disp1->set_component_font_color("home.chip_relay1", id(home_relay1_icon_color));
+          disp1->set_component_font_color("home.chip_relay2", id(home_relay2_icon_color));
+
+      # Bluetooth icon
+      - delay: ${DELAY_DEFAULT}ms
+      - lambda: |-
+          #if defined(USE_ESP32_BLE_SERVER) || defined(USE_ESP32_BLE_CLIENT) || defined(USE_BLUETOOTH_PROXY) || defined(USE_IMPROV)
+          disp1->set_component_text("home.bt_icon", "\uE0AE");
+          #else
+          disp1->set_component_text("home.bt_icon", "");
+          #endif
+
+      # Wrap-up
+      - delay: ${DELAY_DEFAULT}ms
+      - script.execute:
+          id: boot_progress
+          step: 8
+      - delay: ${DELAY_DEFAULT}ms
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: "Wait to finish"
+      - script.execute: wait_for_wifi
+      - script.execute: wait_for_api
+      - script.execute: wait_for_blueprint
+      - script.wait: wait_for_wifi
+      - script.wait: wait_for_api
+      - script.wait: wait_for_blueprint
+      - script.execute:
+          id: boot_progress
+          step: 9
+
+      - delay: ${DELAY_DEFAULT}ms
+      - script.execute:
+          id: boot_progress
+          step: 10
+      - delay: ${DELAY_DEFAULT}ms
+      - script.execute:
+          id: set_brightness
+          brightness: !lambda return display_brightness->state;
+      - delay: ${DELAY_DEFAULT}ms
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: "Jump to wake-up page"
+
+      - delay: ${DELAY_DEFAULT}ms
+      - lambda: |-
+          ESP_LOGD("script.page_boot", "Jump to wake-up page: %s", wakeup_page_name->state.c_str());
+      - delay: ${DELAY_DEFAULT}ms
+      - script.execute:
+          id: goto_page
+          page: !lambda return wakeup_page_name->state.c_str();
+
+  - id: boot_critical_components
+    mode: single
+    then:  # Critical components should subscribe themselves to this
+
+  - id: boot_early_routines
+    mode: single
+    then:  # Critical components should subscribe themselves to this
+
+  - id: boot_event
+    mode: restart
+    parameters:
+      init: bool
+    then:
+      - if:
+          condition:
+            - lambda: return init;
+          then:
+            - lambda: |-
+                ESP_LOGD("${TAG_BOOT}", "Asking Blueprint to start sending data");
+            - homeassistant.event:
+                event: ${EVENT_NAME}
+                data:
+                  device_name: !lambda return device_name->state.c_str();
+                  esphome_version: ${version}
+                  type: boot
+                  step: start
+      - while:
+          condition:
+            - lambda: return not is_system_flag_set(NSPanelFlag::BLUEPRINT_READY);
+          then:
+            - lambda: |-
+                ESP_LOGD("${TAG_BOOT}", "Give some time for the blueprint to respond");
+            - delay: 30s
+            - if:
+                condition:
+                  - lambda: return not is_system_flag_set(NSPanelFlag::BLUEPRINT_READY);
+                then:
+                  - lambda: |-
+                      ESP_LOGW("${TAG_BOOT}", "Inform Blueprint that no data was received yet");
+                  - homeassistant.event:
+                      event: ${EVENT_NAME}
+                      data:
+                        device_name: !lambda return device_name->state.c_str();
+                        esphome_version: ${version}
+                        type: boot
+                        step: timeout
+      - lambda: |-
+          ESP_LOGD("${TAG_BOOT}", "Boot event response (from Blueprint) was successful");
+
+  - id: boot_log
+    mode: queued
+    max_runs: 3
+    parameters:
+      category: string
+      log_message: string
+    then:
+      - lambda: ESP_LOGD("${TAG_BOOT}", log_message.c_str());
+      # Extended by:
+      # - page_boot
+
+  - id: boot_preparation
+    mode: single
+    then:
+
+  - id: boot_progress
+    mode: restart
+    parameters:
+      step: uint
+    then:
+      - if:
+          condition:
+            - lambda: return (step == 10);
+          then:
+            - globals.set:
+                id: boot_completed
+                value: 'true'
+            - lambda: |-
+                ESP_LOGD("script.boot_progress", "Progress: Completed");
+                disp1->set_component_value("boot.progress", 100);
+          else:
+            - lambda: |-
+                ESP_LOGD("script.boot_progress", "Progress: %.1f%%", get_blueprint_status_percentage());
+                disp1->set_component_value("boot.progress", step);
+
+  - id: !extend stop_all
+    then:
+      - script.stop: boot
+      - script.stop: boot_critical_components
+      - script.stop: boot_early_routines
+      - script.stop: boot_event
+      - script.stop: boot_log
+      - script.stop: boot_preparation
+      - script.stop: boot_progress
+...
