@@ -433,12 +433,12 @@ output:
           set_brightness->execute(current_brightness);
     
 script:
-  # Updates the existing `page_changed` script to update the `display_light` status when a page changes
-  - id: !extend page_changed
+  # Updates the existing `page_change` script to update the `display_light` status when a page changes
+  - id: !extend page_change
     then:
       - lambda: |-
-          ESP_LOGD("script.page_changed(custom)", "page: %s", current_page->state.c_str());
-          ESP_LOGV("script.page_changed(custom)", "is_on(): %s", display_light->current_values.is_on() ? "True" : "False");
+          ESP_LOGD("script.page_change(custom)", "page: %s", current_page->state.c_str());
+          ESP_LOGV("script.page_change(custom)", "is_on(): %s", display_light->current_values.is_on() ? "True" : "False");
           if (current_page->state == "screensaver" and display_light->current_values.is_on()) {
             auto call = display_light->turn_off();
             call.perform();
