@@ -8,8 +8,18 @@
 ---
 substitutions:
   BOOT_STEP_PAGE_BOOT: '29'
-  PAGE_ID_BOOT: '0'
+  PAGE_BOOT_DELAY_TO_EXIT: 30s
+  PAGE_BOOT_ID: '0'
   TAG_PAGE_BOOT: nspanel.page.boot
+
+display:
+  - id: !extend disp1
+    on_setup:
+      then:
+        - lambda: disp1->goto_page(static_cast<uint8_t>(${PAGE_BOOT_ID}));
+        - text_sensor.template.publish:
+            id: current_page
+            state: boot
 
 script:
   - id: !extend boot_log
@@ -23,11 +33,28 @@ script:
             - lambda: |-
                 disp1->send_command_printf("log_body.txt+=\"%s: %s\\r\"", category.c_str(), log_message.c_str());
 
+  - id: !extend boot_preparation
+    then:
+      - script.execute: page_boot_exit_on_timeout
+
+  - id: !extend check_display_settings
+    then:
+      - if:
+          condition:
+            - lambda: return is_system_flag_set(NSPanelFlag::DISPLAY_SETTINGS_RECEIVED);
+            - text_sensor.state:
+                id: current_page
+                state: boot
+          then:
+            - lambda: |-
+                disp1->send_command("tm_esphome.en=0");
+
   - id: page_boot
     mode: single
     then:
       - logger.log: Page boot called
       - lambda: |-
+          ESP_LOGD("${TAG_PAGE_BOOT}", "Page boot constructor started");
           disp1->set_component_text("ver_firmware", "Firmware: ${version}");  // ESPHome version
           #ifdef ARDUINO
           disp1->set_component_text("sys_framework", "Framework: Arduino");
@@ -42,6 +69,23 @@ script:
           id: set_brightness
           brightness: 100
       - script.execute: wait_for_page_boot_exit
+      - script.execute: check_display_settings
+      - lambda: |-
+          ESP_LOGD("${TAG_PAGE_BOOT}", "Page boot constructor completed");
+
+  - id: page_boot_exit_on_timeout
+    mode: single
+    then:
+      - delay: ${PAGE_BOOT_DELAY_TO_EXIT}
+      - if:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: boot
+          then:
+            - script.execute:
+                id: goto_page
+                page: !lambda return wakeup_page_name->state.c_str();
 
   - id: page_boot_show_blueprint_version
     mode: single
@@ -69,6 +113,14 @@ script:
             - lambda: |-
                 disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());
 
+  - id: !extend page_change
+    then:
+      - if:
+          condition:
+            - lambda: return new_page_id == ${PAGE_BOOT_ID};
+          then:
+            - script.execute: page_boot
+
   - id: !extend stop_all
     then:
       - script.stop: wait_for_page_boot_exit
@@ -88,7 +140,13 @@ script:
                 id: current_page
                 state: boot
           then:
+            - lambda: ESP_LOGV("${TAG_PAGE_BOOT}", "Waiting until boot page is left...");
             - delay: 1s
+
+text_sensor:
+  - id: !extend version_blueprint
+    on_value:
+      - script.execute: page_boot_show_blueprint_version
 
 wifi:
   on_connect:

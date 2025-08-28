@@ -31,40 +31,39 @@ binary_sensor:
     entity_category: diagnostic
     icon: mdi:tablet-dashboard
     lambda: |-
-      return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+      return is_device_ready_for_tasks();
     on_release:
       then:
-        - lambda: clear_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::NEXTION_READY);
+        - lambda: clear_system_flag(NSPanelFlag::NEXTION_READY);
 
 display:
   - id: disp1
     platform: nextion
     uart_id: tf_uart
     on_setup:
-      - lambda: |-
-          set_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::NEXTION_READY);
-      - binary_sensor.template.publish:
-          id: nextion_init
-          state: true
+      then:
+        - lambda: |-
+            ESP_LOGI("TAG_HW_DISPLAY", "Nextion setup triggered");
+            set_system_flag(NSPanelFlag::NEXTION_READY);
+        - binary_sensor.template.publish:
+            id: nextion_init
+            state: true
 
     on_page:
-      - if:
-          condition:
-            - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
-            - or:
-                - lambda: return (x == 9);
-                - lambda: return (current_page->state != page_names[x]);
-          then:
-            - text_sensor.template.publish:
-                id: current_page
-                state: !lambda return page_names[x];
+      - lambda: |-
+          ESP_LOGD("TAG_HW_DISPLAY", "New page trigger:");
+          ESP_LOGD("TAG_HW_DISPLAY", "  From: %s", current_page->state.c_str());
+          ESP_LOGD("TAG_HW_DISPLAY", "  To: %s (id: %" PRIu8 ")", page_names[x], x);
+      - script.execute:
+          id: page_change
+          new_page_id: !lambda return x;
 
     on_touch:
       then:
         - script.execute: timer_reset_all
         - if:
             condition:
-              - lambda: return is_device_ready_for_tasks(nspanel_ha_blueprint::system_flags);
+              - lambda: return is_device_ready_for_tasks();
               - lambda: return (!touch_event);  // Only act with release
             then:
               - if:
@@ -115,7 +114,7 @@ esphome:
       - if:
           condition:
             - lambda: return ${screen_power_off_on_shutdown};
-            - lambda: return not is_system_flag_set(system_flags, NSPanelFlag::TFT_UPLOAD_ACTIVE);
+            - lambda: return not is_system_flag_set(NSPanelFlag::TFT_UPLOAD_ACTIVE);
           then:
             - switch.turn_off: screen_power
 
@@ -233,6 +232,21 @@ script:
             - switch.is_off: screen_power
           then:
             - switch.turn_on: screen_power
+
+  - id: check_display_settings
+    mode: restart
+    then:
+      - if:
+          condition:
+            - lambda: return !isnan(display_charset->state);
+            - lambda: return !isnan(display_mode->state);
+            - lambda: return !version_tft->state.empty();
+          then:
+            - lambda: |-
+                set_system_flag(NSPanelFlag::DISPLAY_SETTINGS_RECEIVED);
+          else:
+            - lambda: |-
+                clear_system_flag(NSPanelFlag::DISPLAY_SETTINGS_RECEIVED);
 
   - id: display_wrapped_text
     mode: parallel
@@ -441,43 +455,45 @@ script:
           if (id(version_tft).state.empty() and event == "params") {
             ESP_LOGV("${TAG_VERSIONING}", "Nextion event");
             id(version_tft).publish_state(json["version"].as<std::string>());
-            id(check_versions).execute();
           }
 
-  - id: page_changed
+  - id: page_change
     mode: restart
+    parameters:
+      new_page_id: uint8_t
     then:
       # Report new page to logs
       - lambda: |-
-          ESP_LOGD("script.page_changed", "New page: %s", current_page->state.c_str());
-
-      # Stop if page is empty
+          ESP_LOGD("script.page_change", "New page: %s", page_names[new_page_id]);
       - if:
           condition:
-            - lambda: return current_page->state.empty();
+            - lambda: return (current_page_id != new_page_id);
           then:
             - lambda: |-
-                ESP_LOGE("script.page_changed", "No page to open");
-            - script.stop: page_changed
+                last_page_id = current_page_id;
+                current_page_id = new_page_id;
+            - text_sensor.template.publish:
+                id: current_page
+                state: !lambda return page_names[new_page_id];
 
       # Stop previous constructors
       - script.execute: stop_page_constructors
 
       # Reset globals
       - lambda: |-
-          ESP_LOGV("script.page_changed", "Reset globals");
-          if (current_page->state != "alarm" &&
-              current_page->state != "climate" &&
-              current_page->state != "cover" &&
-              current_page->state != "fan" &&
-              current_page->state != "light" &&
-              current_page->state != "media_player" &&
-              current_page->state != "confirm" &&
-              current_page->state != "keyb_num") {
+          ESP_LOGV("script.page_change", "Reset globals");
+          if (new_page_id != ${PAGE_ALARM_ID} &&
+              new_page_id != ${PAGE_CLIMATE_ID} &&
+              new_page_id != ${PAGE_COVER_ID} &&
+              new_page_id != ${PAGE_FAN_ID} &&
+              new_page_id != ${PAGE_LIGHT_ID} &&
+              new_page_id != ${PAGE_MEDIA_PLAYER_ID} &&
+              new_page_id != ${PAGE_CONFIRM_ID} &&
+              new_page_id != ${PAGE_KEYB_NUM_ID}) {
               detailed_entity->publish_state("");
               disp1->send_command("back_page_id=1");
           }
-          if (current_page->state != "media_player") {
+          if (new_page_id != ${PAGE_MEDIA_PLAYER_ID}) {
             id(last_volume_level) = 0;
             id(last_media_duration) = 0;
             id(last_media_position) = 0;
@@ -489,11 +505,11 @@ script:
             - lambda: return !detailed_entity->state.empty();
           then:
             - lambda: |-
-                ESP_LOGD("script.page_changed", "Entity shown: %s", detailed_entity->state.c_str());
+                ESP_LOGD("script.page_change", "Entity shown: %s", detailed_entity->state.c_str());
 
       # Update buttons bars on screen
       - lambda: |-
-          ESP_LOGV("script.page_changed", "Update buttons bars on screen");
+          ESP_LOGV("script.page_change", "Update buttons bars on screen");
       - script.execute:
           id: refresh_hardware_buttons_bars
           button_mask: 3
@@ -508,7 +524,7 @@ script:
           then:
             - delay: ${DELAY_DEFAULT}ms
             - lambda: |-
-                ESP_LOGV("script.page_changed", "Reset timers");
+                ESP_LOGV("script.page_change", "Reset timers");
             - script.execute: timer_reset_all
 
       # Wait for other constructors to stop before telling the blueprint about a new page
@@ -517,40 +533,31 @@ script:
       # Report new page to Blueprint
       - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
-          ESP_LOGV("script.page_changed", "Report new page to Blueprint");
+          ESP_LOGD("script.page_change", "Report new page to Blueprint");
       - homeassistant.event:
           event: ${EVENT_NAME}
           data:
             device_name: !lambda return device_name->state.c_str();
             esphome_version: ${version}
             type: page_changed
-            page: !lambda return current_page->state.c_str();
+            page: !lambda return page_names[new_page_id];
             entity: !lambda return detailed_entity->state.c_str();
 
       # Call page constructor
       - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
-          ESP_LOGV("script.page_changed", "Call page constructor");
+          ESP_LOGD("script.page_change", "Call page constructor");
       - lambda: |-
-          if (current_page->state == "alarm") page_alarm->execute();
-          else if (current_page->state == "blank") page_blank->execute();
-          else if (current_page->state == "boot") page_boot->execute();
+          if (current_page->state == "blank") page_blank->execute();
           else if (current_page->state == "buttonpage01") page_buttonpage01->execute();
           else if (current_page->state == "buttonpage02") page_buttonpage02->execute();
           else if (current_page->state == "buttonpage03") page_buttonpage03->execute();
           else if (current_page->state == "buttonpage04") page_buttonpage04->execute();
-          else if (current_page->state == "climate") page_climate->execute();
           else if (current_page->state == "confirm") page_confirm->execute();
-          else if (current_page->state == "cover") page_cover->execute();
           else if (current_page->state == "entitypage01") page_entitypage01->execute();
           else if (current_page->state == "entitypage02") page_entitypage02->execute();
           else if (current_page->state == "entitypage03") page_entitypage03->execute();
           else if (current_page->state == "entitypage04") page_entitypage04->execute();
-          else if (current_page->state == "fan") page_fan->execute();
-          else if (current_page->state == "home") page_home->execute();
-          else if (current_page->state == "keyb_num") page_keyb_num->execute();
-          else if (current_page->state == "light") page_light->execute();
-          else if (current_page->state == "media_player") page_media_player->execute();
           else if (current_page->state == "notification") page_notification->execute();
           else if (current_page->state == "qrcode") page_qrcode->execute();
           else if (current_page->state == "screensaver") page_screensaver->execute();
@@ -578,7 +585,7 @@ script:
           condition:
             - lambda: return !isnan(target_baud_rate);
           then:
-            - lambda: set_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::BAUD_RATE_SET);
+            - lambda: set_system_flag(NSPanelFlag::BAUD_RATE_SET);
       - if:
           condition:
             - lambda: return (tf_uart->get_baud_rate() != target_baud_rate);
@@ -637,8 +644,9 @@ script:
   - id: !extend stop_all
     then:
       - script.execute: stop_page_constructors
+      - script.stop: check_display_settings
       - script.stop: display_wrapped_text
-      - script.stop: page_changed
+      - script.stop: page_change
       - script.stop: set_baud_rate
       - script.stop: set_brightness
       - script.stop: set_component_visibility
@@ -957,6 +965,9 @@ sensor:
     internal: false
     icon: mdi:translate
     entity_category: diagnostic
+    on_value:
+      then:
+        - script.execute: check_display_settings
 
   - id: display_mode  # Display mode (1 = EU, 2 = US, 3 = US Landscape)
     name: Display mode
@@ -967,6 +978,9 @@ sensor:
     internal: false
     icon: mdi:phone-rotate-portrait
     entity_category: diagnostic
+    on_value:
+      then:
+        - script.execute: check_display_settings
 
 switch:
   - id: screen_power  # Controls the display's power source
@@ -993,18 +1007,22 @@ text_sensor:
     disabled_by_default: false
     filters:
       - lambda: |-
-          // Check if Nextion display is ready using system flags
-          if (is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::NEXTION_READY)) {
-            return x;  // Return page name
-          }
-          return {};  // Nextion not ready - return unavailable state
+          x = x.c_str();
+          x.shrink_to_fit();
+          return x;
     on_value:
-      - if:
-          condition:
-            - lambda: return !x.empty();  // Only execute page_changed script when we have a non-empty page value
-            - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::NEXTION_READY);
-          then:
-            - script.execute: page_changed
+      then:
+        - if:
+            condition:
+              - lambda: return (x == page_names[current_page_id]);
+            then:
+              - lambda: ESP_LOGW("${TAG_HW_DISPLAY}", "Same page");
+            else:
+              - lambda: |-
+                  ESP_LOGD("${TAG_HW_DISPLAY}", "New page detected by the 'Current page' sensor: %s", x.c_str());
+              - script.execute:
+                  id: page_change
+                  new_page_id: !lambda return get_page_id(x);
 
   - id: detailed_entity  # Entity Id of the entity displayed on the detailed pages
     name: Detailed Entity
@@ -1151,7 +1169,10 @@ text_sensor:
     update_interval: never
     on_value:
       then:
-        - script.execute: check_versions
+        - script.execute:
+            id: check_versions
+            reset_flag: !lambda return (x != "${version}");
+        - script.execute: check_display_settings
 
 uart:
   - id: tf_uart  # UART for Nextion display
