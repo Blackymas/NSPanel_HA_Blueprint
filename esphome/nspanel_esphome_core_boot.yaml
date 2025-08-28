@@ -24,7 +24,7 @@ esphome:
         - delay: 1s
         - script.execute: boot
         - script.wait: boot
-        - lambda: set_system_flag(nspanel_ha_blueprint::system_flags, NSPanelFlag::BOOT_COMPLETED);
+        - lambda: set_system_flag(NSPanelFlag::BOOT_COMPLETED);
 
 globals:
   - id: boot_completed
@@ -36,6 +36,8 @@ script:
   - id: boot
     mode: single
     then:  # Other packages will subscribe themselves to this to run after critical components and early routines
+      - lambda: blueprint_status_flags = 0;
+      - script.execute: boot_preparation
       - script.execute: boot_critical_components
       - script.wait: boot_critical_components
       - script.execute: boot_early_routines
@@ -72,7 +74,7 @@ script:
       - if:
           condition:
             - lambda: |-
-                return !is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::WIFI_READY);
+                return !is_system_flag_set(NSPanelFlag::WIFI_READY);
           then:
             - script.execute:
                 id: boot_log
@@ -105,7 +107,7 @@ script:
             - if:
                 condition:
                   - lambda: |-
-                      return !is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::API_READY);
+                      return !is_system_flag_set(NSPanelFlag::API_READY);
                 then:
                   - delay: ${DELAY_DEFAULT}ms
                   - script.execute:
@@ -157,7 +159,7 @@ script:
       - if:
           condition:
             - lambda: |-
-                return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::API_READY);
+                return is_system_flag_set(NSPanelFlag::API_READY);
             - lambda: return disp1->is_setup();
           then:
             - delay: ${DELAY_DEFAULT}ms
@@ -179,7 +181,7 @@ script:
       # Wait for a response from the blueprint
       - if:
           condition:
-            - lambda: return not is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
+            - lambda: return not is_system_flag_set(NSPanelFlag::BLUEPRINT_READY);
           then:
             - delay: ${DELAY_DEFAULT}ms
             - script.execute:
@@ -189,7 +191,7 @@ script:
             - script.wait: wait_for_blueprint
             - if:
                 condition:
-                  - lambda: return is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
+                  - lambda: return is_system_flag_set(NSPanelFlag::BLUEPRINT_READY);
                 then:
                   - delay: ${DELAY_DEFAULT}ms
                   - script.execute:
@@ -311,14 +313,14 @@ script:
                   step: start
       - while:
           condition:
-            - lambda: return not is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
+            - lambda: return not is_system_flag_set(NSPanelFlag::BLUEPRINT_READY);
           then:
             - lambda: |-
                 ESP_LOGD("${TAG_BOOT}", "Give some time for the blueprint to respond");
             - delay: 30s
             - if:
                 condition:
-                  - lambda: return not is_system_flag_set(nspanel_ha_blueprint::system_flags, NSPanelFlag::BLUEPRINT_READY);
+                  - lambda: return not is_system_flag_set(NSPanelFlag::BLUEPRINT_READY);
                 then:
                   - lambda: |-
                       ESP_LOGW("${TAG_BOOT}", "Inform Blueprint that no data was received yet");
@@ -343,6 +345,10 @@ script:
       # Extended by:
       # - page_boot
 
+  - id: boot_preparation
+    mode: single
+    then:
+
   - id: boot_progress
     mode: restart
     parameters:
@@ -360,17 +366,8 @@ script:
                 disp1->set_component_value("boot.progress", 100);
           else:
             - lambda: |-
-                step = std::min(100, int(round((blueprint_status->state + (step*10))/2)));
-                ESP_LOGD("script.boot_progress", "Progress: %i%%", step);
+                ESP_LOGD("script.boot_progress", "Progress: %.1f%%", get_blueprint_status_percentage());
                 disp1->set_component_value("boot.progress", step);
-      - if:
-          condition:
-            - lambda: return (current_page->state == "boot");
-            - lambda: return !isnan(display_charset->state);
-            - lambda: return !isnan(display_mode->state);
-            - lambda: return !version_tft->state.empty();
-          then:
-            - lambda: disp1->send_command("tm_esphome.en=0");
 
   - id: !extend stop_all
     then:
@@ -379,5 +376,6 @@ script:
       - script.stop: boot_early_routines
       - script.stop: boot_event
       - script.stop: boot_log
+      - script.stop: boot_preparation
       - script.stop: boot_progress
 ...
