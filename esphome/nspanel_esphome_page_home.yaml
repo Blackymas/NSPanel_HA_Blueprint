@@ -11,6 +11,113 @@ substitutions:
   PAGE_HOME_ID: '1'
   TAG_PAGE_HOME: nspanel.page.home
 
+api:
+  actions:
+    # Sets up the "Home" page in ESPHome with customized settings and UI elements as defined in the project blueprint.
+    - action: init_page_home
+      variables:
+        date_color: int[]                      # RGB color array for the date display.
+        time_format: string                    # Time display format string, utilizing standard formatting symbols.
+        time_color: int[]                      # RGB color array for the time display.
+        meridiem: string[]                     # Optional array for AM/PM labels if included in time format.
+        chip_font: int                         # Font Id for chip icons displayed on the "Home" page.
+        custom_buttons_font: int               # Font Id for icons on custom buttons.
+        qrcode: bool                           # Enable/disable flag for QR code button display.
+        qrcode_icon: string                    # Icon codepoint for QR code button, sourced from HASwitchPlate Material Design Icons.
+        qrcode_icon_color: int[]               # RGB color array for QR code button icon.
+        entities_pages_icon: string            # Icon codepoint for entities page button, sourced from HASwitchPlate Material Design Icons.
+        entities_pages_icon_color: int[]       # RGB color array for entities page button icon.
+        utilities: bool                        # Enable/disable flag for utilities page button display.
+        utilities_icon: string                 # Icon codepoint for utilities page button, sourced from HASwitchPlate Material Design Icons.
+        utilities_icon_color: int[]            # RGB color array for utilities page button icon.
+        outdoor_temp_font: int                 # Font Id for outdoor temperature indication on the "Home" page.
+      then:
+        - lambda: boot_log->execute("Service", "init_page_home");
+        # Localization
+        - delay: ${DELAY_DEFAULT}ms
+        - globals.set:
+            id: mui_time_format
+            value: !lambda return time_format;
+        - if:
+            condition:
+              - lambda: return (meridiem.size() == 2);
+            then:
+              - lambda: |-
+                  id(mui_meridiem)[0] = meridiem[0];
+                  id(mui_meridiem)[1] = meridiem[1];
+
+        # Date & Time colors
+        - delay: ${DELAY_DEFAULT}ms
+        - globals.set:
+            id: home_date_color
+            value: !lambda return rgbTo565(date_color);
+        - globals.set:
+            id: home_time_color
+            value: !lambda return rgbTo565(time_color);
+        - lambda: |-
+            disp1->set_component_font_color("home.date", id(home_date_color));
+            disp1->set_component_font_color("home.time", id(home_time_color));
+
+        # Chips icon size
+        - delay: ${DELAY_DEFAULT}ms
+        - lambda: |-
+            disp1->set_component_font("home.chip_relay1", chip_font);
+            disp1->set_component_font("home.chip_relay2", chip_font);
+            disp1->set_component_font("home.chip_climate", chip_font);
+            for (int i = 1; i <= 7; ++i) {
+              delay(${DELAY_DEFAULT});
+              disp1->send_command_printf("home.chip%02d.font=%" PRIi32, i, chip_font);
+            }
+            disp1->set_component_font("home.wifi_icon", chip_font);
+        - globals.set:
+            id: home_chip_font_id
+            value: !lambda return chip_font;
+
+        # Custom buttons icon size
+        - delay: ${DELAY_DEFAULT}ms
+        - globals.set:
+            id: home_custom_buttons_font_id
+            value: !lambda return custom_buttons_font;
+        - lambda: |-
+            for (int i = 1; i <= 7; ++i) {
+              disp1->send_command_printf("home.button%02d.font=%" PRIu8, i, id(home_custom_buttons_font_id));
+              delay(${DELAY_DEFAULT});
+            }
+            disp1->set_component_font("home.bt_notific", id(home_custom_buttons_font_id));
+            disp1->set_component_font("home.bt_qrcode", id(home_custom_buttons_font_id));
+            disp1->set_component_font("home.bt_entities", id(home_custom_buttons_font_id));
+
+        # Outdoor temperature font size
+        - delay: ${DELAY_DEFAULT}ms
+        - lambda: |-
+            disp1->set_component_font("home.outdoor_temp", outdoor_temp_font);
+
+        # QRCode button
+        - delay: ${DELAY_DEFAULT}ms
+        - script.execute:
+            id: set_component_visibility
+            component_id: "home.bt_qrcode"
+            show: !lambda return qrcode;
+        - lambda: |-
+            disp1->set_component_text("home.bt_qrcode", qrcode_icon.c_str());
+            disp1->set_component_font_color("home.bt_qrcode", rgbTo565(qrcode_icon_color));
+
+        # Entities pages button
+        - delay: ${DELAY_DEFAULT}ms
+        - lambda: |-
+            disp1->set_component_text("home.bt_entities", entities_pages_icon.c_str());
+            disp1->set_component_font_color("home.bt_entities", rgbTo565(entities_pages_icon_color));
+
+        # Utilities button
+        - delay: ${DELAY_DEFAULT}ms
+        - lambda: |-
+            disp1->send_command_printf("is_utilities=%i", utilities ? 1 : 0);
+            disp1->set_component_text("home.bt_utilities", utilities_icon.c_str());
+            disp1->set_component_font_color("home.bt_utilities", rgbTo565(utilities_icon_color));
+
+        # Update blueprint status
+        - lambda: set_blueprint_status_flag(BlueprintStatusFlag::PAGE_HOME);
+
 esphome:
   platformio_options:
     build_flags:
