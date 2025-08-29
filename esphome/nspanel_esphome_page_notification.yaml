@@ -1,0 +1,256 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - PAGE - NOTIFICATION                                                        #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+substitutions:
+  BOOT_STEP_PAGE_NOTIFICATION: '21'
+  PAGE_NOTIFICATION_ID: '16'
+  tone_notification: "two short:d=4,o=5,b=100:16e6,16e6"
+  TAG_PAGE_NOTIFICATION: nspanel.page.notification
+
+api:
+  actions:
+    # This action removes any displayed notifications from the screen,
+    # helping to keep the user interface clean and focused on its primary functions.
+    - action: notification_clear
+      then:
+        - script.execute: notification_clear
+
+    # Displays a notification message on the screen, useful for alerts or informational updates.
+    - action: notification_show
+      variables:
+        # Title or label for the notification, displayed in a prominent format.
+        label: string
+        # Detailed message or content of the notification. Include `\r` to insert a line break,
+        # allowing for custom formatting.
+        message: string
+      then:
+        - script.execute:
+            id: notification_show_action
+            label: !lambda return label.c_str();
+            message: !lambda return message.c_str();
+
+binary_sensor:
+  - id: notification_unread
+    name: Notification Unread
+    platform: template
+    internal: false
+    icon: mdi:bell-alert-outline
+    disabled_by_default: true
+
+display:
+  - id: !extend disp1
+    on_touch:
+      then:
+        - if:
+            condition:
+              - lambda: return (page_id == ${PAGE_NOTIFICATION_ID});  // Page notification
+              - lambda: return (!touch_event);  // Only act with release
+            then:
+              - if:
+                  condition:
+                    - lambda: return (component_id == 7);  // bt_accept
+                  then:
+                    - script.execute:
+                        id: ha_button
+                        page: notification
+                        component: bt_accept
+                        command: released
+                    - text_sensor.template.publish:
+                        id: notification_label
+                        state: ""
+                    - text_sensor.template.publish:
+                        id: notification_text
+                        state: ""
+                    - lambda: id(notification_unread).publish_state(false);
+                    - script.execute:
+                        id: goto_page
+                        page: home
+                    - script.execute:
+                        id: set_component_visibility
+                        component_id: "home.bt_notific"
+                        show: false
+              - if:
+                  condition:
+                    - lambda: return (component_id == 8);  // bt_clear
+                  then:
+                    - script.execute:
+                        id: ha_button
+                        page: notification
+                        component: bt_clear
+                        command: released
+                    - lambda: id(notification_unread).publish_state(false);
+                    - script.execute:
+                        id: goto_page
+                        page: home
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_PAGE_NOTIFICATION
+
+script:
+  - id: !extend boot
+    then:
+      - script.execute: notification_clear
+
+  - id: !extend page_change
+    then:
+      - if:
+          condition:
+            - lambda: return new_page_id == ${PAGE_NOTIFICATION_ID};
+          then:
+            - script.execute: page_notification
+
+  - id: page_notification
+    mode: single
+    then:
+      - lambda: |-
+          disp1->set_component_text("notification.notifi_label", notification_label->state.c_str());
+      - script.execute:
+          id: display_wrapped_text
+          component: "notification.notifi_text01"
+          text_to_display: !lambda return notification_text->state;
+          line_length_limit: !lambda |-
+                                return display_mode->state == 2 ? 23 : 32;
+
+  - id: notification_clear
+    mode: single
+    then:
+      - if:
+          condition:
+            - text_sensor.state:
+                id: current_page
+                state: notification
+          then:
+            - script.execute:
+                id: goto_page
+                page: home
+      - script.execute:
+          id: set_component_visibility
+          component_id: "home.bt_notific"
+          show: false
+      - text_sensor.template.publish:
+          id: notification_label
+          state: ""
+      - text_sensor.template.publish:
+          id: notification_text
+          state: ""
+      - lambda: id(notification_unread).publish_state(false);
+
+  - id: notification_show_action
+    mode: restart
+    parameters:
+      label: string
+      message: string
+    then:
+      - script.execute:
+          id: set_component_visibility
+          component_id: "home.bt_notific"
+          show: true
+      - script.execute:
+          id: goto_page
+          page: notification
+      - text_sensor.template.publish:
+          id: notification_label
+          state: !lambda return label;
+      - text_sensor.template.publish:
+          id: notification_text
+          state: !lambda return message;
+      - lambda: |-
+          notification_unread->publish_state(true);
+          // Only when buzzer is available
+          #ifdef NSPANEL_HA_BLUEPRINT_HW_BUZZER
+          notification_play_sound->execute();
+          #endif
+
+  - id: notification_play_sound
+    mode: single
+    then:
+      - lambda: |-
+          // Only when buzzer is available
+          #ifdef NSPANEL_HA_BLUEPRINT_HW_BUZZER
+          if (id(notification_sound).state and id(buzzer_gain).state > 0)
+            id(buzzer).play("${tone_notification}");
+          #endif
+
+  - id: !extend stop_all
+    then:
+      - script.execute: notification_play_sound
+      - script.execute: page_notification
+
+switch:
+  - name: Sound - Notification  # Notification sound
+    platform: template
+    id: notification_sound
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      then:
+        - lambda: |-
+            // Only when buzzer is available
+            #ifdef NSPANEL_HA_BLUEPRINT_HW_BUZZER
+            if (id(notification_unread).state)
+              id(notification_play_sound).execute();
+            #endif
+    on_turn_off:
+      then:
+        - lambda: |-
+            id(notification_play_sound).stop();
+            // Only when buzzer is available
+            #ifdef NSPANEL_HA_BLUEPRINT_HW_BUZZER
+            if (id(buzzer).is_playing())
+              id(buzzer).stop();
+            #endif
+
+text_sensor:
+  - id: notification_label
+    name: Notification Label
+    platform: template
+    internal: false
+    icon: mdi:bell-outline
+    disabled_by_default: true
+    on_value:
+      then:
+        - lambda: |-
+            disp1->set_component_text("notification.notifi_label", x.c_str());
+        # Send event to Home Assistant
+        - homeassistant.event:
+            event: ${EVENT_NAME}
+            data:
+              device_name: !lambda return device_name->state.c_str();
+              esphome_version: ${version}
+              type: notification_changed
+              component: notification_label
+              action: new_value
+
+  - id: notification_text
+    name: Notification Text
+    platform: template
+    internal: false
+    icon: mdi:message-text-outline
+    disabled_by_default: true
+    on_value:
+      then:
+        - script.execute:
+            id: display_wrapped_text
+            component: "notification.notifi_text01"
+            text_to_display: !lambda return x;
+            line_length_limit: !lambda |-
+              return display_mode->state == 2 ? 23 : 32;
+        # Send event to Home Assistant
+        - homeassistant.event:
+            event: ${EVENT_NAME}
+            data:
+              device_name: !lambda return device_name->state.c_str();
+              esphome_version: ${version}
+              type: notification_changed
+              component: notification_text
+              action: new_value
+
+...

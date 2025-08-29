@@ -6,14 +6,203 @@
 #####################################################################################################
 ---
 substitutions:
+  PAGE_ALARM_DELAY_DEFAULT: ${DELAY_DEFAULT}
+  PAGE_ALARM_DELAY_LONG: ${DELAY_LONG}
+  PAGE_ALARM_DELAY_SHORT: ${DELAY_SHORT}
+
   BOOT_STEP_PAGE_ALARM: '10'
   PAGE_ALARM_ID: '23'
   TAG_PAGE_ALARM: nspanel.page.alarm
 
+api:
+  actions:
+    # Updates the alarm settings page with current state and configuration, integrating with the panel's interface.
+    - action: page_alarm
+      variables:
+        page_title: string       # Title for the alarm settings page, displayed prominently at the top.
+        state: string            # Current state of the alarm system (e.g., "armed_home", "disarmed").
+        supported_features: int  # Bitmask representing the alarm system's supported features, determining available controls on the page.
+        code_format: string      # Format required for the alarm code (numeric, alphanumeric).
+        code_arm_required: bool  # Indicates if a code is needed to arm the system.
+        entity: string           # Entity ID for the alarm system, enabling state updates and control.
+        mui_alarm: string[]      # Localized text for alarm control buttons (e.g., Arm, Disarm), allowing for a multilingual interface.
+      then:
+        # To do: This page constructor should be moved to Blueprint
+        - if:
+            condition:
+              - text_sensor.state:
+                  id: current_page
+                  state: alarm
+            then:  # Update alarm page
+              # Set detailed entity sensor
+              - lambda: ESP_LOGV("${TAG_PAGE_ALARM}", "Set detailed entity sensor");
+              - text_sensor.template.publish:
+                  id: detailed_entity
+                  state: !lambda return entity;
+              - delay: ${PAGE_ALARM_DELAY_SHORT}ms
+
+              # Page header - Icon
+              - lambda: ESP_LOGV("${TAG_PAGE_ALARM}", "Page header - Icon");
+              - script.execute:
+                  id: update_alarm_icon
+                  component: "icon_state"
+                  state: !lambda return state;
+              - delay: ${PAGE_ALARM_DELAY_SHORT}ms
+              # Page header - Title
+              - lambda: |-
+                  ESP_LOGV("${TAG_PAGE_ALARM}", "Page header - Title");
+                  if (page_title.find("\\r") != std::string::npos) {
+                    page_title = page_title.replace(page_title.find("\\r"), 2, " ");
+                  }
+                  disp1->set_component_text("page_label", page_title.c_str());
+              - delay: ${PAGE_ALARM_DELAY_SHORT}ms
+
+              # Page - Params
+              - lambda: |-
+                  ESP_LOGV("${TAG_PAGE_ALARM}", "Page - Params");
+                  disp1->set_component_text("code_format", code_format.c_str());
+                  disp1->set_component_text("code_arm_req", code_arm_required ? "1" : "0");
+              - delay: ${PAGE_ALARM_DELAY_SHORT}ms
+
+              # Buttons - Text
+              - lambda: ESP_LOGV("${TAG_PAGE_ALARM}", "Buttons - Text");
+              - script.execute:
+                  id: display_wrapped_text
+                  component: bt_away_text
+                  text_to_display: !lambda return mui_alarm[1].c_str();
+                  line_length_limit: 10
+              - delay: ${PAGE_ALARM_DELAY_SHORT}ms
+              - script.execute:
+                  id: display_wrapped_text
+                  component: bt_night_text
+                  text_to_display: !lambda return mui_alarm[2].c_str();
+                  line_length_limit: 10
+              - delay: ${PAGE_ALARM_DELAY_SHORT}ms
+              - script.execute:
+                  id: display_wrapped_text
+                  component: bt_vacat_text
+                  text_to_display: !lambda return mui_alarm[3].c_str();
+                  line_length_limit: 10
+              - delay: ${PAGE_ALARM_DELAY_SHORT}ms
+              - script.execute:
+                  id: display_wrapped_text
+                  component: bt_bypass_text
+                  text_to_display: !lambda return mui_alarm[4].c_str();
+                  line_length_limit: 10
+              - delay: ${PAGE_ALARM_DELAY_SHORT}ms
+              - script.execute:
+                  id: display_wrapped_text
+                  component: bt_disarm_text
+                  text_to_display: !lambda return mui_alarm[5].c_str();
+                  line_length_limit: 10
+              - delay: ${PAGE_ALARM_DELAY_SHORT}ms
+
+              # Button - Home
+              - if:
+                  condition:
+                    - or:
+                        - lambda: return (supported_features & 1);
+                        - lambda: return (state == "armed_home");
+                  then:
+                    - lambda: |-
+                        ESP_LOGV("${TAG_PAGE_ALARM}", "Button - Home");
+                        const bool is_current_state = (state == "armed_home");
+                        disp1->set_component_pic("bt_home_pic", is_current_state ? 43 : 42);
+                        disp1->set_component_background_color("bt_home_text", is_current_state ? 19818 : 52857);
+                        disp1->set_component_background_color("bt_home_icon", is_current_state ? 19818 : 52857);
+                        disp1->set_component_font_color("bt_home_text", is_current_state ? 65535 : 0);
+                        disp1->set_component_font_color("bt_home_icon", is_current_state ? 65535 : 0);
+                        set_component_visibility->execute("bt_home", not is_current_state);
+                    - delay: ${PAGE_ALARM_DELAY_SHORT}ms
+
+              # Button - Away
+              - if:
+                  condition:
+                    - or:
+                        - lambda: return (supported_features & 2);
+                        - lambda: return (state == "armed_away");
+                  then:
+                    - lambda: |-
+                        ESP_LOGV("${TAG_PAGE_ALARM}", "Button - Away");
+                        const bool is_current_state = (state == "armed_away");
+                        disp1->set_component_pic("bt_away_pic", is_current_state ? 43 : 42);
+                        disp1->set_component_background_color("bt_away_text", is_current_state ? 19818 : 52857);
+                        disp1->set_component_background_color("bt_away_icon", is_current_state ? 19818 : 52857);
+                        disp1->set_component_font_color("bt_away_text", is_current_state ? 65535 : 0);
+                        disp1->set_component_font_color("bt_away_icon", is_current_state ? 65535 : 0);
+                        set_component_visibility->execute("bt_away", not is_current_state);
+                    - delay: ${PAGE_ALARM_DELAY_SHORT}ms
+
+              # Button - Night
+              - if:
+                  condition:
+                    - or:
+                        - lambda: return (supported_features & 4);
+                        - lambda: return (state == "armed_night");
+                  then:
+                    - lambda: |-
+                        ESP_LOGV("${TAG_PAGE_ALARM}", "Button - Night");
+                        const bool is_current_state = (state == "armed_night");
+                        disp1->set_component_pic("bt_night_pic", is_current_state ? 43 : 42);
+                        disp1->set_component_background_color("bt_night_text", is_current_state ? 19818 : 52857);
+                        disp1->set_component_background_color("bt_night_icon", is_current_state ? 19818 : 52857);
+                        disp1->set_component_font_color("bt_night_text", is_current_state ? 65535 : 0);
+                        disp1->set_component_font_color("bt_night_icon", is_current_state ? 65535 : 0);
+                        set_component_visibility->execute("bt_night", not is_current_state);
+                    - delay: ${PAGE_ALARM_DELAY_SHORT}ms
+
+              # Button - Vacation
+              - if:
+                  condition:
+                    - or:
+                        - lambda: return (supported_features & 32);
+                        - lambda: return (state == "armed_vacation");
+                  then:
+                    - lambda: |-
+                        ESP_LOGV("${TAG_PAGE_ALARM}", "Button - Vacation");
+                        const bool is_current_state = (state == "armed_vacation");
+                        disp1->set_component_pic("bt_vacat_pic", is_current_state ? 43 : 42);
+                        disp1->set_component_background_color("bt_vacat_text", is_current_state ? 19818 : 52857);
+                        disp1->set_component_background_color("bt_vacat_icon", is_current_state ? 19818 : 52857);
+                        disp1->set_component_font_color("bt_vacat_text", is_current_state ? 65535 : 0);
+                        disp1->set_component_font_color("bt_vacat_icon", is_current_state ? 65535 : 0);
+                        set_component_visibility->execute("bt_vacat", not is_current_state);
+                    - delay: ${PAGE_ALARM_DELAY_SHORT}ms
+
+              # Button - Custom bypass
+              - if:
+                  condition:
+                    - or:
+                        - lambda: return (supported_features & 16);
+                        - lambda: return (state == "armed_bypass");
+                  then:
+                    - lambda: |-
+                        ESP_LOGV("${TAG_PAGE_ALARM}", "Button - Custom bypass");
+                        const bool is_current_state = (state == "armed_bypass");
+                        disp1->set_component_pic("bt_bypass_pic", is_current_state ? 43 : 42);
+                        disp1->set_component_background_color("bt_bypass_text", is_current_state ? 19818 : 52857);
+                        disp1->set_component_background_color("bt_bypass_icon", is_current_state ? 19818 : 52857);
+                        disp1->set_component_font_color("bt_bypass_text", is_current_state ? 65535 : 0);
+                        disp1->set_component_font_color("bt_bypass_icon", is_current_state ? 65535 : 0);
+                        set_component_visibility->execute("bt_bypass", not is_current_state);
+                    - delay: ${PAGE_ALARM_DELAY_SHORT}ms
+
+              # Button - Disarm
+              - lambda: |-
+                  ESP_LOGV("${TAG_PAGE_ALARM}", "Button - Disarm");
+                  const bool is_current_state = (state == "disarmed");
+                  disp1->set_component_pic("bt_disarm_pic", is_current_state ? 43 : 42);
+                  disp1->set_component_background_color("bt_disarm_text", is_current_state ? 19818 : 52857);
+                  disp1->set_component_background_color("bt_disarm_icon", is_current_state ? 19818 : 52857);
+                  disp1->set_component_font_color("bt_disarm_text", is_current_state ? 65535 : 0);
+                  disp1->set_component_font_color("bt_disarm_icon", is_current_state ? 65535 : 0);
+                  set_component_visibility->execute("bt_disarm", not is_current_state);
+              - lambda: ESP_LOGV("${TAG_PAGE_ALARM}", "Done!");
+
 esphome:
   platformio_options:
     build_flags:
-      - -D NSPANEL_HA_BLUEPRINT_STANDARD_PAGE_ALARM
+      - -D NSPANEL_HA_BLUEPRINT_PAGE_ALARM
 
 script:
   - id: !extend event_from_display
@@ -69,7 +258,7 @@ script:
     then:
       - lambda: |-
           // Check for requirements
-          #if !defined(NSPANEL_HA_BLUEPRINT_STANDARD_PAGE_KEYB_NUM)
+          #if !defined(NSPANEL_HA_BLUEPRINT_PAGE_KEYB_NUM)
             #error "The package nspanel_esphome_standard_page_keyb_num.yaml is required."
           #endif
 

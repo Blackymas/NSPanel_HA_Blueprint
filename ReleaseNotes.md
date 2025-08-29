@@ -1,63 +1,66 @@
-# v4.3.27 - Boot Loop Improvements and System Stability
+# v4.3.28 - Enhanced Notifications and Boot Screen Improvements
 
 ## Summary
 
-This release focuses on significant improvements to the boot loop issues affecting ESPHome 2025.8.0+ compatibility.
-While not a complete solution, testing shows meaningful progress in boot reliability,
-particularly for configurations that were previously failing consistently.
+This release rebuilds the notification system and ensures the screen remains active during boot,
+providing better user experience and visibility into system status.
 
 ## Key Improvements
 
-### Boot Loop Issue Progress
+### Alarm Page Crash Fix
 
-**Significant improvements to boot reliability** based on extensive testing and refinements to the boot sequence.
-While the root cause investigation continues, this release shows measurable progress in reducing boot failures.
+**Resolved crash when opening the alarm page** by adjusting timing delays that were likely triggering the watchdog timer.
+Users experiencing crashes when accessing alarm functionality should see improved stability.
 
-**Testing results:**
-- **Climate add-on now boots successfully** - no longer breaks the boot sequence in testing
-- **Overall system stability improved** - fewer random crashes during boot
-- **Better recovery rates** for most configurations
+**Issue resolved:**
+- Fixed watchdog-triggered crashes on alarm page access
+- Improved alarm page loading reliability
+- Better overall stability when navigating to alarm controls
 
-**Current compatibility status:**
-- ✅ **Climate add-on** - appears to boot reliably now
-- ⚠️ **Cover add-on** - still causes boot issues, but OTA recovery possible during safe mode (remove add-on to recover)
-- ❌ **Bluetooth components** - still problematic, may require USB/TTL recovery
+**Issue Reference:** #2795
 
-### System Stability Enhancements
+### Rebuilt Notification System
 
-**Resolved additional issues** introduced during the early crisis response in v4.3.20.
-Users should experience more stable system behavior overall,
-with fewer side effects from the emergency compatibility measures.
+**Comprehensive rebuild of the notification system** to improve reliability and functionality.
+The notification handling has been redesigned to provide more consistent behavior
+and better integration with the overall system.
 
-**Stability improvements:**
-- Reduced system instability after successful boot
-- Better overall performance and responsiveness
-- Fewer unexpected behaviors during normal operation
+**Notification improvements:**
+- Enhanced notification display reliability
+- Better notification management and clearing
+- Improved notification persistence and timing
+- More consistent notification behavior across different scenarios
 
-## Current Boot Issue Status
+### Boot Screen Behavior Restored
 
-**We're making progress, but there's still work to do.**
+**Reverted to pre-crisis boot screen behavior** where the display remains active during boot.
+During the crisis response, we implemented a delay before turning the screen on during boot,
+but this showed no significant improvement in boot reliability while reducing user experience.
 
-**If you're currently stable - don't change anything yet!**
+**Boot screen restoration:**
+- Screen no longer turns off during shutdown/restart sequence
+- Immediate boot visibility restored (pre-crisis behavior)
+- Better user experience during system restarts
+- No measurable impact on boot reliability, so prioritizing usability
 
-**If you've been affected by boot loops:**
-- **Climate add-on users** - this release should resolve your boot issues
-- **Cover add-on users** - remove the add-on temporarily, update, then consider re-adding cautiously
-- **Bluetooth users** - continue to avoid these components for now
+## User Experience
 
-**For persistent boot issues:**
-- Basic configurations should work more reliably with this release
-- USB/TTL flashing may still be needed for severe cases
+These changes provide immediate benefits for daily use:
+- **Better notification reliability** - messages display and clear more predictably
+- **Boot transparency** - users can see what's happening during startup
+- **Improved troubleshooting** - boot issues are more visible and diagnosable
 
 ## Technical Details
 
-This release represents continued iteration on boot sequence optimization and component loading timing.
-The improvements are based on systematic testing and gradual refinement rather than major architectural changes,
-resulting in more predictable behavior across different configuration types.
+**Issue Reference:** #2783
 
-**Result:** Measurably improved boot success rates while maintaining system stability,
-with particular success for climate add-on configurations that were previously failing.
+The notification system rebuild addresses long-standing reliability issues,
+while the boot screen enhancement provides valuable visibility into system startup.
+These improvements contribute to both functionality and user experience.
+
+**Result:** More reliable notification handling and better boot process visibility
+for improved system usability and troubleshooting capability.
 
 ---
 
-*Significant progress made - we're getting closer to resolving the ESPHome 2025.8.0 compatibility challenges.*
+*Enhanced user experience with better notifications and boot visibility.*
