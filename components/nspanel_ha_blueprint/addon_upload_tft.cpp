@@ -2,7 +2,7 @@
 
 #ifdef NSPANEL_HA_BLUEPRINT_ADDON_UPLOAD_TFT
 
-#include "upload_tft.h"
+#include "addon_upload_tft.h"
 
 namespace nspanel_ha_blueprint {
 

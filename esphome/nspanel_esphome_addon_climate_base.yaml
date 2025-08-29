@@ -65,19 +65,6 @@ climate:
             page_home->execute();
           }
 
-globals:
-  ##### Is embedded thermostat visible on climate page? #####
-  - id: is_addon_climate_visible
-    type: bool
-    restore_value: false
-    initial_value: 'false'
-  ##### Embeded climate friendly name #####
-  - id: addon_climate_friendly_name
-    type: std::string
-    restore_value: false
-    initial_value: '"${name} Thermostat"'
-    max_restore_data_length: 254
-
 switch:
   ##### PHYSICAL SWITCH 0 (Dummy) - Used when relay is not set #####
   - name: Relay 0 (dummy)
@@ -106,7 +93,6 @@ script:
                 auto call = thermostat_embedded->make_call();
                 float temperature;
 
-                id(is_addon_climate_visible) = true;
                 disp1->set_component_value("climate.embedded", 1);
                 if (key == "temperature") {
                   temperature = stof(value) / 10;
@@ -162,17 +148,18 @@ script:
 
   - id: !extend init_hardware_climate
     then:
-      - lambda: |-
-          id(addon_climate_friendly_name) = embedded_climate_friendly_name;
+      - lambda: addon_climate_friendly_name = embedded_climate_friendly_name;
 
   - id: !extend page_climate
     then:
-      - globals.set:
-          id: is_addon_climate_visible
-          value: !lambda return (current_page->state == "climate" and detailed_entity->state == "embedded_climate");
       - if:
           condition:
-            - lambda: return id(is_addon_climate_visible);
+            - text_sensor.state:
+                id: current_page
+                state: climate
+            - text_sensor.state:
+                id: detailed_entity
+                state: embedded_climate
           then:
             - lambda: |-
                 // Temperature conversion function (constexpr for compile-time optimization)
@@ -189,7 +176,7 @@ script:
                 const ClimateTraits traits = thermostat_embedded->get_traits();
 
                 // Set page label and feed watchdog
-                disp1->set_component_text("page_label", id(addon_climate_friendly_name).c_str());
+                disp1->set_component_text("page_label", addon_climate_friendly_name.c_str());
                 App.feed_wdt();
 
                 // Extract temperature values (static since they don't change during runtime)
@@ -286,16 +273,4 @@ script:
                 component: "home.chip_climate"
                 action: int(thermostat_embedded->action)
                 mode: int(thermostat_embedded->mode)
-
-  - id: !extend set_climate
-    then:
-      - if:
-          condition:
-            - text_sensor.state:
-                id: current_page
-                state: climate
-          then:
-            - globals.set:
-                id: is_addon_climate_visible
-                value: !lambda return embedded_climate;
 ...
