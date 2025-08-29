@@ -7,17 +7,6 @@
 namespace nspanel_ha_blueprint {
 
     /**
-     * Copies the contents of a std::string to a fixed-size char array, ensuring
-     * null termination. The destination array size is automatically deduced.
-     * Designed for fixed-size char arrays only.
-     * 
-     * @param dest A reference to the destination char array.
-     * @param src The source std::string to copy.
-     */
-    template <unsigned int N>
-    void copyStringToCharArray(char (&dest)[N], const std::string& src);
-
-    /**
      * Determines if a character is part of a numeric string. This includes digits,
      * a period (.), a minus sign (-), or a comma (,).
      * 
