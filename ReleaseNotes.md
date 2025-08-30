@@ -1,66 +1,47 @@
-# v4.3.28 - Enhanced Notifications and Boot Screen Improvements
+# v4.3.29 - Climate Add-on Boot Reliability Enhancement
 
 ## Summary
 
-This release rebuilds the notification system and ensures the screen remains active during boot,
-providing better user experience and visibility into system status.
+This release focuses on improving boot reliability for users with the climate add-on
+by implementing automatic NVS (Non-Volatile Storage) reset functionality during boot loops.
 
 ## Key Improvements
 
-### Alarm Page Crash Fix
+### Climate Add-on Boot Loop Recovery
 
-**Resolved crash when opening the alarm page** by adjusting timing delays that were likely triggering the watchdog timer.
-Users experiencing crashes when accessing alarm functionality should see improved stability.
+**Implemented `factory_reset` platform** to automatically clear NVS data when boot loops are detected,
+specifically targeting improved reliability for climate add-on configurations.
 
-**Issue resolved:**
-- Fixed watchdog-triggered crashes on alarm page access
-- Improved alarm page loading reliability
-- Better overall stability when navigating to alarm controls
+**How it works:**
+- **Automatic NVS wipe** when boot loop conditions are detected
+- **Targeted for climate add-on users** who have been experiencing persistent boot issues
+- **Community-contributed solution** that has shown positive results in testing
 
-**Issue Reference:** #2795
+**Expected benefits:**
+- **Improved boot success rates** for climate add-on configurations
+- **Automatic recovery** from corrupted NVS data that may cause boot loops  
+- **Reduced need for manual intervention** during boot failures
 
-### Rebuilt Notification System
+**Important note:** When NVS reset occurs, **panel-specific settings will be lost** (display type, temperature offset, brightness settings, etc.).
+However, **Blueprint configuration remains unaffected** - only settings stored locally on the panel are cleared.
 
-**Comprehensive rebuild of the notification system** to improve reliability and functionality.
-The notification handling has been redesigned to provide more consistent behavior
-and better integration with the overall system.
+### Community Collaboration
 
-**Notification improvements:**
-- Enhanced notification display reliability
-- Better notification management and clearing
-- Improved notification persistence and timing
-- More consistent notification behavior across different scenarios
-
-### Boot Screen Behavior Restored
-
-**Reverted to pre-crisis boot screen behavior** where the display remains active during boot.
-During the crisis response, we implemented a delay before turning the screen on during boot,
-but this showed no significant improvement in boot reliability while reducing user experience.
-
-**Boot screen restoration:**
-- Screen no longer turns off during shutdown/restart sequence
-- Immediate boot visibility restored (pre-crisis behavior)
-- Better user experience during system restarts
-- No measurable impact on boot reliability, so prioritizing usability
-
-## User Experience
-
-These changes provide immediate benefits for daily use:
-- **Better notification reliability** - messages display and clear more predictably
-- **Boot transparency** - users can see what's happening during startup
-- **Improved troubleshooting** - boot issues are more visible and diagnosable
+**Special thanks to @idstein** for suggesting this solution approach.
+This improvement demonstrates the value of community input in solving complex technical challenges.
 
 ## Technical Details
 
-**Issue Reference:** #2783
+**Issue Reference:** Community feedback and testing
 
-The notification system rebuild addresses long-standing reliability issues,
-while the boot screen enhancement provides valuable visibility into system startup.
-These improvements contribute to both functionality and user experience.
+The `factory_reset` platform monitors boot behavior and automatically clears Non-Volatile Storage
+when boot loop conditions are detected. This addresses cases where corrupted or problematic
+NVS data prevents successful system startup, particularly in memory-intensive configurations
+like the climate add-on.
 
-**Result:** More reliable notification handling and better boot process visibility
-for improved system usability and troubleshooting capability.
+**Result:** Enhanced boot reliability for climate add-on users through automatic NVS reset functionality,
+reducing manual recovery procedures and improving overall system resilience.
 
 ---
 
-*Enhanced user experience with better notifications and boot visibility.*
+*Targeted improvement for climate add-on boot reliability through community-suggested NVS reset functionality.*
