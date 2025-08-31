@@ -418,205 +418,6 @@ api:
             embedded_climate: !lambda return embedded_climate;
         - delay: 1s
 
-    # Dynamically updates the media player page with current state and media information.
-    - action: page_media_player
-      variables:
-        entity: string               # Entity ID of the media player, used for state updates and control.
-        state: string                # Current playback state of the media player (e.g., "playing", "paused", "stopped").
-        is_volume_muted: bool        # Indicates if the media volume is currently muted.
-        friendly_name: string        # Display name of the media player, shown as the page title.
-        volume_level: int            # Current volume level, typically expressed as a percentage.
-        media_title: string          # Title of the currently playing media.
-        media_artist: string         # Artist of the currently playing media.
-        media_duration: float        # Total duration of the current media in seconds.
-        media_position: float        # Current playback position in the media in seconds.
-        media_position_delta: float  # Time elapsed since the last media position update in seconds.
-        supported_features: int      # Bitmask indicating the media player's supported features (e.g., play, pause, volume control).
-      then:
-        - if:
-            condition:
-              - text_sensor.state:
-                  id: current_page
-                  state: media_player
-            then:  # Update media_player page
-              # Set detailed entity sensor
-              - text_sensor.template.publish:
-                  id: detailed_entity
-                  state: !lambda return entity;
-
-              # Page header
-              - lambda: |-
-                  disp1->set_component_text("page_label", friendly_name.c_str());
-
-              # Media title
-              - script.execute:
-                  id: display_wrapped_text
-                  component: track
-                  text_to_display: !lambda return media_title;
-                  line_length_limit: !lambda |-
-                                        return display_mode->state == 2 ? 16 : 27;
-
-              # Media artist
-              - script.execute:
-                  id: display_wrapped_text
-                  component: artist
-                  text_to_display: !lambda return media_artist;
-                  line_length_limit: !lambda |-
-                                        return display_mode->state == 2 ? 26 : 40;
-
-              # Button - ON/OFF
-              - lambda: |-
-                  if (supported_features & 128 and state == "off") {  //TURN_ON
-                    disp1->set_component_foreground_color("bt_on_off", 65535);
-                    set_component_visibility->execute("bt_on_off", true);
-                  } else if (supported_features & 256 and state != "off") {  //TURN_OFF
-                    disp1->set_component_foreground_color("bt_on_off", 10597);
-                    set_component_visibility->execute("bt_on_off", true);
-                  } else
-                    set_component_visibility->execute("bt_on_off", false);
-
-              # Button - Play/Pause
-              - lambda: |-
-                  if ((supported_features & 512 or supported_features & 16384) and state != "playing" and state != "off") {  //PLAY_MEDIA+PLAY
-                    disp1->set_component_text("bt_play_pause", "\uE409"); // mdi:play
-                    set_component_visibility->execute("bt_play_pause", true);
-                  } else if (supported_features & 1 and state == "playing" ) {  //PAUSE
-                    disp1->set_component_text("bt_play_pause", "\uE3E3"); // mdi:pause
-                    set_component_visibility->execute("bt_play_pause", true);
-                  } else
-                    set_component_visibility->execute("bt_play_pause", false);
-
-              # Button - Previous track
-              - script.execute:
-                  id: set_component_visibility
-                  component_id: bt_prev
-                  show: !lambda return (supported_features & 16 and state != "off");
-
-              # Button - Next track
-              - script.execute:
-                  id: set_component_visibility
-                  component_id: bt_next
-                  show: !lambda return (supported_features & 32 and state != "off");
-
-              # Button - Stop
-              - script.execute:
-                  id: set_component_visibility
-                  component_id: bt_stop
-                  show: !lambda return (supported_features & 4096 and (state == "playing" or state == "paused"));
-
-              # Button - Mute/Unmute
-              - lambda: |-
-                  disp1->set_component_value("is_muted", is_volume_muted ? 1 : 0);
-                  if (supported_features & 8 and is_volume_muted) {  // unmute
-                    disp1->set_component_text("bt_mute", "\uEE07"); // mdi:volume-variant-off
-                    set_component_visibility->execute("bt_mute", true);
-                  } else if (supported_features & 8) {  // mute
-                    disp1->set_component_text("bt_mute", "\uE57E"); // mdi:volume-low
-                    set_component_visibility->execute("bt_mute", true);
-                  } else
-                    set_component_visibility->execute("bt_mute", false);
-
-              # Volume set
-              - if:
-                  condition:
-                    - lambda: return (supported_features & 4);
-                  then:
-                    - if:
-                        condition:
-                          - lambda: return (volume_level != id(last_volume_level));
-                        then:
-                          - globals.set:
-                              id: last_volume_level
-                              value: !lambda return volume_level;
-                          - lambda: |-
-                              disp1->set_component_text_printf("vol_text", "%" PRIu32 "%%", volume_level);
-                              disp1->set_component_value("vol_slider", volume_level);
-                    - script.execute:
-                        id: set_component_visibility
-                        component_id: vol_slider
-                        show: true
-                    - script.execute:
-                        id: set_component_visibility
-                        component_id: bt_vol_down
-                        show: true
-                    - script.execute:
-                        id: set_component_visibility
-                        component_id: bt_vol_up
-                        show: true
-                    - script.execute:
-                        id: set_component_visibility
-                        component_id: vol_text
-                        show: true
-                  else:
-                    - delay: ${DELAY_DEFAULT}ms
-                    - script.execute:
-                        id: set_component_visibility
-                        component_id: vol_slider
-                        show: false
-                    - script.execute:
-                        id: set_component_visibility
-                        component_id: bt_vol_down
-                        show: false
-                    - script.execute:
-                        id: set_component_visibility
-                        component_id: bt_vol_up
-                        show: false
-                    - script.execute:
-                        id: set_component_visibility
-                        component_id: vol_text
-                        show: false
-
-              # Media progress bar
-              - if:
-                  condition:
-                    - lambda: return (media_duration > 0);
-                  then:
-                    - delay: ${DELAY_DEFAULT}ms
-                    - if:
-                        condition:
-                          - or:
-                              - lambda: return (media_duration != id(last_media_duration));
-                              - lambda: return (media_position != id(last_media_position));
-                        then:
-                          - globals.set:
-                              id: last_media_duration
-                              value: !lambda return media_duration;
-                          - globals.set:
-                              id: last_media_position
-                              value: !lambda return media_position;
-                          - lambda: |-
-                              disp1->set_component_value("prg_current", int(round(min(media_position + media_position_delta, media_duration))));
-                    - lambda: |-
-                        disp1->set_component_value("prg_total", int(round(media_duration)));
-                        disp1->send_command_printf("prg_timer.en=%i", (state == "playing") ? 1 : 0);
-                    - script.execute:
-                        id: set_component_visibility
-                        component_id: time_current
-                        show: true
-                    - script.execute:
-                        id: set_component_visibility
-                        component_id: time_total
-                        show: true
-                    - script.execute:
-                        id: set_component_visibility
-                        component_id: time_progress
-                        show: true
-                  else:
-                    - lambda: |-
-                        disp1->send_command("prg_timer.en=0");
-                    - script.execute:
-                        id: set_component_visibility
-                        component_id: time_current
-                        show: false
-                    - script.execute:
-                        id: set_component_visibility
-                        component_id: time_total
-                        show: false
-                    - script.execute:
-                        id: set_component_visibility
-                        component_id: time_progress
-                        show: false
-
     # Dynamically displays QR codes on the ESPHome UI for sharing information such as WiFi passwords or website links.
     - action: qrcode
       variables:
@@ -647,13 +448,10 @@ api:
         component: string
         val: bool
       then:
-        - if:
-            condition:
-              - lambda: return (component == "is_climate");
-            then:
-              - globals.set:
-                  id: is_climate
-                  value: !lambda return val;
+        - script.execute:
+            id: set_bool_action
+            component: !lambda return component;
+            val: !lambda return val;
 
     - action: set_int
       variables:
@@ -918,6 +716,67 @@ script:
       - script.stop: api_recover_from_failed
       - script.stop: ha_button
       - script.stop: ha_call_action
+
+  - id: set_bool_action
+    mode: queued
+    max_runs: 3
+    parameters:
+      component: string
+      val: bool
+    then:
+      - if:
+          condition:
+            - lambda: return (component == "is_climate");
+          then:
+            - globals.set:
+                id: is_climate
+                value: !lambda return val;
+      # int is_buttonpage01=0, is_buttonpage02=0, is_buttonpage03=0, is_buttonpage04=0
+      # int is_entitypage01=0, is_entitypage02=0, is_entitypage03=0, is_entitypage04=0
+
+  - id: !extend watchdog
+    then:
+      - if:
+          condition:
+            - not:
+                - api.connected:
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: blank
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: boot
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: confirm
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: home
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: qrcode
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: screensaver
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: settings
+          then:
+            - lambda: |-
+                  ESP_LOGW("${TAG_DATETIME}", "API disconnected. Falling back to Home page.");
+            - script.execute:
+                id: goto_page
+                page: home
+            - sensor.template.publish:
+                id: blueprint_status
+                state: 0
 
 wifi:
   on_connect:
