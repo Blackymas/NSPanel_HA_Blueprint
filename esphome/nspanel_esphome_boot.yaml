@@ -14,29 +14,24 @@ substitutions:
   BOOT_STEP_BOOT: '1'
   TAG_BOOT: nspanel.boot
 
+display:
+  - id: !extend disp1
+    on_setup:
+      then:
+        - script.execute: watchdog
+
 esphome:
   platformio_options:
     build_flags:
       - -D NSPANEL_HA_BLUEPRINT_BOOT
-  on_boot:
-    - priority: -1000.${BOOT_STEP_BOOT}  # This should happen after ESPHome completed the startup
-      then:
-        - delay: 1s
-        - script.execute: boot
-        - script.wait: boot
-        - lambda: set_system_flag(NSPanelFlag::BOOT_COMPLETED);
-
-globals:
-  - id: boot_completed
-    type: bool
-    restore_value: false
-    initial_value: 'false'
 
 script:
   - id: boot
     mode: single
     then:  # Other packages will subscribe themselves to this to run after critical components and early routines
-      - lambda: blueprint_status_flags = 0;
+      - lambda: |-
+          ESP_LOGI("TAG_BOOT", "Starting boot sequence");
+          blueprint_status_flags = 0;
       - script.execute: boot_preparation
       - script.execute: boot_critical_components
       - script.wait: boot_critical_components
@@ -288,10 +283,14 @@ script:
   - id: boot_critical_components
     mode: single
     then:  # Critical components should subscribe themselves to this
+      - lambda: |-
+          ESP_LOGI("TAG_BOOT", "Starting boot critical components sequence");
 
   - id: boot_early_routines
     mode: single
     then:  # Critical components should subscribe themselves to this
+      - lambda: |-
+          ESP_LOGI("TAG_BOOT", "Starting boot early routines sequence");
 
   - id: boot_event
     mode: restart
@@ -348,6 +347,8 @@ script:
   - id: boot_preparation
     mode: single
     then:
+      - lambda: |-
+          ESP_LOGI("TAG_BOOT", "Starting boot preparation sequence");
 
   - id: boot_progress
     mode: restart
@@ -358,12 +359,10 @@ script:
           condition:
             - lambda: return (step == 10);
           then:
-            - globals.set:
-                id: boot_completed
-                value: 'true'
             - lambda: |-
                 ESP_LOGD("script.boot_progress", "Progress: Completed");
                 disp1->set_component_value("boot.progress", 100);
+                set_system_flag(NSPanelFlag::BOOT_COMPLETED);
           else:
             - lambda: |-
                 ESP_LOGD("script.boot_progress", "Progress: %.1f%%", get_blueprint_status_percentage());
@@ -378,4 +377,16 @@ script:
       - script.stop: boot_log
       - script.stop: boot_preparation
       - script.stop: boot_progress
+
+  - id: !extend watchdog
+    then:
+      - if:
+          condition:
+            - lambda: return !is_system_flag_set(NSPanelFlag::BOOT_COMPLETED);
+            - not:
+                - script.is_running: boot
+          then:
+            - delay: 1s
+            - script.execute: boot
+            - script.wait: boot
 ...

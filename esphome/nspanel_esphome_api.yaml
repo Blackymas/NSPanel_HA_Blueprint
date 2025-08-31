@@ -647,13 +647,10 @@ api:
         component: string
         val: bool
       then:
-        - if:
-            condition:
-              - lambda: return (component == "is_climate");
-            then:
-              - globals.set:
-                  id: is_climate
-                  value: !lambda return val;
+        - script.execute:
+            id: set_bool_action
+            component: !lambda return component;
+            val: !lambda return val;
 
     - action: set_int
       variables:
@@ -918,6 +915,67 @@ script:
       - script.stop: api_recover_from_failed
       - script.stop: ha_button
       - script.stop: ha_call_action
+
+  - id: set_bool_action
+    mode: queued
+    max_runs: 3
+    parameters:
+      component: string
+      val: bool
+    then:
+      - if:
+          condition:
+            - lambda: return (component == "is_climate");
+          then:
+            - globals.set:
+                id: is_climate
+                value: !lambda return val;
+      # int is_buttonpage01=0, is_buttonpage02=0, is_buttonpage03=0, is_buttonpage04=0
+      # int is_entitypage01=0, is_entitypage02=0, is_entitypage03=0, is_entitypage04=0
+
+  - id: !extend watchdog
+    then:
+      - if:
+          condition:
+            - not:
+                - api.connected:
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: blank
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: boot
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: confirm
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: home
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: qrcode
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: screensaver
+            - not:
+                - text_sensor.state:
+                    id: current_page
+                    state: settings
+          then:
+            - lambda: |-
+                  ESP_LOGW("${TAG_DATETIME}", "API disconnected. Falling back to Home page.");
+            - script.execute:
+                id: goto_page
+                page: home
+            - sensor.template.publish:
+                id: blueprint_status
+                state: 0
 
 wifi:
   on_connect:
