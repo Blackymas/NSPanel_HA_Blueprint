@@ -8,8 +8,11 @@
 ---
 substitutions:
   BOOT_STEP_PAGE_MEDIA_PLAYER: '20'
+  PAGE_MEDIA_PLAYER_DELAY_DEFAULT: ${DELAY_DEFAULT}
+  PAGE_MEDIA_PLAYER_DELAY_LONG: ${DELAY_LONG}
+  PAGE_MEDIA_PLAYER_DELAY_SHORT: ${DELAY_SHORT}
   PAGE_MEDIA_PLAYER_ID: '25'
-  PAGE_NAME_MEDIA_PLAYER: "media_player"
+  PAGE_MEDIA_PLAYER_NAME: media_player
   COMPONENT_ID_MEDIA_PLAYER_BT_VOL_DOWN: '6'
   COMPONENT_ID_MEDIA_PLAYER_BT_VOL_UP: '7'
   MEDIA_PLAYER_FEATURE_PAUSE: '1'
@@ -37,18 +40,226 @@ substitutions:
   MDI_ICON_PAUSE: "\uE3E3"               # mdi:pause
   MDI_ICON_VOLUME_VARIANT_OFF: "\uEE07"  # mdi:volume-variant-off
   MDI_ICON_VOLUME_LOW: "\uE57E"          # mdi:volume-low
-  TAG_PAGE_MEDIA_PLAYER: nspanel_ha_blueprint.page.media_player
+  TAG_PAGE_MEDIA_PLAYER: nspanel.page.media_player
+
+api:
+  actions:
+    # Dynamically updates the media player page with current state and media information.
+    - action: page_media_player
+      variables:
+        entity: string             # Entity ID of the media player, used for state updates and control.
+        state: string              # Current playback state of the media player (e.g., "playing", "paused", "stopped").
+        is_volume_muted: bool      # Indicates if the media volume is currently muted.
+        friendly_name: string      # Display name of the media player, shown as the page title.
+        volume_level: int          # Current volume level, typically expressed as a percentage.
+        media_title: string        # Title of the currently playing media.
+        media_artist: string       # Artist of the currently playing media.
+        media_duration: int        # Total duration of the current media in seconds.
+        media_position: int        # Current playback position in the media in seconds.
+        media_position_delta: int  # Time elapsed since the last media position update in seconds.
+        supported_features: int    # Bitmask indicating the media player's supported features (e.g., play, pause, volume control).
+      then:
+        - lambda: |-
+            ESP_LOGD("${TAG_PAGE_MEDIA_PLAYER}", "Action: page_media_player");
+            ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "  entity: %s", entity.c_str());
+            ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "  state: %s", state.c_str());
+            ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "  is_volume_muted: %s", YESNO(is_volume_muted));
+            ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "  friendly_name: %s", friendly_name.c_str());
+            ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "  volume_level: %i", volume_level);
+            ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "  media_title: %s", media_title.c_str());
+            ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "  media_artist: %s", media_artist.c_str());
+            ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "  media_duration: %i", media_duration);
+            ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "  media_position: %i", media_position);
+            ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "  media_position_delta: %i", media_position_delta);
+            ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "  supported_features: %i", supported_features);
+        - if:
+            condition:
+              - text_sensor.state:
+                  id: current_page
+                  state: ${PAGE_MEDIA_PLAYER_NAME}
+            then:  # Update media_player page
+              # Set detailed entity sensor
+              - lambda: |-
+                  ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Set detailed entity sensor");
+              - text_sensor.template.publish:
+                  id: detailed_entity
+                  state: !lambda return entity;
+              - delay: ${PAGE_MEDIA_PLAYER_DELAY_SHORT}ms
+
+              # Page header
+              - lambda: |-
+                  ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Page header");
+                  disp1->set_component_text("page_label", friendly_name.c_str());
+              - delay: ${PAGE_MEDIA_PLAYER_DELAY_SHORT}ms
+
+              # Media title
+              - lambda: |-
+                  ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Media title");
+              - script.execute:
+                  id: display_wrapped_text
+                  component: track
+                  text_to_display: !lambda return media_title;
+                  line_length_limit: !lambda |-
+                                        return display_mode->state == 2 ? 16 : 27;
+              - delay: ${PAGE_MEDIA_PLAYER_DELAY_SHORT}ms
+
+              # Media artist
+              - lambda: |-
+                  ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Media artist");
+              - script.execute:
+                  id: display_wrapped_text
+                  component: artist
+                  text_to_display: !lambda return media_artist;
+                  line_length_limit: !lambda |-
+                                        return display_mode->state == 2 ? 26 : 40;
+              - delay: ${PAGE_MEDIA_PLAYER_DELAY_SHORT}ms
+
+              # Button - ON/OFF
+              - lambda: |-
+                  ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Button - ON/OFF");
+                  if (supported_features & 128 and state == "off") {  //TURN_ON
+                    disp1->set_component_foreground_color("bt_on_off", 65535);
+                    disp1->send_command("vis bt_on_off,1");
+                  } else if (supported_features & 256 and state != "off") {  //TURN_OFF
+                    disp1->set_component_foreground_color("bt_on_off", 10597);
+                    disp1->send_command("vis bt_on_off,1");
+                  } else
+                    disp1->send_command("vis bt_on_off,0");
+              - delay: ${PAGE_MEDIA_PLAYER_DELAY_SHORT}ms
+
+              # Button - Play/Pause
+              - lambda: |-
+                  ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Button - Play/Pause");
+                  if ((supported_features & 512 or supported_features & 16384) and state != "playing" and state != "off") {  //PLAY_MEDIA+PLAY
+                    disp1->set_component_text("bt_play_pause", "\uE409"); // mdi:play
+                    disp1->send_command("vis bt_play_pause,1");
+                  } else if (supported_features & 1 and state == "playing" ) {  //PAUSE
+                    disp1->set_component_text("bt_play_pause", "\uE3E3"); // mdi:pause
+                    disp1->send_command("vis bt_play_pause,1");
+                  } else
+                    disp1->send_command("vis bt_play_pause,0");
+              - delay: ${PAGE_MEDIA_PLAYER_DELAY_SHORT}ms
+
+              # Button - Previous track
+              - lambda: |-
+                  ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Button - Previous track");
+                  disp1->send_command_printf("vis bt_prev,%i", (supported_features & 16 and state != "off") ? 1 : 0);
+              - delay: ${PAGE_MEDIA_PLAYER_DELAY_SHORT}ms
+
+              # Button - Next track
+              - lambda: |-
+                  ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Button - Next track");
+                  disp1->send_command_printf("vis bt_next,%i", (supported_features & 32 and state != "off") ? 1 : 0);
+              - delay: ${PAGE_MEDIA_PLAYER_DELAY_SHORT}ms
+
+              # Button - Mute/Unmute
+              - lambda: |-
+                  ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Button - Mute/Unmute");
+                  disp1->set_component_value("is_muted", is_volume_muted ? 1 : 0);
+                  if (supported_features & 8 and is_volume_muted) {  // unmute
+                    disp1->set_component_text("bt_mute", "\uEE07"); // mdi:volume-variant-off
+                    disp1->send_command("vis bt_mute,1");
+                  } else if (supported_features & 8) {  // mute
+                    disp1->set_component_text("bt_mute", "\uE57E"); // mdi:volume-low
+                    disp1->send_command("vis bt_mute,1");
+                  } else
+                    disp1->send_command("vis bt_mute,0");
+              - delay: ${PAGE_MEDIA_PLAYER_DELAY_SHORT}ms
+
+              # Volume set
+              - lambda: |-
+                  ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Volume set");
+              - if:
+                  condition:
+                    - lambda: return (supported_features & 4);
+                  then:
+                    - if:
+                        condition:
+                          - lambda: return (volume_level != id(last_volume_level));
+                        then:
+                          - globals.set:
+                              id: last_volume_level
+                              value: !lambda return volume_level;
+                          - lambda: |-
+                              disp1->set_component_text_printf("vol_text", "%" PRIu32 "%%", volume_level);
+                              disp1->set_component_value("vol_slider", volume_level);
+                    - lambda: |-
+                        disp1->send_command("vis vol_slider,1");
+                        disp1->send_command("vis bt_vol_down,1");
+                        disp1->send_command("vis bt_vol_up,1");
+                        disp1->send_command("vis vol_text,1");
+                  else:
+                    - lambda: |-
+                        disp1->send_command("vis vol_slider,0");
+                        disp1->send_command("vis bt_vol_down,0");
+                        disp1->send_command("vis bt_vol_up,0");
+                        disp1->send_command("vis vol_text,0");
+              - delay: ${PAGE_MEDIA_PLAYER_DELAY_SHORT}ms
+
+              # Media progress bar
+              - lambda: |-
+                  ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Media progress bar");
+              - if:
+                  condition:
+                    - lambda: return (media_duration > 0);
+                  then:
+                    - if:
+                        condition:
+                          - or:
+                              - lambda: return (media_duration != id(last_media_duration));
+                              - lambda: return (media_position != id(last_media_position));
+                        then:
+                          - globals.set:
+                              id: last_media_duration
+                              value: !lambda return media_duration;
+                          - globals.set:
+                              id: last_media_position
+                              value: !lambda return media_position;
+                          - lambda: |-
+                              disp1->set_component_value("prg_current", int(round(min(media_position + media_position_delta, media_duration))));
+                    - lambda: |-
+                        disp1->set_component_value("prg_total", int(round(media_duration)));
+                        disp1->send_command_printf("prg_timer.en=%i", (state == "playing") ? 1 : 0);
+                        disp1->send_command("vis time_current,1");
+                        disp1->send_command("vis time_total,1");
+                        disp1->send_command("vis time_progress,1");
+                  else:
+                    - lambda: |-
+                        disp1->send_command("prg_timer.en=0");
+                        disp1->send_command("vis time_current,0");
+                        disp1->send_command("vis time_total,0");
+                        disp1->send_command("vis time_progress,0");
+        - lambda: |-
+            ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Action: page_media_player completed");
 
 esphome:
   platformio_options:
     build_flags:
       - -D NSPANEL_HA_BLUEPRINT_PAGE_MEDIA_PLAYER
 
+globals:
+  ##### Media Player #####
+  ###### Last volume level from Home Assistant ######
+  - id: last_volume_level
+    type: uint8_t
+    restore_value: false
+    initial_value: '0'
+  ###### Last duration from Home Assistant ######
+  - id: last_media_duration
+    type: uint
+    restore_value: false
+    initial_value: '0'
+  ###### Last duration from Home Assistant ######
+  - id: last_media_position
+    type: uint
+    restore_value: false
+    initial_value: '0'
+
 script:
   - id: !extend event_from_display
     then:
       - lambda: |-
-          if (page == "${PAGE_NAME_MEDIA_PLAYER}") {
+          if (page == "${PAGE_MEDIA_PLAYER_NAME}") {
             const std::string key = json["key"];
             if (key == "volume_mute") {
               const std::string value = json["value"];
@@ -71,6 +282,27 @@ script:
   - id: page_media_player
     mode: restart
     then:  # There's nothing here so far
+
+  - id: page_media_player_action
+    mode: restart
+    parameters:
+      entity: string             # Entity ID of the media player, used for state updates and control.
+      state: string              # Current playback state of the media player (e.g., "playing", "paused", "stopped").
+      is_volume_muted: bool      # Indicates if the media volume is currently muted.
+      friendly_name: string      # Display name of the media player, shown as the page title.
+      volume_level: int          # Current volume level, typically expressed as a percentage.
+      media_title: string        # Title of the currently playing media.
+      media_artist: string       # Artist of the currently playing media.
+      media_duration: int        # Total duration of the current media in seconds.
+      media_position: int        # Current playback position in the media in seconds.
+      media_position_delta: int  # Time elapsed since the last media position update in seconds.
+      supported_features: int    # Bitmask indicating the media player's supported features (e.g., play, pause, volume control).
+    then:
+
+  - id: !extend stop_all
+    then:
+      - script.stop: page_media_player
+      - script.stop: page_media_player_action
 
   - id: !extend stop_page_constructors
     then:
