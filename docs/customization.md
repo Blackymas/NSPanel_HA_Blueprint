@@ -29,6 +29,7 @@ Table of contents:
   - [Logger via UART](#logger-via-uart)
   - [Climate custom presets](#climate-custom-presets)
   - [Push button / Momentary switch](#push-button--momentary-switch)
+  - [Hardware button scripts (v4.3.30+)](#hardware-button-scripts-v4330)
   - [Expose relay fallback switch](#expose-relay-fallback-switch)
   - [Relay Interlocking](#relay-interlocking)
   - [Remove non-essential components](#remove-non-essential-components)
@@ -640,6 +641,100 @@ binary_sensor:
     on_release:
         switch.turn_off: relay_2
 ```
+
+### Hardware button scripts (v4.3.30+)
+
+Starting from version 4.3.30, the project provides dedicated scripts for hardware button events that can be extended with custom actions.
+This approach is more efficient than using the generic `ha_button` service and reduces unnecessary load on your ESP32.
+
+The available scripts are:
+- `button_left_press_long` - Triggered when the left button is pressed and held
+- `button_left_press_short` - Triggered when the left button is pressed briefly
+- `button_left_release` - Triggered when the left button is released
+- `button_right_press_long` - Triggered when the right button is pressed and held
+- `button_right_press_short` - Triggered when the right button is pressed briefly
+- `button_right_release` - Triggered when the right button is released
+
+These scripts are particularly useful when you need custom behavior during network disconnections or want to implement local fallback functionality.
+
+#### Example: HTTP requests when Home Assistant is disconnected
+
+This example shows how to control external devices via HTTP requests when your NSPanel loses connection to Home Assistant, 
+such as controlling a Shelly device directly:
+
+```yaml
+# Ensure the http_request component is available
+http_request:
+
+script:
+  # Left button long press - Open roller shutter
+  - id: !extend button_left_press_long
+    then:
+      - if:
+          condition:
+            - not:
+                api.connected:  # Only execute when Home Assistant is disconnected
+          then:
+            - http_request.get:
+                url: http://192.168.1.100/roller/0?go=open
+          
+  # Left button release - Stop roller shutter
+  - id: !extend button_left_release
+    then:
+      - if:
+          condition:
+            - not:
+                api.connected:  # Only execute when Home Assistant is disconnected
+          then:
+            - http_request.get:
+                url: http://192.168.1.100/roller/0?go=stop
+
+  # Right button long press - Close roller shutter
+  - id: !extend button_right_press_long
+    then:
+      - if:
+          condition:
+            - not:
+                api.connected:  # Only execute when Home Assistant is disconnected
+          then:
+            - http_request.get:
+                url: http://192.168.1.100/roller/0?go=close
+                
+  # Right button release - Stop roller shutter
+  - id: !extend button_right_release
+    then:
+      - if:
+          condition:
+            - not:
+                api.connected:  # Only execute when Home Assistant is disconnected
+          then:
+            - http_request.get:
+                url: http://192.168.1.100/roller/0?go=stop
+```
+
+#### Example: Custom logging and actions
+
+```yaml
+script:
+  # Custom short press action for left button
+  - id: !extend button_left_press_short
+    then:
+      - logger.log: "Left button short press detected"
+      - lambda: |-
+          ESP_LOGI("button", "Custom left button short press action");
+          // Add your custom C++ code here
+
+  # Custom long press action for right button with delay
+  - id: !extend button_right_press_long
+    then:
+      - logger.log: "Right button long press detected"
+      - delay: 1s
+      - switch.toggle: relay_2  # Toggle relay after 1 second delay
+```
+
+> [!TIP]
+> Using these dedicated scripts instead of the `ha_button` service reduces CPU load and provides more precise control over button behavior.
+> The `api.connected` condition ensures that custom actions only execute when Home Assistant is unavailable, allowing normal operation to resume once connectivity is restored.
 
 ### Expose Relay Fallback Switch
 You can configure a local fallback relay to integrate with Home Assistant.
