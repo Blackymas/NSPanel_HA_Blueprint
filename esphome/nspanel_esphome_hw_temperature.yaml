@@ -1,0 +1,119 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME Hardware - Temperature                                                            #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+---
+substitutions:
+  ##############################
+  ## Change only in your      ##
+  ## local yaml substitutions ##
+  temp_units: "°C"
+  ##############################
+  BOOT_STEP_HW_TEMPERATURE: '8'
+  GPIO_TEMPERATURE_ADC_PIN: 38
+  TAG_HW_TEMPERATURE: nspanel.hw.temperature
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_HW_TEMPERATURE
+
+globals:
+  - id: embedded_indoor_temp  # Is embedded sensor used for indoor temperature?
+    type: bool
+    restore_value: true
+    initial_value: 'true'
+
+number:
+  - id: temperature_correction  # Temperature correction
+    name: Temperature Correction
+    platform: template
+    entity_category: config
+    unit_of_measurement: °C
+    min_value: -10
+    max_value: 10
+    initial_value: 0
+    step: 0.1
+    mode: box
+    restore_value: true
+    internal: false
+    optimistic: true
+    on_value:
+      - logger.log: Temperature correction changed.
+      - delay: 1s
+      - lambda: temp_nspanel->publish_state(temp_nspanel->raw_state);
+
+script:
+  - id: display_embedded_temp  # Show panel's temperature if selected, or API or Wi-Fi are out
+    mode: single
+    then:
+      - if:
+          condition:
+            - or:
+                - lambda: return id(embedded_indoor_temp);
+                - lambda: return !is_system_flag_set(NSPanelFlag::API_READY);
+                - lambda: return !is_system_flag_set(NSPanelFlag::WIFI_READY);
+          then:
+            - lambda: |-
+                static const std::string temp_units = "${temp_units}";
+                static const bool temp_unit_fahrenheit =
+                                  (temp_units == "°F" || temp_units == "F" || temp_units == "°f" || temp_units == "f");
+                static char buffer[15]; // Buffer for formatted temperature string
+                if (temp_unit_fahrenheit) {
+                  snprintf(buffer, sizeof(buffer), "%.0f${temp_units}",
+                                    (temp_nspanel->state * 9.0 / 5.0) + 32); // Fahrenheit with no decimal
+                } else {
+                  snprintf(buffer, sizeof(buffer), "%.1f${temp_units}",
+                                    temp_nspanel->state); // Celsius with one decimal
+                }
+                disp1->set_component_text("home.indr_temp",
+                                            adjustDecimalSeparator(buffer, id(mui_decimal_separator)[0]).c_str());
+
+  - id: !extend init_hardware_climate
+    then:
+      - globals.set:  # Indoor temperature: use embedded sensor
+          id: embedded_indoor_temp
+          value: !lambda return embedded_indoor_temperature;
+      - script.execute: display_embedded_temp
+
+  - id: !extend stop_all
+    then:
+      - script.stop: display_embedded_temp
+
+sensor:
+  - id: ntc_source  # Internal temperature sensor: ADC value
+    platform: adc
+    pin: ${GPIO_TEMPERATURE_ADC_PIN}
+    attenuation: 12db
+    samples: 4
+    filters:
+      - sliding_window_moving_average:
+          window_size: 6
+          send_every: 1
+
+  - id: resistance_sensor  # Internal temperature sensor: ADC reading converted to resistance (calculation)
+    platform: resistance
+    sensor: ntc_source
+    configuration: DOWNSTREAM
+    resistor: 11.2kOhm
+
+  - id: temp_nspanel  # Internal temperature sensor: Resistance to temperature (calculation)
+    name: Temperature
+    platform: ntc
+    sensor: resistance_sensor
+    unit_of_measurement: °C
+    internal: false
+    calibration:
+      b_constant: 3950
+      reference_temperature: 25°C
+      reference_resistance: 10kOhm
+    filters:
+      - lambda: |-
+          return x + temperature_correction->state;
+    on_value:
+      then:
+        # Show panel's temperature if API or Wi-Fi are out
+        - lambda: display_embedded_temp->execute();
+...

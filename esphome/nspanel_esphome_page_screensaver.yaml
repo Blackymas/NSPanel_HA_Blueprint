@@ -1,0 +1,151 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME - Page Screensaver                                                                #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+substitutions:
+  BOOT_STEP_PAGE_SCREENSAVER: '23'
+  PAGE_SCREENSAVER_ID: '9'
+  TAG_PAGE_SCREENSAVER: nspanel.page.screensaver
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_PAGE_SCREENSAVER
+
+globals:
+  - id: screensaver_display_time
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  - id: screensaver_display_time_font
+    type: uint8_t
+    restore_value: true
+    initial_value: '6'
+  - id: screensaver_display_time_color
+    type: uint16_t
+    restore_value: true
+    initial_value: '16904'
+
+number:
+  - id: display_sleep_brightness  # Screen brightness when in screensaver page
+    name: Display Brightness Sleep
+    platform: template
+    entity_category: config
+    unit_of_measurement: '%'
+    min_value: 0
+    max_value: 100
+    initial_value: 0
+    step: 1
+    restore_value: true
+    optimistic: true
+    # Extended by:
+    # - page_screensaver
+    on_value:
+      then:
+        - lambda: |-
+            disp1->send_command_printf("brightness_sleep=%i", int(x));
+        - script.execute: page_screensaver
+
+  - name: Timeout Sleep
+    platform: template
+    id: timeout_sleep
+    entity_category: config
+    min_value: 0
+    max_value: 86400
+    initial_value: 60
+    step: 1
+    restore_value: true
+    optimistic: true
+    icon: mdi:timer
+    unit_of_measurement: "s"
+    on_value:
+      - if:
+          condition:
+            - lambda: return (x == 0);
+            - text_sensor.state:
+                id: current_page
+                state: screensaver
+          then:
+            - script.execute:
+                id: goto_page
+                page: !lambda return wakeup_page_name->state.c_str();
+      - script.execute: timer_dim
+      - script.execute: timer_sleep
+
+script:
+  - id: !extend page_change
+    then:
+      - if:
+          condition:
+            - lambda: return new_page_id == ${PAGE_SCREENSAVER_ID};
+          then:
+            - script.execute: page_screensaver
+
+  - id: page_screensaver
+    mode: single
+    then:
+      - if:
+          condition:
+            - lambda: return not is_system_flag_set(NSPanelFlag::TFT_UPLOAD_ACTIVE);
+            - text_sensor.state:
+                id: current_page
+                state: screensaver
+          then:
+            - script.execute: page_screensaver_set_brightness
+            - lambda: |-
+                disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
+            - if:
+                condition:
+                  - lambda: return id(screensaver_display_time);
+                then:
+                  - lambda: |-
+                      disp1->set_component_font("screensaver.text", id(screensaver_display_time_font));
+                      disp1->set_component_font_color("screensaver.text", id(screensaver_display_time_color));
+                  - script.execute:
+                      id: set_component_visibility
+                      component_id: "screensaver.text"
+                      show: true
+                  - script.execute: refresh_datetime
+            - delay: 5s
+            - script.execute: page_screensaver_set_brightness
+
+  - id: page_screensaver_set_brightness
+    mode: single
+    then:
+      - script.execute:
+          id: set_brightness
+          brightness: !lambda return int(display_sleep_brightness->state);
+
+  - id: !extend set_component_font_color
+    then:
+      - if:
+          condition:
+            - or:
+                - lambda: return (component_id == "screensaver.text");
+                - and:
+                    - lambda: return (current_page_id == ${PAGE_SCREENSAVER_ID});
+                    - lambda: return (component_id == "text");
+          then:
+            - globals.set:
+                id: screensaver_display_time_color
+                value: !lambda return color;
+
+  - id: !extend stop_all
+    then:
+      - script.stop: page_screensaver
+      - script.stop: page_screensaver_set_brightness
+
+  - id: !extend watchdog
+    then:
+      - script.execute: page_screensaver_set_brightness
+
+select:
+  - id: !extend wakeup_page_name
+    on_value:
+      then:
+        - script.execute: page_screensaver
+...
