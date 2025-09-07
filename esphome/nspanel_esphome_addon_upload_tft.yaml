@@ -160,7 +160,7 @@ script:
       baud_rate: uint32_t
     then:
       - lambda: |-
-          ESP_LOGD("addon_upload_tft.script.nextion_upload", "Waiting for empty UART and Nextion queues");
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "Waiting for empty UART and Nextion queues");
       - wait_until:
           condition:
             - lambda: return (disp1->queue_size() < 1);
@@ -168,15 +168,15 @@ script:
           timeout: 10s
       - delay: 2s
       - lambda: |-
-          ESP_LOGD("addon_upload_tft.script.nextion_upload", "Starting TFT upload...");
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "Starting TFT upload...");
           id(tft_upload_result) = disp1->upload_tft(baud_rate, !disp1->is_setup());
-          ESP_LOGD("addon_upload_tft.script.nextion_upload", "TFT upload: %s", YESNO(id(tft_upload_result)));
+          ESP_LOGV("${TAG_UPLOAD_TFT}", "TFT upload: %s", YESNO(id(tft_upload_result)));
 
   - id: open_upload_dialog
     mode: restart
     then:
       - lambda: |-
-          ESP_LOGD("addon_upload_tft.script.open_upload_dialog", "Showing upload dialog page");
+          ESP_LOGV("${TAG_UPLOAD_TFT}", "Showing upload dialog page");
           disp1->goto_page("confirm");
       - wait_until:
           condition:
@@ -200,7 +200,7 @@ script:
       message: string
     then:
       - lambda: |-
-          ESP_LOGD("addon_upload_tft.script.report_upload_progress", message.c_str());
+          ESP_LOGD("${TAG_UPLOAD_TFT}", message.c_str());
           if (id(tft_is_valid)) {
             if (current_page->state != "confirm") open_upload_dialog->execute();
             display_wrapped_text->execute("confirm.body", message.c_str(), 18);
@@ -219,8 +219,7 @@ script:
 
   - id: !extend stop_all
     then:
-      - lambda: |-
-          nextion_status->stop();
+      - script.stop: nextion_status
 
   - id: upload_tft
     mode: single
@@ -259,10 +258,10 @@ script:
       - script.execute: nextion_status
       - lambda: |-
           ESP_LOGD("${TAG_UPLOAD_TFT}", "Starting the upload script");
-          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Valid TFT:               %s", YESNO(id(tft_is_valid)));
-          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Current baud rate:       %" PRIu32 " bps", tf_uart->get_baud_rate());
-          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Target upload baud rate: %s bps", tft_upload_baud_rate->state.c_str());
-          ESP_LOGD("${TAG_UPLOAD_TFT}", "  Upload URL: %s", url.c_str());
+          ESP_LOGV("${TAG_UPLOAD_TFT}", "  Valid TFT:               %s", YESNO(id(tft_is_valid)));
+          ESP_LOGV("${TAG_UPLOAD_TFT}", "  Current baud rate:       %" PRIu32 " bps", tf_uart->get_baud_rate());
+          ESP_LOGV("${TAG_UPLOAD_TFT}", "  Target upload baud rate: %s bps", tft_upload_baud_rate->state.c_str());
+          ESP_LOGV("${TAG_UPLOAD_TFT}", "  Upload URL: %s", url.c_str());
           disp1->set_tft_url(url.c_str());
 
       # Stop Bluetooth
@@ -305,7 +304,7 @@ script:
           }  // if err == ESP_OK
 
           #else
-          ESP_LOGD("${TAG_UPLOAD_TFT}", "Bluetooth not compiled in");
+          ESP_LOGV("${TAG_UPLOAD_TFT}", "Bluetooth not compiled in");
           #endif  // USE_BLUETOOTH
 
       - if:
@@ -520,15 +519,20 @@ sensor:
   - id: !extend display_mode
     on_value:
       then:
-        - lambda: |-
-            id(tft_is_valid) = (display_mode->state > 0 and display_mode->state < 4);
-            if (id(tft_is_valid)) {
-              ESP_LOGD("${TAG_UPLOAD_TFT}", "Valid TFT: True");
-              select_tft_file_model->execute();
-            } else {
-              ESP_LOGW("${TAG_UPLOAD_TFT}", "Display mode: %i", int(display_mode->state));
-              ESP_LOGW("${TAG_UPLOAD_TFT}", "Valid TFT:    False");
-            }
+        - globals.set:
+            id: tft_is_valid
+            value: !lambda return (display_mode->state > 0 and display_mode->state < 4);
+        - if:
+            condition:
+              - lambda: return id(tft_is_valid);
+            then:
+              - lambda: |-
+                  ESP_LOGD("${TAG_UPLOAD_TFT}", "Valid TFT: True");
+              - script.execute: select_tft_file_model
+            else:
+              - lambda: |-
+                  ESP_LOGW("${TAG_UPLOAD_TFT}", "Display mode: %i", int(display_mode->state));
+                  ESP_LOGW("${TAG_UPLOAD_TFT}", "Valid TFT:    False");
 
 switch:
   - id: tft_update_automatically

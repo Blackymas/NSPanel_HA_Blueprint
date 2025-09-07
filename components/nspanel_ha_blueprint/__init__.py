@@ -13,14 +13,16 @@ _LOGGER = logging.getLogger(__name__)
 
 nspanel_ha_blueprint_ns = cg.esphome_ns.namespace('nspanel_ha_blueprint')
 
+DISABLE_BOOTLOADER_LOGS = "disable_bootloader_logs"
+MAIN_TASK_STACK_SIZE = "main_task_stack_size"
 PSRAM_CLK_PIN = "psram_clk_pin"
 PSRAM_CS_PIN = "psram_cs_pin"
-DISABLE_BOOTLOADER_LOGS = "disable_bootloader_logs"
 
 CONFIG_SCHEMA = cv.Schema({
+    cv.Optional(DISABLE_BOOTLOADER_LOGS): cv.boolean,
+    cv.Optional(MAIN_TASK_STACK_SIZE): cv.int_range(8192, 32768),
     cv.Optional(PSRAM_CLK_PIN): pins.internal_gpio_output_pin_number,
     cv.Optional(PSRAM_CS_PIN): pins.internal_gpio_output_pin_number,
-    cv.Optional(DISABLE_BOOTLOADER_LOGS): cv.boolean,
 })
 
 
@@ -69,6 +71,8 @@ async def to_code(config):
         add_idf_sdkconfig_option("CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY", True)
         add_idf_sdkconfig_option("CONFIG_SPIRAM_RODATA", True)
         add_idf_sdkconfig_option("CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP", True)
+        if MAIN_TASK_STACK_SIZE in config:
+            add_idf_sdkconfig_option("CONFIG_ESP_MAIN_TASK_STACK_SIZE", config[MAIN_TASK_STACK_SIZE])
 
     cg.add_define("USE_NSPANEL_HA_BLUEPRINT")
     cg.add_global(nspanel_ha_blueprint_ns.using)
