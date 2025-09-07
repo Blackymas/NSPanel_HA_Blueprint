@@ -369,15 +369,32 @@ script:  # Scripts
       key: string
       value: string
     then:
-      - lambda: |-
-          if (is_device_ready_for_tasks()) {
-            if (not embedded) {
-              if (key == "temperature" or key == "target_temp_high" or key == "target_temp_low")
-                ha_call_action->execute("climate.set_temperature", key.c_str(), to_string(stof(value) / 10));
-              else if (key == "hvac_mode")
-                ha_call_action->execute("climate.set_hvac_mode", key.c_str(), value.c_str());
-            }
-          }
+      - if:
+          condition:
+            - lambda: return not embedded;
+            - lambda: return is_device_ready_for_tasks();
+          then:
+            - if:
+                condition:
+                  - lambda: |-
+                      return (key == "temperature" or key == "target_temp_high" or key == "target_temp_low");
+                then:
+                  - script.execute:
+                      id: ha_call_action
+                      service: climate.set_temperature
+                      key: !lambda return key;
+                      value: !lambda return to_string(stof(value) / 10);
+                else:
+                  - if:
+                      condition:
+                        - lambda: |-
+                            return (key == "hvac_mode");
+                      then:
+                        - script.execute:
+                            id: ha_call_action
+                            service: climate.set_hvac_mode
+                            key: hvac_mode
+                            value: !lambda return value;
 
   - id: check_versions
     mode: restart
@@ -436,7 +453,8 @@ script:  # Scripts
             tft: !lambda return version_tft->state.c_str();
             esphome: ${version}
             blueprint: !lambda return version_blueprint->state.c_str();
-      - logger.log: Check version completed
+      - lambda: |-
+          ESP_LOGD("${TAG_CORE}", "Check version completed");
 
   - id: !extend dump_config
     then:
