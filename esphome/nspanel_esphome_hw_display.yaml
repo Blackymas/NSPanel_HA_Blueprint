@@ -48,6 +48,9 @@ display:
     uart_id: tf_uart
     on_setup:
       then:
+        - lambda: |-
+            current_page_id = 0;
+            wakeup_page_id = get_page_id(wakeup_page_name->state.c_str());
         - script.stop: wait_for_display
         - lambda: |-
             ESP_LOGI("${TAG_HW_DISPLAY}", "Nextion setup triggered");
@@ -308,6 +311,10 @@ script:
             ESP_LOGW("nspanel_ha_blueprint", "  TFT:         UNKNOWN");
           else
             ESP_LOGCONFIG("nspanel_ha_blueprint", "  TFT:         %s", version_tft->state.c_str());
+      
+      # Report wake-up page
+      - lambda: |-
+          ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "Wake-up page: %s", page_names[wakeup_page_id]);
 
   - id: event_from_display
     mode: restart
@@ -405,6 +412,18 @@ script:
             ESP_LOGV("${TAG_VERSIONING}", "Nextion event");
             id(version_tft).publish_state(json["version"].as<std::string>());
           }
+
+  - id: goto_page
+    mode: restart
+    parameters:
+      page_id: uint8_t
+    then:
+      - if:
+          condition:
+            - lambda: return (page_id != current_page_id);
+            - lambda: return is_device_ready_for_tasks();
+          then:
+            - lambda: disp1->goto_page(page_id);
 
   - id: page_change
     mode: restart
@@ -611,6 +630,8 @@ script:
       - script.execute: stop_page_constructors
       - script.stop: check_display_settings
       - script.stop: display_wrapped_text
+      - script.stop: event_from_display
+      - script.stop: goto_page
       - script.stop: page_change
       - script.stop: set_baud_rate
       - script.stop: set_brightness
@@ -712,7 +733,7 @@ script:
                     current_page->state != "screensaver")
                   {
                     ESP_LOGD("script.timer_page", "Fallback to page Home");
-                    goto_page->execute("home");
+                    goto_page->execute(${PAGE_HOME_ID});
                   }
 
   - id: timer_reset_all  # Global timer reset - Triggered with a touch on the screen
@@ -737,7 +758,7 @@ script:
                     current_page->state != "boot" and
                     timeout_sleep->state >= 1) {
                   ESP_LOGD("script.timer_sleep", "Going to sleep from page %s", current_page->state.c_str());
-                  goto_page->execute("screensaver");
+                  goto_page->execute(${PAGE_SCREENSAVER_ID});
                   set_brightness->execute(display_sleep_brightness->state);
                 }
 
@@ -886,6 +907,7 @@ select:
     icon: mdi:page-next-outline
     on_value:
       then:
+        - lambda: wakeup_page_id = get_page_id(x.c_str());
         - script.execute: wait_to_be_ready
         - script.wait: wait_to_be_ready
         # Extended by:
@@ -1059,11 +1081,11 @@ text_sensor:
               // Send event to Home Assistant
               if (event == "short_click" or event == "long_click") {
                 if (api_server->is_connected() and page == "home" and component == "weather") {
-                  goto_page->execute("weather01");
+                  goto_page->execute(${PAGE_WEATHER01_ID});
                 } else if (id(is_climate) and page == "home" and (component == "indr_temp" or component == "indr_temp_icon")) {
                   detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
                   disp1->set_component_value("climate.embedded", id(is_embedded_thermostat) ? 1 : 0);
-                  goto_page->execute("climate");
+                  goto_page->execute(${PAGE_CLIMATE_ID});
                 } else {
                   ha_button->execute(page.c_str(), component.c_str(), event.c_str());
                 }
@@ -1086,8 +1108,8 @@ text_sensor:
                 const std::string code_arm_req = json["code_arm_req"];
                 const std::string title = json["mui"];
                 if (code_format == "number" and (key == "disarm" or code_arm_req == "1")) {
-                  goto_page->execute("keyb_num");
-                  disp1->set_component_value("keyb_num.page_id", get_page_id("alarm")); //Calling from Alarm page
+                  goto_page->execute(${PAGE_KEYB_NUM_ID});
+                  disp1->set_component_value("keyb_num.page_id", ${PAGE_ALARM_ID}); //Calling from Alarm page
                   disp1->set_component_text("keyb_num.domain", page.c_str());
                   disp1->set_component_text("keyb_num.key", key.c_str());
                   disp1->set_component_text("keyb_num.value", value.c_str());
@@ -1110,7 +1132,7 @@ text_sensor:
                   const std::string pin = json["pin"];
                   service_call_alarm_control_panel->execute(detailed_entity->state.c_str(), key.c_str(), code_format.c_str(), pin.c_str());
                 }
-                goto_page->execute(base_domain.empty() ? "home" : base_domain.c_str());
+                goto_page->execute(base_domain.empty() ? ${PAGE_HOME_ID} : get_page_id(base_domain.c_str()));
               } else if (page == "light") {
                 if (key == "brightness_pct" or key == "color_temp") {
                   ha_call_action->execute("light.turn_on", key.c_str(), value.c_str());
