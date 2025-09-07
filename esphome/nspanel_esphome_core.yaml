@@ -10,51 +10,44 @@ substitutions:
   ## Change only in your      ##
   ## local yaml substitutions ##
   ##############################
-  temp_units: "°C"
   invalid_cooldown: "100ms"
   GPIO_RELAY_1_PIN: 22
   GPIO_RELAY_2_PIN: 19
-  GPIO_TEMPERATURE_ADC_PIN: 38
 
   DELAY_DEFAULT: 25  # delay in msec
   DELAY_LONG: 125    # delay in msec
   DELAY_SHORT: 5     # delay in msec
 
-  PAGE_HOME_ID: '1'
-  PAGE_WEATHER01_ID: '2'
-  PAGE_WEATHER02_ID: '3'
-  PAGE_WEATHER03_ID: '4'
-  PAGE_WEATHER04_ID: '5'
-  PAGE_WEATHER05_ID: '6'
-  PAGE_SETTINGS_ID: '8'
-  PAGE_SCREENSAVER_ID: '9'
-  PAGE_BUTTONPAGE01_ID: '12'
-  PAGE_BUTTONPAGE02_ID: '13'
-  PAGE_BUTTONPAGE03_ID: '14'
-  PAGE_BUTTONPAGE04_ID: '15'
-  PAGE_QRCODE_ID: '17'
-  PAGE_ENTITYPAGE01_ID: '18'
-  PAGE_ENTITYPAGE02_ID: '19'
-  PAGE_ENTITYPAGE03_ID: '20'
-  PAGE_ENTITYPAGE04_ID: '21'
-  PAGE_CONFIRM_ID: '26'
-  PAGE_UTILITIES_ID: '27'
+  PAGE_CONFIRM_ID: 26
+  PAGE_ENTITYPAGE01_ID: 18
+  PAGE_ENTITYPAGE02_ID: 19
+  PAGE_ENTITYPAGE03_ID: 20
+  PAGE_ENTITYPAGE04_ID: 21
+  PAGE_QRCODE_ID: 17
+  PAGE_UTILITIES_ID: 27
+  PAGE_SETTINGS_ID: 8
+  PAGE_WEATHER01_ID: 2
+  PAGE_WEATHER02_ID: 3
+  PAGE_WEATHER03_ID: 4
+  PAGE_WEATHER04_ID: 5
+  PAGE_WEATHER05_ID: 6
 
   TAG_CORE: "nspanel.core"
 
 packages:
   # yamllint disable rule:colons
-  version:    !include nspanel_esphome_version.yaml
-  api:        !include nspanel_esphome_api.yaml
-  base:       !include nspanel_esphome_base.yaml
-  boot:       !include nspanel_esphome_boot.yaml
-  datetime:   !include nspanel_esphome_datetime.yaml
-  hw_buttons: !include nspanel_esphome_hw_buttons.yaml
-  hw_display: !include nspanel_esphome_hw_display.yaml
-  hw_memory:  !include nspanel_esphome_hw_memory.yaml
-  hw_wifi:    !include nspanel_esphome_hw_wifi.yaml
-  page_boot:  !include nspanel_esphome_page_boot.yaml
-  page_home:  !include nspanel_esphome_page_home.yaml
+  version:           !include nspanel_esphome_version.yaml
+  api:               !include nspanel_esphome_api.yaml
+  base:              !include nspanel_esphome_base.yaml
+  boot:              !include nspanel_esphome_boot.yaml
+  datetime:          !include nspanel_esphome_datetime.yaml
+  hw_buttons:        !include nspanel_esphome_hw_buttons.yaml
+  hw_display:        !include nspanel_esphome_hw_display.yaml
+  hw_memory:         !include nspanel_esphome_hw_memory.yaml
+  hw_wifi:           !include nspanel_esphome_hw_wifi.yaml
+  page_boot:         !include nspanel_esphome_page_boot.yaml
+  page_home:         !include nspanel_esphome_page_home.yaml
+  page_screensaver:  !include nspanel_esphome_page_screensaver.yaml
   # yamllint enable rule:colons
 
 ##### ESPHOME CONFIGURATION #####
@@ -115,12 +108,6 @@ globals:
     restore_value: true
     initial_value: 'false'
 
-  ##### Is embedded sensor used for indoor temperature? #####
-  - id: embedded_indoor_temp
-    type: bool
-    restore_value: true
-    initial_value: 'true'
-
   ##### Date/time formats #####
   - id: home_date_color
     type: uint16_t
@@ -170,20 +157,6 @@ globals:
     restore_value: true
     initial_value: '8'
 
-  ##### Screensaver #####
-  - id: screensaver_display_time
-    type: bool
-    restore_value: true
-    initial_value: 'false'
-  - id: screensaver_display_time_font
-    type: uint8_t
-    restore_value: true
-    initial_value: '6'
-  - id: screensaver_display_time_color
-    type: uint16_t
-    restore_value: true
-    initial_value: '16904'
-
   - id: page_entity_value_horizontal_alignment
     type: uint8_t
     restore_value: false
@@ -191,25 +164,6 @@ globals:
 
 ##### START - NUMBER CONFIGURATION #####
 number:
-  ##### Temperature Correction #####
-  - id: temperature_correction
-    name: Temperature Correction
-    platform: template
-    entity_category: config
-    unit_of_measurement: °C
-    min_value: -10
-    max_value: 10
-    initial_value: 0
-    step: 0.1
-    mode: box
-    restore_value: true
-    internal: false
-    optimistic: true
-    on_value:
-      - logger.log: Temperature correction changed.
-      - delay: 1s
-      - lambda: temp_nspanel->publish_state(temp_nspanel->raw_state);
-
   ##### Timers settings #####
   - name: Timeout Page
     platform: template
@@ -239,31 +193,6 @@ number:
     unit_of_measurement: "s"
     on_value:
       - script.execute: timer_dim
-  - name: Timeout Sleep
-    platform: template
-    id: timeout_sleep
-    entity_category: config
-    min_value: 0
-    max_value: 86400
-    initial_value: 60
-    step: 1
-    restore_value: true
-    optimistic: true
-    icon: mdi:timer
-    unit_of_measurement: "s"
-    on_value:
-      - if:
-          condition:
-            - lambda: return (x == 0);
-            - text_sensor.state:
-                id: current_page
-                state: screensaver
-          then:
-            - script.execute:
-                id: goto_page
-                page: !lambda return wakeup_page_name->state.c_str();
-      - script.execute: timer_dim
-      - script.execute: timer_sleep
 
 ##### START - SENSOR CONFIGURATION #####
 sensor:
@@ -287,43 +216,6 @@ sensor:
               - lambda: |-
                   ESP_LOGI("${TAG_CORE}", "Blueprint is ready");
         - script.execute: refresh_wifi_icon
-
-  ##### INTERNAL TEMPERATURE SENSOR, ADC VALUE #####
-  - id: ntc_source
-    platform: adc
-    pin: ${GPIO_TEMPERATURE_ADC_PIN}
-    attenuation: 12db
-    samples: 4
-    filters:
-      - sliding_window_moving_average:
-          window_size: 6
-          send_every: 1
-
-  ##### INTERNAL TEMPERATURE SENSOR, adc reading converted to resistance (calculation)#####
-  - id: resistance_sensor
-    platform: resistance
-    sensor: ntc_source
-    configuration: DOWNSTREAM
-    resistor: 11.2kOhm
-
-  ##### INTERNAL TEMPERATURE SENSOR, resistance to temperature (calculation) #####
-  - id: temp_nspanel
-    name: Temperature
-    platform: ntc
-    sensor: resistance_sensor
-    unit_of_measurement: °C
-    internal: false
-    calibration:
-      b_constant: 3950
-      reference_temperature: 25°C
-      reference_resistance: 10kOhm
-    filters:
-      - lambda: |-
-          return x + temperature_correction->state;
-    on_value:
-      then:
-        # Show panel's temperature if API or Wi-Fi are out
-        - lambda: display_embedded_temp->execute();
 
   ##### Wi-Fi Signal stregth
   - name: RSSI
@@ -477,15 +369,32 @@ script:  # Scripts
       key: string
       value: string
     then:
-      - lambda: |-
-          if (is_device_ready_for_tasks()) {
-            if (not embedded) {
-              if (key == "temperature" or key == "target_temp_high" or key == "target_temp_low")
-                ha_call_action->execute("climate.set_temperature", key.c_str(), to_string(stof(value) / 10));
-              else if (key == "hvac_mode")
-                ha_call_action->execute("climate.set_hvac_mode", key.c_str(), value.c_str());
-            }
-          }
+      - if:
+          condition:
+            - lambda: return not embedded;
+            - lambda: return is_device_ready_for_tasks();
+          then:
+            - if:
+                condition:
+                  - lambda: |-
+                      return (key == "temperature" or key == "target_temp_high" or key == "target_temp_low");
+                then:
+                  - script.execute:
+                      id: ha_call_action
+                      service: climate.set_temperature
+                      key: !lambda return key;
+                      value: !lambda return to_string(stof(value) / 10);
+                else:
+                  - if:
+                      condition:
+                        - lambda: |-
+                            return (key == "hvac_mode");
+                      then:
+                        - script.execute:
+                            id: ha_call_action
+                            service: climate.set_hvac_mode
+                            key: hvac_mode
+                            value: !lambda return value;
 
   - id: check_versions
     mode: restart
@@ -544,32 +453,8 @@ script:  # Scripts
             tft: !lambda return version_tft->state.c_str();
             esphome: ${version}
             blueprint: !lambda return version_blueprint->state.c_str();
-      - logger.log: Check version completed
-
-  - id: display_embedded_temp
-    mode: single
-    then:
-      - if:
-          condition:
-            - or:
-                - lambda: return id(embedded_indoor_temp);
-                - lambda: return !is_system_flag_set(NSPanelFlag::API_READY);
-                - lambda: return !is_system_flag_set(NSPanelFlag::WIFI_READY);
-          then:
-            - lambda: |-
-                static const std::string temp_units = "${temp_units}";
-                static const bool temp_unit_fahrenheit =
-                                  (temp_units == "°F" || temp_units == "F" || temp_units == "°f" || temp_units == "f");
-                static char buffer[15]; // Buffer for formatted temperature string
-                if (temp_unit_fahrenheit) {
-                  snprintf(buffer, sizeof(buffer), "%.0f${temp_units}",
-                                    (temp_nspanel->state * 9.0 / 5.0) + 32); // Fahrenheit with no decimal
-                } else {
-                  snprintf(buffer, sizeof(buffer), "%.1f${temp_units}",
-                                    temp_nspanel->state); // Celsius with one decimal
-                }
-                disp1->set_component_text("home.indr_temp",
-                                            adjustDecimalSeparator(buffer, id(mui_decimal_separator)[0]).c_str());
+      - lambda: |-
+          ESP_LOGD("${TAG_CORE}", "Check version completed");
 
   - id: !extend dump_config
     then:
@@ -808,13 +693,11 @@ script:  # Scripts
       embedded_climate_friendly_name: string  # Friendly name for the climate control feature.
       embedded_indoor_temperature: bool       # Enables indoor temperature display.
     then:
+      # Extended by:
+      # - hw_temperature
       - lambda: |-
           // Embedded thermostat
           id(is_embedded_thermostat) = embedded_climate;
-
-          // Indoor temperature
-          id(embedded_indoor_temp) = embedded_indoor_temperature;
-          display_embedded_temp->execute();
 
   - id: page_blank
     mode: single
@@ -828,38 +711,6 @@ script:  # Scripts
           disp1->set_component_text("framework", "ESP-IDF");
           #endif
           disp1->send_command("tm_esphome.en=0");
-
-  - id: page_buttonpage
-    mode: restart
-    parameters:
-      page_number: uint
-    then:  # There's nothing here so far
-      - lambda: |-
-          ESP_LOGD("script.page_buttonpage", "This page is constructed by the Blueprint");
-  - id: page_buttonpage01
-    mode: single
-    then:
-      - script.execute:
-          id: page_buttonpage
-          page_number: 1
-  - id: page_buttonpage02
-    mode: single
-    then:
-      - script.execute:
-          id: page_buttonpage
-          page_number: 2
-  - id: page_buttonpage03
-    mode: single
-    then:
-      - script.execute:
-          id: page_buttonpage
-          page_number: 3
-  - id: page_buttonpage04
-    mode: single
-    then:
-      - script.execute:
-          id: page_buttonpage
-          page_number: 4
 
   - id: page_confirm
     mode: single
@@ -908,34 +759,6 @@ script:  # Scripts
   - id: page_qrcode
     mode: single
     then:  # There's nothing here so far
-
-  - id: page_screensaver
-    mode: single
-    then:
-      - if:
-          condition:
-            - lambda: return not is_system_flag_set(NSPanelFlag::TFT_UPLOAD_ACTIVE);
-            - text_sensor.state:
-                id: current_page
-                state: screensaver
-          then:
-            - lambda: |-
-                disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
-            - if:
-                condition:
-                  - lambda: return id(screensaver_display_time);
-                then:
-                  - lambda: |-
-                      disp1->set_component_font("screensaver.text", id(screensaver_display_time_font));
-                      disp1->set_component_font_color("screensaver.text", id(screensaver_display_time_color));
-                  - script.execute:
-                      id: set_component_visibility
-                      component_id: "screensaver.text"
-                      show: true
-                  - script.execute: refresh_datetime
-            - script.execute:
-                id: set_brightness
-                brightness: !lambda return int(display_sleep_brightness->state);
 
   - id: page_settings
     mode: single
@@ -1254,14 +1077,12 @@ script:  # Scripts
     mode: single
     then:
       - script.stop: check_versions
-      - script.stop: page_home
       - script.stop: wait_for_api
       - script.stop: wait_for_blueprint
       - script.stop: wait_for_version_blueprint
       - script.stop: wait_for_versions
       - lambda: |-
           change_climate_state->stop();
-          display_embedded_temp->stop();
           global_settings->stop();
           init_hardware_climate->stop();
           refresh_relays->stop();

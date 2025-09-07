@@ -13,6 +13,12 @@ substitutions:
   BAUD_RATE: '115200'
   BOOT_STEP_HW_DISPLAY: '5'
   bytes_per_char: "1"
+  COLOR_BLUE_INDIGO: '10597'
+  COLOR_CYAN_BRIGHT: '7519'
+  COLOR_GRAY_MOSS: '33808'
+  COLOR_RED_PRIMARY: '63488'
+  COLOR_WHITE: '65535'
+  COLOR_YELLOW_GOLDEN: '64992'
   DISPLAY_CHARSET_CJK: '2'
   DISPLAY_CHARSET_INTERNATIONAL: '1'
   GPIO_DISPLAY_NEXTION_RX_PIN: 17
@@ -42,6 +48,7 @@ display:
     uart_id: tf_uart
     on_setup:
       then:
+        - script.stop: wait_for_display
         - lambda: |-
             ESP_LOGI("${TAG_HW_DISPLAY}", "Nextion setup triggered");
             set_system_flag(NSPanelFlag::NEXTION_READY);
@@ -165,23 +172,6 @@ number:
                   then:
                     - lambda: |-
                         disp1->set_component_text_printf("dim_text", "%i%%", int(x));
-
-  - id: display_sleep_brightness  # Screen brightness when in screensaver page
-    name: Display Brightness Sleep
-    platform: template
-    entity_category: config
-    unit_of_measurement: '%'
-    min_value: 0
-    max_value: 100
-    initial_value: 0
-    step: 1
-    restore_value: true
-    optimistic: true
-    on_value:
-      then:
-        - lambda: |-
-            disp1->send_command_printf("brightness_sleep=%i", int(x));
-            page_screensaver->execute();
 
 script:
   - id: !extend boot_early_routines
@@ -490,17 +480,24 @@ script:
       - script.wait: stop_page_constructors
 
       # Report new page to Blueprint
-      - delay: ${DELAY_DEFAULT}ms
-      - lambda: |-
-          ESP_LOGD("script.page_change", "Report new page to Blueprint");
-      - homeassistant.event:
-          event: ${EVENT_NAME}
-          data:
-            device_name: !lambda return device_name->state.c_str();
-            esphome_version: ${version}
-            type: page_changed
-            page: !lambda return page_names[new_page_id];
-            entity: !lambda return detailed_entity->state.c_str();
+      - if:
+          condition:
+            - lambda: return last_page_id != UINT8_MAX;
+            - lambda: return last_page_id != new_page_id;
+          then:
+            - delay: ${DELAY_DEFAULT}ms
+            - lambda: |-
+                ESP_LOGD("script.page_change", "Report new page to Blueprint");
+            - homeassistant.event:
+                event: ${EVENT_NAME}
+                data:
+                  device_name: !lambda return device_name->state.c_str();
+                  esphome_version: ${version}
+                  type: page_changed
+                  page: !lambda return page_names[new_page_id];
+                  page_id: !lambda return new_page_id;
+                  last_page_id: !lambda return last_page_id;
+                  entity: !lambda return detailed_entity->state.c_str();
 
       # Call page constructor
       - delay: ${DELAY_DEFAULT}ms
@@ -519,7 +516,6 @@ script:
           else if (current_page->state == "entitypage04") page_entitypage04->execute();
           else if (current_page->state == "notification") page_notification->execute();
           else if (current_page->state == "qrcode") page_qrcode->execute();
-          else if (current_page->state == "screensaver") page_screensaver->execute();
           else if (current_page->state == "settings") page_settings->execute();
           else if (current_page->state == "utilities") page_utilities->execute();
           else if (current_page->state == "weather01") page_weather01->execute();
@@ -535,11 +531,13 @@ script:
           delay: 1000
 
   - id: set_baud_rate
-    mode: single
+    mode: restart
     parameters:
       target_baud_rate: uint32_t
       definitive: bool
     then:
+      - script.execute: wait_to_be_ready
+      - script.wait: wait_to_be_ready
       - if:
           condition:
             - lambda: return !isnan(target_baud_rate);
@@ -575,6 +573,14 @@ script:
           disp1->set_backlight_brightness(brightness / 100.0f);
           current_brightness->update();
 
+  - id: set_component_font_color
+    mode: single
+    parameters:
+      component_id: string
+      color: uint16_t
+    then:
+      - lambda: disp1->set_component_font_color(component_id.c_str(), color);
+
   - id: set_component_visibility
     mode: queued
     max_runs: 3
@@ -608,6 +614,7 @@ script:
       - script.stop: page_change
       - script.stop: set_baud_rate
       - script.stop: set_brightness
+      - script.stop: set_component_font_color
       - script.stop: set_component_visibility
       - script.stop: set_component_visibility_with_delay
       - script.stop: timer_dim
@@ -621,28 +628,15 @@ script:
   - id: stop_page_constructors
     mode: single
     then:
-      - script.stop: page_alarm
+      # Page home is an exception, as it can be constructed in the background
       - script.stop: page_blank
-      - script.stop: page_buttonpage
-      - script.stop: page_buttonpage01
-      - script.stop: page_buttonpage02
-      - script.stop: page_buttonpage03
-      - script.stop: page_buttonpage04
-      - script.stop: page_climate
       - script.stop: page_confirm
-      - script.stop: page_cover
       - script.stop: page_entitypage
       - script.stop: page_entitypage01
       - script.stop: page_entitypage02
       - script.stop: page_entitypage03
       - script.stop: page_entitypage04
-      - script.stop: page_fan
-      # Page home is an exception, as it can be constructed in the background
-      - script.stop: page_keyb_num
-      - script.stop: page_light
-      - script.stop: page_notification
       - script.stop: page_qrcode
-      - script.stop: page_screensaver
       - script.stop: page_settings
       - script.stop: page_utilities
       - script.stop: page_weather
@@ -672,6 +666,7 @@ script:
             - script.execute:
                 id: set_brightness
                 brightness: !lambda return int(display_brightness->state);
+
       - if:
           condition:
             - lambda: return (timeout_dim->state >= 1);
@@ -692,6 +687,7 @@ script:
                   - script.execute:
                       id: set_brightness
                       brightness: !lambda return int(display_dim_brightness->state);
+
   - id: timer_page       # Handles the fallback to home page after a timeout
     mode: restart
     then:
@@ -718,6 +714,7 @@ script:
                     ESP_LOGD("script.timer_page", "Fallback to page Home");
                     goto_page->execute("home");
                   }
+
   - id: timer_reset_all  # Global timer reset - Triggered with a touch on the screen
     mode: single
     then:
@@ -725,6 +722,7 @@ script:
       - script.execute: timer_page
       - script.execute: timer_dim
       - script.execute: timer_sleep
+
   - id: timer_sleep      # Handles the sleep (go to screensaver page) after a timeout
     mode: restart
     then:
@@ -763,6 +761,19 @@ script:
             - lambda: return version_tft->state.empty();
           then:
             - lambda: version_tft->update();
+
+  - id: wait_for_display
+    mode: single
+    then:
+      - delay: 19s
+      - while:
+          condition:
+            - lambda: return !disp1->is_setup();
+          then:
+            - lambda: |-
+                ESP_LOGE("${TAG_HW_DISPLAY}", "Display is not set. Scanning baud rates.");
+            - select.next: baud_rate
+            - delay: 19s
 
   - id: wait_for_uart_available
     mode: single
@@ -814,6 +825,10 @@ script:
                 then:
                   - script.execute: update_tft_info
             - delay: 1s
+
+  - id: !extend watchdog
+    then:
+      - script.execute: wait_for_display
 
 select:
   - id: baud_rate
@@ -870,8 +885,11 @@ select:
     entity_category: config
     icon: mdi:page-next-outline
     on_value:
-      - lambda: |-
-          page_screensaver->execute();
+      then:
+        - script.execute: wait_to_be_ready
+        - script.wait: wait_to_be_ready
+        # Extended by:
+        # - page_screensaver
 
 sensor:
   - id: brightslider  # Display Brightness GET VALUE FROM NSPanel SLIDER
@@ -909,6 +927,7 @@ sensor:
       then:
         - if:
             condition:
+              - lambda: return is_device_ready_for_tasks();
               - lambda: return (int(display_dim_brightness->state) != int(x));
             then:
               - number.set:
@@ -926,6 +945,8 @@ sensor:
     entity_category: diagnostic
     on_value:
       then:
+        - script.execute: wait_to_be_ready
+        - script.wait: wait_to_be_ready
         - script.execute: check_display_settings
 
   - id: display_mode  # Display mode (1 = EU, 2 = US, 3 = US Landscape)
@@ -939,6 +960,8 @@ sensor:
     entity_category: diagnostic
     on_value:
       then:
+        - script.execute: wait_to_be_ready
+        - script.wait: wait_to_be_ready
         - script.execute: check_display_settings
 
 switch:
@@ -974,6 +997,7 @@ text_sensor:
       then:
         - if:
             condition:
+              - lambda: return is_device_ready_for_tasks();
               - lambda: return (x == page_names[current_page_id]);
             then:
               - lambda: ESP_LOGV("${TAG_HW_DISPLAY}", "Same page");
@@ -1022,8 +1046,8 @@ text_sensor:
             JsonDocument json;
             DeserializationError error = deserializeJson(json, x.c_str());
             if (error) {
-                ESP_LOGE("text_sensor.disp1_local_event", "Error parsing json: %s", x.c_str());
-                ESP_LOGE("text_sensor.disp1_local_event", "Error: %s", error.c_str());
+                ESP_LOGE("${TAG_HW_DISPLAY}", "Error parsing json: %s", x.c_str());
+                ESP_LOGE("${TAG_HW_DISPLAY}", "Error: %s", error.c_str());
             } else {
               const std::string page = json["page"];
               const std::string event = json["event"];

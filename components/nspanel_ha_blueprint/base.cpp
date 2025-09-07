@@ -1,4 +1,5 @@
 #include "base.h"
+#include "pages.h"
 #include "esphome/core/application.h"
 
 namespace nspanel_ha_blueprint {
@@ -44,12 +45,14 @@ namespace nspanel_ha_blueprint {
     }
 
     bool is_device_ready_for_tasks() {
-        // Device is NOT ready if any of these blocking operations are active
-        return !are_any_system_flags_set({
-            NSPanelFlag::OTA_IN_PROGRESS,
-            NSPanelFlag::TFT_UPLOAD_ACTIVE,
-            NSPanelFlag::SAFE_MODE_ACTIVE
-        });
+        return
+            last_page_id != UINT8_MAX and
+            is_system_flag_set(NSPanelFlag::BOOT_COMPLETED) and  // Boot flag must be set to consider the system ready
+            !are_any_system_flags_set({  // Device is NOT ready if any of these blocking operations are active
+                NSPanelFlag::OTA_IN_PROGRESS,
+                NSPanelFlag::TFT_UPLOAD_ACTIVE,
+                NSPanelFlag::SAFE_MODE_ACTIVE
+            });
     }
 
     // Blueprint status flag functions
