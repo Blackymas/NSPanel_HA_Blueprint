@@ -44,7 +44,7 @@ namespace nspanel_ha_blueprint {
      * @note Thread-safe: No shared state between calls.
      */
     std::string wrapText(const std::string& text_to_display,
-                        uint16_t line_length_limit,
+                        uint8_t line_length_limit,
                         uint8_t bytes_per_char);
 
 }  // namespace nspanel_ha_blueprint

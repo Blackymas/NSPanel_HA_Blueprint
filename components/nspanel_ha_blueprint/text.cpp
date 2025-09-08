@@ -37,7 +37,7 @@ namespace nspanel_ha_blueprint {
     }
 
     std::string wrapText(const std::string& text_to_display,
-                        uint16_t line_length_limit,
+                        uint8_t line_length_limit,
                         uint8_t bytes_per_char) {
         // Safety check for overly long text
         if (text_to_display.length() > 1000) {
