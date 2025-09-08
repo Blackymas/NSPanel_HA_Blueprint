@@ -65,10 +65,7 @@ api:
             ESP_LOGV("${TAG_API}", "Action: component_color");
             ESP_LOGV("${TAG_API}", "  id: %s", id.c_str());
             ESP_LOGV("${TAG_API}", "  color: %i", rgbTo565(color));
-        - script.execute:
-            id: set_component_font_color
-            component_id: !lambda return id;
-            color: !lambda return rgbTo565(color);
+            disp1->set_component_font_color(id.c_str(), rgbTo565(color));
 
     # Updates the text of a specified component on the display.
     - action: component_text
@@ -105,7 +102,7 @@ api:
             for (const std::string& component_id : ids) {
               if (not component_id.empty()) {
                 ESP_LOGV("${TAG_API}", "  id: %s", component_id.c_str());
-                set_component_visibility->execute(component_id.c_str(), visible);
+                disp1->send_command_printf("vis %s,%i", component_id.c_str(), visible ? 1 : 0);
               }
             }
             ESP_LOGV("${TAG_API}", "  ids count: %i", ids.size());
@@ -174,7 +171,7 @@ api:
             if (icon_color.size() == 3) {
               disp1->set_component_font_color(id.c_str(), rgbTo565(icon_color));
             }
-            set_component_visibility->execute(id.c_str(), visible);
+            disp1->send_command_printf("vis %s,%i", id.c_str(), visible ? 1 : 0);
 
     # Transfers global settings from the blueprint to ESPHome, configuring the necessary parameters for optimal operation.
     - action: init_global
@@ -381,10 +378,12 @@ api:
         qrcode: string  # Data or URL to be encoded into the QR code.
         show: bool      # Flag to immediately display the QR code page upon service invocation.
       then:
-        - script.execute:
-            id: set_component_visibility
-            component_id: "home.bt_qrcode"
-            show: !lambda return !(qrcode.empty());
+        - if:
+            condition:
+              - lambda: return (current_page_id == ${PAGE_HOME_ID});
+            then:
+              - lambda: |-
+                  disp1->send_command_printf("vis bt_qrcode,%i", qrcode.empty() ? 0 : 1);
         - lambda: |-
             disp1->set_component_text("qrcode.qrcode_label", title.c_str());
             disp1->set_component_text("qrcode.qrcode_value", qrcode.c_str());
