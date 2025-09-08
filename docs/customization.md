@@ -677,7 +677,7 @@ script:
           then:
             - http_request.get:
                 url: http://192.168.1.100/roller/0?go=open
-          
+
   # Left button release - Stop roller shutter
   - id: !extend button_left_release
     then:
@@ -699,7 +699,7 @@ script:
           then:
             - http_request.get:
                 url: http://192.168.1.100/roller/0?go=close
-                
+
   # Right button release - Stop roller shutter
   - id: !extend button_right_release
     then:
