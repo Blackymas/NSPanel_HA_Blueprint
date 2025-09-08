@@ -92,21 +92,50 @@ api:
             disp1->set_component_value(id.c_str(), val);
 
     # Hides or shows a specified component on the display.
+    # Supports both simple component IDs and page-specific IDs (page.component format).
     - action: components_visibility
       variables:
-        ids: string[]  # Identifier of the component to be hidden/shown. Ensure this matches the component's ID in your display layout.
+        ids: string[]  # Identifier of the component to be hidden/shown. Can be 'component' or 'page.component' format.
         visible: bool  # Set to true to show the component, or false to hide it.
       then:
         - lambda: |-
             ESP_LOGV("${TAG_API}", "Action: components_visibility");
+
             for (const std::string& component_id : ids) {
-              if (not component_id.empty()) {
-                ESP_LOGV("${TAG_API}", "  id: %s", component_id.c_str());
-                disp1->send_command_printf("vis %s,%i", component_id.c_str(), visible ? 1 : 0);
+              if (component_id.empty()) {
+                ESP_LOGW("${TAG_API}", "Skipping empty component ID");
+                continue;
               }
-            }
-            ESP_LOGV("${TAG_API}", "  ids count: %i", ids.size());
-            ESP_LOGV("${TAG_API}", "  visible: %s", YESNO(visible));
+
+              ESP_LOGV("${TAG_API}", "Processing component ID: %s", component_id.c_str());
+
+              // Check if component_id contains a page prefix (page.component format)
+              size_t dot_pos = component_id.find('.');
+              if (dot_pos != std::string::npos) {
+                // Extract page and component parts
+                std::string page_name = component_id.substr(0, dot_pos);
+                std::string component_name = component_id.substr(dot_pos + 1);
+
+                ESP_LOGV("${TAG_API}", "  Page-specific component - page: %s, component: %s",
+                        page_name.c_str(), component_name.c_str());
+
+                // Only send command if current page matches the specified page
+                if (current_page->state == page_name) {
+                  ESP_LOGV("${TAG_API}", "  Current page matches, sending vis command");
+                  disp1->send_command_printf("vis %s,%i", component_name.c_str(), visible ? 1 : 0);
+                } else {
+                  ESP_LOGV("${TAG_API}", "  Current page (%s) doesn't match, skipping",
+                                          current_page->state.c_str());
+                } // #endif current page check
+              } else {
+                // Simple component ID without page prefix
+                ESP_LOGV("${TAG_API}", "  Global component, sending vis command");
+                disp1->send_command_printf("vis %s,%i", component_id.c_str(), visible ? 1 : 0);
+              } // #endif dot position check
+            } // #endfor component_id iteration
+
+            ESP_LOGV("${TAG_API}", "Processed %zu component IDs with visibility: %s",
+                    ids.size(), YESNO(visible));
 
     # Displays detailed information for a specific entity.
     - action: entity_details_show
@@ -154,24 +183,70 @@ api:
             button_mask: !lambda return button_mask;
 
     # Icon Service
+    # Supports both simple component IDs and page-specific IDs (page.component format).
     - action: icon
       variables:
-        id: string         # Identifier of the component. See "Screen components" in the documentation.
+        id: string         # Identifier of the component. Can be 'component' or 'page.component' format.
         icon: string       # Icon codepoint, e.g., "/uE6E8" for `mdi:lightbulb-on-outline`.
         icon_color: int[]  # RGB color array for the icon, e.g., [0, 255, 0] for green.
         visible: bool      # Set to `true` for visible or `false` for hidden.
       then:
         - lambda: |-
             ESP_LOGV("${TAG_API}", "Action: icon");
-            ESP_LOGV("${TAG_API}", "  id: %s", id.c_str());
+
+            if (id.empty()) {
+              ESP_LOGW("${TAG_API}", "Empty component ID provided");
+              return;
+            }
+
+            ESP_LOGV("${TAG_API}", "Processing component ID: %s", id.c_str());
             ESP_LOGV("${TAG_API}", "  icon: %s", icon.c_str());
             ESP_LOGV("${TAG_API}", "  icon_color: %" PRIu16, rgbTo565(icon_color));
             ESP_LOGV("${TAG_API}", "  visible: %s", YESNO(visible));
-            disp1->set_component_text(id.c_str(), visible ? icon.c_str() : "");
-            if (icon_color.size() == 3) {
-              disp1->set_component_font_color(id.c_str(), rgbTo565(icon_color));
-            }
-            disp1->send_command_printf("vis %s,%i", id.c_str(), visible ? 1 : 0);
+
+            // Check if component_id contains a page prefix (page.component format)
+            size_t dot_pos = id.find('.');
+            if (dot_pos != std::string::npos) {
+              // Extract page and component parts
+              std::string page_name = id.substr(0, dot_pos);
+              std::string component_name = id.substr(dot_pos + 1);
+
+              ESP_LOGV("${TAG_API}", "  Page-specific component - page: %s, component: %s", 
+                        page_name.c_str(), component_name.c_str());
+
+              // Only apply changes if current page matches the specified page
+              if (current_page->state == page_name) {
+                ESP_LOGV("${TAG_API}", "  Current page matches, applying icon changes");
+
+                // Set component text (icon or empty based on visibility)
+                disp1->set_component_text(component_name.c_str(), visible ? icon.c_str() : "");
+
+                // Set icon color if provided
+                if (icon_color.size() == 3) {
+                  disp1->set_component_font_color(component_name.c_str(), rgbTo565(icon_color));
+                }
+
+                // Set component visibility
+                disp1->send_command_printf("vis %s,%i", component_name.c_str(), visible ? 1 : 0);
+              } else {
+                ESP_LOGV("${TAG_API}", "  Current page (%s) doesn't match, skipping icon update", 
+                          current_page->state.c_str());
+              } // #endif current page check
+            } else {
+              // Simple component ID without page prefix
+              ESP_LOGV("${TAG_API}", "  Global component, applying icon changes");
+
+              // Set component text (icon or empty based on visibility)
+              disp1->set_component_text(id.c_str(), visible ? icon.c_str() : "");
+
+              // Set icon color if provided
+              if (icon_color.size() == 3) {
+                disp1->set_component_font_color(id.c_str(), rgbTo565(icon_color));
+              }
+
+              // Set component visibility
+              disp1->send_command_printf("vis %s,%i", id.c_str(), visible ? 1 : 0);
+            } // #endif dot position check
 
     # Transfers global settings from the blueprint to ESPHome, configuring the necessary parameters for optimal operation.
     - action: init_global
