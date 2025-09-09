@@ -49,24 +49,9 @@ api:
       variables:
         url: string
       then:
-        - if:
-            condition:
-              - lambda: return is_system_flag_set(NSPanelFlag::TFT_UPLOAD_ACTIVE);
-            then:
-              - lambda: ESP_LOGW("${TAG_API}", "TFT upload already in progress");
-            else:
-              - lambda: |-
-                  std::string clean_url = url;
-                  // Convert to lowercase
-                  std::transform(clean_url.begin(), clean_url.end(), clean_url.begin(),
-                                [](unsigned char c){ return std::tolower(c); });
-                  // Trim trailing spaces
-                  auto endPos = clean_url.find_last_not_of(" \t");
-                  if (std::string::npos != endPos)
-                    clean_url = clean_url.substr(0, endPos + 1);
-                  if (clean_url.empty() or clean_url == "default")
-                    url = construct_tft_url("v${version}", tft_file_model->state, "${nextion_update_url}", "${nextion_update_base_url}");
-                  upload_tft->execute(url.c_str());
+        - lambda: |-
+            if (not is_system_flag_set(NSPanelFlag::TFT_UPLOAD_ACTIVE))
+              upload_tft->execute(url.c_str());
 
 button:
   ##### UPDATE TFT DISPLAY #####
@@ -79,33 +64,12 @@ button:
       then:
         - script.execute:
             id: upload_tft
-            url: !lambda |-
-              return construct_tft_url("v${version}",
-                                        tft_file_model->state,
-                                        "${nextion_update_url}",
-                                        "${nextion_update_base_url}"
-                                      ).c_str();
+            url: ""
 
 display:
   - id: !extend disp1
     tft_url: ${nextion_update_url}
     exit_reparse_on_start: true
-
-globals:
-  - id: tft_is_valid
-    type: bool
-    restore_value: false
-    initial_value: 'false'
-
-  - id: tft_upload_attempt
-    type: uint8_t
-    restore_value: false
-    initial_value: '0'
-
-  - id: tft_upload_result
-    type: bool
-    restore_value: false
-    initial_value: 'false'
 
 script:
   - id: !extend check_versions
@@ -113,28 +77,17 @@ script:
       - if:
           condition:
             - switch.is_on: tft_update_automatically
-            - lambda: return (tft_file_model->state != "NSPanel Blank");
+            - lambda: return tft_file_model->state != "NSPanel Blank";
           then:
             - script.execute: wait_for_version_tft
             - script.wait: wait_for_version_tft
-      - if:
-          condition:
-            - switch.is_on: tft_update_automatically
-            - lambda: return (tft_file_model->state != "NSPanel Blank");
-            - not:  # not compare_versions(version_tft->state.c_str(), "${version}");
-                - text_sensor.state:
-                    id: version_tft
-                    state: ${version}
-          then:
-            - lambda: |-
-                ESP_LOGI("${TAG_UPLOAD_TFT}", "Auto updating TFT");
-            - script.execute:
-                id: upload_tft
-                url: !lambda |-
-                      return construct_tft_url("v${version}",
-                                                tft_file_model->state,
-                                                "${nextion_update_url}",
-                                                "${nextion_update_base_url}").c_str();
+            - if:
+                condition:
+                  - lambda: return version_tft->state != "${version}";
+                then:
+                  - lambda: |-
+                      ESP_LOGI("${TAG_UPLOAD_TFT}", "Auto updating TFT");
+                      upload_tft->execute("");
 
   - id: !extend dump_config
     then:
@@ -143,7 +96,7 @@ script:
             ESP_LOGW("${TAG_UPLOAD_TFT}", "TFT upload in progress");
           ESP_LOGCONFIG("${TAG_UPLOAD_TFT}", "Add-on Upload TFT:");
           ESP_LOGCONFIG("${TAG_UPLOAD_TFT}", "  File model: %s", tft_file_model->state.c_str());
-          ESP_LOGCONFIG("${TAG_UPLOAD_TFT}", "  Valid TFT:  %s", YESNO(id(tft_is_valid)));
+          ESP_LOGCONFIG("${TAG_UPLOAD_TFT}", "  Valid TFT:  %s", YESNO(tft_is_valid));
 
   - id: nextion_status
     mode: restart
@@ -169,8 +122,8 @@ script:
       - delay: 2s
       - lambda: |-
           ESP_LOGD("${TAG_UPLOAD_TFT}", "Starting TFT upload...");
-          id(tft_upload_result) = disp1->upload_tft(baud_rate, !disp1->is_setup());
-          ESP_LOGV("${TAG_UPLOAD_TFT}", "TFT upload: %s", YESNO(id(tft_upload_result)));
+          tft_upload_result = disp1->upload_tft(baud_rate, !disp1->is_setup());
+          ESP_LOGV("${TAG_UPLOAD_TFT}", "TFT upload: %s", YESNO(tft_upload_result));
 
   - id: open_upload_dialog
     mode: restart
@@ -180,10 +133,10 @@ script:
           disp1->goto_page("confirm");
       - wait_until:
           condition:
-            - lambda: return (current_page->state == "confirm");
+            - lambda: return (current_page_id == ${PAGE_CONFIRM_ID});
           timeout: 2s
       - lambda: |-
-          if (current_page->state == "confirm") {
+          if (current_page_id == ${PAGE_CONFIRM_ID}) {
             disp1->hide_component("bclose");
             disp1->hide_component("bt_accept");
             disp1->hide_component("bt_clear");
@@ -201,20 +154,11 @@ script:
     then:
       - lambda: |-
           ESP_LOGD("${TAG_UPLOAD_TFT}", message.c_str());
-          if (id(tft_is_valid)) {
+          if (tft_is_valid) {
             if (current_page->state != "confirm") open_upload_dialog->execute();
             disp1->set_component_text("confirm.body", wrapText(message.c_str(), 18, id(mui_bytes_per_char)).c_str());
             disp1->set_backlight_brightness(1);
             App.feed_wdt();
-          }
-
-  - id: select_tft_file_model
-    mode: restart
-    then:
-      - lambda: |-
-          if (!isnan(display_mode->state) and !isnan(display_charset->state)) {
-            std::string PanelModel = getNSPanelText(int(display_mode->state), int(display_charset->state));
-            if (!PanelModel.empty() and tft_file_model->state != PanelModel) tft_file_model->publish_state(PanelModel);
           }
 
   - id: !extend stop_all
@@ -233,13 +177,13 @@ script:
           then:
             - switch.turn_on: screen_power
             - delay: 5s
-      - lambda: if (id(tft_is_valid)) disp1->goto_page("home");
+      - lambda: if (tft_is_valid) disp1->goto_page("home");
       - delay: 2s
       - script.execute: open_upload_dialog
       - script.wait: open_upload_dialog
       - wait_until:
           condition:
-            - lambda: return (current_page->state == "confirm");
+            - lambda: return (current_page_id == ${PAGE_CONFIRM_ID});
           timeout: 2s
       - script.execute:
           id: report_upload_progress
@@ -254,15 +198,60 @@ script:
       - script.wait: report_upload_progress
 
       # Then start the upload
-      - lambda: set_system_flag(NSPanelFlag::TFT_UPLOAD_ACTIVE);
       - script.execute: nextion_status
       - lambda: |-
+          set_system_flag(NSPanelFlag::TFT_UPLOAD_ACTIVE);
           ESP_LOGD("${TAG_UPLOAD_TFT}", "Starting the upload script");
-          ESP_LOGV("${TAG_UPLOAD_TFT}", "  Valid TFT:               %s", YESNO(id(tft_is_valid)));
-          ESP_LOGV("${TAG_UPLOAD_TFT}", "  Current baud rate:       %" PRIu32 " bps", tf_uart->get_baud_rate());
-          ESP_LOGV("${TAG_UPLOAD_TFT}", "  Target upload baud rate: %s bps", tft_upload_baud_rate->state.c_str());
-          ESP_LOGV("${TAG_UPLOAD_TFT}", "  Upload URL: %s", url.c_str());
-          disp1->set_tft_url(url.c_str());
+          ESP_LOGV("${TAG_UPLOAD_TFT}", "  Valid TFT: %s", YESNO(tft_is_valid));
+          ESP_LOGV("${TAG_UPLOAD_TFT}", "  Current baud rate: %" PRIu32, tf_uart->get_baud_rate());
+          ESP_LOGV("${TAG_UPLOAD_TFT}", "  Target upload baud rate: %s", tft_upload_baud_rate->state.c_str());
+
+          // Calculate URL if needed
+          std::string resolved_url = url;
+
+          // Convert to lowercase and trim
+          std::transform(resolved_url.begin(), resolved_url.end(), resolved_url.begin(),
+                        [](unsigned char c){ return std::tolower(c); });
+          auto endPos = resolved_url.find_last_not_of(" \t");
+          if (std::string::npos != endPos) {
+            resolved_url = resolved_url.substr(0, endPos + 1);
+          }
+
+          // Calculate URL if empty
+          if (resolved_url.empty()) {
+            auto idx_opt = tft_file_model->active_index();
+            if (!idx_opt.has_value()) {
+              resolved_url = "${nextion_update_url}";  // Fallback if no valid index
+            } else {
+              const int idx = idx_opt.value();
+
+              if (idx == 0) {
+                resolved_url = "${nextion_update_url}";
+              } else if (idx >= 1 && idx <= 7) {
+                static const char* const FILENAME_PARTS[] = {
+                  nullptr, "blank", "eu", "us", "us_land", "CJK_eu", "CJK_us", "CJK_us_land"
+                };
+
+                const std::string version = "${version}";
+                const char* branch = "main";
+                for (char c : version) {
+                  if (c == 'b') { branch = "beta"; break; }
+                  if (c == 'd') { branch = "dev"; break; }
+                }
+                if (branch[0] == 'm' && version != "main" && !version.empty()) {
+                  branch = version.c_str();
+                }
+
+                resolved_url = "${nextion_update_base_url}" + std::string(branch) + 
+                              "/hmi/nspanel_" + FILENAME_PARTS[idx] + ".tft";
+              } else {
+                resolved_url = "${nextion_update_url}";
+              }
+            }
+          }
+
+          ESP_LOGV("${TAG_UPLOAD_TFT}", "  Upload URL: %s", resolved_url.c_str());
+          disp1->set_tft_url(resolved_url.c_str());
 
       # Stop Bluetooth
       - lambda: |-
@@ -307,22 +296,16 @@ script:
           ESP_LOGV("${TAG_UPLOAD_TFT}", "Bluetooth not compiled in");
           #endif  // USE_BLUETOOTH
 
-      - if:
-          condition:
-            - lambda: return id(tft_is_valid);
-            - text_sensor.state:
-                id: current_page
-                state: confirm
-          then:
-            - lambda: |-
-                disp1->goto_page("home");
+      - lambda: |-
+          if (tft_is_valid)
+            disp1->goto_page(${PAGE_HOME_ID});
 
       - delay: 2s
       - script.execute: open_upload_dialog
       - script.wait: open_upload_dialog
       - wait_until:
           condition:
-            - lambda: return (current_page->state == "confirm");
+            - lambda: return (current_page_id == ${PAGE_CONFIRM_ID});
           timeout: 2s
       - script.execute:
           id: report_upload_progress
@@ -332,7 +315,7 @@ script:
       - script.wait: stop_all
       - wait_until:
           condition:
-            - lambda: return (!id(tft_is_valid));
+            - lambda: return (!tft_is_valid);
           timeout: 1s
 
       ### Attempt twice at the target baud rate
@@ -368,7 +351,7 @@ script:
       - script.wait: report_upload_progress
       - wait_until:
           condition:
-            - lambda: return (!id(tft_is_valid));
+            - lambda: return (!tft_is_valid);
           timeout: 3s
       - switch.turn_off: screen_power
       - delay: 2s
@@ -386,7 +369,7 @@ script:
       - script.wait: report_upload_progress
       - wait_until:
           condition:
-            - lambda: return (!id(tft_is_valid));
+            - lambda: return (!tft_is_valid);
           timeout: 5s
       - script.execute:
           id: report_upload_progress
@@ -394,7 +377,7 @@ script:
       - script.wait: report_upload_progress
       - wait_until:
           condition:
-            - lambda: return (!id(tft_is_valid));
+            - lambda: return (!tft_is_valid);
           timeout: 5s
       - switch.turn_off: screen_power
       - delay: 2s
@@ -434,16 +417,16 @@ script:
       baud_rate: uint32_t
     then:
       - logger.log: "Attempting to upload TFT"
-      - lambda: id(tft_upload_attempt)++;
+      - lambda: tft_upload_attempt++;
       - lambda: |-
           char update_msg[128];
-          sprintf(update_msg, "Attempt #%d at %" PRIu32 " bps", id(tft_upload_attempt), tf_uart->get_baud_rate());
-          id(tft_upload_result) = false;
+          sprintf(update_msg, "Attempt #%d at %" PRIu32 " bps", tft_upload_attempt, tf_uart->get_baud_rate());
+          tft_upload_result = false;
           report_upload_progress->execute(update_msg);
       - script.wait: report_upload_progress
       - wait_until:
           condition:
-            - lambda: return (!id(tft_is_valid));
+            - lambda: return (!tft_is_valid);
           timeout: 1s
       - script.execute:
           id: nextion_upload
@@ -451,13 +434,13 @@ script:
       - script.wait: nextion_upload
       - lambda: |-
           char update_msg[128];
-          sprintf(update_msg, "Attempt #%d at %" PRIu32 " bps returned: %s", id(tft_upload_attempt),
-                  tf_uart->get_baud_rate(), YESNO(id(tft_upload_result)));
+          sprintf(update_msg, "Attempt #%d at %" PRIu32 " bps returned: %s", tft_upload_attempt,
+                  tf_uart->get_baud_rate(), YESNO(tft_upload_result));
           report_upload_progress->execute(update_msg);
       - script.wait: report_upload_progress
       - if:
           condition:
-            - lambda: return id(tft_upload_result);
+            - lambda: return tft_upload_result;
           then:
             - delay: 5s
             - lambda: |-
@@ -511,28 +494,10 @@ select:
     icon: mdi:swap-horizontal
 
 sensor:
-  - id: !extend display_charset
-    on_value:
-      then:
-        - script.execute: select_tft_file_model
-
   - id: !extend display_mode
     on_value:
       then:
-        - globals.set:
-            id: tft_is_valid
-            value: !lambda return (display_mode->state > 0 and display_mode->state < 4);
-        - if:
-            condition:
-              - lambda: return id(tft_is_valid);
-            then:
-              - lambda: |-
-                  ESP_LOGD("${TAG_UPLOAD_TFT}", "Valid TFT: True");
-              - script.execute: select_tft_file_model
-            else:
-              - lambda: |-
-                  ESP_LOGW("${TAG_UPLOAD_TFT}", "Display mode: %i", int(display_mode->state));
-                  ESP_LOGW("${TAG_UPLOAD_TFT}", "Valid TFT:    False");
+        - lambda: tft_is_valid = (display_mode->state > 0 and display_mode->state < 4);
 
 switch:
   - id: tft_update_automatically
