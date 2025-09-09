@@ -4,6 +4,8 @@
 
 #ifdef NSPANEL_HA_BLUEPRINT_HW_BUTTONS
 
+#include <cstdint>
+
 namespace nspanel_ha_blueprint {
 
     // ###### Buttons settings ######
