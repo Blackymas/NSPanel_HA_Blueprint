@@ -7,8 +7,8 @@
 namespace nspanel_ha_blueprint {
 
     uint8_t last_volume_level = 0;
-    uint last_media_duration = 0;
-    uint last_media_position = 0;
+    uint32_t last_media_duration = 0;
+    uint32_t last_media_position = 0;
 
 }  // namespace nspanel_ha_blueprint
 
