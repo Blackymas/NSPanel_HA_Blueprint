@@ -58,48 +58,62 @@ api:
     # Changes the foreground color of a specified component on the display.
     - action: component_color
       variables:
+        page: string  # Send `mem` for a memory var
         id: string    # Identifier of the component to change color. Ensure this matches the component's ID in your display layout.
         color: int[]  # New color for the component, specified as an RGB array (e.g., [255, 0, 0] for red).
       then:
         - lambda: |-
-            ESP_LOGV("${TAG_API}", "Action: component_color");
-            ESP_LOGV("${TAG_API}", "  id: %s", id.c_str());
-            ESP_LOGV("${TAG_API}", "  color: %i", rgbTo565(color));
-            disp1->set_component_font_color(id.c_str(), rgbTo565(color));
+            action_component_color->execute(
+              page.c_str(),
+              id.c_str(),
+              rgbTo565(color)
+            );
 
     # Updates the text of a specified component on the display.
     - action: component_text
       variables:
-        id: string   # Identifier of the component. Ensure it matches the component's ID in your display layout.
-        txt: string  # New text content to be displayed. Supports both static and dynamic content.
+        page: string  # Send `mem` for a memory var
+        id: string    # Identifier of the component. Ensure it matches the component's ID in your display layout.
+        txt: string   # New text content to be displayed. Supports both static and dynamic content.
       then:
         - lambda: |-
-            ESP_LOGV("${TAG_API}", "Action: component_text");
-            ESP_LOGV("${TAG_API}", "  component_id: %s", id.c_str());
-            ESP_LOGV("${TAG_API}", "  txt: %s", txt.c_str());
-            disp1->set_component_text(id.c_str(), txt.c_str());
+            action_component_text->execute(
+              page.c_str(),
+              id.c_str(),
+              txt.c_str()
+            );
 
     # Updates the value of a specified component on the display.
     - action: component_val
       variables:
-        id: string  # Identifier of the component to update. Must match the component's ID in the display layout.
-        val: int    # New integer value to set for the component. Adjust based on the data type you're displaying.
+        page: string  # Send `mem` for a memory var
+        id: string    # Identifier of the component to update. Must match the component's ID in the display layout.
+        val: int      # New integer value to set for the component. Adjust based on the data type you're displaying.
       then:
         - lambda: |-
-            ESP_LOGV("${TAG_API}", "Action: component_val");
-            ESP_LOGV("${TAG_API}", "  id: %s", id.c_str());
-            ESP_LOGV("${TAG_API}", "  val: %i", val);
-            disp1->set_component_value(id.c_str(), val);
+            action_component_val->execute(
+              page.c_str(),
+              id.c_str(),
+              val
+            );
 
     # Hides or shows a specified component on the display.
     # Supports both simple component IDs and page-specific IDs (page.component format).
     - action: components_visibility
       variables:
+        page: string  # Send `mem` for a memory var
         ids: string[]  # Identifier of the component to be hidden/shown. Can be 'component' or 'page.component' format.
         visible: bool  # Set to true to show the component, or false to hide it.
       then:
         - lambda: |-
             ESP_LOGV("${TAG_API}", "Action: components_visibility");
+            ESP_LOGV("${TAG_API}", "  page: %s", page.c_str());
+
+            if (page != current_page->state) {
+              ESP_LOGW("${TAG_API}", "Page `%s` is visible, but visibility command was for page `%s`",
+                                      current_page->state.c_str(), page.c_str());
+              return;
+            }
 
             for (const std::string& component_id : ids) {
               if (component_id.empty()) {
@@ -108,30 +122,8 @@ api:
               }
 
               ESP_LOGV("${TAG_API}", "Processing component ID: %s", component_id.c_str());
+              disp1->send_command_printf("vis %s,%i", component_id.c_str(), visible ? 1 : 0);
 
-              // Check if component_id contains a page prefix (page.component format)
-              size_t dot_pos = component_id.find('.');
-              if (dot_pos != std::string::npos) {
-                // Extract page and component parts
-                std::string page_name = component_id.substr(0, dot_pos);
-                std::string component_name = component_id.substr(dot_pos + 1);
-
-                ESP_LOGV("${TAG_API}", "  Page-specific component - page: %s, component: %s",
-                        page_name.c_str(), component_name.c_str());
-
-                // Only send command if current page matches the specified page
-                if (current_page->state == page_name) {
-                  ESP_LOGV("${TAG_API}", "  Current page matches, sending vis command");
-                  disp1->send_command_printf("vis %s,%i", component_name.c_str(), visible ? 1 : 0);
-                } else {
-                  ESP_LOGV("${TAG_API}", "  Current page (%s) doesn't match, skipping",
-                                          current_page->state.c_str());
-                } // #endif current page check
-              } else {
-                // Simple component ID without page prefix
-                ESP_LOGV("${TAG_API}", "  Global component, sending vis command");
-                disp1->send_command_printf("vis %s,%i", component_id.c_str(), visible ? 1 : 0);
-              } // #endif dot position check
             } // #endfor component_id iteration
 
             ESP_LOGV("${TAG_API}", "Processed %zu component IDs with visibility: %s",
@@ -444,50 +436,6 @@ api:
         # Update blueprint status
         - lambda: set_blueprint_status_flag(BlueprintStatusFlag::QRCODE);
 
-    - action: set_bool
-      variables:
-        component: string
-        val: bool
-      then:
-        - script.execute:
-            id: set_bool_action
-            component: !lambda return component;
-            val: !lambda return val;
-
-    - action: set_int
-      variables:
-        component: string
-        val: int
-      then:
-        - if:
-            condition:
-              - lambda: return (component == "bytes_per_char");
-            then:
-              - globals.set:
-                  id: mui_bytes_per_char
-                  value: !lambda return val;
-
-    - action: set_string
-      variables:
-        component: string
-        val: string
-      then:
-        - if:
-            condition:
-              - lambda: return (component == "timezone");
-            then:
-              - script.execute:
-                  id: set_timezone
-                  timezone: !lambda return val;
-
-    - action: set_timezone  # To do: Merge this on another init service for v4.4.0
-      variables:
-        timezone: string
-      then:
-        - script.execute:
-            id: set_timezone
-            timezone: !lambda return timezone;
-
     # Utilities group refresh
     - action: utilities_group_refresh
       variables:
@@ -638,6 +586,72 @@ esphome:
       - -D NSPANEL_HA_BLUEPRINT_API
 
 script:
+  - id: action_component_color
+    mode: single
+    parameters:
+      page: string       # Send `mem` for a memory var
+      component: string  # Identifier of the component to change color. Ensure this matches the component's ID in your display layout.
+      color: uint16_t    # New color for the component, rgb565.
+    then:
+      - lambda: |-
+          ESP_LOGV("${TAG_API}", "Script: action_component_color");
+          ESP_LOGV("${TAG_API}", "  page: %s", page.c_str());
+          ESP_LOGV("${TAG_API}", "  component: %s", component.c_str());
+          ESP_LOGV("${TAG_API}", "  color: %" PRIu16, color);
+          if (page.empty()) {
+            disp1->set_component_font_color(component.c_str(), color);
+            return;
+          }
+          if (page != "mem") {
+            disp1->send_command_printf("%s.%s.pco=%" PRIu16, page.c_str(), component.c_str(), color);
+            return;
+          }
+
+  - id: action_component_text
+    mode: single
+    parameters:
+      page: string       # Send `mem` for a memory var
+      component: string  # Identifier of the component. Ensure it matches the component's ID in your display layout.
+      txt: string        # New text content to be displayed. Supports both static and dynamic content.
+    then:
+      - lambda: |-
+          ESP_LOGV("${TAG_API}", "Script: action_component_text");
+          ESP_LOGV("${TAG_API}", "  page: %s", page.c_str());
+          ESP_LOGV("${TAG_API}", "  component: %s", component.c_str());
+          ESP_LOGV("${TAG_API}", "  txt: %s", txt.c_str());
+          if (page.empty()) {
+            disp1->set_component_text(component.c_str(), txt.c_str());
+            return;
+          }
+          if (page != "mem") {
+            disp1->send_command_printf("%s.%s.txt=\"%s\"", page.c_str(), component.c_str(), txt.c_str());
+            return;
+          }
+
+  - id: action_component_val
+    mode: single
+    parameters:
+      page: string       # Send `mem` for a memory var
+      component: string  # Identifier of the component to update. Must match the component's ID in the display layout.
+      val: int32_t       # New integer value to set for the component. Adjust based on the data type you're displaying.
+    then:
+      # Extended by:
+      # - hw_buttons
+      # - page_home
+      - lambda: |-
+          ESP_LOGV("${TAG_API}", "Script: action_component_val");
+          ESP_LOGV("${TAG_API}", "  page: %s", page.c_str());
+          ESP_LOGV("${TAG_API}", "  component: %s", component.c_str());
+          ESP_LOGV("${TAG_API}", "  val: %i", val);
+          if (page.empty()) {
+            disp1->set_component_value(component.c_str(), val);
+            return;
+          }
+          if (page != "mem") {
+            disp1->send_command_printf("%s.%s.val=%" PRId32, page.c_str(), component.c_str(), val);
+            return;
+          }
+
   - id: api_recover_from_failed
     mode: single
     then:
@@ -717,14 +731,6 @@ script:
       - script.stop: api_recover_from_failed
       - script.stop: ha_button
       - script.stop: ha_call_action
-
-  - id: set_bool_action
-    mode: queued
-    max_runs: 3
-    parameters:
-      component: string
-      val: bool
-    then:
 
   - id: !extend watchdog_round
     then:
