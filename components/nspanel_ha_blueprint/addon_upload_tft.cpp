@@ -7,7 +7,6 @@
 namespace nspanel_ha_blueprint {
 
     // TFT upload state variables (previously YAML globals)
-    bool tft_is_valid = false;
     uint8_t tft_upload_attempt = 0;
     bool tft_upload_result = false;
 
