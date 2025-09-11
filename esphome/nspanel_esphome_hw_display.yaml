@@ -71,22 +71,6 @@ display:
     on_touch:
       then:
         - script.execute: timer_reset_all
-        - if:
-            condition:
-              - lambda: return is_device_ready_for_tasks();
-              - lambda: return (!touch_event);  // Only act with release
-            then:
-              - if:
-                  condition:
-                    - or:
-                        - and:
-                            - lambda: return (page_id == 0);  // Page boot
-                            - lambda: return (component_id == 24);  // Reboot button
-                        - and:
-                            - lambda: return (page_id == 8);  // Page settings
-                            - lambda: return (component_id == 9);  // Reboot button
-                  then:
-                    - lambda: App.safe_reboot();
 
 esphome:
   platformio_options:
@@ -117,7 +101,6 @@ number:
       then:
         - lambda: |-
             disp1->send_command_printf("brightness=%i", int(x));
-            disp1->set_component_value("settings.brightslider", int(x));
         - if:
             condition:
               - lambda: return current_page_id != ${PAGE_SCREENSAVER_ID};
@@ -125,14 +108,6 @@ number:
               - script.execute:
                   id: set_brightness
                   brightness: !lambda return x;
-              - script.execute: timer_dim
-              - script.execute: timer_sleep
-              - if:
-                  condition:
-                    - lambda: return current_page_id == ${PAGE_SETTINGS_ID};
-                  then:
-                    - lambda: |-
-                        disp1->set_component_text_printf("bright_text", "%i%%", int(x));
 
   - id: display_dim_brightness  # Screen brightness when dimmed down
     name: Display Brightness Dimdown
@@ -149,7 +124,6 @@ number:
       then:
         - lambda: |-
             disp1->send_command_printf("brightness_dim=%i", int(x));
-            disp1->set_component_value("settings.dimslider", int(x));
         - if:
             condition:
               - lambda: return current_page_id != ${PAGE_SCREENSAVER_ID};
@@ -158,13 +132,6 @@ number:
               - script.execute:
                   id: set_brightness
                   brightness: !lambda return x;
-              - script.execute: timer_sleep
-              - if:
-                  condition:
-                    - lambda: return current_page_id == ${PAGE_SETTINGS_ID};
-                  then:
-                    - lambda: |-
-                        disp1->set_component_text_printf("dim_text", "%i%%", int(x));
 
 script:
   - id: !extend action_component_val
@@ -315,7 +282,7 @@ script:
     then:
       # Report new page to logs
       - lambda: |-
-          ESP_LOGD("script.page_change", "New page: %s", page_names[new_page_id]);
+          ESP_LOGD("${TAG_HW_DISPLAY}", "New page: %s", page_names[new_page_id]);
       - if:
           condition:
             - lambda: return (current_page_id != new_page_id);
@@ -332,7 +299,7 @@ script:
 
       # Reset globals
       - lambda: |-
-          ESP_LOGV("script.page_change", "Reset globals");
+          ESP_LOGV("${TAG_HW_DISPLAY}", "Reset globals");
           if (new_page_id != ${PAGE_ALARM_ID} &&
               new_page_id != ${PAGE_CLIMATE_ID} &&
               new_page_id != ${PAGE_COVER_ID} &&
@@ -356,11 +323,11 @@ script:
             - lambda: return !detailed_entity->state.empty();
           then:
             - lambda: |-
-                ESP_LOGD("script.page_change", "Entity shown: %s", detailed_entity->state.c_str());
+                ESP_LOGD("${TAG_HW_DISPLAY}", "Entity shown: %s", detailed_entity->state.c_str());
 
       # Update buttons bars on screen
       - lambda: |-
-          ESP_LOGV("script.page_change", "Update buttons bars on screen");
+          ESP_LOGV("${TAG_HW_DISPLAY}", "Update buttons bars on screen");
       - script.execute:
           id: refresh_hardware_buttons_bars
           button_mask: 3
@@ -372,7 +339,7 @@ script:
           then:
             - delay: ${DELAY_DEFAULT}ms
             - lambda: |-
-                ESP_LOGV("script.page_change", "Reset timers");
+                ESP_LOGV("${TAG_HW_DISPLAY}", "Reset timers");
             - script.execute: timer_reset_all
 
       # Wait for other constructors to stop before telling the blueprint about a new page
@@ -386,7 +353,7 @@ script:
           then:
             - delay: ${DELAY_DEFAULT}ms
             - lambda: |-
-                ESP_LOGD("script.page_change", "Report new page to Blueprint");
+                ESP_LOGV("${TAG_HW_DISPLAY}", "Report new page to Blueprint");
             - homeassistant.event:
                 event: ${EVENT_NAME}
                 data:
@@ -401,7 +368,7 @@ script:
       # Call page constructor
       - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
-          ESP_LOGD("script.page_change", "Call page constructor");
+          ESP_LOGV("${TAG_HW_DISPLAY}", "Call page constructor");
       - lambda: |-
           if (current_page->state == "blank") page_blank->execute();
           else if (current_page->state == "buttonpage01") page_buttonpage01->execute();
@@ -440,21 +407,21 @@ script:
             - lambda: return (tf_uart->get_baud_rate() != target_baud_rate);
           then:
             - lambda: |-
-                ESP_LOGD("script.set_baud_rate", "Baud rate changing from %" PRIu32 " to %" PRIu32 " bps", tf_uart->get_baud_rate(), target_baud_rate);
-                ESP_LOGD("script.set_baud_rate", "Flush UART");
+                ESP_LOGD("${TAG_HW_DISPLAY}", "Baud rate changing from %" PRIu32 " to %" PRIu32 " bps", tf_uart->get_baud_rate(), target_baud_rate);
+                ESP_LOGV("${TAG_HW_DISPLAY}", "Flush UART");
             - script.execute: wait_for_uart_available
             - script.wait: wait_for_uart_available
             - lambda: |-
-                ESP_LOGD("script.set_baud_rate", "Sending instruction '%s=%" PRIu32 "' to Nextion", definitive ? "bauds" : "baud", target_baud_rate);
+                ESP_LOGV("${TAG_HW_DISPLAY}", "Sending instruction '%s=%" PRIu32 "' to Nextion", definitive ? "bauds" : "baud", target_baud_rate);
                 disp1->send_command_printf("%s=%" PRIu32, definitive ? "bauds" : "baud", target_baud_rate);
-                ESP_LOGD("script.set_baud_rate", "Flush UART");
+                ESP_LOGV("${TAG_HW_DISPLAY}", "Flush UART");
             - script.execute: wait_for_uart_available
             - script.wait: wait_for_uart_available
             - lambda: |-
-                ESP_LOGD("script.set_baud_rate", "Set ESPHome new baud rate to %" PRIu32 " bps", target_baud_rate);
+                ESP_LOGV("${TAG_HW_DISPLAY}", "Set ESPHome new baud rate to %" PRIu32 " bps", target_baud_rate);
                 tf_uart->set_baud_rate(target_baud_rate);
                 tf_uart->load_settings();
-                ESP_LOGD("script.set_baud_rate", "Current baud rate: %" PRIu32 " bps", tf_uart->get_baud_rate());
+                ESP_LOGV("${TAG_HW_DISPLAY}", "Current baud rate: %" PRIu32 " bps", tf_uart->get_baud_rate());
 
   - id: set_brightness
     mode: single
@@ -532,7 +499,7 @@ script:
                     state: boot
           then:
             - lambda: |-
-                ESP_LOGD("script.timer_dim", "Waking up on page: %s", current_page->state.c_str());
+                ESP_LOGD("${TAG_HW_DISPLAY}", "Waking up on page: %s", current_page->state.c_str());
             - script.execute:
                 id: set_brightness
                 brightness: !lambda return display_brightness->state;
@@ -573,7 +540,7 @@ script:
           then:
             - delay: !lambda return (int(timeout_page->state) *1000);
             - lambda: |-
-                ESP_LOGV("script.timer_page", "Timed out on page: %s", current_page->state.c_str());
+                ESP_LOGV("${TAG_HW_DISPLAY}", "Timed out on page: %s", current_page->state.c_str());
                 if (timeout_page->state >= 1 and
                     current_page->state != "boot" and
                     current_page->state != "confirm" and
@@ -581,7 +548,7 @@ script:
                     current_page->state != "notification" and
                     current_page->state != "screensaver")
                   {
-                    ESP_LOGD("script.timer_page", "Fallback to page Home");
+                    ESP_LOGD("${TAG_HW_DISPLAY}", "Fallback to page Home");
                     goto_page->execute(${PAGE_HOME_ID});
                   }
 
@@ -606,7 +573,7 @@ script:
                 if (current_page->state != "screensaver" and
                     current_page->state != "boot" and
                     timeout_sleep->state >= 1) {
-                  ESP_LOGD("script.timer_sleep", "Going to sleep from page %s", current_page->state.c_str());
+                  ESP_LOGD("${TAG_HW_DISPLAY}", "Going to sleep from page %s", current_page->state.c_str());
                   goto_page->execute(${PAGE_SCREENSAVER_ID});
                   set_brightness->execute(display_sleep_brightness->state);
                 }
@@ -820,7 +787,7 @@ text_sensor:
               - lambda: ESP_LOGV("${TAG_HW_DISPLAY}", "Same page");
             else:
               - lambda: |-
-                  ESP_LOGD("${TAG_HW_DISPLAY}", "New page detected by the 'Current page' sensor: %s", x.c_str());
+                  ESP_LOGV("${TAG_HW_DISPLAY}", "New page detected by the 'Current page' sensor: %s", x.c_str());
               - script.execute:
                   id: page_change
                   new_page_id: !lambda return get_page_id(x);
