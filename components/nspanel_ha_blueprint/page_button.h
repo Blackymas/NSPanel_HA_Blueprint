@@ -16,4 +16,4 @@ namespace nspanel_ha_blueprint {
 
 }  // namespace nspanel_ha_blueprint
 
-#endif  //NSPANEL_HA_BLUEPRINT_PAGE_BUTTON
+#endif  // NSPANEL_HA_BLUEPRINT_PAGE_BUTTON

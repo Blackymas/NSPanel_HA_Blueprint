@@ -293,7 +293,7 @@ binary_sensor:
     id: display_state
     platform: template
     lambda: |-
-      return (current_page->state != "screensaver");
+      return (current_page_id != ${PAGE_SCREENSAVER_ID});
 ```
 
 You can easily invert the meaning to have a sensor for display sleeping:
@@ -305,7 +305,7 @@ binary_sensor:
     id: display_sleeping
     platform: template
     lambda: |-
-      return (current_page->state == "screensaver");
+      return (current_page_id == ${PAGE_SCREENSAVER_ID});
 ```
 
 ### Deep sleep
@@ -379,7 +379,7 @@ button:
       then:
         - logger.log: Button Sleep pressed
         - lambda: |-
-            goto_page->execute("screensaver");
+            goto_page->execute(${PAGE_SCREENSAVER_ID});
   
   # Adds a button to wake-up the panel (similar to the existing action)
   - name: Wake-up
@@ -390,7 +390,7 @@ button:
       then:
         - logger.log: Button Wake-up pressed
         - lambda: |-
-            if (current_page->state == "screensaver") id(disp1).goto_page(id(wakeup_page_name).state.c_str());
+            if (current_page_id == ${PAGE_SCREENSAVER_ID}) disp1->goto_page(wakeup_page_id);
             // timer_page->execute(); // enable this if you want page timeout to be reset
             timer_sleep->execute();
             timer_dim->execute();
@@ -413,13 +413,13 @@ light:
       then:
         - lambda: |-
             ESP_LOGD("light.display_light", "Turn-on");
-            if (current_page->state == "screensaver") disp1->goto_page(wakeup_page_name->state.c_str());
+            if (current_page_id == ${PAGE_SCREENSAVER_ID}) disp1->goto_page(wakeup_page_id);
             timer_reset_all->execute();
     on_turn_off:
       then:
         - lambda: |-
             ESP_LOGD("light.display_light", "Turn-off");
-            goto_page->execute("screensaver");
+            goto_page->execute(${PAGE_SCREENSAVER_ID});
 
 output:
   # Output required by `display_light` to send the commands to Nextion
@@ -440,10 +440,10 @@ script:
       - lambda: |-
           ESP_LOGD("script.page_change(custom)", "page: %s", current_page->state.c_str());
           ESP_LOGV("script.page_change(custom)", "is_on(): %s", display_light->current_values.is_on() ? "True" : "False");
-          if (current_page->state == "screensaver" and display_light->current_values.is_on()) {
+          if (current_page_id == ${PAGE_SCREENSAVER_ID} and display_light->current_values.is_on()) {
             auto call = display_light->turn_off();
             call.perform();
-          } else if (current_page->state != "screensaver" and (not display_light->current_values.is_on())) {
+          } else if (current_page_id != ${PAGE_SCREENSAVER_ID} and (not display_light->current_values.is_on())) {
             auto call = display_light->turn_on();
             call.perform();
           }
@@ -456,7 +456,7 @@ script:
           uint8_t current_light_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
           ESP_LOGV("script.set_brightness(custom)", "current_light_brightness: %i%%", current_light_brightness);
           if (brightness != current_light_brightness) {
-            if (current_page->state != "screensaver" and brightness > 0) {
+            if (current_page_id != ${PAGE_SCREENSAVER_ID} and brightness > 0) {
               auto call = display_light->turn_on();
               call.set_brightness(static_cast<float>(current_brightness->state) / 100.0f);
               call.perform();
@@ -677,7 +677,7 @@ script:
           then:
             - http_request.get:
                 url: http://192.168.1.100/roller/0?go=open
-          
+
   # Left button release - Stop roller shutter
   - id: !extend button_left_release
     then:
@@ -699,7 +699,7 @@ script:
           then:
             - http_request.get:
                 url: http://192.168.1.100/roller/0?go=close
-                
+
   # Right button release - Stop roller shutter
   - id: !extend button_right_release
     then:

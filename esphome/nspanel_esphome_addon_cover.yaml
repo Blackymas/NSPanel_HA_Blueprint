@@ -52,9 +52,18 @@ number:
     optimistic: true
     restore_value: true
     on_value:
-      - lambda: if (!isnan(x)) cover_embedded->set_acceleration_wait_time(x);
-      - delay: 10s
-      - lambda: cover_embedded->dump_config();
+      then:
+        - if:
+            condition:
+              - lambda: return !isnan(x);
+            then:
+              - script.execute:
+                  id: boot_log
+                  category: Cover
+                  log_message: Set acc. wait time
+              - lambda: cover_embedded->set_acceleration_wait_time(x);
+              - script.execute: dump_config_cover
+
   - id: cover_direction_change_wait_time
     name: Cover direction change wait time
     icon: mdi:timer
@@ -69,9 +78,18 @@ number:
     optimistic: true
     restore_value: true
     on_value:
-      - lambda: if (!isnan(x)) cover_embedded->set_direction_change_waittime(x);
-      - delay: 10s
-      - lambda: cover_embedded->dump_config();
+      then:
+        - if:
+            condition:
+              - lambda: return !isnan(x);
+            then:
+              - script.execute:
+                  id: boot_log
+                  category: Cover
+                  log_message: Set dir. change wait time
+              - lambda: cover_embedded->set_direction_change_waittime(x);
+              - script.execute: dump_config_cover
+
   - id: cover_interlock_wait_time
     name: Cover interlock wait time
     icon: mdi:timer
@@ -86,15 +104,20 @@ number:
     optimistic: true
     restore_value: true
     on_value:
-      - lambda: |-
-          if (!isnan(x)) {
-            relay_1->set_interlock_wait_time(x);
-            relay_2->set_interlock_wait_time(x);
-          }
-      - delay: 10s
-      - lambda: |-
-          relay_1->dump_config();
-          relay_2->dump_config();
+      then:
+        - if:
+            condition:
+              - lambda: return !isnan(x);
+            then:
+              - script.execute:
+                  id: boot_log
+                  category: Cover
+                  log_message: Set relay interlock time
+              - lambda: |-
+                  relay_1->set_interlock_wait_time(x);
+                  relay_2->set_interlock_wait_time(x);
+              - script.execute: dump_config_relays
+
   - id: cover_open_duration
     name: Cover open duration
     icon: mdi:timer
@@ -109,9 +132,18 @@ number:
     optimistic: true
     restore_value: true
     on_value:
-      - lambda: if (!isnan(x)) cover_embedded->set_open_duration(x);
-      - delay: 10s
-      - lambda: cover_embedded->dump_config();
+      then:
+        - if:
+            condition:
+              - lambda: return !isnan(x);
+            then:
+              - script.execute:
+                  id: boot_log
+                  category: Cover
+                  log_message: Set open duration
+              - lambda: cover_embedded->set_open_duration(x);
+              - script.execute: dump_config_cover
+
   - id: cover_close_duration
     name: Cover close duration
     icon: mdi:timer
@@ -126,59 +158,19 @@ number:
     optimistic: true
     restore_value: true
     on_value:
-      - lambda: if (!isnan(x)) cover_embedded->set_close_duration(x);
-      - delay: 10s
-      - lambda: cover_embedded->dump_config();
+      then:
+        - if:
+            condition:
+              - lambda: return !isnan(x);
+            then:
+              - script.execute:
+                  id: boot_log
+                  category: Cover
+                  log_message: Set close duration
+              - lambda: cover_embedded->set_close_duration(x);
+              - script.execute: dump_config_cover
 
 script:
-  - id: !extend boot_early_routines
-    then:
-      - wait_until:
-          condition:
-            - lambda: return cover_interlock_wait_time->has_state();
-            - lambda: return !isnan(cover_interlock_wait_time->state);
-      - lambda: |-
-          boot_log->execute("Cover", "Set relay interlock time");
-          relay_1->set_interlock_wait_time(cover_interlock_wait_time->state);
-          relay_2->set_interlock_wait_time(cover_interlock_wait_time->state);
-      - wait_until:
-          condition:
-            - lambda: return cover_open_duration->has_state();
-            - lambda: return !isnan(cover_open_duration->state);
-      - lambda: |-
-          boot_log->execute("Cover", "Set open duration");
-          cover_embedded->set_open_duration(cover_open_duration->state);
-      - wait_until:
-          condition:
-            - lambda: return cover_close_duration->has_state();
-            - lambda: return !isnan(cover_close_duration->state);
-      - lambda: |-
-          boot_log->execute("Cover", "Set close duration");
-          cover_embedded->set_close_duration(cover_close_duration->state);
-      - wait_until:
-          condition:
-            - lambda: return cover_acceleration_wait_time->has_state();
-            - lambda: return !isnan(cover_acceleration_wait_time->state);
-      - lambda: |-
-          boot_log->execute("Cover", "Set acc. wait time");
-          cover_embedded->set_acceleration_wait_time(cover_acceleration_wait_time->state);
-      - wait_until:
-          condition:
-            - lambda: return cover_direction_change_wait_time->has_state();
-            - lambda: return !isnan(cover_direction_change_wait_time->state);
-      - lambda: |-
-          boot_log->execute("Cover", "Set dir. change wait time");
-          cover_embedded->set_direction_change_waittime(cover_direction_change_wait_time->state);
-      - wait_until:
-          condition:
-            - lambda: return cover_device_class->has_state();
-            - lambda: return !(cover_device_class->state).empty();
-      - lambda: |-
-          boot_log->execute("Cover", "Set device class");
-          std::string lower_x = cover_device_class->state;
-          std::transform(lower_x.begin(), lower_x.end(), lower_x.begin(), ::tolower);
-          cover_embedded->set_device_class(lower_x.c_str());
-
   - id: !extend dump_config
     then:
       - lambda: |-
@@ -189,8 +181,22 @@ script:
           ESP_LOGCONFIG("${TAG_ADDON_COVER}", "Add-on cover (time based):");
           cover_embedded->dump_config();
 
+  - id: dump_config_cover
+    mode: restart
+    then:
+      - delay: 10s
+      - lambda: cover_embedded->dump_config();
+
+  - id: dump_config_relays
+    mode: restart
+    then:
+      - delay: 10s
+      - lambda: |-
+          relay_1->dump_config();
+          relay_2->dump_config();
+
   - id: set_physical_relays
-    mode: queued
+    mode: restart
     parameters:
       open: bool
       state: bool
@@ -213,6 +219,12 @@ script:
             relay_1->turn_off();
             relay_2->turn_off();
           }
+
+  - id: !extend stop_all
+    then:
+      - script.stop: dump_config_cover
+      - script.stop: dump_config_relays
+      - script.stop: set_physical_relays
 
 select:
   - id: cover_device_class
@@ -238,16 +250,19 @@ select:
     icon: mdi:window-shutter-cog
     on_value:
       then:
-        - script.execute: wait_to_be_ready
-        - script.wait: wait_to_be_ready
-        - lambda: |-
-            if (!x.empty()) {
-              std::string lower_x = x;
-              std::transform(lower_x.begin(), lower_x.end(), lower_x.begin(), ::tolower);
-              cover_embedded->set_device_class(lower_x.c_str());
-            }
-        - delay: 10s
-        - lambda: cover_embedded->dump_config();
+        - if:
+            condition:
+              - lambda: return !x.empty();
+            then:
+              - script.execute:
+                  id: boot_log
+                  category: Cover
+                  log_message: Set device class
+              - lambda: |-
+                  std::string lower_x = x;
+                  std::transform(lower_x.begin(), lower_x.end(), lower_x.begin(), ::tolower);
+                  cover_embedded->set_device_class(lower_x.c_str());
+              - script.execute: dump_config_cover
 
   - id: cover_relays_mode
     name: Cover relays mode
@@ -280,28 +295,32 @@ switch:
     restore_mode: ALWAYS_OFF
     optimistic: true
     on_turn_on:
-      - script.execute:
-          id: set_physical_relays
-          open: true
-          state: true
+      then:
+        - script.execute:
+            id: set_physical_relays
+            open: true
+            state: true
     on_turn_off:
-      - script.execute:
-          id: set_physical_relays
-          open: true
-          state: false
+      then:
+        - script.execute:
+            id: set_physical_relays
+            open: true
+            state: false
   - id: cover_close_virtual_relay
     platform: template
     internal: true
     restore_mode: ALWAYS_OFF
     optimistic: true
     on_turn_on:
-      - script.execute:
-          id: set_physical_relays
-          open: false
-          state: true
+      then:
+        - script.execute:
+            id: set_physical_relays
+            open: false
+            state: true
     on_turn_off:
-      - script.execute:
-          id: set_physical_relays
-          open: false
-          state: false
+      then:
+        - script.execute:
+            id: set_physical_relays
+            open: false
+            state: false
 ...

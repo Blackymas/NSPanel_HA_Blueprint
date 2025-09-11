@@ -112,6 +112,7 @@ Follow these steps to add a new device in the ESPHome Dashboard:
      wifi_ssid: !secret wifi_ssid
      wifi_password: !secret wifi_password
      nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"  # Optional
+     boot_sound: false
      # Add-on configuration (if needed)
      # heater_relay: "1"  # Possible values: "1" or "2"
 
@@ -489,6 +490,7 @@ substitutions:
   friendly_name: "Your Panel Name"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
+  boot_sound: false
 
 ##### My customization - Start #####
 # Add your custom components here
@@ -537,6 +539,7 @@ substitutions:
   friendly_name: "Your Panel Name"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
+  boot_sound: false
 
 ##### My customization - Start #####
 # Bluetooth components commented out during TFT updates
@@ -573,6 +576,7 @@ substitutions:
   friendly_name: "Your Panel Name"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
+  boot_sound: false
 
 ##### My customization - Start #####
 # Bluetooth Proxy with smart scanning (only when HA is connected)
@@ -628,6 +632,7 @@ Here's a complete workflow for integrating Bluetooth Proxy while managing memory
      friendly_name: "Your Panel Name"
      wifi_ssid: !secret wifi_ssid
      wifi_password: !secret wifi_password
+     boot_sound: false
 
    ##### My customization - Start #####
    # Bluetooth disabled during initial TFT upload
@@ -650,6 +655,7 @@ Here's a complete workflow for integrating Bluetooth Proxy while managing memory
      friendly_name: "Your Panel Name"
      wifi_ssid: !secret wifi_ssid
      wifi_password: !secret wifi_password
+     boot_sound: false
 
    ##### My customization - Start #####
    # Bluetooth Proxy with smart scanning (only when HA is connected)
@@ -693,6 +699,7 @@ substitutions:
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
   nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"
+  boot_sound: false
 
 ##### My customization - Start #####
 # Your custom components and modifications

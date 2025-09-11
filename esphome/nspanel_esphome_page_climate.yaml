@@ -40,7 +40,133 @@ script:
     mode: single
     then:  # There's nothing here so far
 
+  - id: set_climate
+    mode: single
+    parameters:
+      current_temp: float
+      supported_features: int
+      target_temp: float
+      target_temp_high: float
+      target_temp_low: float
+      temp_step: uint
+      total_steps: uint
+      temp_offset: int
+      climate_icon: string
+      embedded_climate: bool
+    then:
+      - if:
+          condition:
+            - lambda: return (current_page_id == ${PAGE_CLIMATE_ID});
+            - lambda: return is_device_ready_for_tasks();
+          then:
+            - lambda: |-
+                disp1->send_command_printf("climateslider.maxval=%i", total_steps);
+                disp1->send_command_printf("slider_high.maxval=%i", total_steps);
+                disp1->send_command_printf("slider_low.maxval=%i", total_steps);
+                disp1->set_component_value("temp_offset", temp_offset);
+                disp1->set_component_value("temp_step", temp_step);
+                char dec_separator_str[2] = {id(mui_decimal_separator)[0], '\0'};
+                disp1->set_component_text("dec_separator", dec_separator_str);
+                disp1->send_command("vis current_temp,1");
+                set_climate_use_decimal = (temp_step % 10 != 0);
+            - delay: ${DELAY_DEFAULT}ms
+            - if:
+                condition:
+                  - lambda: return (current_temp > -999);
+                then:
+                  - lambda: |-
+                      char buffer[15];
+                      snprintf(buffer, sizeof(buffer), (set_climate_use_decimal) ? "%.1f°" : "%.0f°", current_temp);
+                      disp1->set_component_text("current_temp",
+                                                adjustDecimalSeparator(buffer, id(mui_decimal_separator)[0]).c_str());
+                else:
+                  - lambda: |-
+                      disp1->set_component_text("current_temp", id(mui_unavailable_global).c_str());
+            - delay: ${DELAY_DEFAULT}ms
+            - if:
+                condition:
+                  - lambda: return (target_temp > -999);  // Target temp enabled
+                then:
+                  - lambda: |-
+                      char buffer[15];
+                      disp1->set_component_value("active_slider", 0);
+                      snprintf(buffer, sizeof(buffer), (set_climate_use_decimal) ? "%.1f°" : "%.0f°", target_temp);
+                      disp1->set_component_text("target_high",
+                                                adjustDecimalSeparator(buffer, id(mui_decimal_separator)[0]).c_str());
+                      disp1->set_component_value("climateslider", round(((10*target_temp) - temp_offset) / temp_step));
+                      disp1->send_command("vis slider_high,1");
+                      disp1->send_command("vis slider_low,1");
+                      disp1->send_command("vis target_low,1");
+                      disp1->send_command("vis target_high,1");
+                      disp1->send_command("vis climateslider,1");
+                else:
+                  - delay: ${DELAY_DEFAULT}ms
+                  - lambda: disp1->send_command("vis slider_high,0");
+                  - if:
+                      condition:
+                        - lambda: return (target_temp_low > -999);  // Target temp low enabled
+                      then:
+                        - lambda: |-
+                            disp1->set_component_value("active_slider", 2);
+                            char buffer[15];
+                            snprintf(buffer, sizeof(buffer),
+                                              (set_climate_use_decimal) ? "%.1f°" : "%.0f°", target_temp_low);
+                            disp1->set_component_text("target_low",
+                                                    adjustDecimalSeparator(buffer, id(mui_decimal_separator)[0]).c_str());
+                            disp1->set_component_value("slider_low",
+                                    round(((10*target_temp_low) - temp_offset) / temp_step));
+                        - delay: ${DELAY_DEFAULT}ms
+                        - lambda: |-
+                            disp1->send_command("vis target_low,1");
+                            disp1->send_command("vis slider_low,1");
+                      else:
+                        - lambda: |-
+                            disp1->send_command("vis target_low,0");
+                            disp1->send_command("vis slider_low,0");
+                  - delay: ${DELAY_DEFAULT}ms
+                  - if:
+                      condition:
+                        - lambda: return (target_temp_high > -999);  // Target temp high enabled
+                      then:
+                        - lambda: |-
+                            disp1->set_component_value("active_slider", 1);
+                            char buffer[15];
+                            snprintf(buffer, sizeof(buffer), (set_climate_use_decimal) ? "%.1f°" : "%.0f°", target_temp_high);
+                            disp1->set_component_text("target_high", adjustDecimalSeparator(buffer,
+                                                                    id(mui_decimal_separator)[0]).c_str());
+                            disp1->set_component_value("slider_high", round(((10*target_temp_high) - temp_offset) / temp_step));
+                        - delay: ${DELAY_DEFAULT}ms
+                        - lambda: |-
+                            disp1->send_command("vis target_high,1");
+                            disp1->send_command("vis slider_high,1");
+                      else:
+                        - lambda: |-
+                            disp1->send_command("vis target_high,0");
+                            disp1->send_command("vis slider_high,0");
+            - delay: ${DELAY_DEFAULT}ms
+            - if:
+                condition:
+                  - or:
+                      - lambda: return (target_temp > -999);
+                      - lambda: return (target_temp_high > -999);
+                      - lambda: return (target_temp_low > -999);
+                then:
+                  - lambda: |-
+                      disp1->set_component_text("target_icon", climate_icon.c_str());
+                      disp1->send_command("vis target_icon,1");
+                      disp1->send_command("vis decrease_temp,1");
+                      disp1->send_command("vis increase_temp,1");
+                else:
+                  - lambda: |-
+                      disp1->send_command("vis target_icon,0");
+                      disp1->send_command("vis decrease_temp,0");
+                      disp1->send_command("vis increase_temp,0");
+            - delay: ${DELAY_DEFAULT}ms
+            - lambda: |-
+                disp1->set_component_value("embedded", (embedded_climate) ? 1 : 0);
+
   - id: !extend stop_page_constructors
     then:
       - script.stop: page_climate
+      - script.stop: set_climate
 ...
