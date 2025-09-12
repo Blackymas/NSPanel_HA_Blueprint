@@ -20,17 +20,33 @@ script:
     then:
       - lambda: |-
           if (page == "climate") {
-            if (json["key"].isNull() || json["value"].isNull() || json["embedded"].isNull()) {
-              ESP_LOGW("${TAG_PAGE_CLIMATE}", "Missing climate fields");
+            if (json["key"].isNull() || json["value"].isNull()) {
+              ESP_LOGW("${TAG_PAGE_CLIMATE}", "Missing climate fields 'key' or 'value'");
               return;
             } // endif missing fields
 
             const std::string key = json["key"].as<std::string>();
             const std::string value = json["value"].as<std::string>();
-            const uint8_t embedded = json["embedded"].as<uint8_t>();
 
-            change_climate_state->execute(embedded == 1, key.c_str(), value.c_str());
 
+            if (!json["embedded"].isNull()) {
+              const uint8_t embedded = json["embedded"].as<uint8_t>();
+              change_climate_state->execute(embedded == 1, key.c_str(), value.c_str());
+            }
+
+            const std::string component = json["component"].isNull() ? "" : json["component"].as<std::string>();
+            esphome::api::CustomAPIDevice ha_event;
+            // Send event to Home Assistant
+            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
+              {"device_name", device_name->state.c_str()},
+              {"esphome_version", "${version}"},
+              {"type", "generic"},
+              {"page", page.c_str()},
+              {"component", component.c_str()},
+              {"event", event.c_str()},
+              {"value", value.c_str()},
+              {"entity", detailed_entity->state.c_str()}
+            });
           }
 
   - id: !extend page_change
