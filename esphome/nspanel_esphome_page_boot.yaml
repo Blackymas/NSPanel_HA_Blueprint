@@ -7,14 +7,27 @@
 
 ---
 substitutions:
-  BOOT_STEP_PAGE_BOOT: '29'
+  BOOT_STEP_PAGE_BOOT: 29
+  PAGE_BOOT_COMPONENT_ID_BT_REBOOT: 24
   PAGE_BOOT_DELAY_TO_EXIT: 30s
-  PAGE_BOOT_ID: '0'
+  PAGE_BOOT_ID: 0
   TAG_PAGE_BOOT: nspanel.page.boot
 
 display:
   - id: !extend disp1
-    start_up_page: 0
+    start_up_page: ${PAGE_BOOT_ID}
+    on_touch:
+      then:
+        - lambda: |-
+            if (
+                  !touch_event and  // Only act with release
+                  page_id == ${PAGE_BOOT_ID} and
+                  component_id == ${PAGE_BOOT_COMPONENT_ID_BT_REBOOT}  // Reboot button
+                ) {
+              screen_power->turn_off();
+              App.safe_reboot();
+            }
+
 
 esphome:
   platformio_options:
@@ -24,30 +37,13 @@ esphome:
 script:
   - id: !extend boot_log
     then:
-      - if:
-          condition:
-            - text_sensor.state:
-                id: current_page
-                state: boot
-          then:
-            - lambda: |-
-                disp1->send_command_printf("log_body.txt+=\"%s: %s\\r\"", category.c_str(), log_message.c_str());
+      - lambda: |-
+          if (current_page_id == ${PAGE_BOOT_ID})
+            disp1->send_command_printf("log_body.txt+=\"%s: %s\\r\"", category.c_str(), log_message.c_str());
 
   - id: !extend boot_preparation
     then:
       - script.execute: page_boot_exit_on_timeout
-
-  - id: !extend check_display_settings
-    then:
-      - if:
-          condition:
-            - lambda: return is_system_flag_set(NSPanelFlag::DISPLAY_SETTINGS_RECEIVED);
-            - text_sensor.state:
-                id: current_page
-                state: boot
-          then:
-            - lambda: |-
-                disp1->send_command("tm_esphome.en=0");
 
   - id: page_boot
     mode: single
@@ -66,11 +62,7 @@ script:
           #endif
       - script.execute: page_boot_show_blueprint_version
       - script.execute: page_boot_show_ip
-      - script.execute:
-          id: set_brightness
-          brightness: 100
       - script.execute: wait_for_page_boot_exit
-      - script.execute: check_display_settings
       - lambda: |-
           ESP_LOGD("${TAG_PAGE_BOOT}", "Page boot constructor completed");
 
@@ -86,7 +78,7 @@ script:
           then:
             - script.execute:
                 id: goto_page
-                page: !lambda return wakeup_page_name->state.c_str();
+                page_id: !lambda return wakeup_page_id;
 
   - id: page_boot_show_blueprint_version
     mode: single
@@ -133,21 +125,21 @@ script:
       - script.stop: page_boot_show_ip
 
   - id: wait_for_page_boot_exit
-    mode: single
+    mode: restart
     then:
       - while:
           condition:
-            - text_sensor.state:
-                id: current_page
-                state: boot
+            - lambda: return current_page_id != ${PAGE_BOOT_ID};
           then:
-            - lambda: ESP_LOGV("${TAG_PAGE_BOOT}", "Waiting until boot page is left...");
+            - lambda: |-
+                ESP_LOGV("${TAG_PAGE_BOOT}", "Waiting for boot page exit");
             - delay: 1s
 
 text_sensor:
   - id: !extend version_blueprint
     on_value:
-      - script.execute: page_boot_show_blueprint_version
+      then:
+        - script.wait: wait_to_be_ready
 
 wifi:
   on_connect:

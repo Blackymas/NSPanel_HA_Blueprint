@@ -7,8 +7,8 @@
 
 ---
 substitutions:
-  BOOT_STEP_PAGE_NOTIFICATION: '21'
-  PAGE_NOTIFICATION_ID: '16'
+  BOOT_STEP_PAGE_NOTIFICATION: 21
+  PAGE_NOTIFICATION_ID: 16
   tone_notification: "two short:d=4,o=5,b=100:16e6,16e6"
   TAG_PAGE_NOTIFICATION: nspanel.page.notification
 
@@ -69,11 +69,10 @@ display:
                     - lambda: id(notification_unread).publish_state(false);
                     - script.execute:
                         id: goto_page
-                        page: home
-                    - script.execute:
-                        id: set_component_visibility
-                        component_id: "home.bt_notific"
-                        show: false
+                        page_id: ${PAGE_HOME_ID}
+                    - script.wait: goto_page
+                    - lambda: |-
+                        disp1->send_command("vis bt_notific,0");
               - if:
                   condition:
                     - lambda: return (component_id == 8);  // bt_clear
@@ -86,7 +85,7 @@ display:
                     - lambda: id(notification_unread).publish_state(false);
                     - script.execute:
                         id: goto_page
-                        page: home
+                        page_id: ${PAGE_HOME_ID}
 
 esphome:
   platformio_options:
@@ -100,23 +99,19 @@ script:
 
   - id: !extend page_change
     then:
-      - if:
-          condition:
-            - lambda: return new_page_id == ${PAGE_NOTIFICATION_ID};
-          then:
-            - script.execute: page_notification
+      - lambda: |-
+          if (new_page_id == ${PAGE_NOTIFICATION_ID})
+            page_notification->execute();
 
   - id: page_notification
     mode: single
     then:
       - lambda: |-
           disp1->set_component_text("notification.notifi_label", notification_label->state.c_str());
-      - script.execute:
-          id: display_wrapped_text
-          component: "notification.notifi_text01"
-          text_to_display: !lambda return notification_text->state;
-          line_length_limit: !lambda |-
-                                return display_mode->state == 2 ? 23 : 32;
+          disp1->set_component_text("notification.notifi_text01",
+                                    wrapText(notification_text->state.c_str(),
+                                              display_mode == 2 ? 23 : 32,
+                                              id(mui_bytes_per_char)).c_str());
 
   - id: notification_clear
     mode: single
@@ -129,11 +124,11 @@ script:
           then:
             - script.execute:
                 id: goto_page
-                page: home
-      - script.execute:
-          id: set_component_visibility
-          component_id: "home.bt_notific"
-          show: false
+                page_id: ${PAGE_HOME_ID}
+            - script.wait: goto_page
+      - lambda: |-
+          if (current_page_id == ${PAGE_HOME_ID})
+            disp1->send_command("vis bt_notific,0");
       - text_sensor.template.publish:
           id: notification_label
           state: ""
@@ -148,13 +143,12 @@ script:
       label: string
       message: string
     then:
-      - script.execute:
-          id: set_component_visibility
-          component_id: "home.bt_notific"
-          show: true
+      - lambda: |-
+          if (current_page_id == ${PAGE_HOME_ID})
+            disp1->send_command("vis bt_notific,1");
       - script.execute:
           id: goto_page
-          page: notification
+          page_id: ${PAGE_NOTIFICATION_ID}
       - text_sensor.template.publish:
           id: notification_label
           state: !lambda return label;
@@ -180,8 +174,13 @@ script:
 
   - id: !extend stop_all
     then:
-      - script.execute: notification_play_sound
-      - script.execute: page_notification
+      - script.stop: notification_clear
+      - script.stop: notification_show_action
+      - script.stop: notification_play_sound
+
+  - id: !extend stop_page_constructors
+    then:
+      - script.stop: page_notification
 
 switch:
   - name: Sound - Notification  # Notification sound
@@ -217,17 +216,21 @@ text_sensor:
     disabled_by_default: true
     on_value:
       then:
-        - lambda: |-
-            disp1->set_component_text("notification.notifi_label", x.c_str());
-        # Send event to Home Assistant
-        - homeassistant.event:
-            event: ${EVENT_NAME}
-            data:
-              device_name: !lambda return device_name->state.c_str();
-              esphome_version: ${version}
-              type: notification_changed
-              component: notification_label
-              action: new_value
+        - if:
+            condition:
+              - lambda: return is_device_ready_for_tasks();
+            then:
+              - lambda: |-
+                  disp1->set_component_text("notification.notifi_label", x.c_str());
+              # Send event to Home Assistant
+              - homeassistant.event:
+                  event: ${EVENT_NAME}
+                  data:
+                    device_name: !lambda return device_name->state.c_str();
+                    esphome_version: ${version}
+                    type: notification_changed
+                    component: notification_label
+                    action: new_value
 
   - id: notification_text
     name: Notification Text
@@ -237,20 +240,22 @@ text_sensor:
     disabled_by_default: true
     on_value:
       then:
-        - script.execute:
-            id: display_wrapped_text
-            component: "notification.notifi_text01"
-            text_to_display: !lambda return x;
-            line_length_limit: !lambda |-
-              return display_mode->state == 2 ? 23 : 32;
-        # Send event to Home Assistant
-        - homeassistant.event:
-            event: ${EVENT_NAME}
-            data:
-              device_name: !lambda return device_name->state.c_str();
-              esphome_version: ${version}
-              type: notification_changed
-              component: notification_text
-              action: new_value
-
+        - if:
+            condition:
+              - lambda: return is_device_ready_for_tasks();
+            then:
+              - lambda: |-
+                  disp1->set_component_text("notification.notifi_text01",
+                                            wrapText(x.c_str(),
+                                                    display_mode == 2 ? 23 : 32,
+                                                    id(mui_bytes_per_char)).c_str());
+              # Send event to Home Assistant
+              - homeassistant.event:
+                  event: ${EVENT_NAME}
+                  data:
+                    device_name: !lambda return device_name->state.c_str();
+                    esphome_version: ${version}
+                    type: notification_changed
+                    component: notification_text
+                    action: new_value
 ...

@@ -13,6 +13,12 @@ substitutions:
   BAUD_RATE: '115200'
   BOOT_STEP_HW_DISPLAY: '5'
   bytes_per_char: "1"
+  COLOR_BLUE_INDIGO: '10597'
+  COLOR_CYAN_BRIGHT: '7519'
+  COLOR_GRAY_MOSS: '33808'
+  COLOR_RED_PRIMARY: '63488'
+  COLOR_WHITE: '65535'
+  COLOR_YELLOW_GOLDEN: '64992'
   DISPLAY_CHARSET_CJK: '2'
   DISPLAY_CHARSET_INTERNATIONAL: '1'
   GPIO_DISPLAY_NEXTION_RX_PIN: 17
@@ -43,6 +49,10 @@ display:
     on_setup:
       then:
         - lambda: |-
+            current_page_id = 0;
+            wakeup_page_id = get_page_id(wakeup_page_name->state.c_str());
+        - script.stop: wait_for_display
+        - lambda: |-
             ESP_LOGI("${TAG_HW_DISPLAY}", "Nextion setup triggered");
             set_system_flag(NSPanelFlag::NEXTION_READY);
         - binary_sensor.template.publish:
@@ -61,22 +71,6 @@ display:
     on_touch:
       then:
         - script.execute: timer_reset_all
-        - if:
-            condition:
-              - lambda: return is_device_ready_for_tasks();
-              - lambda: return (!touch_event);  // Only act with release
-            then:
-              - if:
-                  condition:
-                    - or:
-                        - and:
-                            - lambda: return (page_id == 0);  // Page boot
-                            - lambda: return (component_id == 24);  // Reboot button
-                        - and:
-                            - lambda: return (page_id == 8);  // Page settings
-                            - lambda: return (component_id == 9);  // Reboot button
-                  then:
-                    - lambda: App.safe_reboot();
 
 esphome:
   platformio_options:
@@ -107,27 +101,13 @@ number:
       then:
         - lambda: |-
             disp1->send_command_printf("brightness=%i", int(x));
-            disp1->set_component_value("settings.brightslider", int(x));
         - if:
             condition:
-              - not:
-                  - text_sensor.state:
-                      id: current_page
-                      state: screensaver
+              - lambda: return current_page_id != ${PAGE_SCREENSAVER_ID};
             then:
               - script.execute:
                   id: set_brightness
-                  brightness: !lambda return int(x);
-              - script.execute: timer_dim
-              - script.execute: timer_sleep
-              - if:
-                  condition:
-                    - text_sensor.state:
-                        id: current_page
-                        state: settings
-                  then:
-                    - lambda: |-
-                        disp1->set_component_text_printf("bright_text", "%i%%", int(x));
+                  brightness: !lambda return x;
 
   - id: display_dim_brightness  # Screen brightness when dimmed down
     name: Display Brightness Dimdown
@@ -144,46 +124,22 @@ number:
       then:
         - lambda: |-
             disp1->send_command_printf("brightness_dim=%i", int(x));
-            disp1->set_component_value("settings.dimslider", int(x));
         - if:
             condition:
-              - not:
-                  - text_sensor.state:
-                      id: current_page
-                      state: screensaver
-              - lambda: return (current_brightness->state != x);
+              - lambda: return current_page_id != ${PAGE_SCREENSAVER_ID};
+              - lambda: return (int(current_brightness->state) != int(x));
             then:
               - script.execute:
                   id: set_brightness
-                  brightness: !lambda return int(x);
-              - script.execute: timer_sleep
-              - if:
-                  condition:
-                    - text_sensor.state:
-                        id: current_page
-                        state: settings
-                  then:
-                    - lambda: |-
-                        disp1->set_component_text_printf("dim_text", "%i%%", int(x));
-
-  - id: display_sleep_brightness  # Screen brightness when in screensaver page
-    name: Display Brightness Sleep
-    platform: template
-    entity_category: config
-    unit_of_measurement: '%'
-    min_value: 0
-    max_value: 100
-    initial_value: 0
-    step: 1
-    restore_value: true
-    optimistic: true
-    on_value:
-      then:
-        - lambda: |-
-            disp1->send_command_printf("brightness_sleep=%i", int(x));
-            page_screensaver->execute();
+                  brightness: !lambda return x;
 
 script:
+  - id: !extend action_component_val
+    then:
+      - lambda: |-
+          if (page == "mem" and component == "bytes_per_char")
+            id(mui_bytes_per_char) = static_cast<uint8_t>(val);
+
   - id: !extend boot_early_routines
     then:
       - if:
@@ -192,138 +148,44 @@ script:
           then:
             - switch.turn_on: screen_power
 
-  - id: check_display_settings
-    mode: restart
-    then:
-      - if:
-          condition:
-            - lambda: return !isnan(display_charset->state);
-            - lambda: return !isnan(display_mode->state);
-            - lambda: return !version_tft->state.empty();
-          then:
-            - lambda: |-
-                set_system_flag(NSPanelFlag::DISPLAY_SETTINGS_RECEIVED);
-          else:
-            - lambda: |-
-                clear_system_flag(NSPanelFlag::DISPLAY_SETTINGS_RECEIVED);
-
-  - id: display_wrapped_text
-    mode: parallel
-    max_runs: 3
-    parameters:
-      component: string
-      text_to_display: string
-      line_length_limit: uint
-    then:
-      - if:
-          condition:
-            - lambda: return (text_to_display.length() > 1000);  // Safety check for overly long text
-          then:
-            - lambda: |-
-                ESP_LOGW("display_wrapped_text", "Text too long");
-                disp1->set_component_text(component.c_str(), "ERROR: Text too long");
-          else:
-            - if:
-                condition:
-                  - lambda: |-
-                      return (text_to_display.find("\\r") != std::string::npos);  // Early exit for already formatted text
-                then:
-                  - lambda: |-
-                      disp1->set_component_text(component.c_str(), text_to_display.c_str());
-                else:
-                  - lambda: |-
-                      const uint16_t max_line_length = line_length_limit * id(mui_bytes_per_char);
-                      const uint16_t text_len = text_to_display.length();
-
-                      // If text is short enough, no wrapping needed
-                      if (text_len <= max_line_length) {
-                        disp1->set_component_text(component.c_str(), text_to_display.c_str());
-                        return;
-                      }
-
-                      // Pre-allocate string to avoid reallocations
-                      std::string wrapped_text;
-                      wrapped_text.reserve(text_len + 20);  // Reserve space for line breaks
-
-                      uint16_t start = 0;
-
-                      while (start < text_len) {
-                        // Skip leading spaces
-                        while (start < text_len && text_to_display[start] == ' ') {
-                          start++;
-                        }
-
-                        if (start >= text_len) break;
-
-                        // Find end position
-                        uint16_t end = start + max_line_length;
-                        if (end >= text_len) {
-                          end = text_len;
-                        } else {
-                          // Find word boundary by looking backwards for space
-                          uint16_t word_end = end;
-                          while (word_end > start && text_to_display[word_end] != ' ') {
-                            word_end--;
-                          }
-
-                          // If we found a space within reasonable distance, use it
-                          if (word_end > start) {
-                            end = word_end;
-                          }
-                          // Otherwise force break at max_line_length (handles long words)
-                        }
-
-                        // Add text segment
-                        wrapped_text.append(text_to_display, start, end - start);
-
-                        // Add line break if not at end of text
-                        if (end < text_len) {
-                          wrapped_text += "\\r";
-
-                          // Skip spaces at the break point to avoid leading spaces on next line
-                          while (end < text_len && text_to_display[end] == ' ') {
-                            end++;
-                          }
-                        }
-
-                        start = end;
-                      }
-
-                      disp1->set_component_text(component.c_str(), wrapped_text.c_str());
-
   - id: !extend dump_config
     then:
       # Report UART
       - lambda: |-
-          ESP_LOGCONFIG("nspanel_ha_blueprint", "UART:");
-          ESP_LOGCONFIG("nspanel_ha_blueprint", "  Baud rate:   %" PRIu32 " bps", tf_uart->get_baud_rate());
-          ESP_LOGCONFIG("nspanel_ha_blueprint", "  Queue size:  %d", tf_uart->available());
+          ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "UART:");
+          ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "  Baud rate:   %" PRIu32 " bps", tf_uart->get_baud_rate());
+          ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "  Queue size:  %d", tf_uart->available());
 
       # Report Nextion status
       - lambda: |-
-          ESP_LOGCONFIG("nspanel_ha_blueprint", "Nextion:");
-          ESP_LOGCONFIG("nspanel_ha_blueprint", "  Queue size:  %d", disp1->queue_size());
+          ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "Nextion:");
+          ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "  Queue size:  %d", disp1->queue_size());
           if (disp1->is_setup())
-            ESP_LOGCONFIG("nspanel_ha_blueprint", "  Is setup:    True");
+            ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "  Is setup:    True");
           else {
-            ESP_LOGW("nspanel_ha_blueprint", "  Is setup:    False");
-            ESP_LOGW("nspanel_ha_blueprint", "  Is detected: %s", YESNO(disp1->is_detected()));
+            ESP_LOGW("${TAG_HW_DISPLAY}", "  Is setup:    False");
+            ESP_LOGW("${TAG_HW_DISPLAY}", "  Is detected: %s", YESNO(disp1->is_detected()));
             //exit_reparse->execute();
           }
           if (nextion_init->state) {
-            ESP_LOGCONFIG("nspanel_ha_blueprint", "  Init:        True");
+            ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "  Init:        True");
           } else
-            ESP_LOGW("nspanel_ha_blueprint", "  Init:        False");
+            ESP_LOGW("${TAG_HW_DISPLAY}", "  Init:        False");
           if (version_tft->state.empty())
-            ESP_LOGW("nspanel_ha_blueprint", "  TFT:         UNKNOWN");
+            ESP_LOGW("${TAG_HW_DISPLAY}", "  TFT:         UNKNOWN");
           else
-            ESP_LOGCONFIG("nspanel_ha_blueprint", "  TFT:         %s", version_tft->state.c_str());
+            ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "  TFT:         %s", version_tft->state.c_str());
+
+      # Report wake-up page
+      - lambda: |-
+          ESP_LOGCONFIG("${TAG_HW_DISPLAY}", "Wake-up page: %s", page_names[wakeup_page_id]);
 
   - id: event_from_display
     mode: restart
     parameters:
       json: JsonDocument
       page: string
+      event: string
     then:
       # Extended by:
       #   - nspanel_esphome_standard_page_alarm.yaml
@@ -335,42 +197,32 @@ script:
       #   - nspanel_esphome_standard_page_media_player.yaml
       #   - nspanel_esphome_standard_versioning.yaml
       - lambda: |-
-          if (page.empty()) {
-            ESP_LOGW("${TAG_HW_DISPLAY}", "Empty page");
-            return;
-          }
-
-          // Extract required fields with validation
-          if (json["event"].isNull()) {
-            ESP_LOGW("${TAG_HW_DISPLAY}", "Missing 'event' key");
-            // return;
-          }
-
           // Start extracting info from event's json
-          ESP_LOGD("${TAG_HW_DISPLAY}", "New event from display on page '%s':", page.c_str());
-          const std::string event = json["event"].as<std::string>();
-          const std::string component = json["component"].isNull() ? "" :
-            json["component"].as<std::string>();
-          const std::string value = json["value"].isNull() ? "" :
-            json["value"].as<std::string>();
+          ESP_LOGD("${TAG_HW_DISPLAY}", "New event `%S` from display on page '%s':", event.c_str(), page.c_str());
+          const std::string component = json["component"].isNull() ? "" : json["component"].as<std::string>();
+          const std::string value = json["value"].isNull() ? "" : json["value"].as<std::string>();
 
           ESP_LOGD("${TAG_HW_DISPLAY}", "Event: '%s.%s', type=%s", page.c_str(), component.c_str(), event.c_str());
 
           // Handle special events
           if (event == "params") {
-            if (json["display_mode"].isNull() || json["charset"].isNull()) {
-              ESP_LOGW("${TAG_HW_DISPLAY}", "Missing 'display' key");
+            if (json["display_mode"].isNull() || json["charset"].isNull() || json["version"].isNull()) {
+              ESP_LOGW("${TAG_HW_DISPLAY}", "Missing display keys");
+              clear_system_flag(NSPanelFlag::DISPLAY_SETTINGS_RECEIVED);
               return;
             }
 
             // Parse display parameters
-            display_mode->publish_state(json["display_mode"].as<uint8_t>());
-            display_charset->publish_state(json["charset"].as<uint8_t>());
+            display_mode = json["display_mode"].as<uint8_t>();
+            display_charset = json["charset"].as<uint8_t>();
+            version_tft->publish_state(json["version"].as<std::string>());
 
-            ESP_LOGV("${TAG_HW_DISPLAY}", "Display:");
-            ESP_LOGV("${TAG_HW_DISPLAY}", "  Mode:    %" PRIu8, display_mode->state);
-            ESP_LOGV("${TAG_HW_DISPLAY}", "  Charset: %" PRIu8, display_charset->state);
+            ESP_LOGI("${TAG_HW_DISPLAY}", "Display params:");
+            ESP_LOGI("${TAG_HW_DISPLAY}", "  Mode:        %" PRIu8, display_mode);
+            ESP_LOGI("${TAG_HW_DISPLAY}", "  Charset:     %" PRIu8, display_charset);
+            ESP_LOGI("${TAG_HW_DISPLAY}", "  TFT version: v%s", version_tft->state.c_str());
 
+            set_system_flag(NSPanelFlag::DISPLAY_SETTINGS_RECEIVED);
             id(disp1).send_command("tm_esphome.en=0");
             return;
           }
@@ -411,10 +263,17 @@ script:
 
           ESP_LOGV("${TAG_HW_DISPLAY}", "HA event sent");
 
-          if (id(version_tft).state.empty() and event == "params") {
-            ESP_LOGV("${TAG_VERSIONING}", "Nextion event");
-            id(version_tft).publish_state(json["version"].as<std::string>());
-          }
+  - id: goto_page
+    mode: restart
+    parameters:
+      page_id: uint8_t
+    then:
+      - if:
+          condition:
+            - lambda: return (page_id != current_page_id);
+            - lambda: return is_device_ready_for_tasks();
+          then:
+            - lambda: disp1->goto_page(page_id);
 
   - id: page_change
     mode: restart
@@ -423,7 +282,7 @@ script:
     then:
       # Report new page to logs
       - lambda: |-
-          ESP_LOGD("script.page_change", "New page: %s", page_names[new_page_id]);
+          ESP_LOGD("${TAG_HW_DISPLAY}", "New page: %s", page_names[new_page_id]);
       - if:
           condition:
             - lambda: return (current_page_id != new_page_id);
@@ -440,7 +299,7 @@ script:
 
       # Reset globals
       - lambda: |-
-          ESP_LOGV("script.page_change", "Reset globals");
+          ESP_LOGV("${TAG_HW_DISPLAY}", "Reset globals");
           if (new_page_id != ${PAGE_ALARM_ID} &&
               new_page_id != ${PAGE_CLIMATE_ID} &&
               new_page_id != ${PAGE_COVER_ID} &&
@@ -453,9 +312,9 @@ script:
               disp1->send_command("back_page_id=1");
           }
           if (new_page_id != ${PAGE_MEDIA_PLAYER_ID}) {
-            id(last_volume_level) = 0;
-            id(last_media_duration) = 0;
-            id(last_media_position) = 0;
+            last_volume_level = 0;
+            last_media_duration = 0;
+            last_media_position = 0;
           }
 
       # Report detailed entity
@@ -464,11 +323,11 @@ script:
             - lambda: return !detailed_entity->state.empty();
           then:
             - lambda: |-
-                ESP_LOGD("script.page_change", "Entity shown: %s", detailed_entity->state.c_str());
+                ESP_LOGD("${TAG_HW_DISPLAY}", "Entity shown: %s", detailed_entity->state.c_str());
 
       # Update buttons bars on screen
       - lambda: |-
-          ESP_LOGV("script.page_change", "Update buttons bars on screen");
+          ESP_LOGV("${TAG_HW_DISPLAY}", "Update buttons bars on screen");
       - script.execute:
           id: refresh_hardware_buttons_bars
           button_mask: 3
@@ -476,36 +335,40 @@ script:
       # Reset timers
       - if:
           condition:
-            not:
-              text_sensor.state:
-                id: current_page
-                state: screensaver
+            - lambda: return current_page_id != ${PAGE_SCREENSAVER_ID};
           then:
             - delay: ${DELAY_DEFAULT}ms
             - lambda: |-
-                ESP_LOGV("script.page_change", "Reset timers");
+                ESP_LOGV("${TAG_HW_DISPLAY}", "Reset timers");
             - script.execute: timer_reset_all
 
       # Wait for other constructors to stop before telling the blueprint about a new page
       - script.wait: stop_page_constructors
 
       # Report new page to Blueprint
-      - delay: ${DELAY_DEFAULT}ms
-      - lambda: |-
-          ESP_LOGD("script.page_change", "Report new page to Blueprint");
-      - homeassistant.event:
-          event: ${EVENT_NAME}
-          data:
-            device_name: !lambda return device_name->state.c_str();
-            esphome_version: ${version}
-            type: page_changed
-            page: !lambda return page_names[new_page_id];
-            entity: !lambda return detailed_entity->state.c_str();
+      - if:
+          condition:
+            - lambda: return last_page_id != UINT8_MAX;
+            - lambda: return last_page_id != new_page_id;
+          then:
+            - delay: ${DELAY_DEFAULT}ms
+            - lambda: |-
+                ESP_LOGV("${TAG_HW_DISPLAY}", "Report new page to Blueprint");
+            - homeassistant.event:
+                event: ${EVENT_NAME}
+                data:
+                  device_name: !lambda return device_name->state.c_str();
+                  esphome_version: ${version}
+                  type: page_changed
+                  page: !lambda return page_names[new_page_id];
+                  page_id: !lambda return new_page_id;
+                  last_page_id: !lambda return last_page_id;
+                  entity: !lambda return detailed_entity->state.c_str();
 
       # Call page constructor
       - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
-          ESP_LOGD("script.page_change", "Call page constructor");
+          ESP_LOGV("${TAG_HW_DISPLAY}", "Call page constructor");
       - lambda: |-
           if (current_page->state == "blank") page_blank->execute();
           else if (current_page->state == "buttonpage01") page_buttonpage01->execute();
@@ -513,13 +376,7 @@ script:
           else if (current_page->state == "buttonpage03") page_buttonpage03->execute();
           else if (current_page->state == "buttonpage04") page_buttonpage04->execute();
           else if (current_page->state == "confirm") page_confirm->execute();
-          else if (current_page->state == "entitypage01") page_entitypage01->execute();
-          else if (current_page->state == "entitypage02") page_entitypage02->execute();
-          else if (current_page->state == "entitypage03") page_entitypage03->execute();
-          else if (current_page->state == "entitypage04") page_entitypage04->execute();
-          else if (current_page->state == "notification") page_notification->execute();
           else if (current_page->state == "qrcode") page_qrcode->execute();
-          else if (current_page->state == "screensaver") page_screensaver->execute();
           else if (current_page->state == "settings") page_settings->execute();
           else if (current_page->state == "utilities") page_utilities->execute();
           else if (current_page->state == "weather01") page_weather01->execute();
@@ -535,7 +392,7 @@ script:
           delay: 1000
 
   - id: set_baud_rate
-    mode: single
+    mode: restart
     parameters:
       target_baud_rate: uint32_t
       definitive: bool
@@ -550,99 +407,73 @@ script:
             - lambda: return (tf_uart->get_baud_rate() != target_baud_rate);
           then:
             - lambda: |-
-                ESP_LOGD("script.set_baud_rate", "Baud rate changing from %" PRIu32 " to %" PRIu32 " bps", tf_uart->get_baud_rate(), target_baud_rate);
-                ESP_LOGD("script.set_baud_rate", "Flush UART");
+                ESP_LOGD("${TAG_HW_DISPLAY}", "Baud rate changing from %" PRIu32 " to %" PRIu32 " bps", tf_uart->get_baud_rate(), target_baud_rate);
+                ESP_LOGV("${TAG_HW_DISPLAY}", "Flush UART");
             - script.execute: wait_for_uart_available
             - script.wait: wait_for_uart_available
             - lambda: |-
-                ESP_LOGD("script.set_baud_rate", "Sending instruction '%s=%" PRIu32 "' to Nextion", definitive ? "bauds" : "baud", target_baud_rate);
+                ESP_LOGV("${TAG_HW_DISPLAY}", "Sending instruction '%s=%" PRIu32 "' to Nextion", definitive ? "bauds" : "baud", target_baud_rate);
                 disp1->send_command_printf("%s=%" PRIu32, definitive ? "bauds" : "baud", target_baud_rate);
-                ESP_LOGD("script.set_baud_rate", "Flush UART");
+                ESP_LOGV("${TAG_HW_DISPLAY}", "Flush UART");
             - script.execute: wait_for_uart_available
             - script.wait: wait_for_uart_available
             - lambda: |-
-                ESP_LOGD("script.set_baud_rate", "Set ESPHome new baud rate to %" PRIu32 " bps", target_baud_rate);
+                ESP_LOGV("${TAG_HW_DISPLAY}", "Set ESPHome new baud rate to %" PRIu32 " bps", target_baud_rate);
                 tf_uart->set_baud_rate(target_baud_rate);
                 tf_uart->load_settings();
-                ESP_LOGD("script.set_baud_rate", "Current baud rate: %" PRIu32 " bps", tf_uart->get_baud_rate());
+                ESP_LOGV("${TAG_HW_DISPLAY}", "Current baud rate: %" PRIu32 " bps", tf_uart->get_baud_rate());
 
   - id: set_brightness
     mode: single
     parameters:
-      brightness: float
+      brightness: uint8_t
     then:
-      - lambda: |-
-          disp1->set_backlight_brightness(brightness / 100.0f);
-          current_brightness->update();
+      - if:
+          condition:
+            - lambda: return brightness <= 100;
+            - lambda: return int(current_brightness->state) != brightness;
+            - lambda: return is_device_ready_for_tasks();
+          then:
+            - lambda: |-
+                disp1->set_backlight_brightness(brightness / 100.0f);
+                current_brightness->update();
 
-  - id: set_component_visibility
-    mode: queued
-    max_runs: 3
+  - id: set_component_font_color
+    mode: single
     parameters:
       component_id: string
-      show: bool
+      color: uint16_t
     then:
-      - lambda: |-
-          NextionComponent component = extractNextionComponent(component_id, current_page->state);
-          if (component.is_current_page) disp1->send_command_printf("vis %s,%i", component.component_id, show ? 1 : 0);
-
-  - id: set_component_visibility_with_delay
-    mode: queued
-    max_runs: 16
-    parameters:
-      component_id: string
-      show: bool
-      delay: uint16_t
-    then:
-      - delay: !lambda return delay;
-      - script.execute:
-          id: set_component_visibility
-          component_id: !lambda return component_id;
-          show: !lambda return show;
+      - lambda: disp1->set_component_font_color(component_id.c_str(), color);
 
   - id: !extend stop_all
     then:
       - script.execute: stop_page_constructors
-      - script.stop: check_display_settings
-      - script.stop: display_wrapped_text
+      - script.stop: event_from_display
+      - script.stop: goto_page
       - script.stop: page_change
       - script.stop: set_baud_rate
       - script.stop: set_brightness
-      - script.stop: set_component_visibility
-      - script.stop: set_component_visibility_with_delay
+      - script.stop: set_component_font_color
       - script.stop: timer_dim
       - script.stop: timer_page
       - script.stop: timer_reset_all
       - script.stop: timer_sleep
-      - script.stop: update_tft_info
       - script.stop: wait_for_uart_available
       - script.stop: wait_for_version_tft
 
   - id: stop_page_constructors
     mode: single
     then:
-      - script.stop: page_alarm
+      # Page home is an exception, as it can be constructed in the background
       - script.stop: page_blank
-      - script.stop: page_buttonpage
-      - script.stop: page_buttonpage01
-      - script.stop: page_buttonpage02
-      - script.stop: page_buttonpage03
-      - script.stop: page_buttonpage04
-      - script.stop: page_climate
       - script.stop: page_confirm
-      - script.stop: page_cover
       - script.stop: page_entitypage
       - script.stop: page_entitypage01
       - script.stop: page_entitypage02
       - script.stop: page_entitypage03
       - script.stop: page_entitypage04
-      - script.stop: page_fan
-      # Page home is an exception, as it can be constructed in the background
-      - script.stop: page_keyb_num
-      - script.stop: page_light
-      - script.stop: page_notification
       - script.stop: page_qrcode
-      - script.stop: page_screensaver
       - script.stop: page_settings
       - script.stop: page_utilities
       - script.stop: page_weather
@@ -668,10 +499,11 @@ script:
                     state: boot
           then:
             - lambda: |-
-                ESP_LOGD("script.timer_dim", "Waking up on page: %s", current_page->state.c_str());
+                ESP_LOGD("${TAG_HW_DISPLAY}", "Waking up on page: %s", current_page->state.c_str());
             - script.execute:
                 id: set_brightness
-                brightness: !lambda return int(display_brightness->state);
+                brightness: !lambda return display_brightness->state;
+
       - if:
           condition:
             - lambda: return (timeout_dim->state >= 1);
@@ -691,7 +523,8 @@ script:
                 then:
                   - script.execute:
                       id: set_brightness
-                      brightness: !lambda return int(display_dim_brightness->state);
+                      brightness: !lambda return display_dim_brightness->state;
+
   - id: timer_page       # Handles the fallback to home page after a timeout
     mode: restart
     then:
@@ -707,7 +540,7 @@ script:
           then:
             - delay: !lambda return (int(timeout_page->state) *1000);
             - lambda: |-
-                ESP_LOGV("script.timer_page", "Timed out on page: %s", current_page->state.c_str());
+                ESP_LOGV("${TAG_HW_DISPLAY}", "Timed out on page: %s", current_page->state.c_str());
                 if (timeout_page->state >= 1 and
                     current_page->state != "boot" and
                     current_page->state != "confirm" and
@@ -715,9 +548,10 @@ script:
                     current_page->state != "notification" and
                     current_page->state != "screensaver")
                   {
-                    ESP_LOGD("script.timer_page", "Fallback to page Home");
-                    goto_page->execute("home");
+                    ESP_LOGD("${TAG_HW_DISPLAY}", "Fallback to page Home");
+                    goto_page->execute(${PAGE_HOME_ID});
                   }
+
   - id: timer_reset_all  # Global timer reset - Triggered with a touch on the screen
     mode: single
     then:
@@ -725,6 +559,7 @@ script:
       - script.execute: timer_page
       - script.execute: timer_dim
       - script.execute: timer_sleep
+
   - id: timer_sleep      # Handles the sleep (go to screensaver page) after a timeout
     mode: restart
     then:
@@ -738,31 +573,23 @@ script:
                 if (current_page->state != "screensaver" and
                     current_page->state != "boot" and
                     timeout_sleep->state >= 1) {
-                  ESP_LOGD("script.timer_sleep", "Going to sleep from page %s", current_page->state.c_str());
-                  goto_page->execute("screensaver");
+                  ESP_LOGD("${TAG_HW_DISPLAY}", "Going to sleep from page %s", current_page->state.c_str());
+                  goto_page->execute(${PAGE_SCREENSAVER_ID});
                   set_brightness->execute(display_sleep_brightness->state);
                 }
 
-  - id: update_tft_info
+  - id: wait_for_display
     mode: single
     then:
-      - if:
+      - delay: 19s
+      - while:
           condition:
-            - lambda: return isnan(display_charset->state);
+            - lambda: return !disp1->is_setup();
           then:
-            - lambda: display_charset->update();
-      - delay: ${DELAY_DEFAULT}ms
-      - if:
-          condition:
-            - lambda: return isnan(display_mode->state);
-          then:
-            - lambda: display_mode->update();
-      - delay: ${DELAY_DEFAULT}ms
-      - if:
-          condition:
-            - lambda: return version_tft->state.empty();
-          then:
-            - lambda: version_tft->update();
+            - lambda: |-
+                ESP_LOGE("${TAG_HW_DISPLAY}", "Display is not set. Scanning baud rates.");
+            - select.next: baud_rate
+            - delay: 19s
 
   - id: wait_for_uart_available
     mode: single
@@ -788,32 +615,33 @@ script:
   - id: wait_for_version_tft
     mode: single
     then:
-      - script.execute: update_tft_info
+      - script.execute:
+          id: boot_log
+          category: Boot
+          log_message: Check TFT version
       - repeat:
-          count: 180  # seconds
+          count: 60  # seconds
           then:
             - if:
                 condition:
                   - lambda: return not version_tft->state.empty();
-                  # - text_sensor.state:  # compare_versions("${version}", version_tft->state.c_str());
-                  #     id: version_tft
-                  #     state: ${version}
                 then:
                   - script.stop: wait_for_version_tft
             - if:
                 condition:
-                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
+                  - lambda: return (iteration % 5 == 0);  // Log every 5 seconds
                 then:
+                  - lambda: |-
+                      ESP_LOGV("${TAG_HW_DISPLAY}", "Iteration: %i/60", iteration);
                   - script.execute:
                       id: boot_log
-                      category: "Boot"
-                      log_message: "Waiting for TFT version..."
-            - if:
-                condition:
-                  - lambda: return (iteration % 10 == 1);  // Request an update every 10s
-                then:
-                  - script.execute: update_tft_info
+                      category: Boot
+                      log_message: Waiting for TFT version
             - delay: 1s
+
+  - id: !extend watchdog_round
+    then:
+      - script.execute: wait_for_display
 
 select:
   - id: baud_rate
@@ -870,8 +698,12 @@ select:
     entity_category: config
     icon: mdi:page-next-outline
     on_value:
-      - lambda: |-
-          page_screensaver->execute();
+      then:
+        - lambda: wakeup_page_id = get_page_id(x.c_str());
+        - script.execute: wait_to_be_ready
+        - script.wait: wait_to_be_ready
+        # Extended by:
+        # - page_screensaver
 
 sensor:
   - id: brightslider  # Display Brightness GET VALUE FROM NSPanel SLIDER
@@ -909,37 +741,12 @@ sensor:
       then:
         - if:
             condition:
+              - lambda: return is_device_ready_for_tasks();
               - lambda: return (int(display_dim_brightness->state) != int(x));
             then:
               - number.set:
                   id: display_dim_brightness
                   value: !lambda return int(x);
-
-  - id: display_charset  # Charset (1 = International (original), 2 = CJK languages)
-    name: Display charset
-    platform: nextion
-    variable_name: charset
-    precision: 0
-    accuracy_decimals: 0
-    internal: false
-    icon: mdi:translate
-    entity_category: diagnostic
-    on_value:
-      then:
-        - script.execute: check_display_settings
-
-  - id: display_mode  # Display mode (1 = EU, 2 = US, 3 = US Landscape)
-    name: Display mode
-    platform: nextion
-    variable_name: display_mode
-    precision: 0
-    accuracy_decimals: 0
-    internal: false
-    icon: mdi:phone-rotate-portrait
-    entity_category: diagnostic
-    on_value:
-      then:
-        - script.execute: check_display_settings
 
 switch:
   - id: screen_power  # Controls the display's power source
@@ -974,12 +781,13 @@ text_sensor:
       then:
         - if:
             condition:
+              - lambda: return is_device_ready_for_tasks();
               - lambda: return (x == page_names[current_page_id]);
             then:
               - lambda: ESP_LOGV("${TAG_HW_DISPLAY}", "Same page");
             else:
               - lambda: |-
-                  ESP_LOGD("${TAG_HW_DISPLAY}", "New page detected by the 'Current page' sensor: %s", x.c_str());
+                  ESP_LOGV("${TAG_HW_DISPLAY}", "New page detected by the 'Current page' sensor: %s", x.c_str());
               - script.execute:
                   id: page_change
                   new_page_id: !lambda return get_page_id(x);
@@ -990,25 +798,6 @@ text_sensor:
     icon: mdi:tablet-dashboard
     internal: false
     disabled_by_default: false
-
-  # - id: disp1_local_event  # NSPanel event - Execute actions from ESPHome - NO directly push to HA
-  #  name: NSPanel local event
-  #  platform: nextion
-  #  nextion_id: disp1
-  #  component_name: localevent
-  #  internal: true
-  #  on_value:
-  #    then:
-  #      - lambda: |-
-  #          JsonDocument json;
-  #          DeserializationError error = deserializeJson(json, x.c_str());
-  #          if (error) {
-  #            ESP_LOGE("${TAG_HW_DISPLAY}", "JSON parse error: %s", x.c_str());
-  #            ESP_LOGE("${TAG_HW_DISPLAY}", "Error: %s", error.c_str());
-  #            return;
-  #          }
-  #          const std::string page = json["page"];
-  #          id(event_from_display).execute(json, page.c_str());
 
   - id: disp1_local_event
     name: NSPanel local event
@@ -1022,107 +811,110 @@ text_sensor:
             JsonDocument json;
             DeserializationError error = deserializeJson(json, x.c_str());
             if (error) {
-                ESP_LOGE("text_sensor.disp1_local_event", "Error parsing json: %s", x.c_str());
-                ESP_LOGE("text_sensor.disp1_local_event", "Error: %s", error.c_str());
-            } else {
-              const std::string page = json["page"];
-              const std::string event = json["event"];
-              const std::string component = json["component"];
-              const std::string key = json["key"];
-              const std::string value = json["value"];
+                ESP_LOGE("${TAG_HW_DISPLAY}", "Error parsing json: %s", x.c_str());
+                ESP_LOGE("${TAG_HW_DISPLAY}", "Error: %s", error.c_str());
+                return;
+            }
 
-              esphome::api::CustomAPIDevice ha_event;
-              // Send event to Home Assistant
-              if (event == "short_click" or event == "long_click") {
-                if (api_server->is_connected() and page == "home" and component == "weather") {
-                  goto_page->execute("weather01");
-                } else if (id(is_climate) and page == "home" and (component == "indr_temp" or component == "indr_temp_icon")) {
-                  detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
-                  disp1->set_component_value("climate.embedded", id(is_embedded_thermostat) ? 1 : 0);
-                  goto_page->execute("climate");
-                } else {
-                  ha_button->execute(page.c_str(), component.c_str(), event.c_str());
-                }
-              } else if (page == "light" or page == "climate") {  // Generic event
-                ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
-                  {"device_name", device_name->state.c_str()},
-                  {"esphome_version", "${version}"},
-                  {"type", "generic"},
-                  {"page", page.c_str()},
-                  {"component", component.c_str()},
-                  {"event", event.c_str()},
-                  {"value", value.c_str()},
-                  {"entity", detailed_entity->state.c_str()}
-                });
-              }
+            // Extract required fields with validation
+            if (json["page"].isNull()) {
+              ESP_LOGW("${TAG_HW_DISPLAY}", "Missing 'page' key");
+              return;
+            }
+            const std::string page = json["page"].as<std::string>();
 
-              // page based actions
-              if (page == "alarm") {
+            if (json["event"].isNull()) {
+              ESP_LOGW("${TAG_HW_DISPLAY}", "Missing 'event' key");
+              // return;
+            }
+            const std::string event = json["event"].isNull() ? "" : json["event"].as<std::string>();
+
+            event_from_display->execute(json, page.c_str(), event.c_str());
+
+            const std::string component = json["component"].isNull() ? "" : json["component"].as<std::string>();
+            const std::string key = json["key"].isNull() ? "" : json["key"].as<std::string>();
+            const std::string value = json["value"].isNull() ? "" : json["value"].as<std::string>();
+
+            esphome::api::CustomAPIDevice ha_event;
+            // Send event to Home Assistant
+            if (page == "light" or page == "climate") {  // Generic event
+              ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
+                {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
+                {"type", "generic"},
+                {"page", page.c_str()},
+                {"component", component.c_str()},
+                {"event", event.c_str()},
+                {"value", value.c_str()},
+                {"entity", detailed_entity->state.c_str()}
+              });
+            }
+
+            // page based actions
+            if (page == "alarm") {
+              const std::string code_format = json["code_format"];
+              const std::string code_arm_req = json["code_arm_req"];
+              const std::string title = json["mui"];
+              if (code_format == "number" and (key == "disarm" or code_arm_req == "1")) {
+                goto_page->execute(${PAGE_KEYB_NUM_ID});
+                disp1->set_component_value("keyb_num.page_id", ${PAGE_ALARM_ID}); //Calling from Alarm page
+                disp1->set_component_text("keyb_num.domain", page.c_str());
+                disp1->set_component_text("keyb_num.key", key.c_str());
+                disp1->set_component_text("keyb_num.value", value.c_str());
+                disp1->set_component_text("keyb_num.entity", detailed_entity->state.c_str());
+                disp1->set_component_text("keyb_num.title", title.c_str());
+                } else service_call_alarm_control_panel->execute(detailed_entity->state.c_str(), key.c_str(), code_format.c_str(), "");
+            } else if (page == "climate") {
+              const uint8_t embedded = json["embedded"];
+              change_climate_state->execute(embedded == 1, key.c_str(), value.c_str());
+            } else if (page == "cover") {
+              if (key == "position") ha_call_action->execute("cover.set_cover_position", key.c_str(), value.c_str());
+              else ha_call_action->execute(("cover." + key).c_str(), "", "");
+            } else if (page == "fan") {
+              if (key == "stop" or value == "0") ha_call_action->execute("fan.turn_off", "", "");
+              else ha_call_action->execute("fan.turn_on", key.c_str(), value.c_str());
+            } else if (page == "keyb_num") {
+              const std::string base_domain = json["base_domain"];
+              if (base_domain == "alarm") {
                 const std::string code_format = json["code_format"];
-                const std::string code_arm_req = json["code_arm_req"];
-                const std::string title = json["mui"];
-                if (code_format == "number" and (key == "disarm" or code_arm_req == "1")) {
-                  goto_page->execute("keyb_num");
-                  disp1->set_component_value("keyb_num.page_id", get_page_id("alarm")); //Calling from Alarm page
-                  disp1->set_component_text("keyb_num.domain", page.c_str());
-                  disp1->set_component_text("keyb_num.key", key.c_str());
-                  disp1->set_component_text("keyb_num.value", value.c_str());
-                  disp1->set_component_text("keyb_num.entity", detailed_entity->state.c_str());
-                  disp1->set_component_text("keyb_num.title", title.c_str());
-                  } else service_call_alarm_control_panel->execute(detailed_entity->state.c_str(), key.c_str(), code_format.c_str(), "");
-              } else if (page == "climate") {
-                const uint8_t embedded = json["embedded"];
-                change_climate_state->execute(embedded == 1, key.c_str(), value.c_str());
-              } else if (page == "cover") {
-                if (key == "position") ha_call_action->execute("cover.set_cover_position", key.c_str(), value.c_str());
-                else ha_call_action->execute(("cover." + key).c_str(), "", "");
-              } else if (page == "fan") {
-                if (key == "stop" or value == "0") ha_call_action->execute("fan.turn_off", "", "");
-                else ha_call_action->execute("fan.turn_on", key.c_str(), value.c_str());
-              } else if (page == "keyb_num") {
-                const std::string base_domain = json["base_domain"];
-                if (base_domain == "alarm") {
-                  const std::string code_format = json["code_format"];
-                  const std::string pin = json["pin"];
-                  service_call_alarm_control_panel->execute(detailed_entity->state.c_str(), key.c_str(), code_format.c_str(), pin.c_str());
+                const std::string pin = json["pin"];
+                service_call_alarm_control_panel->execute(detailed_entity->state.c_str(), key.c_str(), code_format.c_str(), pin.c_str());
+              }
+              goto_page->execute(base_domain.empty() ? ${PAGE_HOME_ID} : get_page_id(base_domain.c_str()));
+            } else if (page == "light") {
+              if (key == "brightness_pct" or key == "color_temp") {
+                ha_call_action->execute("light.turn_on", key.c_str(), value.c_str());
+              } else if (component == "rgb_color") {
+                JsonArray rgb_color = json["value"];
+                if (rgb_color.size() == 3) {
+                  ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
+                    {
+                      {"device_name", device_name->state.c_str()},
+                      {"esphome_version", "${version}"},
+                      {"type", "service_call"},
+                      {"service", "light.turn_on"},
+                      {"key", "rgb_color"},
+                      {"red",to_string(rgb_color[0].as<int>())},
+                      {"green",to_string(rgb_color[1].as<int>())},
+                      {"blue",to_string(rgb_color[2].as<int>())},
+                      {"entity", detailed_entity->state.c_str()}
+                    });
                 }
-                goto_page->execute(base_domain.empty() ? "home" : base_domain.c_str());
-              } else if (page == "light") {
-                if (key == "brightness_pct" or key == "color_temp") {
-                  ha_call_action->execute("light.turn_on", key.c_str(), value.c_str());
-                } else if (component == "rgb_color") {
-                  JsonArray rgb_color = json["value"];
-                  if (rgb_color.size() == 3) {
-                    ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-                      {
-                        {"device_name", device_name->state.c_str()},
-                        {"esphome_version", "${version}"},
-                        {"type", "service_call"},
-                        {"service", "light.turn_on"},
-                        {"key", "rgb_color"},
-                        {"red",to_string(rgb_color[0].as<int>())},
-                        {"green",to_string(rgb_color[1].as<int>())},
-                        {"blue",to_string(rgb_color[2].as<int>())},
-                        {"entity", detailed_entity->state.c_str()}
-                      });
-                  }
-                }
-              } else if (page == "media_player") {
-                if (key == "volume_mute") {
-                  ha_call_action->execute("media_player.volume_mute", "is_volume_muted", value.c_str());
-                } else if (key == "volume_set") {
-                  const float value_float = json["value"].as<float>();
-                  ha_call_action->execute("media_player.volume_set", "volume_level", to_string(value_float / 100.0f));
-                } else if (!key.empty()) {
-                  ha_call_action->execute((std::string("media_player.") + key.c_str()), "", "");
-                }
+              }
+            } else if (page == "media_player") {
+              if (key == "volume_mute") {
+                ha_call_action->execute("media_player.volume_mute", "is_volume_muted", value.c_str());
+              } else if (key == "volume_set") {
+                const float value_float = json["value"].as<float>();
+                ha_call_action->execute("media_player.volume_set", "volume_level", to_string(value_float / 100.0f));
+              } else if (!key.empty()) {
+                ha_call_action->execute((std::string("media_player.") + key.c_str()), "", "");
               }
             }
 
   - id: version_tft
     name: Version TFT
-    platform: nextion
-    component_name: boot.version
+    platform: template
     entity_category: diagnostic
     icon: mdi:tag-text-outline
     internal: false
@@ -1132,7 +924,6 @@ text_sensor:
         - script.execute:
             id: check_versions
             reset_flag: !lambda return (x != "${version}");
-        - script.execute: check_display_settings
 
 uart:
   - id: tf_uart  # UART for Nextion display

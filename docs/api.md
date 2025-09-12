@@ -140,6 +140,7 @@ This action is ideal for creating visually dynamic interfaces, allowing elements
 events, or user actions, such as indicating status changes or highlighting specific UI components.
 
 **Parameters:**
+- `page` (string): Identifier of the page where the component is. Use `mem` when setting memory vars or leave empty for current page or global vars.
 - `id` (string): Identifier of the component whose color will be updated. It is essential that this matches the component's ID in your display layout to ensure the correct element is targeted.
 - `color` (int[]): The new color for the component, specified as an RGB array (e.g., `[255, 0, 0]` for red).
 
@@ -147,7 +148,8 @@ events, or user actions, such as indicating status changes or highlighting speci
 ```yaml
 action: esphome.<your_panel_name>_component_color
 data:
-  id: "home.time"
+  page: home
+  id: time
   color: [255, 0, 0]  # Changes the component's color to red
 ```
 > [!NOTE]
@@ -162,6 +164,7 @@ Updates the text of a specified component on the display, enabling dynamic text 
 Ideal for user interfaces that require real-time text updates, such as status messages, labels, or any text-based information display.
 
 **Parameters:**
+- `page` (string): Identifier of the page where the component is. Use `mem` when setting memory vars or leave empty for current page or global vars.
 - `id` (string): Identifier of the component whose text will be updated. Ensure this matches the component's ID in your display layout.
 - `txt` (string): The new text content to display. This can include static text or dynamic information passed at runtime.
 
@@ -169,7 +172,8 @@ Ideal for user interfaces that require real-time text updates, such as status me
 ```yaml
 action: esphome.<your_panel_name>_component_text
 data:
-  id: "home.time"
+  page: home
+  id: time
   txt: "12:34"
 ```
 > [!NOTE]
@@ -184,6 +188,7 @@ Updates the value of a specified component on the display, enabling dynamic valu
 Ideal for interfaces requiring real-time updates of numerical values, such as counters, temperature readings, or any numeric indicators.
 
 **Parameters:**
+- `page` (string): Identifier of the page where the component is. Use `mem` when setting memory vars or leave empty for current page or global vars.
 - `id` (string): Identifier of the component whose value will be updated. It's crucial this matches the component's ID in your display layout accurately.
 - `val` (int): The new integer value to be set for the component. This can represent various data types, depending on the component's purpose (e.g., temperature, humidity levels).
 
@@ -191,7 +196,8 @@ Ideal for interfaces requiring real-time updates of numerical values, such as co
 ```yaml
 action: esphome.<your_panel_name>_component_val
 data:
-  id: "cover.coverslider"
+  page: cover
+  id: coverslider
   val: 25
 ```
 > [!NOTE]
@@ -206,13 +212,15 @@ Hides or shows a list of component on the display, allowing for dynamic interfac
 This action is ideal for creating interactive user interfaces that adapt by hiding or showing certain elements based on user actions, conditions, or events.
 
 **Parameters:**
+- `page` (string): Identifier of the page where the component is. Use `mem` when setting memory vars or leave empty for current page or global vars.
 - `ids` (string[]): Array of identifiers of the components to be hidden/shown. It is crucial that this matches the component's ID in your display layout to ensure the correct element is hidden/shown.
 - `visible` (bool): Set to true to show the component, or false to hide it.
 
 **Home Assistant Example:**
 ```yaml
-action: esphome.<your_panel_name>_component_hide
+action: esphome.<your_panel_name>_components_visibility
 data:
+  page: home
   ids: [ "date", "time" ]  # Hides the date and time display on Home page
   visible: false
 ```
@@ -223,7 +231,7 @@ data:
 > Ensure the ids matches the component on your display you wish to hide or show.
 
 > [!IMPORTANT]
-> This command only works when the page is visible.
+> This command only works when the target page is visible.
 > 
 > If a component being hidden/shown is not part of the current page, the command will fail and an error message will be logged.
 <!-- markdownlint-enable MD028 -->

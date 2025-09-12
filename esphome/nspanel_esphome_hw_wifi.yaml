@@ -35,10 +35,9 @@ esphome:
 script:
   - id: !extend boot
     then:
-      - text_sensor.template.publish:
-          id: device_name
-          state: ${name}
-      - script.execute: wait_for_wifi
+      - lambda: |-
+          device_name->update();
+          wait_for_wifi->execute();
 
   - id: !extend boot_critical_components
     then:
@@ -48,6 +47,17 @@ script:
                 wifi.enabled:
           then:
             - wifi.enable:
+
+  - id: !extend dump_config
+    then:
+      # Report Wi-Fi status
+      - if:
+          condition:
+            - wifi.connected:
+          then:
+          else:
+            - lambda: |-
+                ESP_LOGE("${TAG_HW_WIFI}", "WiFi: DISCONNECTED");
 
   - id: !extend page_home
     then:
@@ -66,7 +76,7 @@ script:
                           ? 1 : 0);
                 // Update Wi-Fi icon color
                 disp1->set_component_font_color("home.wifi_icon", (is_system_flag_set(NSPanelFlag::BLUEPRINT_READY)) ?
-                                                                  (wifi_rssi->state > -70 ? 33808 : 64992) : 63488);
+                                                                    ${COLOR_GRAY_MOSS} : ${COLOR_RED_PRIMARY});
                 // Update Wi-Fi icon
                 disp1->set_component_text("home.wifi_icon",
                                           is_system_flag_set(NSPanelFlag::WIFI_READY) ?
@@ -119,10 +129,33 @@ script:
                       log_message: "Waiting for Wi-Fi..."
             - delay: 1s
 
-  - id: !extend watchdog
+  - id: !extend watchdog_round
     then:
       - script.execute: wait_for_wifi
       - script.execute: refresh_wifi_icon
+
+text_sensor:
+  - id: device_name  # Device name - Used by bluepring to find service's names
+    name: Device Name
+    platform: template
+    icon: mdi:identifier
+    entity_category: diagnostic
+    internal: false
+    disabled_by_default: false
+    update_interval: never
+    lambda: |-
+      std::string result;
+      bool last_was_underscore = false;
+      for (const char& c : App.get_name()) {
+        if (isalnum(c)) {
+          result += tolower(c);  // Add alphanumeric characters as lowercase
+          last_was_underscore = false;
+        } else if (!last_was_underscore) {  // Replace non-alphanumeric with '_' but avoid consecutive '_'
+          result += '_';
+          last_was_underscore = true;
+        }
+      }
+      return result;
 
 wifi:
   id: wifi_component

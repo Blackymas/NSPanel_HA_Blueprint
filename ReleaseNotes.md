@@ -1,47 +1,93 @@
-# v4.3.29 - Climate Add-on Boot Reliability Enhancement
+# v4.3.30 - Memory Optimization for Add-on Stability
 
 ## Summary
 
-This release focuses on improving boot reliability for users with the climate add-on
-by implementing automatic NVS (Non-Volatile Storage) reset functionality during boot loops.
+This release focuses on reducing system memory usage to enable stable operation with add-ons.
+Non-critical components have been removed to free up memory resources for core functionality and add-on support.
+
+## Breaking Changes
+
+### Boot Sound Configuration Change
+
+**The "Sound - Boot" switch has been removed** as part of memory optimization efforts.
+Boot sound functionality is now controlled via substitution for better memory efficiency.
+
+**Migration required:**
+- **Old method:** "Sound - Boot" switch in Home Assistant
+- **New method:** `boot_sound` substitution in your YAML configuration
+
+**How to enable boot sound:**
+```yaml
+substitutions:
+  boot_sound: true  # Set to false to disable (default)
+```
+
+**Default behavior:** Boot sound is **disabled by default** (`boot_sound: false`).
+If you were using the boot sound feature, you'll need to add the substitution above to maintain this functionality.
+
+**Important notes:**
+- **Volume dependency:** Boot sound won't be audible if the panel volume is set to 0
+- **Previous behavior change:** Users who had notification sound enabled used to automatically get boot sound.
+    Now boot sound must be explicitly enabled via the `boot_sound` substitution regardless of notification settings
 
 ## Key Improvements
 
-### Climate Add-on Boot Loop Recovery
+### Memory Optimization Initiative
 
-**Implemented `factory_reset` platform** to automatically clear NVS data when boot loops are detected,
-specifically targeting improved reliability for climate add-on configurations.
+**Reduced system memory footprint** to provide stable foundation for add-on usage.
+The recent boot compatibility challenges highlighted memory constraints as a critical factor,
+leading to this focused optimization effort.
 
-**How it works:**
-- **Automatic NVS wipe** when boot loop conditions are detected
-- **Targeted for climate add-on users** who have been experiencing persistent boot issues
-- **Community-contributed solution** that has shown positive results in testing
+**Memory reduction approach:**
+- **Removed non-critical diagnostic sensors** that consumed memory without essential functionality
+- **Eliminated recently added controls** that weren't core to basic operation
+- **Streamlined base system** to maximize available memory for add-ons
+- **Prioritized core functionality** over optional diagnostic features
 
-**Expected benefits:**
-- **Improved boot success rates** for climate add-on configurations
-- **Automatic recovery** from corrupted NVS data that may cause boot loops  
-- **Reduced need for manual intervention** during boot failures
+**Target achieved:**
+- **Stable add-on operation** - primary goal of freeing memory for climate, cover, and other add-ons
+- **Improved boot reliability** through reduced memory pressure
+- **Better system resilience** with more memory headroom
 
-**Important note:** When NVS reset occurs, **panel-specific settings will be lost** (display type, temperature offset, brightness settings, etc.).
-However, **Blueprint configuration remains unaffected** - only settings stored locally on the panel are cleared.
+### Component Removals
 
-### Community Collaboration
+**Non-critical components removed to optimize memory usage:**
+- Various diagnostic sensors that provided optional system information
+- Recently added control components that weren't essential for core operation
+- Other memory-consuming features that didn't impact basic NSPanel functionality
 
-**Special thanks to @idstein** for suggesting this solution approach.
-This improvement demonstrates the value of community input in solving complex technical challenges.
+**What remains:**
+- All core NSPanel functionality preserved
+- Essential diagnostic and control features maintained
+- Full compatibility with Home Assistant Blueprint configuration
+
+### Minor Bug Fixes
+
+**Resolved several minor issues** discovered during the memory optimization process,
+improving overall system stability and reliability.
+
+## Impact on Users
+
+**No functional impact on core NSPanel operation** - all essential features remain available.
+
+**Benefits:**
+- **More stable add-on performance** - climate, cover, and other add-ons should run more reliably
+- **Improved boot success rates** - reduced memory pressure during startup
+- **Better overall system stability** - more memory headroom for normal operation
+
+**Trade-offs:**
+- **Fewer diagnostic sensors** - some optional system monitoring features removed
+- **Reduced optional controls** - non-essential configuration options eliminated
 
 ## Technical Details
 
-**Issue Reference:** Community feedback and testing
+This release represents a strategic shift toward memory efficiency and add-on compatibility.
+The optimization focuses on the core NSPanel experience while ensuring sufficient resources
+for popular add-ons that enhance functionality.
 
-The `factory_reset` platform monitors boot behavior and automatically clears Non-Volatile Storage
-when boot loop conditions are detected. This addresses cases where corrupted or problematic
-NVS data prevents successful system startup, particularly in memory-intensive configurations
-like the climate add-on.
-
-**Result:** Enhanced boot reliability for climate add-on users through automatic NVS reset functionality,
-reducing manual recovery procedures and improving overall system resilience.
+**Result:** Optimized memory usage enabling stable add-on operation while maintaining
+all essential NSPanel functionality and improving overall system reliability.
 
 ---
 
-*Targeted improvement for climate add-on boot reliability through community-suggested NVS reset functionality.*
+*Memory-focused optimization to enable stable add-on usage and improved system reliability.*
