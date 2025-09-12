@@ -49,15 +49,13 @@ display:
     on_setup:
       then:
         - lambda: |-
-            current_page_id = 0;
+            current_page_id = ${PAGE_BOOT_ID};
             wakeup_page_id = get_page_id(wakeup_page_name->state.c_str());
         - script.stop: wait_for_display
         - lambda: |-
             ESP_LOGI("${TAG_HW_DISPLAY}", "Nextion setup triggered");
             set_system_flag(NSPanelFlag::NEXTION_READY);
-        - binary_sensor.template.publish:
-            id: nextion_init
-            state: true
+            nextion_init->publish_state(true);
 
     on_page:
       then:
@@ -67,7 +65,7 @@ display:
               ESP_LOGW("${TAG_HW_DISPLAY}", "  Same page: %s", page_names[x]);
               return;
             }
-            ESP_LOGD("${TAG_HW_DISPLAY}", "  From: %s", page_names[current_page_id]);
+            ESP_LOGD("${TAG_HW_DISPLAY}", "  From: %s (id: %" PRIu8 ")", page_names[current_page_id], current_page_id);
             ESP_LOGD("${TAG_HW_DISPLAY}", "  To: %s (id: %" PRIu8 ")", page_names[x], x);
             page_change->execute(x);
 
@@ -275,12 +273,18 @@ script:
     parameters:
       page_id: uint8_t
     then:
-      - if:
-          condition:
-            - lambda: return (page_id != current_page_id);
-            - lambda: return is_device_ready_for_tasks();
-          then:
-            - lambda: disp1->goto_page(page_id);
+      - lambda: |-
+          ESP_LOGV("${TAG_HW_DISPLAY}", "Go to page `%s` (id: %" PRIu8 ")", page_names[page_id], page_id);
+          if (page_id == current_page_id) {
+            ESP_LOGW("${TAG_HW_DISPLAY}", "Already the current page");
+            return;
+          }
+          if (not is_device_ready_for_tasks()) {
+            ESP_LOGW("${TAG_HW_DISPLAY}", "Device is not ready for changing page");
+            return;
+          }
+          ESP_LOGV("${TAG_HW_DISPLAY}", "Send page id `%" PRIu8 "` to Nextion", page_id);
+          disp1->goto_page(page_id);
 
   - id: page_change
     mode: restart
@@ -289,17 +293,12 @@ script:
     then:
       # Report new page to logs
       - lambda: |-
-          ESP_LOGD("${TAG_HW_DISPLAY}", "New page: %s", page_names[new_page_id]);
-      - if:
-          condition:
-            - lambda: return (current_page_id != new_page_id);
-          then:
-            - lambda: |-
-                last_page_id = current_page_id;
-                current_page_id = new_page_id;
-            - text_sensor.template.publish:
-                id: current_page
-                state: !lambda return page_names[new_page_id];
+          ESP_LOGV("${TAG_HW_DISPLAY}", "New page: %s", page_names[new_page_id]);
+          current_page->publish_state(page_names[new_page_id]);
+          if (current_page_id != new_page_id) {
+            last_page_id = current_page_id;
+            current_page_id = new_page_id;
+          }
 
       # Stop previous constructors
       - script.execute: stop_page_constructors
@@ -384,7 +383,6 @@ script:
           else if (current_page->state == "buttonpage04") page_buttonpage04->execute();
           else if (current_page->state == "confirm") page_confirm->execute();
           else if (current_page->state == "qrcode") page_qrcode->execute();
-          else if (current_page->state == "settings") page_settings->execute();
           else if (current_page->state == "utilities") page_utilities->execute();
           else if (current_page->state == "weather01") page_weather01->execute();
           else if (current_page->state == "weather02") page_weather02->execute();
@@ -465,7 +463,6 @@ script:
       - script.stop: timer_dim
       - script.stop: timer_page
       - script.stop: timer_reset_all
-      - script.stop: timer_sleep
       - script.stop: wait_for_uart_available
       - script.stop: wait_for_version_tft
 
@@ -481,7 +478,6 @@ script:
       - script.stop: page_entitypage03
       - script.stop: page_entitypage04
       - script.stop: page_qrcode
-      - script.stop: page_settings
       - script.stop: page_utilities
       - script.stop: page_weather
       - script.stop: page_weather01
@@ -493,44 +489,25 @@ script:
   - id: timer_dim        # Handles the brightness dimming after a timeout
     mode: restart
     then:
-      - if:
-          condition:
-            - lambda: return (current_brightness->state <= display_dim_brightness->state);
-            - not:
-                - text_sensor.state:
-                    id: current_page
-                    state: screensaver
-            - not:
-                - text_sensor.state:
-                    id: current_page
-                    state: boot
-          then:
-            - lambda: |-
-                ESP_LOGD("${TAG_HW_DISPLAY}", "Waking up on page: %s", current_page->state.c_str());
-            - script.execute:
-                id: set_brightness
-                brightness: !lambda return display_brightness->state;
+      - lambda: |-
+          if (
+                current_brightness->state <= display_dim_brightness->state and
+                current_page_id != ${PAGE_SCREENSAVER_ID} and
+                current_page_id != ${PAGE_BOOT_ID}
+              ) {
+            ESP_LOGD("${TAG_HW_DISPLAY}", "Waking up on page: %s", page_names[current_page_id]);
+            set_brightness->execute(display_brightness->state);
+          }
 
-      - if:
-          condition:
-            - lambda: return (timeout_dim->state >= 1);
-          then:
-            - delay: !lambda return (int(timeout_dim->state) *1000);
-            - if:
-                condition:
-                  - lambda: return (timeout_dim->state >= 1);
-                  - not:
-                      - text_sensor.state:
-                          id: current_page
-                          state: screensaver
-                  - not:
-                      - text_sensor.state:
-                          id: current_page
-                          state: boot
-                then:
-                  - script.execute:
-                      id: set_brightness
-                      brightness: !lambda return display_dim_brightness->state;
+      - delay: !lambda return (int(timeout_dim->state) *1000);
+      - lambda: |-
+          if (
+                timeout_dim->state >= 1 and
+                current_page_id != ${PAGE_SCREENSAVER_ID} and
+                current_page_id != ${PAGE_BOOT_ID}
+              ) {
+            set_brightness->execute(display_dim_brightness->state);
+          }
 
   - id: timer_page       # Handles the fallback to home page after a timeout
     mode: restart
@@ -547,7 +524,7 @@ script:
           then:
             - delay: !lambda return (int(timeout_page->state) *1000);
             - lambda: |-
-                ESP_LOGV("${TAG_HW_DISPLAY}", "Timed out on page: %s", current_page->state.c_str());
+                ESP_LOGV("${TAG_HW_DISPLAY}", "Timed out on page: %s", page_names[current_page_id]);
                 if (timeout_page->state >= 1 and
                     current_page->state != "boot" and
                     current_page->state != "confirm" and
@@ -562,28 +539,11 @@ script:
   - id: timer_reset_all  # Global timer reset - Triggered with a touch on the screen
     mode: single
     then:
-      - lambda: ESP_LOGV("script.timer_reset_all", "Reset timers");
+      - lambda: ESP_LOGV("${TAG_HW_DISPLAY}", "Reset timers");
       - script.execute: timer_page
       - script.execute: timer_dim
-      - script.execute: timer_sleep
-
-  - id: timer_sleep      # Handles the sleep (go to screensaver page) after a timeout
-    mode: restart
-    then:
-      - if:
-          condition:
-            - lambda: |-
-                return (timeout_sleep->state >= 1 and current_page->state != "screensaver" and current_page->state != "boot");
-          then:
-            - delay: !lambda return (int(timeout_sleep->state) *1000);
-            - lambda: |-
-                if (current_page->state != "screensaver" and
-                    current_page->state != "boot" and
-                    timeout_sleep->state >= 1) {
-                  ESP_LOGD("${TAG_HW_DISPLAY}", "Going to sleep from page %s", current_page->state.c_str());
-                  goto_page->execute(${PAGE_SCREENSAVER_ID});
-                  set_brightness->execute(display_sleep_brightness->state);
-                }
+      # Extended by:
+      #  - page_screensaver
 
   - id: wait_for_display
     mode: single
