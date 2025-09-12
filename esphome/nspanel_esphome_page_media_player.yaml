@@ -74,9 +74,7 @@ api:
             ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "  supported_features: %i", supported_features);
         - if:
             condition:
-              - text_sensor.state:
-                  id: current_page
-                  state: ${PAGE_MEDIA_PLAYER_NAME}
+              - lambda: return current_page_id == ${PAGE_MEDIA_PLAYER_ID};
             then:  # Update media_player page
               # Set detailed entity sensor
               - lambda: |-
@@ -115,12 +113,12 @@ api:
                   ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Button - ON/OFF");
                   if (supported_features & 128 and state == "off") {  //TURN_ON
                     disp1->set_component_foreground_color("bt_on_off", ${COLOR_WHITE});
-                    disp1->send_command("vis bt_on_off,1");
+                    disp1->show_component("bt_on_off");
                   } else if (supported_features & 256 and state != "off") {  //TURN_OFF
                     disp1->set_component_foreground_color("bt_on_off", ${COLOR_BLUE_INDIGO});
-                    disp1->send_command("vis bt_on_off,1");
+                    disp1->show_component("bt_on_off");
                   } else
-                    disp1->send_command("vis bt_on_off,0");
+                    disp1->hide_component("bt_on_off");
               - delay: ${PAGE_MEDIA_PLAYER_DELAY_SHORT}ms
 
               # Button - Play/Pause
@@ -128,12 +126,12 @@ api:
                   ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Button - Play/Pause");
                   if ((supported_features & 512 or supported_features & 16384) and state != "playing" and state != "off") {  //PLAY_MEDIA+PLAY
                     disp1->set_component_text("bt_play_pause", "\uE409"); // mdi:play
-                    disp1->send_command("vis bt_play_pause,1");
+                    disp1->show_component("bt_play_pause");
                   } else if (supported_features & 1 and state == "playing" ) {  //PAUSE
                     disp1->set_component_text("bt_play_pause", "\uE3E3"); // mdi:pause
-                    disp1->send_command("vis bt_play_pause,1");
+                    disp1->show_component("bt_play_pause");
                   } else
-                    disp1->send_command("vis bt_play_pause,0");
+                    disp1->hide_component("bt_play_pause");
               - delay: ${PAGE_MEDIA_PLAYER_DELAY_SHORT}ms
 
               # Button - Previous track
@@ -154,12 +152,12 @@ api:
                   disp1->set_component_value("is_muted", is_volume_muted ? 1 : 0);
                   if (supported_features & 8 and is_volume_muted) {  // unmute
                     disp1->set_component_text("bt_mute", "\uEE07"); // mdi:volume-variant-off
-                    disp1->send_command("vis bt_mute,1");
+                    disp1->show_component("bt_mute");
                   } else if (supported_features & 8) {  // mute
                     disp1->set_component_text("bt_mute", "\uE57E"); // mdi:volume-low
-                    disp1->send_command("vis bt_mute,1");
+                    disp1->show_component("bt_mute");
                   } else
-                    disp1->send_command("vis bt_mute,0");
+                    disp1->hide_component("bt_mute");
               - delay: ${PAGE_MEDIA_PLAYER_DELAY_SHORT}ms
 
               # Volume set
@@ -171,15 +169,15 @@ api:
                       disp1->set_component_text_printf("vol_text", "%" PRIu32 "%%", volume_level);
                       disp1->set_component_value("vol_slider", volume_level);
                     }
-                    disp1->send_command("vis vol_slider,1");
-                    disp1->send_command("vis bt_vol_down,1");
-                    disp1->send_command("vis bt_vol_up,1");
-                    disp1->send_command("vis vol_text,1");
+                    disp1->show_component("vol_slider");
+                    disp1->show_component("bt_vol_down");
+                    disp1->show_component("bt_vol_up");
+                    disp1->show_component("vol_text");
                   } else {
-                    disp1->send_command("vis vol_slider,0");
-                    disp1->send_command("vis bt_vol_down,0");
-                    disp1->send_command("vis bt_vol_up,0");
-                    disp1->send_command("vis vol_text,0");
+                    disp1->hide_component("vol_slider");
+                    disp1->hide_component("bt_vol_down");
+                    disp1->hide_component("bt_vol_up");
+                    disp1->hide_component("vol_text");
                   }
               - delay: ${PAGE_MEDIA_PLAYER_DELAY_SHORT}ms
 
@@ -196,14 +194,14 @@ api:
                     }
                     disp1->set_component_value("prg_total", int(round(media_duration)));
                     disp1->send_command_printf("prg_timer.en=%i", (state == "playing") ? 1 : 0);
-                    disp1->send_command("vis time_current,1");
-                    disp1->send_command("vis time_total,1");
-                    disp1->send_command("vis time_progress,1");
+                    disp1->show_component("time_current");
+                    disp1->show_component("time_total");
+                    disp1->show_component("time_progress");
                   } else {
                     disp1->send_command("prg_timer.en=0");
-                    disp1->send_command("vis time_current,0");
-                    disp1->send_command("vis time_total,0");
-                    disp1->send_command("vis time_progress,0");
+                    disp1->hide_component("time_current");
+                    disp1->hide_component("time_total");
+                    disp1->hide_component("time_progress");
                   }
 
         - lambda: |-
@@ -219,16 +217,37 @@ script:
     then:
       - lambda: |-
           if (page == "${PAGE_MEDIA_PLAYER_NAME}") {
-            const std::string key = json["key"];
+            if (json["key"].isNull()) {
+              ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Missing media_player key field");
+              return;
+            } // endif missing key
+
+            const std::string key = json["key"].as<std::string>();
+            ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Media player control: key=%s", key.c_str());
+
             if (key == "volume_mute") {
-              const std::string value = json["value"];
+              if (json["value"].isNull()) {
+                ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Missing volume_mute value");
+                return;
+              } // endif missing value
+              const std::string value = json["value"].as<std::string>();
+              ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Setting volume mute: %s", value.c_str());
               ha_call_action->execute("media_player.volume_mute", "is_volume_muted", value.c_str());
             } else if (key == "volume_set") {
+              if (json["value"].isNull()) {
+                ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Missing volume_set value");
+                return;
+              } // endif missing value
               const float value_float = json["value"].as<float>();
+              ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Setting volume level: %.2f", value_float / 100.0f);
               ha_call_action->execute("media_player.volume_set", "volume_level", to_string(value_float / 100.0f));
-            } else if (!key.empty())
+            } else if (!key.empty()) {
+              ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Executing media player action: %s", key.c_str());
               ha_call_action->execute((std::string("media_player.") + key.c_str()), "", "");
-          }
+            } else {
+              ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Empty media player key, ignoring");
+            } // endif key handling
+          } // endif page == media_player
 
   - id: !extend page_change
     then:

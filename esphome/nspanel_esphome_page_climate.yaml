@@ -18,15 +18,36 @@ esphome:
 script:
   - id: !extend event_from_display  # Defined by nspanel_esphome_core_hw_display.yaml
     then:
-      - if:
-          condition:
-            - lambda: return page == "climate";
-          then:
-            - lambda: |-
-                const std::string key = json["key"];
-                const uint8_t embedded = json["embedded"];
-                const std::string value = json["value"];
-                change_climate_state->execute(embedded == 1, key.c_str(), value.c_str());
+      - lambda: |-
+          if (page == "climate") {
+            if (json["key"].isNull() || json["value"].isNull()) {
+              ESP_LOGW("${TAG_PAGE_CLIMATE}", "Missing climate fields 'key' or 'value'");
+              return;
+            } // endif missing fields
+
+            const std::string key = json["key"].as<std::string>();
+            const std::string value = json["value"].as<std::string>();
+
+
+            if (!json["embedded"].isNull()) {
+              const uint8_t embedded = json["embedded"].as<uint8_t>();
+              change_climate_state->execute(embedded == 1, key.c_str(), value.c_str());
+            }
+
+            const std::string component = json["component"].isNull() ? "" : json["component"].as<std::string>();
+            esphome::api::CustomAPIDevice ha_event;
+            // Send event to Home Assistant
+            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
+              {"device_name", device_name->state.c_str()},
+              {"esphome_version", "${version}"},
+              {"type", "generic"},
+              {"page", page.c_str()},
+              {"component", component.c_str()},
+              {"event", event.c_str()},
+              {"value", value.c_str()},
+              {"entity", detailed_entity->state.c_str()}
+            });
+          }
 
   - id: !extend page_change
     then:
@@ -67,7 +88,7 @@ script:
                 disp1->set_component_value("temp_step", temp_step);
                 char dec_separator_str[2] = {id(mui_decimal_separator)[0], '\0'};
                 disp1->set_component_text("dec_separator", dec_separator_str);
-                disp1->send_command("vis current_temp,1");
+                disp1->show_component("current_temp");
                 set_climate_use_decimal = (temp_step % 10 != 0);
             - delay: ${DELAY_DEFAULT}ms
             - if:
@@ -94,14 +115,14 @@ script:
                       disp1->set_component_text("target_high",
                                                 adjustDecimalSeparator(buffer, id(mui_decimal_separator)[0]).c_str());
                       disp1->set_component_value("climateslider", round(((10*target_temp) - temp_offset) / temp_step));
-                      disp1->send_command("vis slider_high,1");
-                      disp1->send_command("vis slider_low,1");
-                      disp1->send_command("vis target_low,1");
-                      disp1->send_command("vis target_high,1");
-                      disp1->send_command("vis climateslider,1");
+                      disp1->show_component("slider_high");
+                      disp1->show_component("slider_low");
+                      disp1->show_component("target_low");
+                      disp1->show_component("target_high");
+                      disp1->show_component("climateslider");
                 else:
                   - delay: ${DELAY_DEFAULT}ms
-                  - lambda: disp1->send_command("vis slider_high,0");
+                  - lambda: disp1->hide_component("slider_high");
                   - if:
                       condition:
                         - lambda: return (target_temp_low > -999);  // Target temp low enabled
@@ -117,12 +138,12 @@ script:
                                     round(((10*target_temp_low) - temp_offset) / temp_step));
                         - delay: ${DELAY_DEFAULT}ms
                         - lambda: |-
-                            disp1->send_command("vis target_low,1");
-                            disp1->send_command("vis slider_low,1");
+                            disp1->show_component("target_low");
+                            disp1->show_component("slider_low");
                       else:
                         - lambda: |-
-                            disp1->send_command("vis target_low,0");
-                            disp1->send_command("vis slider_low,0");
+                            disp1->hide_component("target_low");
+                            disp1->hide_component("slider_low");
                   - delay: ${DELAY_DEFAULT}ms
                   - if:
                       condition:
@@ -137,12 +158,12 @@ script:
                             disp1->set_component_value("slider_high", round(((10*target_temp_high) - temp_offset) / temp_step));
                         - delay: ${DELAY_DEFAULT}ms
                         - lambda: |-
-                            disp1->send_command("vis target_high,1");
-                            disp1->send_command("vis slider_high,1");
+                            disp1->show_component("target_high");
+                            disp1->show_component("slider_high");
                       else:
                         - lambda: |-
-                            disp1->send_command("vis target_high,0");
-                            disp1->send_command("vis slider_high,0");
+                            disp1->hide_component("target_high");
+                            disp1->hide_component("slider_high");
             - delay: ${DELAY_DEFAULT}ms
             - if:
                 condition:
@@ -153,14 +174,14 @@ script:
                 then:
                   - lambda: |-
                       disp1->set_component_text("target_icon", climate_icon.c_str());
-                      disp1->send_command("vis target_icon,1");
-                      disp1->send_command("vis decrease_temp,1");
-                      disp1->send_command("vis increase_temp,1");
+                      disp1->show_component("target_icon");
+                      disp1->show_component("decrease_temp");
+                      disp1->show_component("increase_temp");
                 else:
                   - lambda: |-
-                      disp1->send_command("vis target_icon,0");
-                      disp1->send_command("vis decrease_temp,0");
-                      disp1->send_command("vis increase_temp,0");
+                      disp1->hide_component("target_icon");
+                      disp1->hide_component("decrease_temp");
+                      disp1->hide_component("increase_temp");
             - delay: ${DELAY_DEFAULT}ms
             - lambda: |-
                 disp1->set_component_value("embedded", (embedded_climate) ? 1 : 0);
