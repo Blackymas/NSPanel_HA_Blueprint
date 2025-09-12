@@ -198,11 +198,13 @@ script:
       #   - nspanel_esphome_standard_versioning.yaml
       - lambda: |-
           // Start extracting info from event's json
-          ESP_LOGD("${TAG_HW_DISPLAY}", "New event `%S` from display on page '%s':", event.c_str(), page.c_str());
+          ESP_LOGV("${TAG_HW_DISPLAY}", "New event from display:");
+          ESP_LOGV("${TAG_HW_DISPLAY}", "  page: %S", page.c_str());
+          ESP_LOGV("${TAG_HW_DISPLAY}", "  event: %S", event.c_str());
           const std::string component = json["component"].isNull() ? "" : json["component"].as<std::string>();
+          ESP_LOGV("${TAG_HW_DISPLAY}", "  component: %S", component.c_str());
           const std::string value = json["value"].isNull() ? "" : json["value"].as<std::string>();
-
-          ESP_LOGD("${TAG_HW_DISPLAY}", "Event: '%s.%s', type=%s", page.c_str(), component.c_str(), event.c_str());
+          ESP_LOGV("${TAG_HW_DISPLAY}", "  value: %S", value.c_str());
 
           // Handle special events
           if (event == "params") {
@@ -237,6 +239,7 @@ script:
             }
 
             // Button click event
+            ESP_LOGD("${TAG_HW_DISPLAY}", "Send click event to Home Assistant");
             ha_event.fire_homeassistant_event("${EVENT_NAME}", {
               {"device_name", id(device_name).state},
               {"esphome_version", "${version}"},
@@ -248,6 +251,7 @@ script:
             });
           } else {
             // Generic event
+            ESP_LOGD("${TAG_HW_DISPLAY}", "Send generic event to Home Assistant");
             ha_event.fire_homeassistant_event("${EVENT_NAME}", {
               {"device_name", id(device_name).state},
               {"esphome_version", "${version}"},
@@ -261,7 +265,7 @@ script:
             });
           }
 
-          ESP_LOGV("${TAG_HW_DISPLAY}", "HA event sent");
+          ESP_LOGD("${TAG_HW_DISPLAY}", "Home Assistant event sent");
 
   - id: goto_page
     mode: restart
@@ -824,7 +828,7 @@ text_sensor:
             const std::string page = json["page"].as<std::string>();
 
             if (json["event"].isNull()) {
-              ESP_LOGW("${TAG_HW_DISPLAY}", "Missing 'event' key");
+              ESP_LOGD("${TAG_HW_DISPLAY}", "Missing 'event' key");
               // return;
             }
             const std::string event = json["event"].isNull() ? "" : json["event"].as<std::string>();
@@ -848,68 +852,6 @@ text_sensor:
                 {"value", value.c_str()},
                 {"entity", detailed_entity->state.c_str()}
               });
-            }
-
-            // page based actions
-            if (page == "alarm") {
-              const std::string code_format = json["code_format"];
-              const std::string code_arm_req = json["code_arm_req"];
-              const std::string title = json["mui"];
-              if (code_format == "number" and (key == "disarm" or code_arm_req == "1")) {
-                goto_page->execute(${PAGE_KEYB_NUM_ID});
-                disp1->set_component_value("keyb_num.page_id", ${PAGE_ALARM_ID}); //Calling from Alarm page
-                disp1->set_component_text("keyb_num.domain", page.c_str());
-                disp1->set_component_text("keyb_num.key", key.c_str());
-                disp1->set_component_text("keyb_num.value", value.c_str());
-                disp1->set_component_text("keyb_num.entity", detailed_entity->state.c_str());
-                disp1->set_component_text("keyb_num.title", title.c_str());
-                } else service_call_alarm_control_panel->execute(detailed_entity->state.c_str(), key.c_str(), code_format.c_str(), "");
-            } else if (page == "climate") {
-              const uint8_t embedded = json["embedded"];
-              change_climate_state->execute(embedded == 1, key.c_str(), value.c_str());
-            } else if (page == "cover") {
-              if (key == "position") ha_call_action->execute("cover.set_cover_position", key.c_str(), value.c_str());
-              else ha_call_action->execute(("cover." + key).c_str(), "", "");
-            } else if (page == "fan") {
-              if (key == "stop" or value == "0") ha_call_action->execute("fan.turn_off", "", "");
-              else ha_call_action->execute("fan.turn_on", key.c_str(), value.c_str());
-            } else if (page == "keyb_num") {
-              const std::string base_domain = json["base_domain"];
-              if (base_domain == "alarm") {
-                const std::string code_format = json["code_format"];
-                const std::string pin = json["pin"];
-                service_call_alarm_control_panel->execute(detailed_entity->state.c_str(), key.c_str(), code_format.c_str(), pin.c_str());
-              }
-              goto_page->execute(base_domain.empty() ? ${PAGE_HOME_ID} : get_page_id(base_domain.c_str()));
-            } else if (page == "light") {
-              if (key == "brightness_pct" or key == "color_temp") {
-                ha_call_action->execute("light.turn_on", key.c_str(), value.c_str());
-              } else if (component == "rgb_color") {
-                JsonArray rgb_color = json["value"];
-                if (rgb_color.size() == 3) {
-                  ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint",
-                    {
-                      {"device_name", device_name->state.c_str()},
-                      {"esphome_version", "${version}"},
-                      {"type", "service_call"},
-                      {"service", "light.turn_on"},
-                      {"key", "rgb_color"},
-                      {"red",to_string(rgb_color[0].as<int>())},
-                      {"green",to_string(rgb_color[1].as<int>())},
-                      {"blue",to_string(rgb_color[2].as<int>())},
-                      {"entity", detailed_entity->state.c_str()}
-                    });
-                }
-              }
-            } else if (page == "media_player") {
-              if (key == "volume_mute") {
-                ha_call_action->execute("media_player.volume_mute", "is_volume_muted", value.c_str());
-              } else if (key == "volume_set") {
-                const float value_float = json["value"].as<float>();
-                ha_call_action->execute("media_player.volume_set", "volume_level", to_string(value_float / 100.0f));
-              } else if (!key.empty()) {
-                ha_call_action->execute((std::string("media_player.") + key.c_str()), "", "");
-              }
             }
 
   - id: version_tft
