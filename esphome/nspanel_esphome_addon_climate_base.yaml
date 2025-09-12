@@ -58,21 +58,13 @@ climate:
     internal: false
     on_state:
       then:
-        - if:
-            condition:
-              - lambda: return is_device_ready_for_tasks();
-            then:
-              - if:
-                  condition:
-                    - text_sensor.state:
-                        id: current_page
-                        state: climate
-                    - text_sensor.state:
-                        id: detailed_entity
-                        state: embedded_climate
-                  then:
-                    - script.execute: page_climate
-              - script.execute: page_home
+        - lambda: |-
+            if (is_device_ready_for_tasks()) {
+              if (current_page_id == ${PAGE_CLIMATE_ID} and detailed_entity->state == "embedded_climate") {
+                page_climate->execute();
+              }
+              page_home->execute();
+            }
 
 switch:
   ##### PHYSICAL SWITCH 0 (Dummy) - Used when relay is not set #####
@@ -163,9 +155,7 @@ script:
     then:
       - if:
           condition:
-            - text_sensor.state:
-                id: current_page
-                state: climate
+            - lambda: return current_page_id != ${PAGE_CLIMATE_ID};
             - text_sensor.state:
                 id: detailed_entity
                 state: embedded_climate
@@ -228,16 +218,23 @@ script:
 
                 // Single call to set_climate
                 set_climate->execute(
-                  display_current,                                         // current_temp
-                  0,                                                       // supported_features
-                  ((${addon_climate_dual}) ? -999.0f : temp_target),       // target_temp
-                  ((${addon_climate_dual}) ? temp_target_high : -999.0f),  // target_temp_high
-                  ((${addon_climate_dual}) ? temp_target_low : -999.0f),   // target_temp_low
-                  static_cast<int>(std::round(display_step * 10.0f)),      // temp_step
-                  static_cast<int>(std::round(total_steps)),               // total_steps
-                  static_cast<int>(std::round(display_offset * 10.0f)),    // temp_offset
-                  "",                                                      // climate_icon
-                  true                                                     // embedded_climate
+                  display_current,                                       // current_temp
+                  0,                                                     // supported_features
+                  #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+                  -999.0f,                                               // target_temp
+                  temp_target_high,                                      // target_temp_high
+                  temp_target_low,                                       // target_temp_low
+                  #else
+                  temp_target,                                           // target_temp
+                  -999.0f,                                               // target_temp_high
+                  -999.0f,                                               // target_temp_low
+                  #endif  // NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+                  ((${addon_climate_dual}) ?  : ), 
+                  static_cast<int>(std::round(display_step * 10.0f)),    // temp_step
+                  static_cast<int>(std::round(total_steps)),             // total_steps
+                  static_cast<int>(std::round(display_offset * 10.0f)),  // temp_offset
+                  "",                                                    // climate_icon
+                  true                                                   // embedded_climate
                 );
 
             # Update target temp icon
@@ -253,12 +250,25 @@ script:
             - delay: ${DELAY_DEFAULT}ms
             - lambda: |-
                 disp1->hide_component("button01");
-                if (${addon_climate_dual}) disp1->show_component("button02"); else disp1->hide_component("button02");
-                if (${addon_climate_heat} or ${addon_climate_dual}) disp1->show_component("button03"); else disp1->hide_component("button03"); //Heat
-                if (${addon_climate_cool} or ${addon_climate_dual}) disp1->show_component("button04"); else disp1->hide_component("button04"); //Cool
+                #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+                disp1->show_component("button02");
+                #else
+                disp1->hide_component("button02");
+                #endif  // NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+                #if defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT) || defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL)
+                disp1->show_component("button03");  // Heat
+                #else
+                disp1->hide_component("button03");  // Heat
+                #endif  // NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT || NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+                #if defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL) || defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL)
+                disp1->show_component("button04");  // Cool
+                #else
+                disp1->hide_component("button04");  // Cool
+                #endif  // NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL || NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+
                 disp1->hide_component("button05");
                 disp1->hide_component("button06");
-                disp1->show_component("button07"); //Off
+                disp1->show_component("button07");  // Off
 
             # Set buttons colors
             - delay: ${DELAY_DEFAULT}ms
