@@ -241,32 +241,34 @@ script:  # Scripts
       key: string
       value: string
     then:
-      - if:
-          condition:
-            - lambda: return not embedded;
-            - lambda: return is_device_ready_for_tasks();
-          then:
-            - if:
-                condition:
-                  - lambda: |-
-                      return (key == "temperature" or key == "target_temp_high" or key == "target_temp_low");
-                then:
-                  - script.execute:
-                      id: ha_call_action
-                      service: climate.set_temperature
-                      key: !lambda return key;
-                      value: !lambda return to_string(stof(value) / 10);
-                else:
-                  - if:
-                      condition:
-                        - lambda: |-
-                            return (key == "hvac_mode");
-                      then:
-                        - script.execute:
-                            id: ha_call_action
-                            service: climate.set_hvac_mode
-                            key: hvac_mode
-                            value: !lambda return value;
+      - lambda: |-
+          if (!embedded and is_device_ready_for_tasks()) {
+            if (key == "temperature" or key == "target_temp_high" or key == "target_temp_low") {
+              esphome::api::CustomAPIDevice ha_event;
+              ha_event.fire_homeassistant_event("${EVENT_NAME}", {
+                {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
+                {"type", "service_call"},
+                {"service", "climate.set_temperature"},
+                {"key", key.c_str()},
+                {"value", to_string(stof(value) / 10)},
+                {"entity", detailed_entity->state.c_str()},
+                {"tag", "${TAG_API}"}
+              });
+            } else if (key == "hvac_mode") {
+              esphome::api::CustomAPIDevice ha_event;
+              ha_event.fire_homeassistant_event("${EVENT_NAME}", {
+                {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
+                {"type", "service_call"},
+                {"service", "climate.set_hvac_mode"},
+                {"key", "hvac_mode"},
+                {"value", value.c_str()},
+                {"entity", detailed_entity->state.c_str()},
+                {"tag", "${TAG_API}"}
+              });
+            }
+          }
 
   - id: check_versions
     mode: restart
