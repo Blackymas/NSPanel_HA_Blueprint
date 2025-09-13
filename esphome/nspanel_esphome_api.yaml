@@ -21,19 +21,12 @@ api:
 
   on_client_connected:
     then:
-      - lambda: set_system_flag(NSPanelFlag::API_READY);
-      - if:
-          condition:
-            - text_sensor.state:
-                id: current_page
-                state: boot
-          then:
-            - script.execute:
-                id: boot_log
-                category: API
-                log_message: "Client connected"
-      - script.execute: refresh_wifi_icon
-      - script.execute: dump_config
+      - lambda: |-
+          set_system_flag(NSPanelFlag::API_READY);
+          boot_log->execute("API", "Client connected");
+          refresh_wifi_icon->execute();
+          dump_config->execute();
+
   on_client_disconnected:
     then:
       - if:
@@ -111,7 +104,7 @@ api:
 
             if (page != current_page->state) {
               ESP_LOGW("${TAG_API}", "Page `%s` is visible, but visibility command was for page `%s`",
-                                      current_page->state.c_str(), page.c_str());
+                                      page_names[current_page_id], page.c_str());
               return;
             }
 
@@ -201,7 +194,7 @@ api:
                 disp1->send_command_printf("vis %s,%i", component_name.c_str(), visible ? 1 : 0);
               } else {
                 ESP_LOGV("${TAG_API}", "  Current page (%s) doesn't match, skipping icon update",
-                          current_page->state.c_str());
+                          page_names[current_page_id]);
               } // #endif current page check
             } else {
               // Simple component ID without page prefix
@@ -385,16 +378,11 @@ api:
             ESP_LOGV("${TAG_API}", "  climate_icon: %s", climate_icon.c_str());
             ESP_LOGV("${TAG_API}", "  embedded_climate: %s", YESNO(embedded_climate));
             ESP_LOGV("${TAG_API}", "  entity: %s", entity.c_str());
-        - if:
-            condition:
-              - text_sensor.state:
-                  id: current_page
-                  state: climate
-            then:  # Update climate page
-              # Set detailed entity sensor
-              - text_sensor.template.publish:
-                  id: detailed_entity
-                  state: !lambda return entity;
+
+            // Set detailed entity sensor
+            if (current_page_id == ${PAGE_CLIMATE_ID})
+              detailed_entity->publish_state(entity.c_str());
+
         - script.execute:
             id: set_climate
             current_temp: !lambda return current_temp;
@@ -407,7 +395,6 @@ api:
             temp_offset: !lambda return temp_offset;
             climate_icon: !lambda return climate_icon;
             embedded_climate: !lambda return embedded_climate;
-        - delay: 1s
 
     # Dynamically displays QR codes on the ESPHome UI for sharing information such as WiFi passwords or website links.
     - action: qrcode
@@ -562,23 +549,15 @@ api:
       variables:
         reset_timer: bool  # Determines whether to reset the sleep and dimming timers upon waking the display.
       then:
-        - if:
-            condition:
-              - text_sensor.state:
-                  id: current_page
-                  state: screensaver
-            then:
-              - script.execute:
-                  id: goto_page
-                  page_id: !lambda return get_page_id(wakeup_page_name->state.c_str());
-        - if:
-            condition:
-              - lambda: return reset_timer;
-            then:
-              - script.execute: timer_reset_all
-            else:
-              - script.execute: timer_sleep
-              - script.execute: timer_dim
+        - lambda: |-
+            if (current_page_id == ${PAGE_SCREENSAVER_ID})
+              goto_page->execute(wakeup_page_id);
+            if (reset_timer) {
+              timer_reset_all->execute();
+            } else {
+              timer_sleep->execute();
+              timer_dim->execute();
+            }
 
 esphome:
   platformio_options:
@@ -695,42 +674,10 @@ script:
             component: !lambda return component;
             command: !lambda return command;
 
-  - id: ha_call_action
-    mode: single
-    parameters:
-      service: string
-      key: string
-      value: string
-    then:
-      - lambda: |-
-          ESP_LOGV("${TAG_API}", "Home Assistand Call Action:");
-          ESP_LOGV("${TAG_API}", "  service: %s", service.c_str());
-          ESP_LOGV("${TAG_API}", "  key:     %s", key.c_str());
-          ESP_LOGV("${TAG_API}", "  value:   %s", value.c_str());
-      - if:
-          condition:
-            - lambda: return !service.empty();
-          then:
-            - lambda: |-
-                ESP_LOGVV("${TAG_API}", "  Sending to Home Assistant...");
-            - homeassistant.event:
-                event: ${EVENT_NAME}
-                data:
-                  device_name: !lambda return device_name->state.c_str();
-                  esphome_version: ${version}
-                  type: service_call
-                  service: !lambda return service;
-                  key: !lambda return key;
-                  value: !lambda return value;
-                  entity: !lambda return detailed_entity->state.c_str();
-            - lambda: |-
-                ESP_LOGVV("${TAG_API}", "  Action call sent!");
-
   - id: !extend stop_all
     then:
       - script.stop: api_recover_from_failed
       - script.stop: ha_button
-      - script.stop: ha_call_action
 
   - id: !extend watchdog_round
     then:

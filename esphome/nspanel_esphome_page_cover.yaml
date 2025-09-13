@@ -21,13 +21,47 @@ script:
     then:
       - lambda: |-
           if (page == "cover") {
-            const std::string key = json["key"];
+            if (json["key"].isNull()) {
+              ESP_LOGV("${TAG_PAGE_COVER}", "Missing cover key field");
+              return;
+            } // endif missing key
+
+            const std::string key = json["key"].as<std::string>();
+            ESP_LOGV("${TAG_PAGE_COVER}", "Cover control: key=%s", key.c_str());
+
             if (key == "position") {
-              const std::string value = json["value"];
-              ha_call_action->execute("cover.set_cover_position", key.c_str(), value.c_str());
-            } else
-              ha_call_action->execute(("cover." + key).c_str(), "", "");
-          }
+              if (json["value"].isNull()) {
+                ESP_LOGV("${TAG_PAGE_COVER}", "Missing cover position value");
+                return;
+              } // endif missing value
+              const std::string value = json["value"].as<std::string>();
+              ESP_LOGV("${TAG_PAGE_COVER}", "Setting cover position: %s", value.c_str());
+              esphome::api::CustomAPIDevice ha_event;
+              ha_event.fire_homeassistant_event("${EVENT_NAME}", {
+                {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
+                {"type", "service_call"},
+                {"service", "cover.set_cover_position"},
+                {"key", key.c_str()},
+                {"value", value.c_str()},
+                {"entity", detailed_entity->state.c_str()},
+                {"tag", "${TAG_API}"}
+              });
+            } else {
+              ESP_LOGV("${TAG_PAGE_COVER}", "Executing cover action: %s", key.c_str());
+              esphome::api::CustomAPIDevice ha_event;
+              ha_event.fire_homeassistant_event("${EVENT_NAME}", {
+                {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
+                {"type", "service_call"},
+                {"service", ("cover." + key).c_str()},
+                {"key", ""},
+                {"value", ""},
+                {"entity", detailed_entity->state.c_str()},
+                {"tag", "${TAG_API}"}
+              });
+            } // endif key == "position"
+          } // endif page == "cover"
 
   - id: !extend page_change
     then:

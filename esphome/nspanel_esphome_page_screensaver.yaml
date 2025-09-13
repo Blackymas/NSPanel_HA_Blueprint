@@ -63,18 +63,13 @@ number:
     icon: mdi:timer
     unit_of_measurement: "s"
     on_value:
-      - if:
-          condition:
-            - lambda: return (x == 0);
-            - text_sensor.state:
-                id: current_page
-                state: screensaver
-          then:
-            - script.execute:
-                id: goto_page
-                page_id: !lambda return wakeup_page_id;
-      - script.execute: timer_dim
-      - script.execute: timer_sleep
+      then:
+        - lambda: |-
+            if (x == 0 and current_page_id == ${PAGE_SCREENSAVER_ID}) {
+              goto_page->execute(wakeup_page_id);
+            }
+        - script.execute: timer_dim
+        - script.execute: timer_sleep
 
 script:
   - id: !extend action_component_color
@@ -129,7 +124,7 @@ script:
                   - lambda: |-
                       disp1->set_component_font("screensaver.text", id(screensaver_display_time_font));
                       disp1->set_component_font_color("screensaver.text", id(screensaver_display_time_color));
-                      disp1->send_command("vis text,1");
+                      disp1->show_component("text");
                   - script.execute: refresh_datetime
             - delay: 5s
             - script.execute: page_screensaver_set_brightness
@@ -145,6 +140,26 @@ script:
     then:
       - script.stop: page_screensaver
       - script.stop: page_screensaver_set_brightness
+      - script.stop: timer_sleep
+
+  - id: timer_sleep      # Handles the sleep (go to screensaver page) after a timeout
+    mode: restart
+    then:
+      - delay: !lambda return (int(timeout_sleep->state) *1000);
+      - lambda: |-
+          if (
+                timeout_sleep->state >= 1 and
+                current_page_id != ${PAGE_SCREENSAVER_ID} and
+                current_page_id != ${PAGE_BOOT_ID}
+              ) {
+            ESP_LOGD("${TAG_HW_DISPLAY}", "Going to sleep from page %s", page_names[current_page_id]);
+            goto_page->execute(${PAGE_SCREENSAVER_ID});
+            set_brightness->execute(display_sleep_brightness->state);
+          }
+
+  - id: !extend timer_reset_all
+    then:
+      - script.execute: timer_sleep
 
   - id: !extend watchdog_round
     then:

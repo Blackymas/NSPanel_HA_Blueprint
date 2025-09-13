@@ -15,30 +15,40 @@ display:
   - id: !extend disp1
     on_touch:
       then:
-        - if:
-            condition:
-              - lambda: return is_device_ready_for_tasks();
-              - lambda: return (!touch_event);  // Only act with release
-              - lambda: return (page_id == 22);  // Page fan
-            then:
-              - if:
-                  condition:
-                    - lambda: return (component_id == 13);  // bt_oscillate
-                  then:
-                    - script.execute:
-                        id: ha_call_action
-                        service: "fan.oscillate"
-                        key: oscillating
-                        value: toggle
-              - if:
-                  condition:
-                    - lambda: return (component_id == 14);  // power_button
-                  then:
-                    - script.execute:
-                        id: ha_call_action
-                        service: "fan.toggle"
-                        key: ""
-                        value: ""
+        - lambda: |-
+            if (
+                  page_id == ${PAGE_FAN_ID} and  // Page fan
+                  !touch_event                   // Only act with release
+                ) {
+              switch (component_id) {
+                case 13:  // bt_oscillate
+                  esphome::api::CustomAPIDevice ha_event_fan_oscillate;
+                  ha_event_fan_oscillate.fire_homeassistant_event("${EVENT_NAME}", {
+                    {"device_name", device_name->state.c_str()},
+                    {"esphome_version", "${version}"},
+                    {"type", "service_call"},
+                    {"service", "fan.oscillate"},
+                    {"key", "oscillating"},
+                    {"value", "toggle"},
+                    {"entity", detailed_entity->state.c_str()},
+                    {"tag", "${TAG_API}"}
+                  });
+                  break;
+                case 14:  // power_button
+                  esphome::api::CustomAPIDevice ha_event_fan_toggle;
+                  ha_event_fan_toggle.fire_homeassistant_event("${EVENT_NAME}", {
+                    {"device_name", device_name->state.c_str()},
+                    {"esphome_version", "${version}"},
+                    {"type", "service_call"},
+                    {"service", "fan.toggle"},
+                    {"key", ""},
+                    {"value", ""},
+                    {"entity", detailed_entity->state.c_str()},
+                    {"tag", "${TAG_API}"}
+                  });
+                  break;
+              }
+            }
 
 esphome:
   platformio_options:
@@ -50,13 +60,44 @@ script:
     then:
       - lambda: |-
           if (page == "fan") {
-            const std::string key = json["key"];
-            const std::string value = json["value"];
-            if (key == "stop" or value == "0")
-              ha_call_action->execute("fan.turn_off", "", "");
-            else
-              ha_call_action->execute("fan.turn_on", key.c_str(), value.c_str());
-          }
+            if (json["key"].isNull() || json["value"].isNull()) {
+              ESP_LOGV("${TAG_PAGE_FAN}", "Missing fan `key` or `value` fields");
+              return;
+            } // endif missing fields
+
+            const std::string key = json["key"].as<std::string>();
+            const std::string value = json["value"].as<std::string>();
+
+            ESP_LOGV("${TAG_PAGE_FAN}", "Fan control: key=%s, value=%s", key.c_str(), value.c_str());
+
+            if (key == "stop" || value == "0") {
+              ESP_LOGV("${TAG_PAGE_FAN}", "Turning fan off");
+              esphome::api::CustomAPIDevice ha_event;
+              ha_event.fire_homeassistant_event("${EVENT_NAME}", {
+                {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
+                {"type", "service_call"},
+                {"service", "fan.turn_off"},
+                {"key", ""},
+                {"value", ""},
+                {"entity", detailed_entity->state.c_str()},
+                {"tag", "${TAG_API}"}
+              });
+            } else {
+              ESP_LOGV("${TAG_PAGE_FAN}", "Turning fan on with settings");
+              esphome::api::CustomAPIDevice ha_event;
+              ha_event.fire_homeassistant_event("${EVENT_NAME}", {
+                {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
+                {"type", "service_call"},
+                {"service", "fan.turn_on"},
+                {"key", key.c_str()},
+                {"value", value.c_str()},
+                {"entity", detailed_entity->state.c_str()},
+                {"tag", "${TAG_API}"}
+              });
+            } // endif key == "stop" || value == "0"
+          } // endif page == "fan"
 
   - id: !extend page_change
     then:

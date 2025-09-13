@@ -123,7 +123,8 @@ number:
     icon: mdi:timer
     unit_of_measurement: "s"
     on_value:
-      - lambda: timer_page->execute();
+      then:
+        - script.execute: timer_page
   - name: Timeout Dimming
     platform: template
     id: timeout_dim
@@ -137,7 +138,8 @@ number:
     icon: mdi:timer
     unit_of_measurement: "s"
     on_value:
-      - script.execute: timer_dim
+      then:
+        - script.execute: timer_dim
 
 ##### START - SWITCH CONFIGURATION #####
 switch:
@@ -239,32 +241,34 @@ script:  # Scripts
       key: string
       value: string
     then:
-      - if:
-          condition:
-            - lambda: return not embedded;
-            - lambda: return is_device_ready_for_tasks();
-          then:
-            - if:
-                condition:
-                  - lambda: |-
-                      return (key == "temperature" or key == "target_temp_high" or key == "target_temp_low");
-                then:
-                  - script.execute:
-                      id: ha_call_action
-                      service: climate.set_temperature
-                      key: !lambda return key;
-                      value: !lambda return to_string(stof(value) / 10);
-                else:
-                  - if:
-                      condition:
-                        - lambda: |-
-                            return (key == "hvac_mode");
-                      then:
-                        - script.execute:
-                            id: ha_call_action
-                            service: climate.set_hvac_mode
-                            key: hvac_mode
-                            value: !lambda return value;
+      - lambda: |-
+          if (!embedded and is_device_ready_for_tasks()) {
+            if (key == "temperature" or key == "target_temp_high" or key == "target_temp_low") {
+              esphome::api::CustomAPIDevice ha_event;
+              ha_event.fire_homeassistant_event("${EVENT_NAME}", {
+                {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
+                {"type", "service_call"},
+                {"service", "climate.set_temperature"},
+                {"key", key.c_str()},
+                {"value", to_string(stof(value) / 10)},
+                {"entity", detailed_entity->state.c_str()},
+                {"tag", "${TAG_API}"}
+              });
+            } else if (key == "hvac_mode") {
+              esphome::api::CustomAPIDevice ha_event;
+              ha_event.fire_homeassistant_event("${EVENT_NAME}", {
+                {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
+                {"type", "service_call"},
+                {"service", "climate.set_hvac_mode"},
+                {"key", "hvac_mode"},
+                {"value", value.c_str()},
+                {"entity", detailed_entity->state.c_str()},
+                {"tag", "${TAG_API}"}
+              });
+            }
+          }
 
   - id: check_versions
     mode: restart
@@ -503,7 +507,7 @@ script:  # Scripts
 
       # Update current page
       - lambda: |-
-          ESP_LOGD("${TAG_CORE}", "Update current page: %s", current_page->state.c_str());
+          ESP_LOGD("${TAG_CORE}", "Update current page: %s", page_names[current_page_id]);
       - delay: ${DELAY_DEFAULT}ms
       - script.execute:
           id: page_change
@@ -526,14 +530,13 @@ script:  # Scripts
     mode: single
     then:
       - lambda: |-
-          ESP_LOGW("script.page_blank", "Construct blank page");
+          ESP_LOGW("${TAG_CORE}", "Construct blank page");
           disp1->set_component_text("esp_version", "FW: ${version}");  // ESPHome version
           #ifdef ARDUINO
           disp1->set_component_text("framework", "Arduino");
           #elif defined(USE_ESP_IDF)
           disp1->set_component_text("framework", "ESP-IDF");
           #endif
-          disp1->send_command("tm_esphome.en=0");
 
   - id: page_confirm
     mode: single
@@ -548,17 +551,6 @@ script:  # Scripts
   - id: page_qrcode
     mode: single
     then:  # There's nothing here so far
-
-  - id: page_settings
-    mode: single
-    then:
-      - if:
-          condition:
-            - lambda: return (current_page_id == ${PAGE_SETTINGS_ID});
-          then:
-            - lambda: |-
-                disp1->send_command("vis lbl_sleep,0");
-                disp1->send_command("vis bt_sleep,0");
 
   - id: page_utilities
     mode: single
