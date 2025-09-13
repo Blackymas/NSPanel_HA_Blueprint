@@ -245,7 +245,8 @@ script:
               {"command", event.c_str()},
               {"tag", "${TAG_HW_DISPLAY}"}
             });
-          } else {
+            ESP_LOGD("${TAG_HW_DISPLAY}", "Home Assistant click event sent");
+          } else if (page != "home" and page != "light") {
             // Generic event
             ESP_LOGD("${TAG_HW_DISPLAY}", "Send generic event to Home Assistant");
             ha_event.fire_homeassistant_event("${EVENT_NAME}", {
@@ -259,9 +260,8 @@ script:
               {"entity", id(detailed_entity).state.c_str()},
               {"tag", "${TAG_HW_DISPLAY}"}
             });
+            ESP_LOGD("${TAG_HW_DISPLAY}", "Home Assistant generic event sent");
           }
-
-          ESP_LOGD("${TAG_HW_DISPLAY}", "Home Assistant event sent");
 
   - id: goto_page
     mode: restart
@@ -750,7 +750,9 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            JsonDocument json;
+            static JsonDocument json;
+            static std::string page;
+            static std::string event;
             DeserializationError error = deserializeJson(json, x.c_str());
             if (error) {
                 ESP_LOGE("${TAG_HW_DISPLAY}", "Error parsing json: %s", x.c_str());
@@ -763,34 +765,15 @@ text_sensor:
               ESP_LOGW("${TAG_HW_DISPLAY}", "Missing 'page' key");
               return;
             }
-            const std::string page = json["page"].as<std::string>();
+            page = json["page"].as<std::string>();
 
             if (json["event"].isNull()) {
               ESP_LOGD("${TAG_HW_DISPLAY}", "Missing 'event' key");
               // return;
             }
-            const std::string event = json["event"].isNull() ? "" : json["event"].as<std::string>();
+            event = json["event"].isNull() ? "" : json["event"].as<std::string>();
 
             event_from_display->execute(json, page.c_str(), event.c_str());
-
-            const std::string component = json["component"].isNull() ? "" : json["component"].as<std::string>();
-            const std::string key = json["key"].isNull() ? "" : json["key"].as<std::string>();
-            const std::string value = json["value"].isNull() ? "" : json["value"].as<std::string>();
-
-            esphome::api::CustomAPIDevice ha_event;
-            // Send event to Home Assistant
-            if (page == "light" or page == "climate") {  // Generic event
-              ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
-                {"device_name", device_name->state.c_str()},
-                {"esphome_version", "${version}"},
-                {"type", "generic"},
-                {"page", page.c_str()},
-                {"component", component.c_str()},
-                {"event", event.c_str()},
-                {"value", value.c_str()},
-                {"entity", detailed_entity->state.c_str()}
-              });
-            }
 
   - id: version_tft
     name: Version TFT

@@ -15,17 +15,24 @@ display:
   - id: !extend disp1
     on_touch:
       then:
-        - if:
-            condition:
-              - lambda: return (!touch_event);  // Release
-              - lambda: return (page_id == 10);  // Page light
-              - lambda: return (component_id == 32);  // power button
-            then:
-              - script.execute:
-                  id: ha_call_action
-                  service: "light.toggle"
-                  key: ""
-                  value: ""
+        - lambda: |-
+            if (
+                  page_id == ${PAGE_LIGHT_ID} and  // Page light
+                  !touch_event and                 // Release
+                  component_id == 32               // power button
+                ) {
+              esphome::api::CustomAPIDevice ha_event;
+              ha_event.fire_homeassistant_event("${EVENT_NAME}", {
+                {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
+                {"type", "service_call"},
+                {"service", "light.toggle"},
+                {"key", ""},
+                {"value", ""},
+                {"entity", detailed_entity->state.c_str()},
+                {"tag", "${TAG_API}"}
+              });
+            }
 
 esphome:
   platformio_options:
@@ -56,7 +63,19 @@ script:
               ESP_LOGV("${TAG_PAGE_LIGHT}", "Set light attributes");
               const std::string value = json["value"].isNull() ? "" : json["value"].as<std::string>();
               ESP_LOGV("${TAG_PAGE_LIGHT}", "  value: %s", value.c_str());
-              ha_call_action->execute("light.turn_on", key.c_str(), value.c_str());
+
+              esphome::api::CustomAPIDevice ha_event;
+              ha_event.fire_homeassistant_event("${EVENT_NAME}", {
+                {"device_name", device_name->state.c_str()},
+                {"esphome_version", "${version}"},
+                {"type", "service_call"},
+                {"service", "light.turn_on"},
+                {"key", key.c_str()},
+                {"value", value.c_str()},
+                {"entity", detailed_entity->state.c_str()},
+                {"tag", "${TAG_API}"}
+              });
+
             } else if (component == "rgb_color") { // endif brightness/color_temp
               // Validate that value is an array before assignment
               if (!json["value"].is<JsonArray>()) {
@@ -64,7 +83,7 @@ script:
                 return;
               } // endif !is<JsonArray>()
 
-              JsonArray rgb_color = json["value"].as<JsonArray>();
+              const JsonArray rgb_color = json["value"].as<JsonArray>();
 
               // Validate array size
               if (rgb_color.size() != 3) {
