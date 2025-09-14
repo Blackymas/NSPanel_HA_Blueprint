@@ -102,12 +102,6 @@ api:
             ESP_LOGV("${TAG_API}", "Action: components_visibility");
             ESP_LOGV("${TAG_API}", "  page: %s", page.c_str());
 
-            if (page != current_page->state) {
-              ESP_LOGW("${TAG_API}", "Page `%s` is visible, but visibility command was for page `%s`",
-                                      page_names[current_page_id], page.c_str());
-              return;
-            }
-
             for (const std::string& component_id : ids) {
               if (component_id.empty()) {
                 ESP_LOGW("${TAG_API}", "Skipping empty component ID");
@@ -115,11 +109,31 @@ api:
               }
 
               ESP_LOGV("${TAG_API}", "Processing component ID: %s", component_id.c_str());
-              if (visible) {
-                disp1->show_component(component_id.c_str());
-              } else {
-                disp1->hide_component(component_id.c_str());
+              // Apply visibility if global component or on correct page
+              ComponentVisibility* component_visibility = get_component_visibility(page.empty() ? current_page_id
+                                                                                                : get_page_id(page),
+                                                                                  component_id.c_str());
+
+              if (not component_visibility) {
+                ESP_LOGE("${TAG_API}", "Component '%s.%s' not found", page.c_str(), component_id.c_str());
+                return;
               }
+
+              if (component_visibility->visible != visible) {
+                component_visibility->visible = visible;
+                if (page.empty() or current_page->state == page) {
+                  ESP_LOGV("${TAG_API}", "  Applying visibility changes");
+                  if (visible) {
+                    disp1->show_component(component_id.c_str());
+                  } else {
+                    disp1->hide_component(component_id.c_str());
+                  }
+                } else {
+                  ESP_LOGV("${TAG_API}",
+                            "  Current page (%s) doesn't match specified page (%s), skipping visibility update",
+                            current_page->state.c_str(), page.c_str());
+                }
+              } // #endif visibility check
 
             } // #endfor component_id iteration
 
@@ -173,7 +187,7 @@ api:
             ESP_LOGV("${TAG_API}", "  visible: %s", YESNO(visible));
 
             // Always set icon and color using the full ID as-is
-            disp1->set_component_text(id.c_str(), visible ? icon.c_str() : "");  // To-do: Review the visibility engine here
+            disp1->set_component_text(id.c_str(), icon.c_str());
 
             // Set icon color if provided
             if (icon_color.size() == 3) {
@@ -181,16 +195,29 @@ api:
             }
 
             // Handle visibility - apply if global component or on correct page
-            if (page.empty() or current_page->state == page) {
-              ESP_LOGV("${TAG_API}", "  Applying visibility changes");
-              if (visible) {
-                disp1->show_component(id.c_str());
+            ComponentVisibility* component_visibility = get_component_visibility(page.empty() ? current_page_id
+                                                                                              : get_page_id(page),
+                                                                                id.c_str());
+
+            if (not component_visibility) {
+              ESP_LOGE("${TAG_API}", "Component '%s.%s' not found", page.c_str(), id.c_str());
+              return;
+            }
+
+            if (component_visibility->visible != visible) {
+              component_visibility->visible = visible;
+              if (page.empty() or current_page->state == page) {
+                ESP_LOGV("${TAG_API}", "  Applying visibility changes");
+                if (visible) {
+                  disp1->show_component(id.c_str());
+                } else {
+                  disp1->hide_component(id.c_str());
+                }
               } else {
-                disp1->hide_component(id.c_str());
+                ESP_LOGV("${TAG_API}",
+                          "  Current page (%s) doesn't match specified page (%s), skipping visibility update",
+                          current_page->state.c_str(), page.c_str());
               }
-            } else {
-              ESP_LOGV("${TAG_API}", "  Current page (%s) doesn't match specified page (%s), skipping visibility update",
-                        current_page->state.c_str(), page.c_str());
             } // #endif visibility check
 
     # Transfers global settings from the blueprint to ESPHome, configuring the necessary parameters for optimal operation.

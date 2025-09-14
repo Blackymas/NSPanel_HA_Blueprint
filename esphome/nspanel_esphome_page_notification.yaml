@@ -33,6 +33,7 @@ api:
             notification_label = label;
             notification_text = message;
             notification_unread->publish_state(true);
+            add_component_visibility(${PAGE_HOME_ID}, "bt_notific", true);
             if (current_page_id == ${PAGE_NOTIFICATION_ID}) {
               page_notification->execute();
             } else {
@@ -42,6 +43,7 @@ api:
             #ifdef NSPANEL_HA_BLUEPRINT_HW_BUZZER
             notification_play_sound->execute();
             #endif
+            disp1->set_component_font_color("home.bt_notific", notification_icon_color_unread);
 
 binary_sensor:
   - id: notification_unread
@@ -63,12 +65,13 @@ display:
               switch (component_id) {
                 case 7:  // bt_accept
                   ha_button->execute("notification", "bt_accept", "released");
-                  notification_unread->publish_state(false);
-                  goto_page->execute(${PAGE_HOME_ID});
+                  notification_clear->execute();
                   break;
                 case 8:  // bt_clear
                   ha_button->execute("notification", "bt_clear", "released");
-                  notification_clear->execute();
+                  notification_unread->publish_state(false);
+                  disp1->set_component_font_color("home.bt_notific", notification_icon_color_normal);
+                  goto_page->execute(${PAGE_HOME_ID});
                   break;
               }
             }
@@ -79,6 +82,17 @@ esphome:
       - -D NSPANEL_HA_BLUEPRINT_PAGE_NOTIFICATION
 
 script:
+  - id: !extend action_component_color
+    then:
+      - lambda: |-
+          if (page == "mem") {
+            if (component == "notification_icon_color_normal") {
+              notification_icon_color_normal = color;
+            } else if (component == "notification_icon_color_unread") {
+              notification_icon_color_unread = color;
+            }
+          }
+
   - id: !extend boot
     then:
       - script.execute: notification_clear
@@ -104,6 +118,8 @@ script:
     mode: single
     then:
       - lambda: |-
+          add_component_visibility(${PAGE_HOME_ID}, "bt_notific", false);
+          disp1->set_component_font_color("home.bt_notific", notification_icon_color_normal);
           if (current_page_id == ${PAGE_NOTIFICATION_ID})
             goto_page->execute(${PAGE_HOME_ID});
           notification_label = "";
@@ -143,16 +159,16 @@ switch:
         - lambda: |-
             // Only when buzzer is available
             #ifdef NSPANEL_HA_BLUEPRINT_HW_BUZZER
-            if (id(notification_unread).state)
-              id(notification_play_sound).execute();
+            if (notification_unread->state)
+              notification_play_sound->execute();
             #endif
     on_turn_off:
       then:
         - lambda: |-
-            id(notification_play_sound).stop();
+            notification_play_sound->stop();
             // Only when buzzer is available
             #ifdef NSPANEL_HA_BLUEPRINT_HW_BUZZER
-            if (id(buzzer).is_playing())
-              id(buzzer).stop();
+            if (buzzer->is_playing())
+              buzzer->stop();
             #endif
 ...
