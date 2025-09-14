@@ -1,44 +1,54 @@
-# v4.3.31 - Bug Fixes and Communication Improvements
+# v4.3.32 - Additional Bug Fixes and Memory Optimizations
 
 ## Summary
 
-This release focuses primarily on fixing several reported bugs while including additional optimizations
-for boot reliability and Nextion display communication.
+This release continues the stability improvements with additional bug fixes
+and further memory optimizations to enhance system reliability and performance.
 
 ## Bug Fixes
 
-### Lamp Control Issues Resolved
-**Fixed reboots when trying to dim or change color temperature of lamps** - resolved crashes that occurred during lamp control operations.
+### Display Sleep Issue Resolution
+**Fixed display sleep (0s) functionality** - resolved the issue where display sleep stopped working after the v4.3.30 memory optimizations.
+Sleep mode now functions properly again.
 
-### Home Screen Responsiveness Fixed  
-**Resolved unresponsive home screen when pressing temperature or weather areas** - touch interactions now work properly for these interface elements.
+### Thermostat Screen Fix
+**Resolved empty thermostat screen issue** that appeared in v4.3.31, ensuring thermostat controls display correctly.
 
-### Display Sleep Functionality Restored
-**Fixed display sleep (0s) not working after upgrade to v4.3.30** - sleep functionality now operates correctly following the memory optimization changes.
-
-### Blueprint Compatibility Issue Resolved
-**Fixed "Waiting for Blueprint..." issue with v4.3.30** - resolved compatibility problems that prevented proper Blueprint communication.
+**Additional fixes:**
+- Enhanced error handling in various components
+- Improved edge case handling for better reliability
 
 ## Performance Improvements
 
-### Boot and Communication Optimizations
-**Additional refinements to boot sequence and Nextion communication** to improve system reliability and responsiveness.
+### Additional Memory Optimizations
 
-**Improvements include:**
-- Enhanced boot sequence timing for better reliability
-- Optimized communication protocols with Nextion display
-- Reduced potential for communication timeouts and errors
-- Better system stability during startup and operation
+**Further memory usage reductions** building on the optimization work from v4.3.30,
+providing even better stability margins for add-on usage.
+
+**Memory improvements:**
+- Additional non-essential components optimized or removed
+- Reduced memory fragmentation through better allocation patterns
+- Enhanced memory efficiency in core operations
+
+### Stability Enhancements
+
+**Continued system stability improvements** focusing on reliability and robustness
+across different usage scenarios and configurations.
+
+**Stability improvements:**
+- Better error recovery mechanisms
+- Enhanced component initialization reliability
+- Improved handling of edge cases and error conditions
 
 ## Technical Details
 
-This release addresses user-reported issues that emerged after recent memory optimization efforts,
-ensuring that the stability improvements don't come at the cost of core functionality.
-The boot and communication optimizations build on previous work to enhance overall system reliability.
+This release represents continued iterative improvement in system stability and efficiency.
+The additional memory optimizations provide further headroom for add-on usage,
+while bug fixes address specific issues identified through community feedback.
 
-**Result:** Resolved critical functionality issues while maintaining memory optimizations
-and improving boot reliability and display communication.
+**Result:** Enhanced system stability with improved memory efficiency
+and resolution of additional reported issues.
 
 ---
 
-*Bug fix release ensuring stable operation of core features with continued boot improvements.*
+*Continued stability and memory optimization improvements with targeted bug fixes.*
