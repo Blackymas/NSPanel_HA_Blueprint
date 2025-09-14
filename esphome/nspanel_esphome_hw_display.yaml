@@ -397,11 +397,15 @@ script:
       target_baud_rate: uint32_t
       definitive: bool
     then:
-      - if:
-          condition:
-            - lambda: return !isnan(target_baud_rate);
-          then:
-            - lambda: set_system_flag(NSPanelFlag::BAUD_RATE_SET);
+      - lambda: |-
+          if (are_any_system_flags_set({NSPanelFlag::OTA_IN_PROGRESS, NSPanelFlag::SAFE_MODE_ACTIVE}) or
+              disp1->is_updating()) {  // I cannot use NSPanelFlag::TFT_UPLOAD_ACTIVE as baud rate changes with that
+            ESP_LOGW("${TAG_BASE}", "Cannot change baud rate now as the system is busy");
+            set_baud_rate->stop();
+            return;
+          }
+          if (!isnan(target_baud_rate))
+            set_system_flag(NSPanelFlag::BAUD_RATE_SET);
       - if:
           condition:
             - lambda: return (tf_uart->get_baud_rate() != target_baud_rate);
@@ -632,10 +636,14 @@ select:
     icon: mdi:swap-horizontal
     on_value:
       then:
-        - script.execute:
-            id: set_baud_rate
-            target_baud_rate: !lambda return std::stoi(x);
-            definitive: true
+      - lambda: |-
+          if (are_any_system_flags_set({NSPanelFlag::OTA_IN_PROGRESS,
+                                        NSPanelFlag::SAFE_MODE_ACTIVE,
+                                        NSPanelFlag::TFT_UPLOAD_ACTIVE})) {
+            ESP_LOGW("${TAG_BASE}", "Cannot change baud rate as the system is busy");
+            return;
+          }
+          set_baud_rate->execute(std::stoi(x), true);
 
   - id: wakeup_page_name
     name: Wake-up page
