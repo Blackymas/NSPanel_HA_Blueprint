@@ -57,7 +57,13 @@ interval:
   - interval: 89s  # Intentionally a prime to reduce the occurences of this happening together with the time update
     startup_delay: 17s
     then:
-      - script.execute: watchdog_round
+      - lambda: |-
+          if (not are_any_system_flags_set({NSPanelFlag::OTA_IN_PROGRESS,
+                                            NSPanelFlag::TFT_UPLOAD_ACTIVE,
+                                            NSPanelFlag::SAFE_MODE_ACTIVE})) {
+            ESP_LOGV("${TAG_BASE}", "Calling the watchdog");
+            watchdog_round->execute();
+          }
 
 logger:
 
@@ -109,6 +115,14 @@ script:
     mode: restart
     then:
       - lambda: |-
+          if (are_any_system_flags_set({NSPanelFlag::OTA_IN_PROGRESS,
+                                        NSPanelFlag::TFT_UPLOAD_ACTIVE,
+                                        NSPanelFlag::SAFE_MODE_ACTIVE})) {
+            ESP_LOGW("${TAG_BASE}", "The watchdog cannot run now");
+            watchdog_round_wait_to_end->stop();
+            watchdog_round->stop();
+            return;
+          }
           ESP_LOGD("${TAG_BASE}", "The watchdog is starting a round");
       - script.execute: watchdog_round_wait_to_end
 

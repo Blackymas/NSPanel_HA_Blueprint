@@ -70,9 +70,9 @@ namespace nspanel_ha_blueprint {
     }
 
     bool is_blueprint_fully_ready() {
-        // Check if all non-reserved blueprint status flags are set (bits 1-5)
-        // Active flags mask: 0x3E = 00111110 = bits 1-5
-        static constexpr uint8_t ACTIVE_FLAGS_MASK = 0x3E;
+        // Check if all non-reserved blueprint status flags are set (bits 1-4)
+        // Active flags mask: 0x1E = 00011110 = bits 1-4
+        static constexpr uint8_t ACTIVE_FLAGS_MASK = 0x1E;
         bool fully_ready = (blueprint_status_flags & ACTIVE_FLAGS_MASK) == ACTIVE_FLAGS_MASK;
 
         // Automatically manage system BLUEPRINT_READY flag based on blueprint completion status
@@ -86,9 +86,9 @@ namespace nspanel_ha_blueprint {
     }
 
     float get_blueprint_status_percentage() {
-        // Active flags mask: bits 1-5 (PAGE_HOME, QRCODE, PAGE_SETTINGS, RELAY_SETTINGS, GLOBAL_SETTINGS)
-        static constexpr uint8_t ACTIVE_FLAGS_MASK = 0x3E;  // 00111110
-        static constexpr uint8_t MAX_ACTIVE_VALUE = 62;     // 2^1+2^2+2^3+2^4+2^5
+        // Active flags mask: bits 1-4 (PAGE_HOME, QRCODE, RELAY_SETTINGS, GLOBAL_SETTINGS)
+        static constexpr uint8_t ACTIVE_FLAGS_MASK = 0x1E;  // 00011110
+        static constexpr uint8_t MAX_ACTIVE_VALUE = 30;     // 2^1+2^2+2^3+2^4 = 2+4+8+16 = 30
 
         uint8_t active_flags = blueprint_status_flags & ACTIVE_FLAGS_MASK;
         return active_flags > 0 ? (static_cast<float>(active_flags) / MAX_ACTIVE_VALUE) * 100.0f : 0.0f;
@@ -96,7 +96,7 @@ namespace nspanel_ha_blueprint {
 
     uint8_t get_blueprint_status_raw_value() {
         // Return only the active flags value (bits 1-5)
-        static constexpr uint8_t ACTIVE_FLAGS_MASK = 0x3E;  // 00111110
+        static constexpr uint8_t ACTIVE_FLAGS_MASK = 0x1E;  // 00011110
         return blueprint_status_flags & ACTIVE_FLAGS_MASK;
     }
 

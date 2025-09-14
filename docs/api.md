@@ -293,6 +293,7 @@ Updates a chip or custom button's icon, color, and visibility within Home Assist
 This action is ideal for dynamically updating icons on your Panel, allowing for a customizable and interactive user interface.
 
 **Parameters:**
+- `page` (string): Identifier of the page where the component is. Leave empty for current page.
 - `id` (string): Identifier of the chip or button component. Refer to "[Screen components](#screen-components)" for more details.
 - `icon` (string): Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html).
 Example: "\uE6E8" for `mdi:lightbulb-on-outline`.
@@ -303,7 +304,8 @@ Example: "\uE6E8" for `mdi:lightbulb-on-outline`.
 ```yaml
 action: esphome.<your_panel_name>_icon
 data:
-  id: "home.chip03"
+  page: home
+  id: chip03
   icon: "\uE6E8"           # Example for mdi:lightbulb-on-outline
   icon_color: [0, 255, 0]  # Green
   visible: true
