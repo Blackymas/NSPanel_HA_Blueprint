@@ -212,9 +212,11 @@ text_sensor:
     update_interval: never
     on_value:
       then:
-        - script.execute:
-            id: check_versions
-            reset_flag: !lambda return (x != "${version}");
+        - lambda: |-
+            ESP_LOGD("${TAG_CORE}", "Blueprint version: %s", x.c_str());
+            if (!x.empty())
+              set_blueprint_status_flag(BlueprintStatusFlag::VERSION);
+            check_versions->execute(x != "${version}");
 
   - id: version_esphome
     name: Version ESPHome
@@ -227,6 +229,13 @@ text_sensor:
       return {"${version}"};
 
 script:  # Scripts
+  - id: !extend action_component_text
+    then:
+      - lambda: |-
+          if (page == "mem" and component == "blueprint_version") {
+            version_blueprint->publish_state(txt.c_str());
+          }
+
   - id: !extend boot
     then:
       - delay: ${DELAY_DEFAULT}ms
@@ -456,7 +465,6 @@ script:  # Scripts
   - id: global_settings
     mode: single
     parameters:
-      blueprint_version: string
       ent_value_xcen: int
       mui_please_confirm: string
       mui_unavailable: string
@@ -468,19 +476,10 @@ script:  # Scripts
       - lambda: |-
           ESP_LOGD("${TAG_CORE}", "Processing global settings from blueprint");
       - delay: ${DELAY_DEFAULT}ms
-      # Blueprint version
       - script.execute:
           id: boot_log
           category: Blueprint
           log_message: Global settings
-      - lambda: |-
-          ESP_LOGD("${TAG_CORE}", "Blueprint version: %s", blueprint_version.c_str());
-      - delay: ${DELAY_DEFAULT}ms
-      - text_sensor.template.publish:
-          id: version_blueprint
-          state: !lambda return blueprint_version;
-      - lambda: |-
-          disp1->set_component_text_printf("ver_blueprint", "Blueprint: %s", blueprint_version.c_str());
 
       # MUI strings
       - lambda: |-

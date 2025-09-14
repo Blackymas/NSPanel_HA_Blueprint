@@ -41,14 +41,14 @@ namespace nspanel_ha_blueprint {
     * Based on the bit mapping used in the blueprint_status sensor.
     */
     enum class BlueprintStatusFlag : uint8_t {
-        RESERVED_0 = 0,       ///< Reserved bit (not used in percentage calculation)
-        PAGE_HOME = 1,        ///< Home page initialization completed
-        QRCODE = 2,           ///< QR code configuration completed
-        RELAY_SETTINGS = 3,   ///< Relay settings configuration completed
-        GLOBAL_SETTINGS = 4,  ///< Global settings configuration completed
-        RESERVED_5 = 5,       ///< Reserved bit (not used in percentage calculation)
-        RESERVED_6 = 6,       ///< Reserved bit (not used in percentage calculation)
-        RESERVED_7 = 7        ///< Reserved bit (not used in percentage calculation)
+        RESERVED_0 = 0,      ///< Reserved bit (not used in percentage calculation)
+        PAGE_HOME = 1,       ///< Home page initialization completed
+        QRCODE = 2,          ///< QR code configuration completed
+        RELAY_SETTINGS = 3,  ///< Relay settings configuration completed
+        VERSION = 4,         ///< Blueprint version
+        RESERVED_5 = 5,      ///< Reserved bit (not used in percentage calculation)
+        RESERVED_6 = 6,      ///< Reserved bit (not used in percentage calculation)
+        RESERVED_7 = 7       ///< Reserved bit (not used in percentage calculation)
     };
 
     // Global system flags - initialized to 0 (all flags false)

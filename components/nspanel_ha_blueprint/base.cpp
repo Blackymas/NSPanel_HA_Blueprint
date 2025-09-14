@@ -86,7 +86,7 @@ namespace nspanel_ha_blueprint {
     }
 
     float get_blueprint_status_percentage() {
-        // Active flags mask: bits 1-4 (PAGE_HOME, QRCODE, RELAY_SETTINGS, GLOBAL_SETTINGS)
+        // Active flags mask: bits 1-4 (PAGE_HOME, QRCODE, RELAY_SETTINGS, VERSION)
         static constexpr uint8_t ACTIVE_FLAGS_MASK = 0x1E;  // 00011110
         static constexpr uint8_t MAX_ACTIVE_VALUE = 30;     // 2^1+2^2+2^3+2^4 = 2+4+8+16 = 30
 
