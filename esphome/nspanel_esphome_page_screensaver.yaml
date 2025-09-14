@@ -68,7 +68,6 @@ number:
             if (x == 0 and current_page_id == ${PAGE_SCREENSAVER_ID}) {
               goto_page->execute(wakeup_page_id);
             }
-        - script.execute: timer_dim
         - script.execute: timer_sleep
 
 script:
@@ -132,9 +131,9 @@ script:
   - id: page_screensaver_set_brightness
     mode: single
     then:
-      - script.execute:
-          id: set_brightness
-          brightness: !lambda return int(display_sleep_brightness->state);
+      - lambda: |-
+          if (current_page_id == ${PAGE_SCREENSAVER_ID})
+            set_brightness->execute(int(display_sleep_brightness->state));
 
   - id: !extend stop_all
     then:
@@ -145,17 +144,21 @@ script:
   - id: timer_sleep      # Handles the sleep (go to screensaver page) after a timeout
     mode: restart
     then:
-      - delay: !lambda return (int(timeout_sleep->state) *1000);
-      - lambda: |-
-          if (
-                timeout_sleep->state >= 1 and
-                current_page_id != ${PAGE_SCREENSAVER_ID} and
-                current_page_id != ${PAGE_BOOT_ID}
-              ) {
-            ESP_LOGD("${TAG_HW_DISPLAY}", "Going to sleep from page %s", page_names[current_page_id]);
-            goto_page->execute(${PAGE_SCREENSAVER_ID});
-            set_brightness->execute(display_sleep_brightness->state);
-          }
+      - if:
+          condition:
+            - lambda: return timeout_sleep->state > 0;
+          then:
+            - delay: !lambda return (int(timeout_sleep->state) *1000);
+            - lambda: |-
+                if (
+                      timeout_sleep->state > 0 and
+                      current_page_id != ${PAGE_SCREENSAVER_ID} and
+                      current_page_id != ${PAGE_BOOT_ID}
+                    ) {
+                  ESP_LOGD("${TAG_HW_DISPLAY}", "Going to sleep from page %s", page_names[current_page_id]);
+                  goto_page->execute(${PAGE_SCREENSAVER_ID});
+                  set_brightness->execute(display_sleep_brightness->state);
+                }
 
   - id: !extend timer_reset_all
     then:
