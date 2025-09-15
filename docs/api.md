@@ -13,7 +13,6 @@ This document provides details on custom actions designed for integration with H
   - [Hardware Button State Indication Action (`hw_button_state`)](#hardware-button-state-indication-action-hw_button_state):
 Updates the visual state (on/off) of the left and right hardware button indicators on the panel.
   - [Icon Action (`icon`)](#icon-action-icon): Updates a chip or custom button's icon, color, and visibility.
-  - [Initialization Action: Hardware (`init_hardware`)](#initialization-action-init_hardware): Transfers NSPanel hardware settings during initialization.
   - [Initialization Action: Home Page (`init_page_home`)](#initialization-action-init_page_home): Transfers settings for the "Home" page on initialization.
   - [Initialization Action: Settings Page (`init_page_settings`)](#initialization-action-init_page_settings): Transfers settings for the "Settings" page on initialization.
   - [Notification Clear Action (`notification_clear`)](#notification-clear-action-notification_clear): Clears the current notification from the screen.
@@ -311,29 +310,6 @@ data:
 ```
 > [!NOTE]
 > Ensure the placeholder `<your_panel_name>` is replaced with the specific panel name you will need to reference in your Home Assistant configuration.
-
-### Initialization Action: `init_hardware`
-Configures NSPanel hardware settings in ESPHome according to the specifications provided in the blueprint,
-ensuring each component operates with the correct parameters for control, appearance, and fallback behavior.
-
-**Usage:**
-This action is essential for initializing or updating button and relay configurations to reflect changes in the blueprint.
-It tailors ESPHome's hardware operations for specific use cases, including local control capabilities, iconography, color indications, and fallback states.
-
-**Parameters:**
-- `embedded_climate_friendly_name` (string): Provides a friendly name for the embedded climate control.
-- `embedded_indoor_temperature` (bool): Determines if indoor temperature display is enabled.
-
-**Home Assistant Example:**
-```yaml
-action: esphome.<your_panel_name>_init_hardware
-data:
-  embedded_climate_friendly_name: "Termostato da Sala"
-  embedded_indoor_temperature: true
-```
-> [!NOTE]
-> Replace `<your_panel_name>` with the specific name of your panel configured in Home Assistant.
-> This action initializes buttons and relay settings based on the provided parameters, customizing relay functionality and presentation as defined in the blueprint.
 
 ### Initialization Action: `init_page_home`
 Configures the "Home" page settings and user interface elements in ESPHome,
