@@ -58,7 +58,6 @@ If you send anything different, the conversion to the RGB565 used by Nextion wil
 | [`hw_button_state`](#hardware-button-state-indication-action-hw_button_state) | [Hardware Button State Indication Action](#hardware-button-state-indication-action-hw_button_state) | Updates the visual state (on/off) of the left and right hardware button indicators on the panel. |
 | [`icon`](#icon-action-icon) | [Icon Action](#icon-action-icon) | Updates a chip or custom button's icon, color, and visibility. |
 | [`init_global`](#initialization-action-init_global) | [Initialization Action](#initialization-action-init_global) | Transfers global settings on initialization. |
-| [`init_hardware`](#initialization-action-init_hardware) | [Initialization Action](#initialization-action-init_hardware) | Transfers NSPanel hardware settings during initialization. |
 | [`init_page_home`](#initialization-action-init_page_home) | [Initialization Action](#initialization-action-init_page_home) | Transfers settings for the "Home" page on initialization. |
 | [`init_page_settings`](#initialization-action-init_page_settings) | [Initialization Action](#initialization-action-init_page_settings) | Transfers settings for the "Settings" page on initialization. |
 | [`notification_clear`](#notification-clear-action-notification_clear) | [Notification Clear Action](#notification-clear-action-notification_clear) | Clears the current notification from the screen. |

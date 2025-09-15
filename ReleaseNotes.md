@@ -2,7 +2,8 @@
 
 ## Summary
 
-This release continues aggressive memory optimization efforts aimed at resolving boot loop issues for all configurations, including support for Bluetooth add-ons. Additional bug fixes improve overall system stability.
+This release continues aggressive memory optimization efforts aimed at resolving boot loop issues for all configurations,
+including support for Bluetooth add-ons. Additional bug fixes improve overall system stability.
 
 ## Breaking Changes
 
@@ -54,7 +55,9 @@ This release continues aggressive memory optimization efforts aimed at resolving
 
 ## Technical Details
 
-This release represents a focused approach to memory management, prioritizing essential functionality while aggressively removing redundant or non-critical components. The goal is achieving reliable operation across all add-on configurations, particularly memory-intensive ones like Bluetooth.
+This release represents a focused approach to memory management,
+prioritizing essential functionality while aggressively removing redundant or non-critical components.
+The goal is achieving reliable operation across all add-on configurations, particularly memory-intensive ones like Bluetooth.
 
 **Result:** Significant memory savings contributing toward universal boot reliability, with continued optimization work planned to achieve full add-on compatibility.
 
