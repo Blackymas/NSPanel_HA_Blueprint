@@ -13,7 +13,6 @@ This document provides details on custom actions designed for integration with H
   - [Hardware Button State Indication Action (`hw_button_state`)](#hardware-button-state-indication-action-hw_button_state):
 Updates the visual state (on/off) of the left and right hardware button indicators on the panel.
   - [Icon Action (`icon`)](#icon-action-icon): Updates a chip or custom button's icon, color, and visibility.
-  - [Initialization Action: Global (`init_global`)](#initialization-action-init_global): Transfers global settings on initialization.
   - [Initialization Action: Hardware (`init_hardware`)](#initialization-action-init_hardware): Transfers NSPanel hardware settings during initialization.
   - [Initialization Action: Home Page (`init_page_home`)](#initialization-action-init_page_home): Transfers settings for the "Home" page on initialization.
   - [Initialization Action: Settings Page (`init_page_settings`)](#initialization-action-init_page_settings): Transfers settings for the "Settings" page on initialization.
@@ -312,42 +311,6 @@ data:
 ```
 > [!NOTE]
 > Ensure the placeholder `<your_panel_name>` is replaced with the specific panel name you will need to reference in your Home Assistant configuration.
-
-### Initialization Action: `init_global`
-Transfers global settings from the blueprint to ESPHome,
-ensuring that ESPHome is configured with the necessary parameters for operation according to the blueprint specifications.
-
-**Usage:**
-This action is crucial during the initialization phase or when global settings need to be updated to reflect changes in the blueprint.
-It configures ESPHome with settings that affect overall functionality and user interface aspects.
-
-**Parameters:**
-- `blueprint_version` (string): Specifies the version of the blueprint being used.
-- `ent_value_xcen` (int): Alignment of values on entities pages (0 for right (default), 1 for center or 2 for left).
-- `mui_please_confirm` (string): Localized (language based) message used for asking for confirmation in the UI.
-- `mui_unavailable` (string): Localized (language based) message used for  indicating unavailability in the UI.
-- `screensaver_time` (bool): Enables or disables the screensaver time display.
-- `screensaver_time_font` (int): Specifies the font id for the screensaver time display.
-- `screensaver_time_color` (int[]): Specifies the RGB color array for the screensaver time display.
-- `decimal_separator` (string): The char to be used as decimal separator.
-
-**Home Assistant Example:**
-```yaml
-action: esphome.<your_panel_name>_init_global
-data:
-  blueprint_version: "4.2.5"
-  ent_value_xcen: 0
-  mui_please_confirm: "Confirme, por favor."
-  mui_unavailable: "Indisponível"
-  screensaver_time: true
-  screensaver_time_font: 11
-  screensaver_time_color: [165, 42, 42]  # Reddish-brown
-  decimal_separator: ","
-```
-> [!NOTE]
-> Replace `<your_panel_name>` with the specific name of your panel configured in Home Assistant.
->
-> This action should be called to update ESPHome with the latest global settings as specified in your blueprint.
 
 ### Initialization Action: `init_hardware`
 Configures NSPanel hardware settings in ESPHome according to the specifications provided in the blueprint,

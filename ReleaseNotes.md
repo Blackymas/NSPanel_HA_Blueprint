@@ -1,54 +1,63 @@
-# v4.3.32 - Additional Bug Fixes and Memory Optimizations
+# v4.3.33 - Memory Optimization Focus for Boot Loop Resolution
 
 ## Summary
 
-This release continues the stability improvements with additional bug fixes
-and further memory optimizations to enhance system reliability and performance.
+This release continues aggressive memory optimization efforts aimed at resolving boot loop issues for all configurations, including support for Bluetooth add-ons. Additional bug fixes improve overall system stability.
 
-## Bug Fixes
+## Breaking Changes
 
-### Display Sleep Issue Resolution
-**Fixed display sleep (0s) functionality** - resolved the issue where display sleep stopped working after the v4.3.30 memory optimizations.
-Sleep mode now functions properly again.
+### Notification Text Sensors Removed
 
-### Thermostat Screen Fix
-**Resolved empty thermostat screen issue** that appeared in v4.3.31, ensuring thermostat controls display correctly.
+**Two notification-related text sensors have been removed** as part of memory optimization efforts:
+- **Notification Label sensor** (page title)
+- **Notification Message sensor** (page body)
 
-**Additional fixes:**
-- Enhanced error handling in various components
-- Improved edge case handling for better reliability
+**Why removed:** These sensors were redundant - they reflected back to Home Assistant the same information that was just sent via action calls from Home Assistant.
 
-## Performance Improvements
+**Impact:** Most users won't notice any difference since these sensors provided duplicate information.
 
-### Additional Memory Optimizations
+**Need these sensors?** If your automations rely on these sensors, please report this as an issue on GitHub. We're happy to help with either:
+- Workarounds that don't require the sensors
+- Adding them back as optional customizations
 
-**Further memory usage reductions** building on the optimization work from v4.3.30,
-providing even better stability margins for add-on usage.
+**For current supported actions and API capabilities, consult the [API documentation](docs/api.md).**
 
-**Memory improvements:**
-- Additional non-essential components optimized or removed
-- Reduced memory fragmentation through better allocation patterns
-- Enhanced memory efficiency in core operations
+## Key Improvements
 
-### Stability Enhancements
+### Aggressive Memory Optimization
 
-**Continued system stability improvements** focusing on reliability and robustness
-across different usage scenarios and configurations.
+**Focused memory reduction effort** targeting complete boot loop resolution across all configurations, including support for memory-intensive add-ons like Bluetooth.
 
-**Stability improvements:**
+**Optimization goals:**
+- **Universal boot reliability** - resolve boot loops for all users
+- **Bluetooth compatibility** - enable stable operation with Bluetooth add-ons
+- **Maximum memory efficiency** - aggressive reduction of non-essential components
+
+**Progress status:** Significant memory freed up, with more optimization work planned for upcoming releases.
+
+### Additional Bug Fixes
+
+**Resolved several reported issues** continuing the stability improvement efforts from recent releases.
+
+**Bug fixes include:**
+- Various edge case handling improvements
+- Enhanced system reliability
 - Better error recovery mechanisms
-- Enhanced component initialization reliability
-- Improved handling of edge cases and error conditions
+
+## Current Status & Goals
+
+**Primary objective:** Enable stable operation with Bluetooth add-ons through continued memory optimization.
+
+**Ongoing work:** Additional memory optimizations planned for upcoming releases to achieve full Bluetooth compatibility.
+
+**If you're currently stable - no immediate action needed.** These optimizations benefit all users by improving boot reliability and system stability.
 
 ## Technical Details
 
-This release represents continued iterative improvement in system stability and efficiency.
-The additional memory optimizations provide further headroom for add-on usage,
-while bug fixes address specific issues identified through community feedback.
+This release represents a focused approach to memory management, prioritizing essential functionality while aggressively removing redundant or non-critical components. The goal is achieving reliable operation across all add-on configurations, particularly memory-intensive ones like Bluetooth.
 
-**Result:** Enhanced system stability with improved memory efficiency
-and resolution of additional reported issues.
+**Result:** Significant memory savings contributing toward universal boot reliability, with continued optimization work planned to achieve full add-on compatibility.
 
 ---
 
-*Continued stability and memory optimization improvements with targeted bug fixes.*
+*Continued aggressive memory optimization targeting universal boot reliability and Bluetooth add-on support.*
