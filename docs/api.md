@@ -321,14 +321,6 @@ This action is essential for initializing or updating button and relay configura
 It tailors ESPHome's hardware operations for specific use cases, including local control capabilities, iconography, color indications, and fallback states.
 
 **Parameters:**
-- `relay1_local_control` (bool): Enables or disables local control for Relay 1.
-- `relay1_icon` (string):
-Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) for Relay 1.
-- `relay1_fallback` (bool): Determines the fallback state for Relay 1 in case of communication loss.
-- `relay2_local_control` (bool): Enables or disables local control for Relay 2.
-- `relay2_icon` (string):
-Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.github.io/?https://github.com/jobr99/Generate-HASP-Fonts/blob/master/cheatsheet.html) for Relay 2.
-- `relay2_fallback` (bool): Determines the fallback state for Relay 2 in case of communication loss.
 - `button_left` (bool): Enable/disable left button status visualization.
 - `button_right` (bool): Enable/disable right button status visualization.
 - `button_bar_color_on` (int[]): RGB color array for the hardware button bar when the status is `On`.
@@ -341,8 +333,6 @@ Icon codepoint from [HASwitchPlate Material Design Icons](https://htmlpreview.gi
 ```yaml
 action: esphome.<your_panel_name>_init_hardware
 data:
-  relay1_icon: "\uE3A5"           # Example for mdi:numeric-1-box-outline
-  relay2_icon: "\uE3A8"           # Example for mdi:numeric-2-box-outline
   button_left: true
   button_right: true
   button_bar_color_on: [31, 169, 255]  # Blueish
