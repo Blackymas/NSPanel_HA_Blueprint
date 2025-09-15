@@ -321,8 +321,6 @@ This action is essential for initializing or updating button and relay configura
 It tailors ESPHome's hardware operations for specific use cases, including local control capabilities, iconography, color indications, and fallback states.
 
 **Parameters:**
-- `button_bar_color_on` (int[]): RGB color array for the hardware button bar when the status is `On`.
-- `button_bar_color_off` (int[]): RGB color array for the hardware button bar when the status is `Off`.
 - `embedded_climate` (bool): Indicates whether climate control is embedded in the panel.
 - `embedded_climate_friendly_name` (string): Provides a friendly name for the embedded climate control.
 - `embedded_indoor_temperature` (bool): Determines if indoor temperature display is enabled.
@@ -331,8 +329,6 @@ It tailors ESPHome's hardware operations for specific use cases, including local
 ```yaml
 action: esphome.<your_panel_name>_init_hardware
 data:
-  button_bar_color_on: [31, 169, 255]  # Blueish
-  button_bar_color_off: [44, 44, 44]   # Dark gray
   embedded_climate: true
   embedded_climate_friendly_name: "Termostato da Sala"
   embedded_indoor_temperature: true
