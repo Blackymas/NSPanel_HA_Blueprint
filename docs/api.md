@@ -321,8 +321,6 @@ This action is essential for initializing or updating button and relay configura
 It tailors ESPHome's hardware operations for specific use cases, including local control capabilities, iconography, color indications, and fallback states.
 
 **Parameters:**
-- `button_left` (bool): Enable/disable left button status visualization.
-- `button_right` (bool): Enable/disable right button status visualization.
 - `button_bar_color_on` (int[]): RGB color array for the hardware button bar when the status is `On`.
 - `button_bar_color_off` (int[]): RGB color array for the hardware button bar when the status is `Off`.
 - `embedded_climate` (bool): Indicates whether climate control is embedded in the panel.
@@ -333,8 +331,6 @@ It tailors ESPHome's hardware operations for specific use cases, including local
 ```yaml
 action: esphome.<your_panel_name>_init_hardware
 data:
-  button_left: true
-  button_right: true
   button_bar_color_on: [31, 169, 255]  # Blueish
   button_bar_color_off: [44, 44, 44]   # Dark gray
   embedded_climate: true
