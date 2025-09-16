@@ -47,4 +47,13 @@ namespace nspanel_ha_blueprint {
                         uint8_t line_length_limit,
                         uint8_t bytes_per_char);
 
+    /**
+    * Checks if a given string is present within a list of strings.
+    * 
+    * @param strToSearch The string to search for within the list.
+    * @param list An initializer list of strings to search within.
+    * @return `true` if the target string is found within the list, `false` otherwise.
+    */
+    bool isStringInList(const std::string& strToSearch, std::initializer_list<std::string> list);
+
 }  // namespace nspanel_ha_blueprint

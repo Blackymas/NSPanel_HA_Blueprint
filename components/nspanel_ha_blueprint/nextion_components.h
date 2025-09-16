@@ -11,7 +11,6 @@ namespace nspanel_ha_blueprint {
     struct NextionComponent {
         char page[15];         // 14 characters + null terminator, representing the Nextion display page
         char component_id[15]; // 14 characters + null terminator, representing the component ID within the page
-        bool is_current_page;  // Flag indicating whether the component is on the current page
     };
 
     /**
