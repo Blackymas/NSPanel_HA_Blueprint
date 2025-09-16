@@ -18,13 +18,4 @@ namespace nspanel_ha_blueprint {
         return UINT8_MAX;
     }
 
-    bool isStringInList(const std::string& strToSearch, std::initializer_list<std::string> list) {
-        for (const auto& str : list) {
-            if (strToSearch == str) {
-                return true;
-            }
-        }
-        return false;
-    }
-
 }  // namespace nspanel_ha_blueprint

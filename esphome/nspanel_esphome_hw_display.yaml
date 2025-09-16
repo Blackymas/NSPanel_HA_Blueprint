@@ -26,7 +26,6 @@ substitutions:
   GPIO_DISPLAY_POWER_PIN:
     number: 4
     inverted: true
-  screen_power_off_on_shutdown: 'true'
   TAG_HW_DISPLAY: nspanel.hw.display
 
 binary_sensor:
@@ -45,6 +44,7 @@ binary_sensor:
 display:
   - id: disp1
     platform: nextion
+    update_interval: never
     uart_id: tf_uart
     on_setup:
       then:
@@ -93,6 +93,7 @@ number:
     step: 1
     restore_value: true
     optimistic: true
+    update_interval: never
     on_value:
       then:
         - lambda: |-
@@ -136,13 +137,9 @@ script:
           if (page == "mem" and component == "bytes_per_char")
             id(mui_bytes_per_char) = static_cast<uint8_t>(val);
 
-  - id: !extend boot_early_routines
+  - id: !extend boot_preparation
     then:
-      - if:
-          condition:
-            - switch.is_off: screen_power
-          then:
-            - switch.turn_on: screen_power
+      - lambda: setup_components_visibility();
 
   - id: !extend dump_config
     then:
@@ -242,8 +239,7 @@ script:
               {"type", "button_click"},
               {"page", page.c_str()},
               {"component", component.c_str()},
-              {"command", event.c_str()},
-              {"tag", "${TAG_HW_DISPLAY}"}
+              {"command", event.c_str()}
             });
             ESP_LOGD("${TAG_HW_DISPLAY}", "Home Assistant click event sent");
           } else if (page != "home" and page != "light") {
@@ -257,8 +253,7 @@ script:
               {"component", component.c_str()},
               {"event", event.c_str()},
               {"value", value.c_str()},
-              {"entity", id(detailed_entity).state.c_str()},
-              {"tag", "${TAG_HW_DISPLAY}"}
+              {"entity", id(detailed_entity).state.c_str()}
             });
             ESP_LOGD("${TAG_HW_DISPLAY}", "Home Assistant generic event sent");
           }
@@ -272,10 +267,6 @@ script:
           ESP_LOGV("${TAG_HW_DISPLAY}", "Go to page '%s' (id: %" PRIu8 ")", page_names[page_id], page_id);
           if (page_id == current_page_id) {
             ESP_LOGW("${TAG_HW_DISPLAY}", "Already the current page");
-            return;
-          }
-          if (not is_device_ready_for_tasks()) {
-            ESP_LOGW("${TAG_HW_DISPLAY}", "Device is not ready for changing page");
             return;
           }
           ESP_LOGVV("${TAG_HW_DISPLAY}", "Send page id '%" PRIu8 "' to Nextion", page_id);
@@ -296,7 +287,9 @@ script:
           }
 
       # Stop previous constructors
-      - script.execute: stop_page_constructors
+      - lambda: |-
+          ESP_LOGV("${TAG_HW_DISPLAY}", "Stop previous constructors");
+          stop_page_constructors->execute();
 
       # Reset globals
       - lambda: |-
@@ -346,6 +339,18 @@ script:
       # Wait for other constructors to stop before telling the blueprint about a new page
       - script.wait: stop_page_constructors
 
+      # Update component's visibility from memory
+      - lambda: |-
+          ESP_LOGV("${TAG_HW_DISPLAY}", "Update component's visibility from memory");
+          std::vector<ComponentVisibility*> components_visibility = list_components_visibility_by_page(current_page_id);
+          for (ComponentVisibility* component_visibility : components_visibility) {
+            if (component_visibility->visible) {
+              disp1->show_component(component_visibility->component);
+            } else {
+              disp1->hide_component(component_visibility->component);
+            }
+          }
+
       # Report new page to Blueprint
       - if:
           condition:
@@ -362,8 +367,6 @@ script:
                   esphome_version: ${version}
                   type: page_changed
                   page: !lambda return page_names[new_page_id];
-                  page_id: !lambda return new_page_id;
-                  last_page_id: !lambda return last_page_id;
                   entity: !lambda return detailed_entity->state.c_str();
 
       # Call page constructor
@@ -376,7 +379,6 @@ script:
           else if (current_page->state == "buttonpage02") page_buttonpage02->execute();
           else if (current_page->state == "buttonpage03") page_buttonpage03->execute();
           else if (current_page->state == "buttonpage04") page_buttonpage04->execute();
-          else if (current_page->state == "confirm") page_confirm->execute();
           else if (current_page->state == "qrcode") page_qrcode->execute();
           else if (current_page->state == "utilities") page_utilities->execute();
           else if (current_page->state == "weather01") page_weather01->execute();
@@ -470,7 +472,6 @@ script:
     then:
       # Page home is an exception, as it can be constructed in the background
       - script.stop: page_blank
-      - script.stop: page_confirm
       - script.stop: page_entitypage
       - script.stop: page_entitypage01
       - script.stop: page_entitypage02
@@ -547,15 +548,30 @@ script:
   - id: wait_for_display
     mode: single
     then:
-      - delay: 19s
-      - while:
+      - if:
           condition:
             - lambda: return !disp1->is_setup();
           then:
-            - lambda: |-
-                ESP_LOGE("${TAG_HW_DISPLAY}", "Display is not set. Scanning baud rates.");
-            - select.next: baud_rate
+            - switch.turn_on: screen_power
             - delay: 19s
+            - while:
+                condition:
+                  - lambda: return !disp1->is_setup();
+                then:
+                  - lambda: |-
+                      ESP_LOGE("${TAG_HW_DISPLAY}", "Display is not set. Restarting.");
+                  - switch.turn_off: screen_power
+                  - delay: 2s
+                  - switch.turn_on: screen_power
+                  - delay: 7s
+                  - if:
+                      condition:
+                        - lambda: return !disp1->is_setup();
+                      then:
+                        - lambda: |-
+                            ESP_LOGE("${TAG_HW_DISPLAY}", "Display is not set. Scanning baud rates.");
+                        - select.next: baud_rate
+                        - delay: 19s
 
   - id: wait_for_uart_available
     mode: single
@@ -634,6 +650,7 @@ select:
     entity_category: config
     disabled_by_default: true
     icon: mdi:swap-horizontal
+    update_interval: never
     on_value:
       then:
         - lambda: |-
@@ -667,6 +684,7 @@ select:
     internal: false
     entity_category: config
     icon: mdi:page-next-outline
+    update_interval: never
     on_value:
       then:
         - lambda: wakeup_page_id = get_page_id(x.c_str());
@@ -748,6 +766,7 @@ text_sensor:
     icon: mdi:tablet-dashboard
     internal: false
     disabled_by_default: false
+    update_interval: never
 
   - id: disp1_local_event
     name: NSPanel local event
@@ -755,8 +774,11 @@ text_sensor:
     nextion_id: disp1
     component_name: localevent
     internal: true
+    update_interval: never
     on_value:
       then:
+        - script.execute: dump_config_hw_memory
+        - script.wait: dump_config_hw_memory
         - lambda: |-
             static JsonDocument json;
             static std::string page;

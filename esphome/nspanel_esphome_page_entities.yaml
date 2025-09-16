@@ -21,13 +21,54 @@ esphome:
       - -D NSPANEL_HA_BLUEPRINT_PAGE_ENTITIES
 
 script:
-  - id: !extend global_settings
+  - id: !extend action_component_text
     then:
-      # Entities pages alignment
-      - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
-          ESP_LOGD("${TAG_PAGE_ENTITIES}", "Set value alignment on entities pages");
-          page_entities_value_horizontal_alignment = ent_value_xcen;
+          if (page.find("entitypage") == 0) {
+            if (
+                not txt.empty() and  // There's nothing to adjust if the value is empty
+                component.find("_") == std::string::npos  // Applyes only to value itself. No label or icon.
+                ) {
+              // Value - Adjust decimal separator
+              if (not id(mui_decimal_separator).empty() and id(mui_decimal_separator) != ".") {
+                disp1->set_component_text(
+                          component.c_str(),
+                          adjustDecimalSeparator(
+                                                  txt,
+                                                  id(mui_decimal_separator).empty() ? '.' : id(mui_decimal_separator)[0]
+                                                ).c_str()
+                );
+              }
+
+              // Value - Adjust font
+              // Adjusted length starts at 0
+              float adjusted_length = 0.0;
+
+              // Iterate over each character in the string
+              for (char const &c: txt) {
+                // Check if character is a space or other specified exceptions
+                if (display_charset == 2 or std::string("${half_width_chars}").find(c) != std::string::npos) {
+                  adjusted_length += 0.5; // Count these as half
+                } else {
+                  adjusted_length += 1.0; // Count all other characters as 1
+                }
+              }
+              // Decide which font to use based on adjusted length
+              if (adjusted_length > 8.0 and adjusted_length <= 12.0) {
+                disp1->set_component_font(component.c_str(), 1);
+              } else if (adjusted_length > 12.0) {
+                disp1->set_component_font(component.c_str(), 0);
+              }
+            }
+          }
+
+  - id: !extend action_component_val
+    then:
+      - lambda: |-
+          if (page == "mem" and component == "ent_value_xcen") {  // Entities pages alignment
+            ESP_LOGD("${TAG_PAGE_ENTITIES}", "Set value alignment on entities pages: %i", val);
+            page_entities_value_horizontal_alignment = val;
+          }
 
   - id: !extend page_change
     then:
