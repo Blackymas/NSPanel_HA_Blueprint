@@ -8,6 +8,7 @@ namespace nspanel_ha_blueprint {
 
     // Global var for the friendly name of the embedded climate entity
     std::string addon_climate_friendly_name = "Thermostat";
+    bool is_addon_climate_visible = false;
 
 }  // namespace nspanel_ha_blueprint
 

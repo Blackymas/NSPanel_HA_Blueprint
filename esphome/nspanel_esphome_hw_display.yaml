@@ -73,6 +73,9 @@ esphome:
   platformio_options:
     build_flags:
       - -D NSPANEL_HA_BLUEPRINT_HW_DISPLAY
+  on_shutdown:
+    then:
+      - switch.turn_off: screen_power
 
 globals:
   - id: mui_bytes_per_char
@@ -137,14 +140,6 @@ script:
       - lambda: |-
           if (page == "mem" and component == "bytes_per_char")
             id(mui_bytes_per_char) = static_cast<uint8_t>(val);
-
-  - id: !extend boot_early_routines
-    then:
-      - if:
-          condition:
-            - switch.is_off: screen_power
-          then:
-            - switch.turn_on: screen_power
 
   - id: !extend boot_preparation
     then:
@@ -557,15 +552,30 @@ script:
   - id: wait_for_display
     mode: single
     then:
-      - delay: 19s
-      - while:
+      - if:
           condition:
             - lambda: return !disp1->is_setup();
           then:
-            - lambda: |-
-                ESP_LOGE("${TAG_HW_DISPLAY}", "Display is not set. Scanning baud rates.");
-            - select.next: baud_rate
+            - switch.turn_on: screen_power
             - delay: 19s
+            - while:
+                condition:
+                  - lambda: return !disp1->is_setup();
+                then:
+                  - lambda: |-
+                      ESP_LOGE("${TAG_HW_DISPLAY}", "Display is not set. Restarting.");
+                  - switch.turn_off: screen_power
+                  - delay: 2s
+                  - switch.turn_on: screen_power
+                  - delay: 7s
+                  - if:
+                      condition:
+                        - lambda: return !disp1->is_setup();
+                      then:
+                        - lambda: |-
+                            ESP_LOGE("${TAG_HW_DISPLAY}", "Display is not set. Scanning baud rates.");
+                        - select.next: baud_rate
+                        - delay: 19s
 
   - id: wait_for_uart_available
     mode: single
@@ -771,6 +781,8 @@ text_sensor:
     update_interval: never
     on_value:
       then:
+        - script.execute: dump_config_hw_memory
+        - script.wait: dump_config_hw_memory
         - lambda: |-
             static JsonDocument json;
             static std::string page;
