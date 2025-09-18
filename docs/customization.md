@@ -20,6 +20,7 @@ Table of contents:
   - [Compiling ESPHome on lower powered machines](#compiling-esphome-on-lower-powered-machines)
   - [Sleep & Wake-up buttons](#sleep--wake-up-buttons)
   - [Set display as a light](#set-display-as-a-light)
+  - [Current brightness sensor](#current-brightness-sensor)
   - [Scheduled actions](#scheduled-actions)
     - [Scheduled relay](#scheduled-relay)
     - [Scheduled climate](#scheduled-climate)
@@ -467,6 +468,34 @@ script:
             }
           }
 
+sensor:
+  - id: current_brightness  # Display Brightness - Current value (%)
+    name: Display Current brightness
+    platform: nextion
+    variable_name: dim
+    precision: 0
+    accuracy_decimals: 0
+    unit_of_measurement: "%"
+    icon: mdi:brightness-percent
+    internal: false
+    disabled_by_default: false
+```
+
+### Current brightness sensor
+Exposes to Home Assistant the current brightness of your panel.
+
+```yaml
+sensor:
+  - id: current_brightness  # Display Brightness - Current value (%)
+    name: Display Current brightness
+    platform: nextion
+    variable_name: dim
+    precision: 0
+    accuracy_decimals: 0
+    unit_of_measurement: "%"
+    icon: mdi:brightness-percent
+    internal: false
+    disabled_by_default: false
 ```
 
 ### Scheduled actions
