@@ -43,6 +43,19 @@ that can be optionally restored via customizations for users who need them.
 - **User choice preserved** through customization options
 - **Targeted memory savings** focusing on high-impact optimizations
 
+## Bug Fixes
+
+### Relay Icon Display Fix
+
+**Fixed relay icons showing incorrectly during home page load** - resolved visual glitch where relay icons would display incorrect state for a brief moment during page loading.
+
+**Issue details:**
+- Problem was recently introduced during optimization efforts
+- Icons would show wrong state for a fraction of a second during home page load
+- **Fixed by @gr1los** in PR #2885
+
+**Result:** Clean home page loading with correct relay icon states from the start.
+
 ## Technical Details
 
 This release continues the aggressive memory optimization approach,
