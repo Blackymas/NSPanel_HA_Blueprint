@@ -12,42 +12,32 @@ namespace nspanel_ha_blueprint {
 
     UtilitiesGroupValues *UtilitiesGroups = nullptr;
 
+    static constexpr size_t UTILITIES_GROUPS_COUNT = 8;
+
     void resetUtilitiesGroups() {
-        // Dynamically allocate the UtilitiesGroups array in PSRAM
         #ifdef USE_ESP_IDF
-        UtilitiesGroups = static_cast<UtilitiesGroupValues*>(heap_caps_malloc(8 * sizeof(UtilitiesGroupValues), MALLOC_CAP_SPIRAM));
+        UtilitiesGroups = static_cast<UtilitiesGroupValues*>(
+            heap_caps_malloc(UTILITIES_GROUPS_COUNT * sizeof(UtilitiesGroupValues), MALLOC_CAP_SPIRAM));
         #elif defined(USE_ARDUINO)
-        UtilitiesGroups = static_cast<UtilitiesGroupValues*>(ps_malloc(8 * sizeof(UtilitiesGroupValues)));
-        #endif
+        UtilitiesGroups = static_cast<UtilitiesGroupValues*>(
+            ps_malloc(UTILITIES_GROUPS_COUNT * sizeof(UtilitiesGroupValues)));
+        #endif  // USE_ESP_IDF
         
-        if (!UtilitiesGroups) UtilitiesGroups = new UtilitiesGroupValues[8];  // Fallback to internal SRAM if PSRAM is not available or not supported
-        if (!UtilitiesGroups) return;                                         // Fail nicely if no memory is available
-
-        // Initialize UtilitiesGroups with default values
-        const UtilitiesGroupValues initialUtilitiesGroups[8] = {
-            {"grid", "\0", "\0", 0},
-            {"group01", "\0", "\0", 0},
-            {"group02", "\0", "\0", 0},
-            {"group03", "\0", "\0", 0},
-            {"group04", "\0", "\0", 0},
-            {"group05", "\0", "\0", 0},
-            {"group06", "\0", "\0", 0},
-            {"home", "\0", "\0", 0}
+        if (!UtilitiesGroups) UtilitiesGroups = new UtilitiesGroupValues[UTILITIES_GROUPS_COUNT];
+        if (!UtilitiesGroups) return;
+    
+        static constexpr UtilitiesGroupValues INITIAL_UTILITIES_GROUPS[UTILITIES_GROUPS_COUNT] = {
+            {"grid", "", "", 0},      // Use "" instead of "\0" for clarity
+            {"group01", "", "", 0},
+            {"group02", "", "", 0},
+            {"group03", "", "", 0},
+            {"group04", "", "", 0},
+            {"group05", "", "", 0},
+            {"group06", "", "", 0},
+            {"home", "", "", 0}
         };
-
-        for (size_t i = 0; i < 8; ++i) {
-            std::strcpy(UtilitiesGroups[i].group_id, initialUtilitiesGroups[i].group_id);
-            std::strcpy(UtilitiesGroups[i].value1, initialUtilitiesGroups[i].value1);
-            std::strcpy(UtilitiesGroups[i].value2, initialUtilitiesGroups[i].value2);
-            UtilitiesGroups[i].direction = initialUtilitiesGroups[i].direction;
-        }
-    }
-
-    void cleanupUtilitiesGroups() {
-        if (UtilitiesGroups != nullptr) {
-            free(UtilitiesGroups);      // Compatible with both heap_caps_malloc and ps_malloc
-            UtilitiesGroups = nullptr;  // Prevent dangling pointers
-        }
+    
+        std::memcpy(UtilitiesGroups, INITIAL_UTILITIES_GROUPS, UTILITIES_GROUPS_COUNT * sizeof(UtilitiesGroupValues));
     }
 
     uint8_t findUtilitiesGroupIndex(const char* group_id) {

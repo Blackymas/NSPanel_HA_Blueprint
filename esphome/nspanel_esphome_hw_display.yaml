@@ -39,7 +39,7 @@ binary_sensor:
       return is_device_ready_for_tasks();
     on_release:
       then:
-        - lambda: clear_system_flag(NSPanelFlag::NEXTION_READY);
+        - lambda: system_flags &= ~NSPanelFlag::NEXTION_READY;  // Clear flag
 
 display:
   - id: disp1
@@ -54,7 +54,7 @@ display:
         - script.stop: wait_for_display
         - lambda: |-
             ESP_LOGI("${TAG_HW_DISPLAY}", "Nextion setup triggered");
-            set_system_flag(NSPanelFlag::NEXTION_READY);
+            system_flags |= (NSPanelFlag::NEXTION_READY);  // Set the flag
             nextion_init->publish_state(true);
 
     on_page:
@@ -202,7 +202,7 @@ script:
           if (event == "params") {
             if (json["display_mode"].isNull() || json["charset"].isNull() || json["version"].isNull()) {
               ESP_LOGW("${TAG_HW_DISPLAY}", "Missing display keys");
-              clear_system_flag(NSPanelFlag::DISPLAY_SETTINGS_RECEIVED);
+              system_flags &= ~NSPanelFlag::DISPLAY_SETTINGS_RECEIVED;  // Clear flag
               return;
             }
 
@@ -216,7 +216,7 @@ script:
             ESP_LOGI("${TAG_HW_DISPLAY}", "  Charset:     %" PRIu8, display_charset);
             ESP_LOGI("${TAG_HW_DISPLAY}", "  TFT version: v%s", version_tft->state.c_str());
 
-            set_system_flag(NSPanelFlag::DISPLAY_SETTINGS_RECEIVED);
+            system_flags |= (NSPanelFlag::DISPLAY_SETTINGS_RECEIVED);  // Set the flag
             id(disp1).send_command("tm_esphome.en=0");
             return;
           }
@@ -399,14 +399,16 @@ script:
       definitive: bool
     then:
       - lambda: |-
-          if (are_any_system_flags_set({NSPanelFlag::OTA_IN_PROGRESS, NSPanelFlag::SAFE_MODE_ACTIVE}) or
+          if (
+              (system_flags & NSPanelFlag::OTA_IN_PROGRESS) or
+              (system_flags & NSPanelFlag::SAFE_MODE_ACTIVE) or
               disp1->is_updating()) {  // I cannot use NSPanelFlag::TFT_UPLOAD_ACTIVE as baud rate changes with that
             ESP_LOGW("${TAG_BASE}", "Cannot change baud rate now as the system is busy");
             set_baud_rate->stop();
             return;
           }
           if (!isnan(target_baud_rate))
-            set_system_flag(NSPanelFlag::BAUD_RATE_SET);
+            system_flags |= (NSPanelFlag::BAUD_RATE_SET);  // Set the flag
       - if:
           condition:
             - lambda: return (tf_uart->get_baud_rate() != target_baud_rate);
@@ -642,9 +644,9 @@ select:
     on_value:
       then:
         - lambda: |-
-            if (are_any_system_flags_set({NSPanelFlag::OTA_IN_PROGRESS,
-                                          NSPanelFlag::SAFE_MODE_ACTIVE,
-                                          NSPanelFlag::TFT_UPLOAD_ACTIVE})) {
+            if ((system_flags & NSPanelFlag::OTA_IN_PROGRESS) or
+                (system_flags & NSPanelFlag::SAFE_MODE_ACTIVE) or
+                (system_flags & NSPanelFlag::TFT_UPLOAD_ACTIVE)) {
               ESP_LOGW("${TAG_BASE}", "Cannot change baud rate as the system is busy");
               return;
             }

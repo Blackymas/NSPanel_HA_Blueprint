@@ -65,6 +65,6 @@ namespace nspanel_ha_blueprint {
     * @return The index of the page_name in the page_names array. If the page_name
     *         is not found, returns UINT8_MAX as an indicator that no matching page was found.
     */
-    uint8_t get_page_id(const std::string& page_name);
+    uint8_t get_page_id(const char* page_name);
 
 }  // namespace nspanel_ha_blueprint
