@@ -103,13 +103,14 @@ namespace nspanel_ha_blueprint {
     * @return Percentage (0.0-100.0) of active flags set, excluding reserved bits
     */
     inline float get_blueprint_status_percentage() {
-        // Active flags mask: bits 1-4 (PAGE_HOME, QRCODE, RELAY_SETTINGS, VERSION, HW_BUTTONS_SETTINGS)
         static constexpr uint8_t ACTIVE_FLAGS_MASK = 0x3E;  // 00111110
-        static constexpr uint8_t MAX_ACTIVE_VALUE = 62;     // 2^1+2^2+2^3+2^4+2^5 = 2+4+8+16+32 = 62
+        static constexpr uint8_t TOTAL_ACTIVE_FLAGS = 5;
 
-        uint8_t active_flags = blueprint_status_flags & ACTIVE_FLAGS_MASK;
-        return active_flags > 0 ? (static_cast<float>(active_flags) / MAX_ACTIVE_VALUE) * 100.0f : 0.0f;
-    };
+        const uint8_t active_flags = blueprint_status_flags & ACTIVE_FLAGS_MASK;
+        const uint8_t count = std::popcount(active_flags);  // C++20 built-in bit count
+
+        return (static_cast<float>(count) / TOTAL_ACTIVE_FLAGS) * 100.0f;
+      }  // get_blueprint_status_percentage
 
     /**
     * @brief Get the raw value of active blueprint status flags (excluding reserved bits)
