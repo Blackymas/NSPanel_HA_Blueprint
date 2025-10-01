@@ -36,7 +36,6 @@ script:
   - id: !extend boot
     then:
       - lambda: |-
-          device_name->update();
           wait_for_wifi->execute();
 
   - id: !extend boot_critical_components
@@ -52,8 +51,8 @@ script:
     then:
       # Report Wi-Fi status
       - lambda: |-
-          if (is_system_flag_set(NSPanelFlag::WIFI_READY)) {
-            ESP_LOGCONFIG("${TAG_HW_WIFI}", "WiFi: Connected (%f%% dBm)", wifi_component->wifi_rssi());
+          if (system_flags & NSPanelFlag::WIFI_READY) {
+            ESP_LOGCONFIG("${TAG_HW_WIFI}", "WiFi: Connected (%d dBm)", wifi_component->wifi_rssi());
           } else {
             ESP_LOGE("${TAG_HW_WIFI}", "WiFi: DISCONNECTED");
           }
@@ -71,16 +70,18 @@ script:
           then:
             - lambda: |-
                 disp1->send_command_printf("api=%i",
-                          are_all_system_flags_set({NSPanelFlag::WIFI_READY, NSPanelFlag::API_READY, NSPanelFlag::BLUEPRINT_READY})
+                          system_flags & NSPanelFlag::WIFI_READY and
+                          system_flags & NSPanelFlag::API_READY and
+                          system_flags & NSPanelFlag::BLUEPRINT_READY
                           ? 1 : 0);
                 // Update Wi-Fi icon color
-                disp1->set_component_font_color("home.wifi_icon", (is_system_flag_set(NSPanelFlag::BLUEPRINT_READY)) ?
+                disp1->set_component_font_color("home.wifi_icon", system_flags & NSPanelFlag::BLUEPRINT_READY ?
                                                                     ${COLOR_GRAY_MOSS} : ${COLOR_RED_PRIMARY});
                 // Update Wi-Fi icon
                 disp1->set_component_text("home.wifi_icon",
-                                          is_system_flag_set(NSPanelFlag::WIFI_READY) ?
-                                            (is_system_flag_set(NSPanelFlag::API_READY) ?
-                                              ((is_system_flag_set(NSPanelFlag::BLUEPRINT_READY)) ?
+                                          system_flags & NSPanelFlag::WIFI_READY ?
+                                            (system_flags & NSPanelFlag::API_READY ?
+                                              (system_flags & NSPanelFlag::BLUEPRINT_READY ?
                                                 "${MDI_ICON_WIFI}" :           // mdi:wifi - All right!
                                               "${MDI_ICON_HOME_ASSISTANT}") :  // mdi:home-assistant - Blueprint is out
                                             "${MDI_ICON_API_OFF}") :           // mdi:api-off
@@ -115,7 +116,7 @@ script:
           then:
             - if:
                 condition:
-                  - lambda: return is_system_flag_set(NSPanelFlag::WIFI_READY);
+                  - lambda: return system_flags & NSPanelFlag::WIFI_READY;
                 then:
                   - script.stop: wait_for_wifi
             - if:
@@ -143,18 +144,22 @@ text_sensor:
     disabled_by_default: false
     update_interval: never
     lambda: |-
-      std::string result;
-      bool last_was_underscore = false;
-      for (const char& c : App.get_friendly_name()) {
-        if (isalnum(c)) {
-          result += tolower(c);  // Add alphanumeric characters as lowercase
-          last_was_underscore = false;
-        } else if (!last_was_underscore) {  // Replace non-alphanumeric with '_' but avoid consecutive '_'
-          result += '_';
-          last_was_underscore = true;
-        }
-      }
-      return result;
+      return { App.get_name() };
+    filters:
+      - lambda: |-
+          std::string result;
+          bool last_was_underscore = false;
+          for (const char& c : x) {
+            if (isalnum(c)) {
+              result += tolower(c);  // Add alphanumeric characters as lowercase
+              last_was_underscore = false;
+            } else if (!last_was_underscore) {  // Replace non-alphanumeric with '_' but avoid consecutive '_'
+              result += '_';
+              last_was_underscore = true;
+            }
+          }
+          ESP_LOGI("${TAG_HW_WIFI}", "Device name: %s", result.c_str());
+          return result;
 
 wifi:
   id: wifi_component
@@ -164,11 +169,14 @@ wifi:
       password: ${wifi_password}
   on_connect:
     then:
-      - lambda: set_system_flag(NSPanelFlag::WIFI_READY);
-      - script.execute: refresh_wifi_icon
+      - lambda: |-
+          system_flags |= NSPanelFlag::WIFI_READY;  // Set the flag
+          device_name->update();
+          refresh_wifi_icon->execute();
   on_disconnect:
     then:
-      - lambda: clear_system_flag(NSPanelFlag::WIFI_READY);
-      - script.execute: refresh_wifi_icon
-      - script.execute: wait_for_wifi
+      - lambda: |-
+          system_flags &= ~NSPanelFlag::WIFI_READY;  // clear flag
+          refresh_wifi_icon->execute();
+          wait_for_wifi->execute();
 ...

@@ -8659,7 +8659,10 @@ action:
                             continue_on_error: true
 
                           - alias: Climate friendly name
-                            if: '{{ climate == thermostat_embedded }}'
+                            if:
+                              - '{{ climate == thermostat_embedded }}'
+                              - '{{ climate_entity_id_valid }}'
+                              - '{{ state_attr(climate, "friendly_name") | string | length > 0 }}'
                             then:
                               - *delay_boot
                               - service: 'esphome.{{ nspanel_name }}_component_text'
@@ -8908,7 +8911,7 @@ action:
               ##### Service call #####
               - alias: NSPanel service call
                 conditions:
-                  - '{{ nspanel_event.type == "service_call"}}'
+                  - '{{ nspanel_event.type in ["action_call", "service_call"] }}'
                   - '{{ nspanel_event.service is defined and nspanel_event.service is string and nspanel_event.service | length > 0 }}'
                   - '{{ nspanel_event.service.split(".") | count == 2 }}'  # prevents call to null service
                   - '{{ nspanel_event.service.split(".")[0] | length > 0 and nspanel_event.service.split(".")[0] not in ["null", None] }}'  # prevents call to null service
@@ -9994,6 +9997,20 @@ action:
                               hvac_modes: '{{ state_attr(climate_entity, "hvac_modes") if settings_entity_domain == "climate" }}'
                               friendly_name_raw: '{{ state_attr(climate_entity, "friendly_name") }}'
                               friendly_name: '{{ friendly_name_raw if friendly_name_raw and friendly_name_raw is string else "" }}'
+                          - if:
+                              - '{{ not embedded_climate }}'
+                              - '{{ nspanel_event.page == pages.climate }}'
+                              - '{{ climate_entity_temp is not string or climate_entity_temp | length < 9 }}'
+                            then:
+                              - *delay_default
+                              - service: 'esphome.{{ nspanel_name }}_entity_details_show'
+                                data:
+                                  entity: '{{ climate }}'
+                                  back_page: home
+                                continue_on_error: true
+                              - stop: "Climate page was requested with default climate entity"
+                                error: false
+
                           - condition: '{{ settings_entity_domain == "climate" }}'
                           - *delay_default
                           - service: 'esphome.{{ nspanel_name }}_component_text'
@@ -11373,7 +11390,7 @@ action:
               ##### Other events #####
               - alias: Other events
                 conditions:
-                  - '{{ nspanel_event.type == "generic"}}'
+                  - '{{ nspanel_event.type == "generic" }}'
                 sequence:
                   - choose:
                       - alias: light settings  # rgb_color, brightness, color_temp - This was kept until we find a solution to call with rgb_color directly from ESPHome

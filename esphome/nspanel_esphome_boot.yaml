@@ -68,7 +68,7 @@ script:
       - if:
           condition:
             - lambda: |-
-                return !is_system_flag_set(NSPanelFlag::WIFI_READY);
+                return !(system_flags & NSPanelFlag::WIFI_READY);
           then:
             - script.execute:
                 id: boot_log
@@ -96,7 +96,7 @@ script:
             - if:
                 condition:
                   - lambda: |-
-                      return !is_system_flag_set(NSPanelFlag::API_READY);
+                      return !(system_flags & NSPanelFlag::API_READY);
                 then:
                   - delay: ${DELAY_DEFAULT}ms
                   - script.execute:
@@ -148,7 +148,7 @@ script:
       - if:
           condition:
             - lambda: |-
-                return is_system_flag_set(NSPanelFlag::API_READY);
+                return system_flags & NSPanelFlag::API_READY;
             - lambda: return disp1->is_setup();
           then:
             - delay: ${DELAY_DEFAULT}ms
@@ -170,17 +170,23 @@ script:
       # Wait for a response from the blueprint
       - if:
           condition:
-            - lambda: return not is_system_flag_set(NSPanelFlag::BLUEPRINT_READY);
+            - lambda: return not (system_flags & NSPanelFlag::BLUEPRINT_READY);
           then:
             - delay: ${DELAY_DEFAULT}ms
-            - script.execute:
-                id: boot_event
-                init: true
+            - lambda: |-
+                ESP_LOGD("${TAG_BOOT}", "Asking Blueprint to start sending data");
+            - homeassistant.event:
+                event: ${EVENT_NAME}
+                data:
+                  device_name: !lambda return device_name->state.c_str();
+                  esphome_version: ${version}
+                  type: boot
+                  step: start
             - script.execute: wait_for_blueprint
             - script.wait: wait_for_blueprint
             - if:
                 condition:
-                  - lambda: return is_system_flag_set(NSPanelFlag::BLUEPRINT_READY);
+                  - lambda: return system_flags & NSPanelFlag::BLUEPRINT_READY;
                 then:
                   - delay: ${DELAY_DEFAULT}ms
                   - script.execute:
@@ -282,47 +288,6 @@ script:
       - lambda: |-
           ESP_LOGI("TAG_BOOT", "Starting boot early routines sequence");
 
-  - id: boot_event
-    mode: restart
-    parameters:
-      init: bool
-    then:
-      - if:
-          condition:
-            - lambda: return init;
-          then:
-            - lambda: |-
-                ESP_LOGD("${TAG_BOOT}", "Asking Blueprint to start sending data");
-            - homeassistant.event:
-                event: ${EVENT_NAME}
-                data:
-                  device_name: !lambda return device_name->state.c_str();
-                  esphome_version: ${version}
-                  type: boot
-                  step: start
-      - while:
-          condition:
-            - lambda: return not is_system_flag_set(NSPanelFlag::BLUEPRINT_READY);
-          then:
-            - lambda: |-
-                ESP_LOGD("${TAG_BOOT}", "Give some time for the blueprint to respond");
-            - delay: 29s
-            - if:
-                condition:
-                  - lambda: return not is_system_flag_set(NSPanelFlag::BLUEPRINT_READY);
-                then:
-                  - lambda: |-
-                      ESP_LOGW("${TAG_BOOT}", "Inform Blueprint that no data was received yet");
-                  - homeassistant.event:
-                      event: ${EVENT_NAME}
-                      data:
-                        device_name: !lambda return device_name->state.c_str();
-                        esphome_version: ${version}
-                        type: boot
-                        step: timeout
-      - lambda: |-
-          ESP_LOGD("${TAG_BOOT}", "Boot event response (from Blueprint) was successful");
-
   - id: boot_log
     mode: queued
     max_runs: 3
@@ -353,7 +318,7 @@ script:
             - lambda: |-
                 ESP_LOGD("script.boot_progress", "Progress: Completed");
                 disp1->set_component_value("boot.progress", 100);
-                set_system_flag(NSPanelFlag::BOOT_COMPLETED);
+                system_flags |= (NSPanelFlag::BOOT_COMPLETED);  // Set the flag
           else:
             - lambda: |-
                 ESP_LOGD("script.boot_progress", "Progress: %.1f%%", get_blueprint_status_percentage());
@@ -364,7 +329,6 @@ script:
       - script.stop: boot
       - script.stop: boot_critical_components
       - script.stop: boot_early_routines
-      - script.stop: boot_event
       - script.stop: boot_log
       - script.stop: boot_preparation
       - script.stop: boot_progress
@@ -377,7 +341,7 @@ script:
           then:
             - if:
                 condition:
-                  - lambda: return is_system_flag_set(NSPanelFlag::WIFI_READY);
+                  - lambda: return system_flags & NSPanelFlag::WIFI_READY;
                 then:
                   - script.stop: wait_for_wifi
             - if:
@@ -394,12 +358,24 @@ script:
     then:
       - if:
           condition:
-            - lambda: return !is_system_flag_set(NSPanelFlag::BOOT_COMPLETED);
+            - lambda: return not (system_flags & NSPanelFlag::BLUEPRINT_READY);
+          then:
+            - lambda: |-
+                ESP_LOGW("${TAG_BOOT}", "Request blueprint settings");
+            - homeassistant.event:
+                event: ${EVENT_NAME}
+                data:
+                  device_name: !lambda return device_name->state.c_str();
+                  esphome_version: ${version}
+                  type: boot
+                  step: timeout
+      - if:
+          condition:
+            - lambda: return !(system_flags & NSPanelFlag::BOOT_COMPLETED);
             - not:
                 - script.is_running: boot
           then:
             - delay: 1s
             - script.execute: boot
             - script.wait: boot
-
 ...

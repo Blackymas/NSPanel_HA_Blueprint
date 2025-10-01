@@ -85,13 +85,6 @@ globals:
     restore_value: true
     initial_value: '65535'
 
-  ##### Add-on Climate #####
-  ##### Is embedded thermostat set as main climate entity? #####
-  - id: is_embedded_thermostat
-    type: bool
-    restore_value: true
-    initial_value: 'false'
-
   #### Localization (MUI) ####
   - id: mui_decimal_separator
     type: std::string
@@ -208,7 +201,7 @@ text_sensor:
         - lambda: |-
             ESP_LOGD("${TAG_CORE}", "Blueprint version: %s", x.c_str());
             if (!x.empty())
-              set_blueprint_status_flag(BlueprintStatusFlag::VERSION);
+              blueprint_status_flags |= BlueprintStatusFlag::VERSION;
             check_versions->execute(x != "${version}");
 
   - id: version_esphome
@@ -218,8 +211,6 @@ text_sensor:
     icon: mdi:tag-text-outline
     internal: false
     update_interval: never
-    lambda: |-
-      return {"${version}"};
 
 script:  # Scripts
   - id: !extend action_component_color
@@ -259,19 +250,15 @@ script:  # Scripts
             if (component == "relay_settings") {
               id(relay_settings) = val;
               // Update blueprint status
-              set_blueprint_status_flag(BlueprintStatusFlag::RELAY_SETTINGS);
-            }
-            if (component == "embedded_climate") {
-              id(is_embedded_thermostat) = val;
+              blueprint_status_flags |= BlueprintStatusFlag::RELAY_SETTINGS;
             }
           }
 
   - id: !extend boot
     then:
       - delay: ${DELAY_DEFAULT}ms
-      - text_sensor.template.publish:
-          id: version_esphome
-          state: "${version}"
+      - lambda: |-
+          version_esphome->publish_state("${version}");
 
   - id: change_climate_state
     mode: restart
@@ -315,15 +302,15 @@ script:  # Scripts
       - lambda: |-
           ESP_LOGV("${TAG_CORE}", "Script: Check version");
           ESP_LOGV("${TAG_CORE}", "  reset_flag: %s", TRUEFALSE(reset_flag));
-          ESP_LOGV("${TAG_CORE}", "  VERSION_CHECK_OK: %s", is_system_flag_set(NSPanelFlag::VERSION_CHECK_OK) ? "Set" : "NOT set");
+          ESP_LOGV("${TAG_CORE}", "  VERSION_CHECK_OK: %s", (system_flags & NSPanelFlag::VERSION_CHECK_OK) ? "Set" : "NOT set");
           ESP_LOGV("${TAG_CORE}", "  is_device_ready_for_tasks: %s", YESNO(is_device_ready_for_tasks()));
           ESP_LOGV("${TAG_CORE}", "  Versions:");
           ESP_LOGV("${TAG_CORE}", "    Blueprint: %s", version_blueprint->state.c_str());
           ESP_LOGV("${TAG_CORE}", "    ESPHome: ${version}");
           ESP_LOGV("${TAG_CORE}", "    TFT: %s", version_tft->state.c_str());
           if (reset_flag)
-            clear_system_flag(NSPanelFlag::VERSION_CHECK_OK);
-          if (is_system_flag_set(NSPanelFlag::VERSION_CHECK_OK)) {
+            system_flags &= ~NSPanelFlag::VERSION_CHECK_OK;  // Clear flag
+          if (system_flags & NSPanelFlag::VERSION_CHECK_OK) {
             ESP_LOGD("${TAG_CORE}", "VERSION_CHECK_OK is already set");
             return;
           }
@@ -339,7 +326,7 @@ script:  # Scripts
           ESP_LOGD("${TAG_CORE}", "  Blueprint: %s", version_blueprint->state.c_str());
           ESP_LOGD("${TAG_CORE}", "  ESPHome:   ${version}");
           ESP_LOGD("${TAG_CORE}", "  TFT:       %s", version_tft->state.c_str());
-          set_system_flag(NSPanelFlag::VERSION_CHECK_OK);
+          system_flags |= (NSPanelFlag::VERSION_CHECK_OK);  // Set the flag
       - if:
           condition:
             - not:
@@ -349,7 +336,7 @@ script:  # Scripts
           then:
             - lambda: |-
                 ESP_LOGE("${TAG_CORE}", "Blueprint version mismatch!");
-                clear_system_flag(NSPanelFlag::VERSION_CHECK_OK);
+                system_flags &= ~NSPanelFlag::VERSION_CHECK_OK;  // Clear flag
       - if:
           condition:
             - not:
@@ -359,7 +346,7 @@ script:  # Scripts
           then:
             - lambda: |-
                 ESP_LOGE("${TAG_CORE}", "TFT version mismatch!");
-                clear_system_flag(NSPanelFlag::VERSION_CHECK_OK);
+                system_flags &= ~NSPanelFlag::VERSION_CHECK_OK;  // Clear flag
       - delay: 1s
       - homeassistant.event:
           event: ${EVENT_NAME}
@@ -379,16 +366,14 @@ script:  # Scripts
       - lambda: |-
           // Report blueprint version
           ESP_LOGCONFIG("${TAG_CORE}", "Blueprint:");
-          if (is_system_flag_set(NSPanelFlag::BLUEPRINT_READY)) {
+          if (system_flags & NSPanelFlag::BLUEPRINT_READY) {
             ESP_LOGCONFIG("${TAG_CORE}", "  Version: %s", version_blueprint->state.c_str());
             ESP_LOGCONFIG("${TAG_CORE}", "  Progress: %0.1f%%", get_blueprint_status_percentage());
           } else {
             ESP_LOGW("${TAG_CORE}", "  Progress: %0.1f%%", get_blueprint_status_percentage());
             ESP_LOGW("${TAG_CORE}", "  State: %s",
-                      (are_all_system_flags_set({NSPanelFlag::WIFI_READY, NSPanelFlag::API_READY}))
+                      (system_flags & NSPanelFlag::WIFI_READY and system_flags & NSPanelFlag::API_READY)
                       ? "Pending" : "DISCONNECTED");
-            ESP_LOGCONFIG("${TAG_CORE}", "Requesting blueprint settings");
-            boot_event->execute(false);
           }
 
       # Report ESPHome
@@ -743,6 +728,10 @@ script:  # Scripts
       - lambda: |-
           if (current_page_id == ${PAGE_SCREENSAVER_ID} or current_page_id == ${PAGE_BOOT_ID}) {
             ESP_LOGD("${TAG_CORE}", "Wake-up on page: %s", wakeup_page_name->state.c_str());
+            if (wakeup_page_id == ${PAGE_CLIMATE_ID}) {
+              detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
+              disp1->set_component_value("climate.embedded", id(is_embedded_thermostat) ? 1 : 0);
+            }
             goto_page->execute(wakeup_page_id);
           }
           if (reset_timer) {
@@ -760,7 +749,7 @@ script:  # Scripts
           then:
             - if:
                 condition:
-                  - lambda: return is_system_flag_set(NSPanelFlag::WIFI_READY);
+                  - lambda: return system_flags & NSPanelFlag::WIFI_READY;
                 then:
                   - script.stop: wait_for_api
             - if:
@@ -782,21 +771,21 @@ script:  # Scripts
           log_message: Waiting for Blueprint
       - while:
           condition:
-            - lambda: return not is_system_flag_set(NSPanelFlag::BLUEPRINT_READY);
+            - lambda: return not (system_flags & NSPanelFlag::BLUEPRINT_READY);
             - lambda: return not is_blueprint_fully_ready();
           then:
             - lambda: |-
                 ESP_LOGD("${TAG_CORE}", "Blueprint progress: %0.1f%%", get_blueprint_status_percentage());
                 ESP_LOGV("${TAG_CORE}", "  Page home: %s",
-                                        YESNO(is_blueprint_status_flag_set(BlueprintStatusFlag::PAGE_HOME)));
+                                        YESNO(blueprint_status_flags & BlueprintStatusFlag::PAGE_HOME));
                 ESP_LOGV("${TAG_CORE}", "  Page qrcode: %s",
-                                        YESNO(is_blueprint_status_flag_set(BlueprintStatusFlag::QRCODE)));
+                                        YESNO(blueprint_status_flags & BlueprintStatusFlag::QRCODE));
                 ESP_LOGV("${TAG_CORE}", "  Relay settings: %s",
-                                        YESNO(is_blueprint_status_flag_set(BlueprintStatusFlag::RELAY_SETTINGS)));
+                                        YESNO(blueprint_status_flags & BlueprintStatusFlag::RELAY_SETTINGS));
                 ESP_LOGV("${TAG_CORE}", "  Version: %s",
-                                        YESNO(is_blueprint_status_flag_set(BlueprintStatusFlag::VERSION)));
+                                        YESNO(blueprint_status_flags & BlueprintStatusFlag::VERSION));
                 ESP_LOGV("${TAG_CORE}", "  HW Buttons settings: %s",
-                                        YESNO(is_blueprint_status_flag_set(BlueprintStatusFlag::HW_BUTTONS_SETTINGS)));
+                                        YESNO(blueprint_status_flags & BlueprintStatusFlag::HW_BUTTONS_SETTINGS));
             - delay: 1s
       - script.execute:
           id: boot_log
