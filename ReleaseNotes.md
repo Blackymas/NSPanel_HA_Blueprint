@@ -1,66 +1,70 @@
-# v4.3.33 - Memory Optimization Focus for Boot Loop Resolution
+# v4.3.34 - Memory Optimization
 
 ## Summary
 
-This release continues aggressive memory optimization efforts aimed at resolving boot loop issues for all configurations,
-including support for Bluetooth add-ons. Additional bug fixes improve overall system stability.
+This release continues memory optimization efforts to enable stable operation with add-ons and Bluetooth functionality for users who add Bluetooth components to their panels.
+The focus this time is on optimizing brightness controls in the settings page.
 
 ## Breaking Changes
 
-### Notification Text Sensors Removed
+### Brightness Control Optimization
 
-**Two notification-related text sensors have been removed** as part of memory optimization efforts:
-- **Notification Label sensor** (page title)
-- **Notification Message sensor** (page body)
+**Removed "Current brightness" sensor** that was previously available to users in Home Assistant,
+as part of ongoing memory optimization to support add-ons and Bluetooth functionality.
 
-**Why removed:** These sensors were redundant - they reflected back to Home Assistant the same information that was just sent via action calls from Home Assistant.
+**What was removed:**
+- **Current brightness sensor** - previously visible to users in Home Assistant
+- **Two internal brightness sensors** - these were already internal and not visible to users
 
-**Impact:** Most users won't notice any difference since these sensors provided duplicate information.
-
-**Need these sensors?** If your automations rely on these sensors, please report this as an issue on GitHub. We're happy to help with either:
-- Workarounds that don't require the sensors
-- Adding them back as optional customizations
-
-**For current supported actions and API capabilities, consult the [API documentation](docs/api.md).**
+**Migration options:**
+- **For general users:** Most won't be affected as this sensor isn't commonly used in automations
+- **For affected users:** The sensor can be restored as a customization - see [Current Brightness Sensor](docs/customization.md#current-brightness-sensor) documentation
+- **For "Display as a light" users:** Update your customization code - the [updated code](docs/customization.md#set-display-as-a-light) is already available in documentation
 
 ## Key Improvements
 
-### Aggressive Memory Optimization
+### Continued Memory Optimization
 
-**Focused memory reduction effort** targeting complete boot loop resolution across all configurations, including support for memory-intensive add-ons like Bluetooth.
+**Further memory reduction** targeting stable operation with memory-intensive add-ons,
+particularly focusing on enabling smooth Bluetooth functionality for users who add Bluetooth components to their panels.
 
-**Optimization goals:**
-- **Universal boot reliability** - resolve boot loops for all users
-- **Bluetooth compatibility** - enable stable operation with Bluetooth add-ons
-- **Maximum memory efficiency** - aggressive reduction of non-essential components
+**Optimization progress:**
+- **Settings page streamlined** - reduced memory usage in brightness controls
+- **Add-on compatibility focus** - freeing memory for stable add-on operation
+- **Bluetooth support goal** - working toward reliable Bluetooth add-on functionality
 
-**Progress status:** Significant memory freed up, with more optimization work planned for upcoming releases.
+### Memory Management Strategy
 
-### Additional Bug Fixes
+**Systematic approach** to memory optimization by identifying and removing components
+that can be optionally restored via customizations for users who need them.
 
-**Resolved several reported issues** continuing the stability improvement efforts from recent releases.
+**Strategy benefits:**
+- **Default configuration optimized** for maximum compatibility
+- **User choice preserved** through customization options
+- **Targeted memory savings** focusing on high-impact optimizations
 
-**Bug fixes include:**
-- Various edge case handling improvements
-- Enhanced system reliability
-- Better error recovery mechanisms
+## Bug Fixes
 
-## Current Status & Goals
+### Relay Icon Display Fix
 
-**Primary objective:** Enable stable operation with Bluetooth add-ons through continued memory optimization.
+**Fixed relay icons showing incorrectly during home page load** - resolved visual glitch where relay icons would display incorrect state for a brief moment during page loading.
 
-**Ongoing work:** Additional memory optimizations planned for upcoming releases to achieve full Bluetooth compatibility.
+**Issue details:**
+- Problem was recently introduced during optimization efforts
+- Icons would show wrong state for a fraction of a second during home page load
+- **Fixed by @gr1los** in PR #2885
 
-**If you're currently stable - no immediate action needed.** These optimizations benefit all users by improving boot reliability and system stability.
+**Result:** Clean home page loading with correct relay icon states from the start.
 
 ## Technical Details
 
-This release represents a focused approach to memory management,
-prioritizing essential functionality while aggressively removing redundant or non-critical components.
-The goal is achieving reliable operation across all add-on configurations, particularly memory-intensive ones like Bluetooth.
+This release continues the aggressive memory optimization approach,
+targeting components that provide optional functionality while maintaining
+core NSPanel features and user customization options.
 
-**Result:** Significant memory savings contributing toward universal boot reliability, with continued optimization work planned to achieve full add-on compatibility.
+**Result:** Additional memory savings contributing toward reliable add-on support and Bluetooth functionality for users who add Bluetooth components to their panels,
+with clear migration paths for affected users.
 
 ---
 
-*Continued aggressive memory optimization targeting universal boot reliability and Bluetooth add-on support.*
+*Continued memory optimization for add-on compatibility with user customization options preserved.*

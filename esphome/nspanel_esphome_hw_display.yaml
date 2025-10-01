@@ -39,7 +39,7 @@ binary_sensor:
       return is_device_ready_for_tasks();
     on_release:
       then:
-        - lambda: clear_system_flag(NSPanelFlag::NEXTION_READY);
+        - lambda: system_flags &= ~NSPanelFlag::NEXTION_READY;  // Clear flag
 
 display:
   - id: disp1
@@ -54,7 +54,7 @@ display:
         - script.stop: wait_for_display
         - lambda: |-
             ESP_LOGI("${TAG_HW_DISPLAY}", "Nextion setup triggered");
-            set_system_flag(NSPanelFlag::NEXTION_READY);
+            system_flags |= (NSPanelFlag::NEXTION_READY);  // Set the flag
             nextion_init->publish_state(true);
 
     on_page:
@@ -124,7 +124,6 @@ number:
         - if:
             condition:
               - lambda: return current_page_id != ${PAGE_SCREENSAVER_ID};
-              - lambda: return (int(current_brightness->state) != int(x));
             then:
               - script.execute:
                   id: set_brightness
@@ -188,7 +187,7 @@ script:
       #   - nspanel_esphome_standard_page_keyb_num.yaml
       #   - nspanel_esphome_standard_page_light.yaml
       #   - nspanel_esphome_standard_page_media_player.yaml
-      #   - nspanel_esphome_standard_versioning.yaml
+      # - page_settings
       - lambda: |-
           // Start extracting info from event's json
           ESP_LOGV("${TAG_HW_DISPLAY}", "New event from display:");
@@ -203,7 +202,7 @@ script:
           if (event == "params") {
             if (json["display_mode"].isNull() || json["charset"].isNull() || json["version"].isNull()) {
               ESP_LOGW("${TAG_HW_DISPLAY}", "Missing display keys");
-              clear_system_flag(NSPanelFlag::DISPLAY_SETTINGS_RECEIVED);
+              system_flags &= ~NSPanelFlag::DISPLAY_SETTINGS_RECEIVED;  // Clear flag
               return;
             }
 
@@ -217,7 +216,7 @@ script:
             ESP_LOGI("${TAG_HW_DISPLAY}", "  Charset:     %" PRIu8, display_charset);
             ESP_LOGI("${TAG_HW_DISPLAY}", "  TFT version: v%s", version_tft->state.c_str());
 
-            set_system_flag(NSPanelFlag::DISPLAY_SETTINGS_RECEIVED);
+            system_flags |= (NSPanelFlag::DISPLAY_SETTINGS_RECEIVED);  // Set the flag
             id(disp1).send_command("tm_esphome.en=0");
             return;
           }
@@ -277,8 +276,8 @@ script:
     parameters:
       new_page_id: uint8_t
     then:
-      # Report new page to logs
       - lambda: |-
+          // Report new page to logs
           ESP_LOGV("${TAG_HW_DISPLAY}", "New page: %s", page_names[new_page_id]);
           current_page->publish_state(page_names[new_page_id]);
           if (current_page_id != new_page_id) {
@@ -286,13 +285,11 @@ script:
             current_page_id = new_page_id;
           }
 
-      # Stop previous constructors
-      - lambda: |-
+          // Stop previous constructors
           ESP_LOGV("${TAG_HW_DISPLAY}", "Stop previous constructors");
           stop_page_constructors->execute();
 
-      # Reset globals
-      - lambda: |-
+          // Reset globals
           ESP_LOGV("${TAG_HW_DISPLAY}", "Reset globals");
           if (new_page_id != ${PAGE_ALARM_ID} &&
               new_page_id != ${PAGE_CLIMATE_ID} &&
@@ -304,27 +301,14 @@ script:
               new_page_id != ${PAGE_KEYB_NUM_ID}) {
               detailed_entity->publish_state("");
               disp1->send_command("back_page_id=1");
+          } else {  // Report detailed entity
+            ESP_LOGD("${TAG_HW_DISPLAY}", "Entity shown: %s", detailed_entity->state.c_str());
           }
           if (new_page_id != ${PAGE_MEDIA_PLAYER_ID}) {
             last_volume_level = 0;
             last_media_duration = 0;
             last_media_position = 0;
           }
-
-      # Report detailed entity
-      - if:
-          condition:
-            - lambda: return !detailed_entity->state.empty();
-          then:
-            - lambda: |-
-                ESP_LOGD("${TAG_HW_DISPLAY}", "Entity shown: %s", detailed_entity->state.c_str());
-
-      # Update buttons bars on screen
-      - lambda: |-
-          ESP_LOGV("${TAG_HW_DISPLAY}", "Update buttons bars on screen");
-      - script.execute:
-          id: refresh_hardware_buttons_bars
-          button_mask: 3
 
       # Reset timers
       - if:
@@ -373,7 +357,6 @@ script:
       - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
           ESP_LOGV("${TAG_HW_DISPLAY}", "Call page constructor");
-      - lambda: |-
           if (current_page->state == "blank") page_blank->execute();
           else if (current_page->state == "buttonpage01") page_buttonpage01->execute();
           else if (current_page->state == "buttonpage02") page_buttonpage02->execute();
@@ -387,11 +370,9 @@ script:
           else if (current_page->state == "weather04") page_weather04->execute();
           else if (current_page->state == "weather05") page_weather05->execute();
 
-      # Update buttons bars on screen
-      - script.execute:
-          id: refresh_hardware_buttons_bars_with_delay
-          button_mask: 3
-          delay: 1000
+          // Update buttons bars on screen
+          ESP_LOGV("${TAG_HW_DISPLAY}", "Update buttons bars on screen");
+          refresh_hardware_buttons_bars->execute(3);
 
   - id: set_baud_rate
     mode: restart
@@ -400,14 +381,16 @@ script:
       definitive: bool
     then:
       - lambda: |-
-          if (are_any_system_flags_set({NSPanelFlag::OTA_IN_PROGRESS, NSPanelFlag::SAFE_MODE_ACTIVE}) or
+          if (
+              (system_flags & NSPanelFlag::OTA_IN_PROGRESS) or
+              (system_flags & NSPanelFlag::SAFE_MODE_ACTIVE) or
               disp1->is_updating()) {  // I cannot use NSPanelFlag::TFT_UPLOAD_ACTIVE as baud rate changes with that
             ESP_LOGW("${TAG_BASE}", "Cannot change baud rate now as the system is busy");
             set_baud_rate->stop();
             return;
           }
           if (!isnan(target_baud_rate))
-            set_system_flag(NSPanelFlag::BAUD_RATE_SET);
+            system_flags |= (NSPanelFlag::BAUD_RATE_SET);  // Set the flag
       - if:
           condition:
             - lambda: return (tf_uart->get_baud_rate() != target_baud_rate);
@@ -437,12 +420,10 @@ script:
       - if:
           condition:
             - lambda: return brightness <= 100;
-            - lambda: return int(current_brightness->state) != brightness;
             - lambda: return is_device_ready_for_tasks();
           then:
             - lambda: |-
                 disp1->set_backlight_brightness(brightness / 100.0f);
-                current_brightness->update();
 
   - id: set_component_font_color
     mode: single
@@ -491,7 +472,6 @@ script:
     then:
       - lambda: |-
           if (
-                current_brightness->state <= display_dim_brightness->state and
                 current_page_id != ${PAGE_SCREENSAVER_ID} and
                 current_page_id != ${PAGE_BOOT_ID}
               ) {
@@ -563,15 +543,7 @@ script:
                   - switch.turn_off: screen_power
                   - delay: 2s
                   - switch.turn_on: screen_power
-                  - delay: 7s
-                  - if:
-                      condition:
-                        - lambda: return !disp1->is_setup();
-                      then:
-                        - lambda: |-
-                            ESP_LOGE("${TAG_HW_DISPLAY}", "Display is not set. Scanning baud rates.");
-                        - select.next: baud_rate
-                        - delay: 19s
+                  - delay: 19s
 
   - id: wait_for_uart_available
     mode: single
@@ -654,9 +626,9 @@ select:
     on_value:
       then:
         - lambda: |-
-            if (are_any_system_flags_set({NSPanelFlag::OTA_IN_PROGRESS,
-                                          NSPanelFlag::SAFE_MODE_ACTIVE,
-                                          NSPanelFlag::TFT_UPLOAD_ACTIVE})) {
+            if ((system_flags & NSPanelFlag::OTA_IN_PROGRESS) or
+                (system_flags & NSPanelFlag::SAFE_MODE_ACTIVE) or
+                (system_flags & NSPanelFlag::TFT_UPLOAD_ACTIVE)) {
               ESP_LOGW("${TAG_BASE}", "Cannot change baud rate as the system is busy");
               return;
             }
@@ -692,49 +664,6 @@ select:
         - script.wait: wait_to_be_ready
         # Extended by:
         # - page_screensaver
-
-sensor:
-  - id: brightslider  # Display Brightness GET VALUE FROM NSPanel SLIDER
-    name: brightness Slider
-    platform: nextion
-    variable_name: brightslider
-    internal: true
-    on_value:
-      then:
-        - if:
-            condition:
-              - lambda: return (int(display_brightness->state) != int(x));
-            then:
-              - number.set:
-                  id: display_brightness
-                  value: !lambda return int(x);
-
-  - id: current_brightness  # Display Brightness - Current value (%)
-    name: Display Current brightness
-    platform: nextion
-    variable_name: dim
-    precision: 0
-    accuracy_decimals: 0
-    unit_of_measurement: "%"
-    icon: mdi:brightness-percent
-    internal: false
-    disabled_by_default: false
-
-  - id: dimslider  # Display DIM Brightness GET VALUE FROM NSPanel SLIDER
-    name: dim brightness slider
-    platform: nextion
-    variable_name: dimslider
-    internal: true
-    on_value:
-      then:
-        - if:
-            condition:
-              - lambda: return is_device_ready_for_tasks();
-              - lambda: return (int(display_dim_brightness->state) != int(x));
-            then:
-              - number.set:
-                  id: display_dim_brightness
-                  value: !lambda return int(x);
 
 switch:
   - id: screen_power  # Controls the display's power source

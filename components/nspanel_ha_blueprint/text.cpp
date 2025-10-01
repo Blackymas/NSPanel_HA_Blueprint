@@ -7,33 +7,46 @@
 
 namespace nspanel_ha_blueprint {
 
-    bool isNumberChar(char c) {
-        return std::isdigit(static_cast<unsigned char>(c)) || c == '.' || c == '-' || c == ',';
-    }
-
     std::string adjustDecimalSeparator(const std::string& input, char decimalSeparator) {
         if (decimalSeparator == '.') {
             return input;
         }
 
+        // Find the end of the numeric part
         size_t numericEnd = 0;
-        for (; numericEnd < input.size() && isNumberChar(input[numericEnd]); ++numericEnd);
+        for (; numericEnd < input.size(); ++numericEnd) {
+            const char c = input[numericEnd];
+            if (!((c >= '0' && c <= '9') || c == '.' || c == '-' || c == ',')) {
+                break;
+            }
+        }
+
+        // If no numeric part found, return original
+        if (numericEnd == 0) {
+            return input;
+        }
 
         std::string numericPart = input.substr(0, numericEnd);
-        std::string suffix = input.substr(numericEnd);
 
+        // Validate that numericPart is actually a valid number
         char* end;
-        double val = strtod(numericPart.c_str(), &end);
+        strtod(numericPart.c_str(), &end);  // Result unused, only checking validity
 
         if (end != numericPart.c_str() && *end == '\0') {
+            // Find and replace decimal point
             size_t decimalPointPos = numericPart.find('.');
             if (decimalPointPos != std::string::npos) {
                 numericPart[decimalPointPos] = decimalSeparator;
             }
-            return numericPart + suffix;
-        } else {
-            return input;
+
+            // Append suffix if any
+            if (numericEnd < input.size()) {
+                numericPart += input.substr(numericEnd);
+            }
+            return numericPart;
         }
+
+        return input;
     }
 
     std::string wrapText(const std::string& text_to_display,
