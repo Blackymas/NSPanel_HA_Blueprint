@@ -15,6 +15,7 @@ substitutions:
   TAG_PAGE_ALARM: nspanel.page.alarm
 
 api:
+  homeassistant_services: true
   actions:
     # Updates the alarm settings page with current state and configuration, integrating with the panel's interface.
     - action: page_alarm
@@ -232,34 +233,45 @@ script:
                 }  // endif numeric keypad required
 
   - id: alarm_control_panel_action
-    mode: restart
+    mode: single
     parameters:
       entity: string
       key: string
       code_format: string
       pin: string
     then:
-      - if:
-          condition:
-            - lambda: return pin.empty();
-          then:
-            - homeassistant.action:
-                action: &alarm_control_panel_action !lambda |-
-                  // Build action: alarm_control_panel.alarm_<suffix>
-                  // For bypass: arm_custom_bypass, others: arm_<key> or disarm
-                  std::string action = "alarm_control_panel.alarm_";
-                  if (key != "disarm") action += "arm_";
-                  if (key == "bypass") action += "custom_";
-                  action += key;
-                  return action;
-                data:
-                  entity_id: !lambda return entity;
-          else:
-            - homeassistant.action:
-                action: *alarm_control_panel_action
-                data:
-                  entity_id: !lambda return entity;
-                  code: !lambda return pin;
+      - lambda: |-
+          ESP_LOGV("${TAG_PAGE_ALARM}", "Alarm control panel action call:");
+          ESP_LOGV("${TAG_PAGE_ALARM}", "  entity_id: %s", entity.c_str());
+          ESP_LOGV("${TAG_PAGE_ALARM}", "  pin: %s", YESNO(not pin.empty()));
+
+          // Build action: alarm_control_panel.alarm_<suffix>
+          // For bypass: arm_custom_bypass, others: arm_<key> or disarm
+          std::string action = "alarm_control_panel.alarm_";
+          if (key != "disarm") action += "arm_";
+          if (key == "bypass") action += "custom_";
+          action += key;
+          ESP_LOGV("${TAG_PAGE_ALARM}", "  action: %s", action.c_str());
+
+          esphome::api::HomeassistantActionRequest action_request;
+          action_request.set_service(StringRef(action));
+
+          // Add entity_id parameter
+          action_request.data.emplace_back();
+          auto &kv_entity = action_request.data.back();
+          kv_entity.set_key(StringRef("entity_id"));
+          kv_entity.value = entity;
+
+          // Add code parameter if pin is provided
+          if (!pin.empty()) {
+            action_request.data.emplace_back();
+            auto &kv_code = action_request.data.back();
+            kv_code.set_key(StringRef("code"));
+            kv_code.value = pin;
+          }
+
+          api_server->send_homeassistant_action(action_request);
+          ESP_LOGVV("${TAG_PAGE_ALARM}", "Alarm control panel action called");
 
   - id: !extend dump_config  # Defined by nspanel_esphome_core_base.yaml
     then:
