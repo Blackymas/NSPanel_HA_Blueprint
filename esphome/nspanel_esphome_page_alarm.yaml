@@ -15,7 +15,6 @@ substitutions:
   TAG_PAGE_ALARM: nspanel.page.alarm
 
 api:
-  homeassistant_services: true
   actions:
     # Updates the alarm settings page with current state and configuration, integrating with the panel's interface.
     - action: page_alarm
@@ -253,6 +252,26 @@ script:
           action += key;
           ESP_LOGV("${TAG_PAGE_ALARM}", "  action: %s", action.c_str());
 
+          #if ESPHOME_VERSION_CODE < VERSION_CODE(2025, 10, 0)  // Code for ESPHome earlier than v2025.10.0
+          esphome::api::HomeassistantServiceResponse action_request;
+          action_request.set_service(StringRef(action));
+
+          // Add entity_id parameter
+          esphome::api::HomeassistantServiceMap kv_entity;
+          kv_entity.set_key(StringRef("entity_id"));
+          kv_entity.value = entity;
+          action_request.data.push_back(kv_entity);
+
+          // Add code parameter if pin is provided
+          if (!pin.empty()) {
+            esphome::api::HomeassistantServiceMap kv_code;
+            kv_code.set_key(StringRef("code"));
+            kv_code.value = pin;
+            action_request.data.push_back(kv_code);
+          }
+
+          global_api_server->send_homeassistant_service_call(action_request);
+          #else  // Code for ESPHome v2025.10.0 or newer
           esphome::api::HomeassistantActionRequest action_request;
           action_request.set_service(StringRef(action));
 
@@ -271,6 +290,8 @@ script:
           }
 
           api_server->send_homeassistant_action(action_request);
+          #endif  // ESPHome version based code
+
           ESP_LOGVV("${TAG_PAGE_ALARM}", "Alarm control panel action called");
 
   - id: !extend dump_config  # Defined by nspanel_esphome_core_base.yaml
