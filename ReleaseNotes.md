@@ -1,33 +1,36 @@
-# v4.3.35 - Alarm Pin Code Action Fix
+# v4.3.36 - Critical Blueprint Loading Hotfix
 
 ## Summary
 
-This release fixes a critical issue with alarm control panel functionality where selected actions
-were not being executed when using a PIN code.
+This hotfix resolves a critical bug introduced in v4.3.35 that prevented the Blueprint from loading properly.
 
-## Bug Fixes
+## Critical Fix
 
-### Alarm Action Execution with PIN Code
+### Blueprint Loading Failure Resolved
 
-**Fixed alarm actions not executing when PIN code is used** - resolved issue where alarm control
-actions (arm away, arm home, disarm, etc.) would fail to execute after entering a valid PIN code.
+**Fixed critical issue preventing Blueprint from loading** - resolved problem introduced in v4.3.35
+that broke Blueprint initialization and prevented normal operation.
 
 **Issue details:**
-- Actions selected on the alarm page weren't being triggered when PIN code authentication was required
-- Valid PIN codes were accepted but the intended action would not execute
-- Affected all alarm operations that require PIN code verification
+- v4.3.35 alarm fix inadvertently introduced a Blueprint loading failure
+- Users updating to v4.3.35 experienced Blueprint initialization problems
+- System unable to load configuration from Home Assistant
 
-**Issue Reference:** #2884
+**Issue Reference:** #2918
 
-**Result:** Alarm control panel now correctly executes selected actions after successful PIN code entry.
+**Result:** Blueprint loading restored to normal operation. Users affected by v4.3.35 should update immediately.
+
+## Recommendation
+
+**If you updated to v4.3.35, please update to v4.3.36 immediately** to restore Blueprint functionality.
 
 ## Technical Details
 
-This fix ensures proper action execution flow in the alarm control panel when PIN code authentication
-is enabled, restoring full functionality to PIN-protected alarm operations.
+This hotfix addresses the regression introduced during the alarm PIN code action fix in v4.3.35,
+ensuring Blueprint initialization works correctly while maintaining the alarm functionality improvements.
 
-**Result:** Reliable alarm control panel operation with PIN code authentication working as expected.
+**Result:** Stable Blueprint operation with working alarm PIN code functionality.
 
 ---
 
-*Critical fix for alarm control panel PIN code functionality.*
+*Critical hotfix restoring Blueprint loading functionality.*
