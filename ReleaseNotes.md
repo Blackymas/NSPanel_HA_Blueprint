@@ -17,7 +17,9 @@ devices (lights, covers, climate, etc.) from their panels.
 - Users unable to control lights, covers, and other entities from the panel
 - Panel interface appeared to work but commands weren't being executed
 
-**Issues Reference:** #2923, #2905
+**Issues Reference:** 
+- #2905
+- #2923
 
 **Result:** Full device control functionality restored. Users can now control all entities from their panels again.
 
