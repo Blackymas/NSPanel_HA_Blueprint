@@ -274,8 +274,8 @@ script:  # Scripts
               ha_event.fire_homeassistant_event("${EVENT_NAME}", {
                 {"device_name", device_name->state.c_str()},
                 {"esphome_version", "${version}"},
-                {"type", "service_call"},
-                {"service", "climate.set_temperature"},
+                {"type", "action_call"},
+                {"action", "climate.set_temperature"},
                 {"key", key.c_str()},
                 {"value", to_string(stof(value) / 10)},
                 {"entity", detailed_entity->state.c_str()}
@@ -285,8 +285,8 @@ script:  # Scripts
               ha_event.fire_homeassistant_event("${EVENT_NAME}", {
                 {"device_name", device_name->state.c_str()},
                 {"esphome_version", "${version}"},
-                {"type", "service_call"},
-                {"service", "climate.set_hvac_mode"},
+                {"type", "action_call"},
+                {"action", "climate.set_hvac_mode"},
                 {"key", "hvac_mode"},
                 {"value", value.c_str()},
                 {"entity", detailed_entity->state.c_str()}
@@ -538,49 +538,6 @@ script:  # Scripts
             }
           }
 
-  - id: service_call_alarm_control_panel
-    mode: single
-    parameters:
-      entity: string
-      key: string
-      code_format: string
-      pin: string
-    then:
-      - lambda: |-
-          // Log code only when needed
-          #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
-          std::string arm_key = "alarm_control_panel.alarm_arm_" + key;
-          if (key == "disarm") {
-            arm_key = "alarm_control_panel.alarm_disarm";
-          } else if (key == "bypass") {
-            arm_key = "alarm_control_panel.alarm_arm_custom_bypass";
-          }
-          ESP_LOGV("${TAG_CORE}", "Home Assistant Action call:");
-          ESP_LOGV("${TAG_CORE}", "  entity: %s", entity.c_str());
-          ESP_LOGV("${TAG_CORE}", "  key: %s", key.c_str());
-          ESP_LOGV("${TAG_CORE}", "  code_format: %s", code_format.c_str());
-          ESP_LOGV("${TAG_CORE}", "  pin: %s", YESNO(!pin.empty()));
-          ESP_LOGV("${TAG_CORE}", "  action: %s", arm_key.c_str());
-          #endif  // ESPHOME_LOG_LEVEL > ESPHOME_LOG_LEVEL_VERBOSE
-
-      - if:
-          condition:
-            - lambda: return pin.empty();
-          then:
-            - homeassistant.action:
-                action: &alarm_control_panel_action !lambda |-
-                  if (key == "disarm") return std::string("alarm_control_panel.alarm_disarm");
-                  if (key == "bypass") return std::string("alarm_control_panel.alarm_arm_custom_bypass");
-                  return std::string("alarm_control_panel.alarm_arm_" + key);
-                data:
-                  entity_id: !lambda return entity;
-          else:
-            - homeassistant.action:
-                action: *alarm_control_panel_action
-                data:
-                  entity_id: !lambda return entity;
-                  code: !lambda return pin;
-
   - id: !extend stop_all
     mode: single
     then:
@@ -593,67 +550,8 @@ script:  # Scripts
       - lambda: |-
           change_climate_state->stop();
           refresh_relays->stop();
-          service_call_alarm_control_panel->stop();
-          update_alarm_icon->stop();
           update_climate_icon->stop();
           cleanupUtilitiesGroups();
-
-  - id: update_alarm_icon  # To do: Move to blueprint
-    mode: single
-    parameters:
-      component: string
-      state: string
-    then:
-      - lambda: |-
-          static std::string alarm_icon = "\uEECC"; //mdi:shield-alert-outline
-          static uint16_t alarm_color = 65535;
-          if (state == "disarmed")
-            {
-              alarm_icon = "\uE99B"; //mdi:shield-off-outline
-              alarm_color = 65535;
-            }
-          else if (state == "armed_home")
-            {
-              alarm_icon = "\uECCA"; //mdi:shield-home-outline
-              alarm_color = 19818;
-            }
-          else if (state == "armed_away")
-            {
-              alarm_icon = "\uECCB"; //mdi:shield-lock-outline
-              alarm_color = 19818;
-            }
-          else if (state == "armed_night")
-            {
-              alarm_icon = "\uF828"; //mdi:shield-moon-outline
-              alarm_color = 19818;
-            }
-          else if (state == "armed_vacation")
-            {
-              alarm_icon = "\uECC6"; //mdi:shield-airplane-outline
-              alarm_color = 19818;
-            }
-          else if (state == "armed_custom_bypass")
-            {
-              alarm_icon = "\uE77F"; //mdi:shield-half-full
-              alarm_color = 19818;
-            }
-          else if (state == "pending" or state == "arming")
-            {
-              alarm_icon = "\uE498"; //mdi:shield-outline
-              alarm_color = 65024;
-            }
-          else if (state == "disarming")
-            {
-              alarm_icon = "\uE99B"; //mdi:shield-off-outline
-              alarm_color = 65024;
-            }
-          else if (state == "triggered")
-            {
-              alarm_icon = "\uEECC"; //mdi:shield-alert-outline
-              alarm_color = 63488;
-            }
-          disp1->set_component_text(component.c_str(), alarm_icon.c_str());
-          disp1->set_component_font_color(component.c_str(), alarm_color);
 
   - id: update_climate_icon
     mode: single

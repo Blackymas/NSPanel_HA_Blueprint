@@ -1,36 +1,53 @@
-# v4.3.36 - Critical Blueprint Loading Hotfix
+# v4.3.37 - Service Call Fix and Weather Integration Improvements
 
 ## Summary
 
-This hotfix resolves a critical bug introduced in v4.3.35 that prevented the Blueprint from loading properly.
+This release fixes a critical service call issue that prevented panel controls from working
+and modernizes weather integration for better reliability across different weather providers.
 
-## Critical Fix
+## Critical Fixes
 
-### Blueprint Loading Failure Resolved
+### Service Call Functionality Restored
 
-**Fixed critical issue preventing Blueprint from loading** - resolved problem introduced in v4.3.35
-that broke Blueprint initialization and prevented normal operation.
+**Fixed service calls broken in recent versions** - resolved issue preventing users from controlling
+devices (lights, covers, climate, etc.) from their panels.
 
 **Issue details:**
-- v4.3.35 alarm fix inadvertently introduced a Blueprint loading failure
-- Users updating to v4.3.35 experienced Blueprint initialization problems
-- System unable to load configuration from Home Assistant
+- Service call functionality was inadvertently broken in recent optimization releases
+- Users unable to control lights, covers, and other entities from the panel
+- Panel interface appeared to work but commands weren't being executed
 
-**Issue Reference:** #2918
+**Issues Reference:** 
+- #2905
+- #2923
 
-**Result:** Blueprint loading restored to normal operation. Users affected by v4.3.35 should update immediately.
+**Result:** Full device control functionality restored. Users can now control all entities from their panels again.
 
-## Recommendation
+### Weather Integration Modernization
 
-**If you updated to v4.3.35, please update to v4.3.36 immediately** to restore Blueprint functionality.
+**Cleaned up weather implementation** by removing legacy AccuWeather-specific code
+and adopting Home Assistant's standardized weather forecast approach.
+
+**Weather improvements:**
+- **Removed AccuWeather-specific legacy code** - old implementation tied to specific integration quirks
+- **Standardized forecast retrieval** - now uses only `weather.get_forecast` action from Home Assistant
+- **Universal compatibility** - works consistently across multiple weather integrations
+- **Improved reliability** - more robust weather data handling
+
+**Benefits:**
+- Better compatibility with various weather integrations (AccuWeather, Met.no, OpenWeatherMap, etc.)
+- More consistent behavior across different weather providers
+- Simplified maintenance through standardized Home Assistant API usage
 
 ## Technical Details
 
-This hotfix addresses the regression introduced during the alarm PIN code action fix in v4.3.35,
-ensuring Blueprint initialization works correctly while maintaining the alarm functionality improvements.
+The service call fix addresses a regression introduced during recent optimization work,
+restoring full entity control functionality. The weather modernization aligns the project
+with Home Assistant's standardized weather integration approach, improving long-term maintainability.
 
-**Result:** Stable Blueprint operation with working alarm PIN code functionality.
+**Result:** Restored device control functionality with modernized, more reliable weather integration
+that works consistently across different weather providers.
 
 ---
 
-*Critical hotfix restoring Blueprint loading functionality.*
+*Critical service call fix and improved weather integration compatibility.*
