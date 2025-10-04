@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <vector>
+#include "esphome/core/defines.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 #include "pages.h"

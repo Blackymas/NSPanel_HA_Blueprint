@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstring>  // For std::strcpy
 #include <string>
+#include "esphome/core/defines.h"
 
 namespace nspanel_ha_blueprint {
 

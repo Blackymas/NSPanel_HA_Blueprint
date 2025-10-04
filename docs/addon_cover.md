@@ -42,6 +42,9 @@ substitutions:
   wifi_password: !secret wifi_password
 
   # Add-on configuration (if needed)
+  ## Upload TFT
+  upload_tft_automatically: true
+
   ## Add-on climate
   # heater_relay: "1"  # Possible values: "1" or "2"
 

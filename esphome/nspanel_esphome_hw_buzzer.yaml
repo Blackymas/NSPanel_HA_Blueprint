@@ -14,7 +14,7 @@ substitutions:
   # RTTTL format: name:d=duration,o=octave,b=tempo:notes
   # d=32 (32nd note), o=5 (octave 5), b=100 (tempo 100)
   tone_boot: "two short:d=4,o=5,b=100:16e6,16e6"
-  tone_volume_change: "scale_up:d=32,o=5,b=100:c,c#,d#,e,f#,g#,a#,b"  # Use "none" to disable sound
+  # tone_volume_change: "scale_up:d=32,o=5,b=100:c,c#,d#,e,f#,g#,a#,b"  # Use "none" to disable sound
 
 api:
   actions:
@@ -27,47 +27,13 @@ api:
       then:
         - lambda: |-
             buzzer->stop();
-        - if:
-            condition:
-              - number.in_range:
-                  id: buzzer_gain
-                  above: 1.0
-            then:
-              - lambda: |-
-                  ESP_LOGI("${TAG_HW_BUZZER}", "Play tone: '%s'", tone.c_str());
-              - rtttl.play: !lambda return tone;
+            ESP_LOGI("${TAG_HW_BUZZER}", "Play tone: '%s'", tone.c_str());
+            buzzer->play(tone.c_str());
 
 esphome:
   platformio_options:
     build_flags:
       - -D NSPANEL_HA_BLUEPRINT_HW_BUZZER
-
-number:
-  - id: buzzer_gain
-    name: Sound - Volume
-    platform: template
-    max_value: 100
-    min_value: 0
-    step: 1
-    initial_value: 100
-    unit_of_measurement: "%"
-    internal: false
-    disabled_by_default: true
-    entity_category: config
-    device_class: sound_pressure
-    restore_value: true
-    optimistic: true
-    update_interval: never
-    on_value:
-      then:
-        - script.wait: wait_to_be_ready
-        - lambda: |-
-            buzzer->set_gain((100-(x/10.0f))/100.0f);
-            static const std::string tone_volume_change = "${tone_volume_change}";
-            // Play sound if tone_volume_change is not "none"
-            if (x > 0 and !tone_volume_change.empty() and tone_volume_change != "none")
-              buzzer->play(tone_volume_change);
-            buzzer->dump_config();
 
 output:
   # Buzzer output
@@ -80,23 +46,12 @@ rtttl:  # ENABLE RINGTONE MUSIC SUPPORT
   output: buzzer_out
 
 script:
-  - id: !extend boot
-    then:
-      - lambda: |-
-          if (isnan(buzzer_gain->state))
-            ESP_LOGE("${TAG_HW_BUZZER}", "Buzzer gain not set");
-          else
-            buzzer->set_gain((100-(buzzer_gain->state/10.0f))/100.0f);
-
   - id: !extend wait_for_page_boot_exit
     then:
       - if:
           condition:
             - lambda: |-
                 return ${'true' if boot_sound else 'false'};
-            - number.in_range:
-                id: buzzer_gain
-                above: 1.0
             - lambda: return current_page_id != ${PAGE_BOOT_ID};
           then:
             - script.execute:

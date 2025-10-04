@@ -19,6 +19,8 @@ substitutions:
   nextion_update_url: "${nextion_update_base_url}/main/hmi/nspanel_blank.tft"
   ##############################################
   TAG_UPLOAD_TFT: "nspanel.addon.upload_tft"
+  upload_tft_automatically: true
+  upload_tft_baud_rate: 115200
 
 esphome:
   platformio_options:
@@ -78,21 +80,13 @@ nspanel_ha_blueprint:
 script:
   - id: !extend check_versions
     then:
-      - delay: 180s
-      - if:
-          condition:
-            - switch.is_on: tft_update_automatically
-            - lambda: return tft_file_model->state != "NSPanel Blank";
-          then:
-            - script.execute: wait_for_version_tft
-            - script.wait: wait_for_version_tft
-            - if:
-                condition:
-                  - lambda: return version_tft->state != "${version}";
-                then:
-                  - lambda: |-
-                      ESP_LOGI("${TAG_UPLOAD_TFT}", "Auto updating TFT");
-                      upload_tft->execute("");
+      - lambda: |-
+          if (${'true' if upload_tft_automatically else 'false'} and
+              version_tft->state != "${version}" and
+              tft_file_model->active_index().value_or(0) > 1) {  // Only when std TFT is selected
+            ESP_LOGI("${TAG_UPLOAD_TFT}", "Auto updating TFT");
+            upload_tft->execute("");
+          }
 
   - id: !extend dump_config
     then:
@@ -209,7 +203,9 @@ script:
           ESP_LOGD("${TAG_UPLOAD_TFT}", "Starting the upload script");
           ESP_LOGV("${TAG_UPLOAD_TFT}", "  Valid TFT: %s", YESNO((display_mode > 0 and display_mode < 4)));
           ESP_LOGV("${TAG_UPLOAD_TFT}", "  Current baud rate: %" PRIu32, tf_uart->get_baud_rate());
-          ESP_LOGV("${TAG_UPLOAD_TFT}", "  Target upload baud rate: %s", tft_upload_baud_rate->state.c_str());
+          ESP_LOGV("${TAG_UPLOAD_TFT}", "  Target upload baud rate: %" PRIu32, ${upload_tft_baud_rate} == 0
+                                                                                ? tf_uart->get_baud_rate()
+                                                                                : ${upload_tft_baud_rate});
 
           // Calculate URL if needed
           std::string resolved_url = url;
@@ -326,13 +322,13 @@ script:
       ### Attempt twice at the target baud rate
       - script.execute:
           id: upload_tft_sequence_attempt
-          baud_rate: !lambda return stoi(tft_upload_baud_rate->state);
+          baud_rate: ${upload_tft_baud_rate}
       - script.wait: upload_tft_sequence_attempt
 
       ### Attempt twice at the original baud rate
       - if:
           condition:
-            - lambda: return (stoi(tft_upload_baud_rate->state) != tf_uart->get_baud_rate());
+            - lambda: return (tf_uart->get_baud_rate() != ${upload_tft_baud_rate});
           then:
             - script.execute:
                 id: upload_tft_sequence_attempt
@@ -342,7 +338,8 @@ script:
       ### Attempt twice at the Nextion's default baud rate (115200bps)
       - if:
           condition:
-            - lambda: return (stoi(tft_upload_baud_rate->state) != 115200 and tf_uart->get_baud_rate() != 115200);
+            - lambda: return (${upload_tft_baud_rate} != 115200);
+            - lambda: return (tf_uart->get_baud_rate() != 115200);
           then:
             - script.execute:
                 id: upload_tft_sequence_attempt
@@ -473,45 +470,4 @@ select:
     disabled_by_default: false
     icon: mdi:file-sync
     update_interval: never
-
-  - id: tft_upload_baud_rate
-    name: Update TFT display - Baud rate
-    platform: template
-    options:
-      - "2400"
-      - "4800"
-      - "9600"
-      - "19200"
-      - "31250"
-      - "38400"
-      - "57600"
-      - "115200"
-      - "230400"
-      - "250000"
-      - "256000"
-      - "512000"
-      - "921600"
-    initial_option: "921600"
-    optimistic: true
-    restore_value: true
-    internal: false
-    entity_category: config
-    disabled_by_default: true
-    icon: mdi:swap-horizontal
-    update_interval: never
-
-switch:
-  - id: tft_update_automatically
-    name: Update TFT automatically
-    platform: template
-    icon: mdi:file-sync
-    entity_category: config
-    internal: false
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
-    on_turn_on:
-      then:
-        - script.execute:
-            id: check_versions
-            reset_flag: false
 ...
