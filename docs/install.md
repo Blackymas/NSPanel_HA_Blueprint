@@ -114,6 +114,9 @@ Follow these steps to add a new device in the ESPHome Dashboard:
      nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"  # Optional
      boot_sound: false
      # Add-on configuration (if needed)
+     ## Upload TFT
+     upload_tft_automatically: true
+     ## Climate add-on
      # heater_relay: "1"  # Possible values: "1" or "2"
 
    # Customization area
@@ -491,6 +494,11 @@ substitutions:
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
   boot_sound: false
+  # Add-on configuration (if needed)
+  ## Upload TFT
+  upload_tft_automatically: true
+  ## Climate add-on
+  # heater_relay: "1"  # Possible values: "1" or "2"
 
 ##### My customization - Start #####
 # Add your custom components here
@@ -540,6 +548,11 @@ substitutions:
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
   boot_sound: false
+  # Add-on configuration (if needed)
+  ## Upload TFT
+  upload_tft_automatically: true
+  ## Climate add-on
+  # heater_relay: "1"  # Possible values: "1" or "2"
 
 ##### My customization - Start #####
 # Bluetooth components commented out during TFT updates
@@ -577,6 +590,11 @@ substitutions:
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
   boot_sound: false
+  # Add-on configuration (if needed)
+  ## Upload TFT
+  upload_tft_automatically: true
+  ## Climate add-on
+  # heater_relay: "1"  # Possible values: "1" or "2"
 
 ##### My customization - Start #####
 # Bluetooth Proxy with smart scanning (only when HA is connected)
@@ -633,6 +651,11 @@ Here's a complete workflow for integrating Bluetooth Proxy while managing memory
      wifi_ssid: !secret wifi_ssid
      wifi_password: !secret wifi_password
      boot_sound: false
+     # Add-on configuration (if needed)
+     ## Upload TFT
+     upload_tft_automatically: true
+     ## Climate add-on
+     # heater_relay: "1"  # Possible values: "1" or "2"
 
    ##### My customization - Start #####
    # Bluetooth disabled during initial TFT upload
@@ -656,6 +679,11 @@ Here's a complete workflow for integrating Bluetooth Proxy while managing memory
      wifi_ssid: !secret wifi_ssid
      wifi_password: !secret wifi_password
      boot_sound: false
+     # Add-on configuration (if needed)
+     ## Upload TFT
+     upload_tft_automatically: true
+     ## Climate add-on
+     # heater_relay: "1"  # Possible values: "1" or "2"
 
    ##### My customization - Start #####
    # Bluetooth Proxy with smart scanning (only when HA is connected)
@@ -700,6 +728,11 @@ substitutions:
   wifi_password: !secret wifi_password
   nextion_update_url: "http://homeassistant.local:8123/local/nspanel_eu.tft"
   boot_sound: false
+  # Add-on configuration (if needed)
+  ## Upload TFT
+  upload_tft_automatically: true
+  ## Climate add-on
+  # heater_relay: "1"  # Possible values: "1" or "2"
 
 ##### My customization - Start #####
 # Your custom components and modifications
