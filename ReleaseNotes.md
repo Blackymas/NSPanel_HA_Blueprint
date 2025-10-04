@@ -7,12 +7,16 @@ The TFT upload control has been converted from a switch to a substitution for be
 
 ## Breaking Changes
 
-### TFT Upload Configuration Change
+### TFT Upload Configuration Changes
 
 **The "Update TFT automatically" switch has been removed** as part of memory optimization efforts.
 Automatic TFT upload functionality is now controlled via substitution for better memory efficiency.
 
+**The "Update TFT display - Baud rate" select has also been removed** and replaced with a substitution.
+
 **Migration required:**
+
+**For automatic TFT upload control:**
 - **Old method:** "Update TFT automatically" switch in Home Assistant
 - **New method:** `upload_tft_automatically` substitution in your YAML configuration
 
@@ -22,8 +26,21 @@ substitutions:
   upload_tft_automatically: false  # Set to true to enable (default)
 ```
 
-**Default behavior:** Automatic TFT upload is **enabled by default** (`upload_tft_automatically: true`).
-If you had disabled automatic TFT uploads via the switch, you'll need to add the substitution above to maintain this preference.
+**For TFT upload baud rate:**
+- **Old method:** "Update TFT display - Baud rate" select in Home Assistant
+- **New method:** `upload_tft_baud_rate` substitution in your YAML configuration
+
+**How to change TFT upload baud rate:**
+```yaml
+substitutions:
+  upload_tft_baud_rate: 115200  # Default value, adjust if needed
+```
+
+**Default behaviors:** 
+- Automatic TFT upload is **enabled by default** (`upload_tft_automatically: true`)
+- TFT upload baud rate defaults to **115200** (`upload_tft_baud_rate: 115200`)
+
+If you had customized these settings via switches/selects, you'll need to add the appropriate substitutions to maintain your preferences.
 
 ## Key Improvements
 
