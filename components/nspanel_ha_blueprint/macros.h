@@ -1,6 +1,8 @@
 // macros.h - Utility macros for NSPanel HA Blueprint project
 // Contains conditional logging macros and other utility macros
 
+#include "esphome/core/defines.h"
+
 /**
  * @brief Conditional error logging macro
  * 
