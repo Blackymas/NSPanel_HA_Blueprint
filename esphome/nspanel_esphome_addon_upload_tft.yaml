@@ -19,6 +19,7 @@ substitutions:
   nextion_update_url: "${nextion_update_base_url}/main/hmi/nspanel_blank.tft"
   ##############################################
   TAG_UPLOAD_TFT: "nspanel.addon.upload_tft"
+  upload_tft_automatically: true
 
 esphome:
   platformio_options:
@@ -78,18 +79,13 @@ nspanel_ha_blueprint:
 script:
   - id: !extend check_versions
     then:
-      - if:
-          condition:
-            - switch.is_on: tft_update_automatically
-            - lambda: return tft_file_model->state != "NSPanel Blank";
-          then:
-            - script.execute: wait_for_version_tft
-            - script.wait: wait_for_version_tft
-            - lambda: |-
-                if (version_tft->state != "${version}") {
-                  ESP_LOGI("${TAG_UPLOAD_TFT}", "Auto updating TFT");
-                  upload_tft->execute("");
-                }
+      - lambda: |-
+          if (${'true' if upload_tft_automatically else 'false'} and
+              version_tft->state != "${version}" and
+              tft_file_model->active_index().value_or(0) > 1) {  // Only when std TFT is selected
+            ESP_LOGI("${TAG_UPLOAD_TFT}", "Auto updating TFT");
+            upload_tft->execute("");
+          }
 
   - id: !extend dump_config
     then:
@@ -496,19 +492,4 @@ select:
     disabled_by_default: true
     icon: mdi:swap-horizontal
     update_interval: never
-
-switch:
-  - id: tft_update_automatically
-    name: Update TFT automatically
-    platform: template
-    icon: mdi:file-sync
-    entity_category: config
-    internal: false
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
-    on_turn_on:
-      then:
-        - script.execute:
-            id: check_versions
-            reset_flag: false
 ...
