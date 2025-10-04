@@ -14,6 +14,8 @@ Automatic TFT upload functionality is now controlled via substitution for better
 
 **The "Update TFT display - Baud rate" select has also been removed** and replaced with a substitution.
 
+**The "Sound - Volume" control has been removed** as part of memory optimization efforts.
+
 **Migration required:**
 
 **For automatic TFT upload control:**
@@ -35,6 +37,11 @@ substitutions:
 substitutions:
   upload_tft_baud_rate: 115200  # Default value, adjust if needed
 ```
+
+**For sound volume:**
+- **Old method:** "Sound - Volume" control in Home Assistant
+- Volume control has been removed to reduce memory usage
+- Volume now operates at maximum level (as it did before the control was introduced)
 
 **Default behaviors:** 
 - Automatic TFT upload is **enabled by default** (`upload_tft_automatically: true`)
