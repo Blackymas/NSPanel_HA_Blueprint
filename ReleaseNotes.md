@@ -55,7 +55,11 @@ particularly focusing on enabling reliable operation for users who add Bluetooth
 - **Bluetooth support goal** - working toward reliable Bluetooth functionality
 - **Bluetooth testing success** - initial tests show successful operation with `bluetooth_proxy`
 
-**Important note:** While initial testing shows `bluetooth_proxy` working successfully, Bluetooth functionality remains officially unsupported at this time. Users who choose to add Bluetooth components do so at their own risk, understanding that stability may vary and support is limited.
+**Issue Reference:** #2717
+
+**Important note:** While initial testing shows `bluetooth_proxy` working successfully,
+Bluetooth functionality remains officially unsupported at this time.
+Users who choose to add Bluetooth components do so at their own risk, understanding that stability may vary and support is limited.
 
 ### Memory Management Strategy
 
