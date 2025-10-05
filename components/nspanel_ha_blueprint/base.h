@@ -65,7 +65,7 @@ namespace nspanel_ha_blueprint {
          * @brief Check if all active flags (bits 1-5) are set
          * @return true if all active flags are set, false otherwise
          */
-        inline bool all_active_flags_set() const {
+        bool all_active_flags_set() const {
             // All 5 active flags must be set
             return page_home && qrcode && relay_settings && version && hw_buttons_settings;
         }
@@ -74,7 +74,7 @@ namespace nspanel_ha_blueprint {
          * @brief Count active flags (bits 1-5) set
          * @return Number of flags set
          */
-        inline uint8_t count_active_flags_set() const {
+        uint8_t count_active_flags_set() const {
             return page_home + qrcode + relay_settings + version + hw_buttons_settings;
         }
 
@@ -93,7 +93,7 @@ namespace nspanel_ha_blueprint {
          * Clears all active flags (bits 0-4) and reserved bits, returning the
          * struct to its default-constructed state.
          */
-        inline void reset() {
+        void reset() {
             page_home = false;
             qrcode = false;
             relay_settings = false;
