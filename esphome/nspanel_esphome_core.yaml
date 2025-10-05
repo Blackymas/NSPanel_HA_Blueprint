@@ -52,21 +52,10 @@ esphome:
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
-  ####### Relay settings #######
-  # Bit # Settings             #
-  #  0  # Relay 1 - Local      #
-  #  1  # Relay 1 - Fallback   #
-  #  2  # reserved             #
-  #  3  # reserved             #
-  #  4  # Relay 2 - Local      #
-  #  5  # Relay 2 - Fallback   #
-  #  6  # reserved             #
-  #  7  # reserved             #
-  ##############################
-  - id: relay_settings
-    type: uint8_t
+  - id: hardware_settings
+    type: nspanel_ha_blueprint::HardwareSettings
     restore_value: true
-    initial_value: '0'
+    initial_value: 'nspanel_ha_blueprint::HardwareSettings{}'
   ##### Relay icons #####
   - id: home_relay1_icon
     type: std::string
@@ -135,56 +124,24 @@ switch:
     id: relay_1
     pin: ${GPIO_RELAY_1_PIN}
     restore_mode: RESTORE_DEFAULT_OFF
-    on_turn_on:
+    on_state:
       then:
         - lambda: |-
-            if (id(relay_settings) & RelaySettings::Relay1_Local)
-              update_bitwise_setting(buttons_settings, true, ButtonSettings::ButtonLeft_State);
-        - script.execute:
-            id: refresh_relays
-            relay_mask: 1
-        - script.execute:
-            id: refresh_hardware_buttons_bars
-            button_mask: 1
-    on_turn_off:
-      then:
-        - lambda: |-
-            if (id(relay_settings) & RelaySettings::Relay1_Local)
-              update_bitwise_setting(buttons_settings, false, ButtonSettings::ButtonLeft_State);
-        - script.execute:
-            id: refresh_relays
-            relay_mask: 1
-        - script.execute:
-            id: refresh_hardware_buttons_bars
-            button_mask: 1
+            if (id(hardware_settings).relay1_local) id(hardware_settings).button_left_state = x;
+            refresh_relays->execute(1);
+            refresh_hardware_buttons_bars->execute(1);
   ##### PHYSICAL SWITCH 2 ######
   - name: Relay 2
     platform: gpio
     id: relay_2
     pin: ${GPIO_RELAY_2_PIN}
     restore_mode: RESTORE_DEFAULT_OFF
-    on_turn_on:
+    on_state:
       then:
         - lambda: |-
-            if (id(relay_settings) & RelaySettings::Relay2_Local)
-              update_bitwise_setting(buttons_settings, true, ButtonSettings::ButtonRight_State);
-        - script.execute:
-            id: refresh_relays
-            relay_mask: 2
-        - script.execute:
-            id: refresh_hardware_buttons_bars
-            button_mask: 2
-    on_turn_off:
-      then:
-        - lambda: |-
-            if (id(relay_settings) & RelaySettings::Relay2_Local)
-              update_bitwise_setting(buttons_settings, false, ButtonSettings::ButtonRight_State);
-        - script.execute:
-            id: refresh_relays
-            relay_mask: 2
-        - script.execute:
-            id: refresh_hardware_buttons_bars
-            button_mask: 2
+            if (id(hardware_settings).relay2_local) id(hardware_settings).button_right_state = x;
+            refresh_relays->execute(2);
+            refresh_hardware_buttons_bars->execute(2);
 
 ##### START - TEXT SENSOR CONFIGURATION #####
 text_sensor:
@@ -247,7 +204,13 @@ script:  # Scripts
       - lambda: |-
           if (page == "mem") {
             if (component == "relay_settings") {
-              id(relay_settings) = val;
+              // Extract individual relay settings from the calculated uint8_t value
+              // Bit layout from YAML calculation: bits 0,1,4,5 used
+              id(hardware_settings).relay1_local = (val >> 0) & 1;
+              id(hardware_settings).relay1_fallback = (val >> 1) & 1;
+              id(hardware_settings).relay2_local = (val >> 4) & 1;
+              id(hardware_settings).relay2_fallback = (val >> 5) & 1;
+
               // Update blueprint status
               blueprint_status_flags.relay_settings = true;
             }
