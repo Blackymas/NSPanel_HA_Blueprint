@@ -2,120 +2,139 @@
 #pragma once
 
 #include "esphome/core/log.h"
-#include <initializer_list>
+#include <cstdint>
 
 namespace nspanel_ha_blueprint {
 
     /**
-    * @brief System-wide flags for NSPanel HA Blueprint component state tracking
-    *
-    * These flags track various component states throughout the system lifecycle.
-    * Uses uint16_t to provide 16 available flag positions.
-    */
-    namespace NSPanelFlag {
-        // Boot/initialization flags (0-8)
-        constexpr uint16_t WIFI_READY = (1 << 0);                 ///< WiFi connection established
-        constexpr uint16_t API_READY = (1 << 1);                  ///< Home Assistant API connection ready
-        constexpr uint16_t BAUD_RATE_SET = (1 << 2);              ///< UART baud rate configured
-        constexpr uint16_t NEXTION_READY = (1 << 3);              ///< Nextion display communication ready
-        constexpr uint16_t BLUEPRINT_READY = (1 << 4);            ///< Blueprint component initialized
-        constexpr uint16_t TFT_READY = (1 << 5);                  ///< TFT display ready
-        constexpr uint16_t BOOT_COMPLETED = (1 << 6);             ///< Boot script is completed
-        constexpr uint16_t VERSION_CHECK_OK = (1 << 7);           ///< All component versions verified
-        constexpr uint16_t DISPLAY_SETTINGS_RECEIVED = (1 << 8);  ///< All display settings received
+     * @brief System-wide flags for NSPanel HA Blueprint component state tracking
+     * 
+     * Uses bitfields to pack 16 boolean states into 2 bytes (uint16_t).
+     * Each flag represents a specific component state throughout the system lifecycle.
+     * Memory efficient: 16 individual bools would use 16 bytes; this uses only 2 bytes.
+     */
+    struct SystemFlags {
+        // Boot/initialization flags (bits 0-8)
+        uint16_t wifi_ready : 1;                 ///< WiFi connection established
+        uint16_t api_ready : 1;                  ///< Home Assistant API connection ready
+        uint16_t baud_rate_set : 1;              ///< UART baud rate configured
+        uint16_t nextion_ready : 1;              ///< Nextion display communication ready
+        uint16_t blueprint_ready : 1;            ///< Blueprint component initialized
+        uint16_t tft_ready : 1;                  ///< TFT display ready
+        uint16_t boot_completed : 1;             ///< Boot script completed
+        uint16_t version_check_ok : 1;           ///< All component versions verified
+        uint16_t display_settings_received : 1;  ///< All display settings received
 
-        // Runtime operation flags (9-12)
-        constexpr uint16_t TFT_UPLOAD_ACTIVE = (1 << 9);          ///< TFT firmware upload in progress
-        constexpr uint16_t SAFE_MODE_ACTIVE = (1 << 10);          ///< System running in safe mode
-        constexpr uint16_t OTA_IN_PROGRESS = (1 << 11);           ///< Over-the-air update active
-        constexpr uint16_t DISPLAY_SLEEP = (1 << 12);             ///< Display is in sleep mode
+        // Runtime operation flags (bits 9-12)
+        uint16_t tft_upload_active : 1;          ///< TFT firmware upload in progress
+        uint16_t safe_mode_active : 1;           ///< System running in safe mode
+        uint16_t ota_in_progress : 1;            ///< Over-the-air update active
+        uint16_t display_sleep : 1;              ///< Display is in sleep mode
 
-        // Reserverd flags (13-15)
-        constexpr uint16_t RESERVED_13 = (1 << 13);               ///< Reserved for future expansion
-        constexpr uint16_t RESERVED_14 = (1 << 14);               ///< Reserved for future expansion
-        constexpr uint16_t RESERVED_15 = (1 << 15);               ///< Reserved for future expansion
-    }  // namespace NSPanelFlag
+        // Reserved flags (bits 13-15)
+        uint16_t reserved : 3;                   ///< Reserved for future expansion
 
-    /**
-    * @brief Blueprint status flags for settings step tracking
-    *
-    * These flags correspond to the specific blueprint initialization steps.
-    * Based on the bit mapping used in the blueprint_status sensor.
-    */
-    namespace BlueprintStatusFlag {
-        constexpr uint8_t RESERVED_0 = (1 << 0);           ///< Reserved bit (not used in percentage calculation)
-        constexpr uint8_t PAGE_HOME = (1 << 1);            ///< Home page initialization completed
-        constexpr uint8_t QRCODE = (1 << 2);               ///< QR code configuration completed
-        constexpr uint8_t RELAY_SETTINGS = (1 << 3);       ///< Relay settings configuration completed
-        constexpr uint8_t VERSION = (1 << 4);              ///< Blueprint version received
-        constexpr uint8_t HW_BUTTONS_SETTINGS = (1 << 5);  ///< Hardware buttons settings completed
-        constexpr uint8_t RESERVED_6 = (1 << 6);           ///< Reserved bit (not used in percentage calculation)
-        constexpr uint8_t RESERVED_7 = (1 << 7);           ///< Reserved bit (not used in percentage calculation)
+        // Default constructor - all flags start as false (zero-initialized)
+        SystemFlags() : wifi_ready(0), api_ready(0), baud_rate_set(0), nextion_ready(0),
+                        blueprint_ready(0), tft_ready(0), boot_completed(0), version_check_ok(0),
+                        display_settings_received(0), tft_upload_active(0), safe_mode_active(0),
+                        ota_in_progress(0), display_sleep(0), reserved(0) {}
     };
 
-    // Global system flags - initialized to 0 (all flags false)
-    extern uint16_t system_flags;
+    /**
+     * @brief Blueprint status flags for settings step tracking
+     * 
+     * Uses bitfields to pack 8 boolean states into 1 byte (uint8_t).
+     * These flags track specific blueprint initialization steps.
+     * Bits 1-5 are active flags used in percentage calculation.
+     * Bits 0, 6, 7 are reserved and not used in calculations.
+     */
+    struct BlueprintStatusFlags {
+        uint8_t page_home : 1;            ///< Home page initialization completed
+        uint8_t qrcode : 1;               ///< QR code configuration completed
+        uint8_t relay_settings : 1;       ///< Relay settings configuration completed
+        uint8_t version : 1;              ///< Blueprint version received
+        uint8_t hw_buttons_settings : 1;  ///< Hardware buttons settings completed
+        uint8_t reserved : 3;             ///< Reserved (not used in percentage calculation)
 
-    // Global blueprint status flags - initialized to 0 (all flags false)
-    extern uint8_t blueprint_status_flags;
+        // Default constructor - all flags start as false (zero-initialized)
+        BlueprintStatusFlags() : page_home(0), qrcode(0), relay_settings(0),
+                                version(0), hw_buttons_settings(0), reserved(0) {}
 
-    // System flag functions (work directly with global system_flags)
+        /**
+         * @brief Check if all active flags (bits 1-5) are set
+         * @return true if all active flags are set, false otherwise
+         */
+        inline bool all_active_flags_set() const {
+            // All 5 active flags must be set
+            return page_home && qrcode && relay_settings && version && hw_buttons_settings;
+        }
+
+        /**
+         * @brief Count active flags (bits 1-5) set
+         * @return Number of flags set
+         */
+        inline uint8_t count_active_flags_set() const {
+            return page_home + qrcode + relay_settings + version + hw_buttons_settings;
+        }
+
+        /**
+         * @brief Calculate percentage of active flags that are set
+         * @return Percentage (0.0-100.0) of active flags set (bits 1-5 only)
+         */
+        float get_completion_percentage() const {
+            static constexpr uint8_t TOTAL_ACTIVE_FLAGS = 5;
+            return (static_cast<float>(count_active_flags_set()) / TOTAL_ACTIVE_FLAGS) * 100.0f;
+        }
+
+        /**
+         * @brief Reset all blueprint status flags to their initial state (false)
+         *
+         * Clears all active flags (bits 0-4) and reserved bits, returning the
+         * struct to its default-constructed state.
+         */
+        inline void reset() {
+            page_home = false;
+            qrcode = false;
+            relay_settings = false;
+            version = false;
+            hw_buttons_settings = false;
+            reserved = 0;
+        }
+    };
+
+    // Global system flags - initialized to all flags false
+    extern SystemFlags system_flags;
+
+    // Global blueprint status flags - initialized to all flags false
+    extern BlueprintStatusFlags blueprint_status_flags;
 
     /**
-    * @brief Check if device is ready to accept new tasks
-    * @return true if device is ready (no blocking operations active), false otherwise
-    */
+     * @brief Check if device is ready to accept new tasks
+     * @return true if device is ready (no blocking operations active), false otherwise
+     */
     inline bool is_device_ready_for_tasks() {
         return
-            (system_flags & NSPanelFlag::BOOT_COMPLETED) and  // Boot flag must be set to consider the system ready
+            system_flags.boot_completed &&  // Boot flag must be set to consider the system ready
             // Device is NOT ready if any of these blocking operations are active
-            !(system_flags & NSPanelFlag::OTA_IN_PROGRESS) and
-            !(system_flags & NSPanelFlag::TFT_UPLOAD_ACTIVE) and
-            !(system_flags & NSPanelFlag::SAFE_MODE_ACTIVE);
-    };
-
-    // Blueprint status flag functions (work directly with global blueprint_status_flags)
+            !system_flags.ota_in_progress &&
+            !system_flags.tft_upload_active &&
+            !system_flags.safe_mode_active;
+    }
 
     /**
-    * @brief Check if all non-reserved blueprint status flags are set
-    * @return true if all active flags (bits 1-5) are set, false otherwise
-    */
+     * @brief Check if all non-reserved blueprint status flags are set
+     * @return true if all active flags (bits 1-5) are set, false otherwise
+     */
     inline bool is_blueprint_fully_ready() {
-        // Check if all non-reserved blueprint status flags are set (bits 1-4)
-        // Active flags mask: 0x1E = 00011110 = bits 1-4
-        static constexpr uint8_t ACTIVE_FLAGS_MASK = 0x1E;
-        bool fully_ready = (blueprint_status_flags & ACTIVE_FLAGS_MASK) == ACTIVE_FLAGS_MASK;
-    
+        bool fully_ready = blueprint_status_flags.all_active_flags_set();
+
         // Update system flag only if it changed
-        if (fully_ready != static_cast<bool>(system_flags & NSPanelFlag::BLUEPRINT_READY)) {
-            if (fully_ready) {
-                system_flags |= NSPanelFlag::BLUEPRINT_READY;
-            } else {
-                system_flags &= ~NSPanelFlag::BLUEPRINT_READY;
-            }  // if fully_ready
-        }  // if state changed
-    
+        if (fully_ready != system_flags.blueprint_ready) {
+            system_flags.blueprint_ready = fully_ready;
+        }
+
         return fully_ready;
-    };
-
-    /**
-    * @brief Calculate percentage of non-reserved blueprint status flags that are set
-    * @return Percentage (0.0-100.0) of active flags set, excluding reserved bits
-    */
-    inline float get_blueprint_status_percentage() {
-        static constexpr uint8_t ACTIVE_FLAGS_MASK = 0x3E;  // 00111110
-        static constexpr uint8_t TOTAL_ACTIVE_FLAGS = 5;
-
-        const uint8_t active_flags = blueprint_status_flags & ACTIVE_FLAGS_MASK;
-        const uint8_t count = std::popcount(active_flags);  // C++20 built-in bit count
-
-        return (static_cast<float>(count) / TOTAL_ACTIVE_FLAGS) * 100.0f;
-      }  // get_blueprint_status_percentage
-
-    /**
-    * @brief Get the raw value of active blueprint status flags (excluding reserved bits)
-    * @return Raw value with only active bits (1-5), matching blueprint_status sensor raw_state
-    */
-    inline uint8_t get_blueprint_status_raw_value();
+    }
 
 }  // namespace nspanel_ha_blueprint
