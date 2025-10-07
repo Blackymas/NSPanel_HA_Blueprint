@@ -3,7 +3,6 @@
 #pragma once
 
 #include <cstdint>
-#include "esphome/components/climate/climate_mode.h"
 
 /**
  * @file icons.h
