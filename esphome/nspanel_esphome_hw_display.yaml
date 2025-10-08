@@ -39,7 +39,7 @@ binary_sensor:
       return is_device_ready_for_tasks();
     on_release:
       then:
-        - lambda: system_flags &= ~NSPanelFlag::NEXTION_READY;  // Clear flag
+        - lambda: system_flags.nextion_ready = false;
 
 display:
   - id: disp1
@@ -54,7 +54,7 @@ display:
         - script.stop: wait_for_display
         - lambda: |-
             ESP_LOGI("${TAG_HW_DISPLAY}", "Nextion setup triggered");
-            system_flags |= (NSPanelFlag::NEXTION_READY);  // Set the flag
+            system_flags.nextion_ready = true;
             nextion_init->publish_state(true);
 
     on_page:
@@ -202,7 +202,7 @@ script:
           if (event == "params") {
             if (json["display_mode"].isNull() || json["charset"].isNull() || json["version"].isNull()) {
               ESP_LOGW("${TAG_HW_DISPLAY}", "Missing display keys");
-              system_flags &= ~NSPanelFlag::DISPLAY_SETTINGS_RECEIVED;  // Clear flag
+              system_flags.display_settings_received = false;
               return;
             }
 
@@ -216,7 +216,7 @@ script:
             ESP_LOGI("${TAG_HW_DISPLAY}", "  Charset:     %" PRIu8, display_charset);
             ESP_LOGI("${TAG_HW_DISPLAY}", "  TFT version: v%s", version_tft->state.c_str());
 
-            system_flags |= (NSPanelFlag::DISPLAY_SETTINGS_RECEIVED);  // Set the flag
+            system_flags.display_settings_received = true;
             id(disp1).send_command("tm_esphome.en=0");
             return;
           }
@@ -328,9 +328,7 @@ script:
           ESP_LOGV("${TAG_HW_DISPLAY}", "Update component's visibility from memory");
           std::vector<ComponentVisibility*> components_visibility = list_components_visibility_by_page(current_page_id);
           for (ComponentVisibility* component_visibility : components_visibility) {
-            if (component_visibility->visible) {
-              disp1->show_component(component_visibility->component);
-            } else {
+            if (!component_visibility->visible) {
               disp1->hide_component(component_visibility->component);
             }
           }
@@ -381,16 +379,14 @@ script:
       definitive: bool
     then:
       - lambda: |-
-          if (
-              (system_flags & NSPanelFlag::OTA_IN_PROGRESS) or
-              (system_flags & NSPanelFlag::SAFE_MODE_ACTIVE) or
+          if (system_flags.ota_in_progress or system_flags.safe_mode_active or
               disp1->is_updating()) {  // I cannot use NSPanelFlag::TFT_UPLOAD_ACTIVE as baud rate changes with that
             ESP_LOGW("${TAG_BASE}", "Cannot change baud rate now as the system is busy");
             set_baud_rate->stop();
             return;
           }
           if (!isnan(target_baud_rate))
-            system_flags |= (NSPanelFlag::BAUD_RATE_SET);  // Set the flag
+            system_flags.baud_rate_set = true;
       - if:
           condition:
             - lambda: return (tf_uart->get_baud_rate() != target_baud_rate);
@@ -626,9 +622,7 @@ select:
     on_value:
       then:
         - lambda: |-
-            if ((system_flags & NSPanelFlag::OTA_IN_PROGRESS) or
-                (system_flags & NSPanelFlag::SAFE_MODE_ACTIVE) or
-                (system_flags & NSPanelFlag::TFT_UPLOAD_ACTIVE)) {
+            if (system_flags.ota_in_progress or system_flags.safe_mode_active or system_flags.tft_upload_active) {
               ESP_LOGW("${TAG_BASE}", "Cannot change baud rate as the system is busy");
               return;
             }
@@ -707,14 +701,20 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
+            // SpiRamAllocator wasn't compiling before esphome/esphome#11008
+            #if ESPHOME_VERSION_CODE < VERSION_CODE(2025, 10, 0)  // Code for ESPHome earlier than v2025.10.0
             static JsonDocument json;
+            #else
+            static esphome::json::SpiRamAllocator allocator;
+            static JsonDocument json(&allocator);
+            #endif
             static std::string page;
             static std::string event;
-            json.clear();
+
             const DeserializationError error = deserializeJson(json, x.c_str());
+
             if (error || json.overflowed() || json.isNull()) {
-              ESP_LOGE("${TAG_HW_DISPLAY}", "Parse error");
-              ESP_LOGE("${TAG_HW_DISPLAY}", "Error: %s", error.c_str());
+              ESP_LOGE("${TAG_HW_DISPLAY}", "Parse error: %s", error.c_str());
               return;
             }
 
