@@ -52,21 +52,10 @@ esphome:
 
 ##### START - GLOBALS CONFIGURATION #####
 globals:
-  ####### Relay settings #######
-  # Bit # Settings             #
-  #  0  # Relay 1 - Local      #
-  #  1  # Relay 1 - Fallback   #
-  #  2  # reserved             #
-  #  3  # reserved             #
-  #  4  # Relay 2 - Local      #
-  #  5  # Relay 2 - Fallback   #
-  #  6  # reserved             #
-  #  7  # reserved             #
-  ##############################
-  - id: relay_settings
-    type: uint8_t
+  - id: hardware_settings
+    type: nspanel_ha_blueprint::HardwareSettings
     restore_value: true
-    initial_value: '0'
+    initial_value: 'nspanel_ha_blueprint::HardwareSettings{}'
   ##### Relay icons #####
   - id: home_relay1_icon
     type: std::string
@@ -135,56 +124,24 @@ switch:
     id: relay_1
     pin: ${GPIO_RELAY_1_PIN}
     restore_mode: RESTORE_DEFAULT_OFF
-    on_turn_on:
+    on_state:
       then:
         - lambda: |-
-            if (id(relay_settings) & RelaySettings::Relay1_Local)
-              update_bitwise_setting(buttons_settings, true, ButtonSettings::ButtonLeft_State);
-        - script.execute:
-            id: refresh_relays
-            relay_mask: 1
-        - script.execute:
-            id: refresh_hardware_buttons_bars
-            button_mask: 1
-    on_turn_off:
-      then:
-        - lambda: |-
-            if (id(relay_settings) & RelaySettings::Relay1_Local)
-              update_bitwise_setting(buttons_settings, false, ButtonSettings::ButtonLeft_State);
-        - script.execute:
-            id: refresh_relays
-            relay_mask: 1
-        - script.execute:
-            id: refresh_hardware_buttons_bars
-            button_mask: 1
+            if (id(hardware_settings).relay1_local) id(hardware_settings).button_left_state = x;
+            refresh_relays->execute(1);
+            refresh_hardware_buttons_bars->execute(1);
   ##### PHYSICAL SWITCH 2 ######
   - name: Relay 2
     platform: gpio
     id: relay_2
     pin: ${GPIO_RELAY_2_PIN}
     restore_mode: RESTORE_DEFAULT_OFF
-    on_turn_on:
+    on_state:
       then:
         - lambda: |-
-            if (id(relay_settings) & RelaySettings::Relay2_Local)
-              update_bitwise_setting(buttons_settings, true, ButtonSettings::ButtonRight_State);
-        - script.execute:
-            id: refresh_relays
-            relay_mask: 2
-        - script.execute:
-            id: refresh_hardware_buttons_bars
-            button_mask: 2
-    on_turn_off:
-      then:
-        - lambda: |-
-            if (id(relay_settings) & RelaySettings::Relay2_Local)
-              update_bitwise_setting(buttons_settings, false, ButtonSettings::ButtonRight_State);
-        - script.execute:
-            id: refresh_relays
-            relay_mask: 2
-        - script.execute:
-            id: refresh_hardware_buttons_bars
-            button_mask: 2
+            if (id(hardware_settings).relay2_local) id(hardware_settings).button_right_state = x;
+            refresh_relays->execute(2);
+            refresh_hardware_buttons_bars->execute(2);
 
 ##### START - TEXT SENSOR CONFIGURATION #####
 text_sensor:
@@ -200,8 +157,7 @@ text_sensor:
       then:
         - lambda: |-
             ESP_LOGD("${TAG_CORE}", "Blueprint version: %s", x.c_str());
-            if (!x.empty())
-              blueprint_status_flags |= BlueprintStatusFlag::VERSION;
+            if (!x.empty()) blueprint_status_flags.version = true;
             check_versions->execute(x != "${version}");
 
   - id: version_esphome
@@ -248,9 +204,15 @@ script:  # Scripts
       - lambda: |-
           if (page == "mem") {
             if (component == "relay_settings") {
-              id(relay_settings) = val;
+              // Extract individual relay settings from the calculated uint8_t value
+              // Bit layout from YAML calculation: bits 0,1,4,5 used
+              id(hardware_settings).relay1_local = (val >> 0) & 1;
+              id(hardware_settings).relay1_fallback = (val >> 1) & 1;
+              id(hardware_settings).relay2_local = (val >> 4) & 1;
+              id(hardware_settings).relay2_fallback = (val >> 5) & 1;
+
               // Update blueprint status
-              blueprint_status_flags |= BlueprintStatusFlag::RELAY_SETTINGS;
+              blueprint_status_flags.relay_settings = true;
             }
           }
 
@@ -302,15 +264,14 @@ script:  # Scripts
       - lambda: |-
           ESP_LOGV("${TAG_CORE}", "Script: Check version");
           ESP_LOGV("${TAG_CORE}", "  reset_flag: %s", TRUEFALSE(reset_flag));
-          ESP_LOGV("${TAG_CORE}", "  VERSION_CHECK_OK: %s", (system_flags & NSPanelFlag::VERSION_CHECK_OK) ? "Set" : "NOT set");
+          ESP_LOGV("${TAG_CORE}", "  VERSION_CHECK_OK: %s", (system_flags.version_check_ok) ? "Set" : "NOT set");
           ESP_LOGV("${TAG_CORE}", "  is_device_ready_for_tasks: %s", YESNO(is_device_ready_for_tasks()));
           ESP_LOGV("${TAG_CORE}", "  Versions:");
           ESP_LOGV("${TAG_CORE}", "    Blueprint: %s", version_blueprint->state.c_str());
           ESP_LOGV("${TAG_CORE}", "    ESPHome: ${version}");
           ESP_LOGV("${TAG_CORE}", "    TFT: %s", version_tft->state.c_str());
-          if (reset_flag)
-            system_flags &= ~NSPanelFlag::VERSION_CHECK_OK;  // Clear flag
-          if (system_flags & NSPanelFlag::VERSION_CHECK_OK) {
+          if (reset_flag) system_flags.version_check_ok = false;
+          if (system_flags.version_check_ok) {
             ESP_LOGD("${TAG_CORE}", "VERSION_CHECK_OK is already set");
             return;
           }
@@ -326,38 +287,24 @@ script:  # Scripts
           ESP_LOGD("${TAG_CORE}", "  Blueprint: %s", version_blueprint->state.c_str());
           ESP_LOGD("${TAG_CORE}", "  ESPHome:   ${version}");
           ESP_LOGD("${TAG_CORE}", "  TFT:       %s", version_tft->state.c_str());
-          system_flags |= (NSPanelFlag::VERSION_CHECK_OK);  // Set the flag
-      - if:
-          condition:
-            - not:
-                - text_sensor.state:
-                    id: version_blueprint
-                    state: ${version}
-          then:
-            - lambda: |-
-                ESP_LOGE("${TAG_CORE}", "Blueprint version mismatch!");
-                system_flags &= ~NSPanelFlag::VERSION_CHECK_OK;  // Clear flag
-      - if:
-          condition:
-            - not:
-                - text_sensor.state:
-                    id: version_tft
-                    state: ${version}
-          then:
-            - lambda: |-
-                ESP_LOGE("${TAG_CORE}", "TFT version mismatch!");
-                system_flags &= ~NSPanelFlag::VERSION_CHECK_OK;  // Clear flag
-      - delay: 1s
-      - homeassistant.event:
-          event: ${EVENT_NAME}
-          data:
-            device_name: !lambda return device_name->state.c_str();
-            esphome_version: ${version}
-            type: version
-            tft: !lambda return version_tft->state.c_str();
-            esphome: ${version}
-            blueprint: !lambda return version_blueprint->state.c_str();
-      - lambda: |-
+          system_flags.version_check_ok = true;
+          if (version_blueprint->state != "${version}") {
+            ESP_LOGE("${TAG_CORE}", "Blueprint version mismatch!");
+            system_flags.version_check_ok = false;
+          }
+          if (version_tft->state != "${version}") {
+            ESP_LOGE("${TAG_CORE}", "TFT version mismatch!");
+            system_flags.version_check_ok = false;
+          }
+          esphome::api::CustomAPIDevice ha_event;
+          ha_event.fire_homeassistant_event("${EVENT_NAME}", {
+            {"device_name", device_name->state.c_str()},
+            {"esphome_version", "${version}"},
+            {"type", "version"},
+            {"tft", version_tft->state.c_str()},
+            {"esphome", "${version}"},
+            {"blueprint", version_blueprint->state.c_str()}
+          });
           ESP_LOGD("${TAG_CORE}", "Check version completed");
 
   - id: !extend dump_config
@@ -366,37 +313,30 @@ script:  # Scripts
       - lambda: |-
           // Report blueprint version
           ESP_LOGCONFIG("${TAG_CORE}", "Blueprint:");
-          if (system_flags & NSPanelFlag::BLUEPRINT_READY) {
+          if (system_flags.blueprint_ready) {
             ESP_LOGCONFIG("${TAG_CORE}", "  Version: %s", version_blueprint->state.c_str());
-            ESP_LOGCONFIG("${TAG_CORE}", "  Progress: %0.1f%%", get_blueprint_status_percentage());
+            ESP_LOGCONFIG("${TAG_CORE}", "  Progress: %0.1f%%", blueprint_status_flags.get_completion_percentage());
           } else {
-            ESP_LOGW("${TAG_CORE}", "  Progress: %0.1f%%", get_blueprint_status_percentage());
-            ESP_LOGW("${TAG_CORE}", "  State: %s",
-                      (system_flags & NSPanelFlag::WIFI_READY and system_flags & NSPanelFlag::API_READY)
-                      ? "Pending" : "DISCONNECTED");
+            ESP_LOGW("${TAG_CORE}", "  Progress: %0.1f%%", blueprint_status_flags.get_completion_percentage());
+            ESP_LOGW("${TAG_CORE}", "  State: %s", (system_flags.wifi_ready and system_flags.api_ready)
+                                                    ? "Pending" : "DISCONNECTED");
           }
 
-      # Report ESPHome
-      - lambda: |-
+          // Report ESPHome
           ESP_LOGCONFIG("${TAG_CORE}", "ESPHome:");
           ESP_LOGCONFIG("${TAG_CORE}", "  Version: ${version}");
           ESP_LOGCONFIG("${TAG_CORE}", "  Compiler: %s", ESPHOME_VERSION);
-          ESP_LOGCONFIG("${TAG_CORE}", "  Compilation time: %s", App.get_compilation_time().c_str());
 
-      # Report framework
-      - lambda: |-
-          ESP_LOGCONFIG("${TAG_CORE}", "  Framework:   "
-          #ifdef ARDUINO
-          "Arduino"
-          #elif defined(USE_ESP_IDF)
-          "ESP-IDF"
+          // Report framework
+          #ifdef USE_ESP_IDF
+          ESP_LOGCONFIG("${TAG_CORE}", "  Framework: ESP-IDF");
+          #elif defined(USE_ARDUINO)
+          ESP_LOGW("${TAG_CORE}", "  Framework: Arduino");
           #else
-          "Unknown"
+          ESP_LOGE("${TAG_CORE}", "  Framework: Unknown");
           #endif
-          );
 
-      # Report Packages
-      - lambda: |-
+          // Report Packages
           ESP_LOGCONFIG("${TAG_CORE}", "Packages:");
           #ifdef NSPANEL_HA_BLUEPRINT_CORE
           ESP_LOGCONFIG("${TAG_CORE}", "  - Core");
@@ -514,28 +454,10 @@ script:  # Scripts
     then:
       - lambda: |-
           if (relay_mask & 1) {  // Chip - Relay 1
-            add_component_visibility(${PAGE_HOME_ID}, "chip_relay1", relay_1->state);
-            disp1->set_component_text("home.chip_relay1",
-                                      (relay_1->state) ? id(home_relay1_icon).c_str() : "\uFFFF");
-            if (current_page_id == ${PAGE_HOME_ID}) {
-              if (relay_1->state) {
-                disp1->show_component("chip_relay1");
-              } else {
-                disp1->hide_component("chip_relay1");
-              }
-            }
+            disp1->set_component_font_color("home.chip_relay1", relay_1->state ? id(home_relay1_icon_color) : 0);
           }
           if (relay_mask & 2) {  // Chip - Relay 2
-            add_component_visibility(${PAGE_HOME_ID}, "chip_relay2", relay_2->state);
-            disp1->set_component_text("home.chip_relay2",
-                                      (relay_2->state) ? id(home_relay2_icon).c_str() : "\uFFFF");
-            if (current_page_id == ${PAGE_HOME_ID}) {
-              if (relay_2->state) {
-                disp1->show_component("chip_relay2");
-              } else {
-                disp1->hide_component("chip_relay2");
-              }
-            }
+            disp1->set_component_font_color("home.chip_relay2", relay_2->state ? id(home_relay2_icon_color) : 0);
           }
 
   - id: !extend stop_all
@@ -550,73 +472,7 @@ script:  # Scripts
       - lambda: |-
           change_climate_state->stop();
           refresh_relays->stop();
-          update_climate_icon->stop();
           cleanupUtilitiesGroups();
-
-  - id: update_climate_icon
-    mode: single
-    parameters:
-      component: string
-      action: uint
-      mode: uint
-    then:
-      - lambda: |-
-          switch (action) // CLIMATE_ACTION_OFF = 0, CLIMATE_ACTION_COOLING = 2, CLIMATE_ACTION_HEATING = 3, CLIMATE_ACTION_IDLE = 4, CLIMATE_ACTION_DRYING = 5, CLIMATE_ACTION_FAN = 6
-            {
-              case 0: //CLIMATE_ACTION_OFF
-                switch (mode) // CLIMATE_MODE_OFF = 0, CLIMATE_MODE_HEAT_COOL = 1, CLIMATE_MODE_COOL = 2, CLIMATE_MODE_HEAT = 3, CLIMATE_MODE_FAN_ONLY = 4, CLIMATE_MODE_DRY = 5, CLIMATE_MODE_AUTO = 6
-                  {
-                    case 0: //CLIMATE_MODE_OFF
-                      disp1->set_component_text(component.c_str(), "\uFFFF"); // (E424) Don't show icon when off
-                      disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
-                      break;
-                    case 1: //CLIMATE_MODE_HEAT_COOL
-                      disp1->set_component_text(component.c_str(), "\uE069"); // mdi:autorenew
-                      disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
-                      break;
-                    case 2: //CLIMATE_MODE_COOL
-                      disp1->set_component_text(component.c_str(), "\uE716"); // mdi:snowflake
-                      disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
-                      break;
-                    case 3: //CLIMATE_MODE_HEAT
-                      disp1->set_component_text(component.c_str(), "\uE237"); // mdi:fire
-                      disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
-                      break;
-                    case 4: //CLIMATE_MODE_FAN_ONLY
-                      disp1->set_component_text(component.c_str(), "\uE20F"); // mdi:fan
-                      disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
-                      break;
-                    case 5: //CLIMATE_MODE_DRY
-                      disp1->set_component_text(component.c_str(), "\uE58D"); // mdi:water-percent
-                      disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
-                      break;
-                    case 6: //CLIMATE_MODE_AUTO
-                      disp1->set_component_text(component.c_str(), "\uEE8D"); // mdi:calendar-sync
-                      disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
-                      break;
-                  }
-                  break;
-              case 2: //CLIMATE_ACTION_COOLING
-                disp1->set_component_text(component.c_str(), "\uE716"); // mdi:snowflake
-                disp1->set_component_font_color(component.c_str(), 1055); // blue
-                break;
-              case 3: //CLIMATE_ACTION_HEATING
-                disp1->set_component_text(component.c_str(), "\uE237"); // mdi:fire
-                disp1->set_component_font_color(component.c_str(), 64164); // deep-orange
-                break;
-              case 4: //CLIMATE_ACTION_IDLE
-                disp1->set_component_text(component.c_str(), "\uE50E"); // mdi:thermometer
-                disp1->set_component_font_color(component.c_str(), 35921); // grey (off)
-                break;
-              case 5: //CLIMATE_ACTION_DRYING
-                disp1->set_component_text(component.c_str(), "\uE58D"); // mdi:water-percent
-                disp1->set_component_font_color(component.c_str(), 64704); // orange
-                break;
-              case 6: //CLIMATE_ACTION_FAN
-                disp1->set_component_text(component.c_str(), "\uE20F"); // mdi:fan
-                disp1->set_component_font_color(component.c_str(), 1530); // cyan
-                break;
-            }
 
   - id: wakeup
     mode: single
@@ -647,7 +503,7 @@ script:  # Scripts
           then:
             - if:
                 condition:
-                  - lambda: return system_flags & NSPanelFlag::WIFI_READY;
+                  - lambda: return system_flags.wifi_ready;
                 then:
                   - script.stop: wait_for_api
             - if:
@@ -669,21 +525,16 @@ script:  # Scripts
           log_message: Waiting for Blueprint
       - while:
           condition:
-            - lambda: return not (system_flags & NSPanelFlag::BLUEPRINT_READY);
+            - lambda: return not (system_flags.blueprint_ready);
             - lambda: return not is_blueprint_fully_ready();
           then:
             - lambda: |-
-                ESP_LOGD("${TAG_CORE}", "Blueprint progress: %0.1f%%", get_blueprint_status_percentage());
-                ESP_LOGV("${TAG_CORE}", "  Page home: %s",
-                                        YESNO(blueprint_status_flags & BlueprintStatusFlag::PAGE_HOME));
-                ESP_LOGV("${TAG_CORE}", "  Page qrcode: %s",
-                                        YESNO(blueprint_status_flags & BlueprintStatusFlag::QRCODE));
-                ESP_LOGV("${TAG_CORE}", "  Relay settings: %s",
-                                        YESNO(blueprint_status_flags & BlueprintStatusFlag::RELAY_SETTINGS));
-                ESP_LOGV("${TAG_CORE}", "  Version: %s",
-                                        YESNO(blueprint_status_flags & BlueprintStatusFlag::VERSION));
-                ESP_LOGV("${TAG_CORE}", "  HW Buttons settings: %s",
-                                        YESNO(blueprint_status_flags & BlueprintStatusFlag::HW_BUTTONS_SETTINGS));
+                ESP_LOGD("${TAG_CORE}", "Blueprint progress: %0.1f%%", blueprint_status_flags.get_completion_percentage());
+                ESP_LOGV("${TAG_CORE}", "  Page home: %s", YESNO(blueprint_status_flags.page_home));
+                ESP_LOGV("${TAG_CORE}", "  Page qrcode: %s", YESNO(blueprint_status_flags.qrcode));
+                ESP_LOGV("${TAG_CORE}", "  Relay settings: %s", YESNO(blueprint_status_flags.relay_settings));
+                ESP_LOGV("${TAG_CORE}", "  Version: %s", YESNO(blueprint_status_flags.version));
+                ESP_LOGV("${TAG_CORE}", "  HW Buttons settings: %s", YESNO(blueprint_status_flags.hw_buttons_settings));
             - delay: 1s
       - script.execute:
           id: boot_log

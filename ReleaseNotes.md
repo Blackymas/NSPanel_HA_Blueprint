@@ -1,53 +1,98 @@
-# v4.3.37 - Service Call Fix and Weather Integration Improvements
+# v4.3.38 - Memory Optimization
 
 ## Summary
 
-This release fixes a critical service call issue that prevented panel controls from working
-and modernizes weather integration for better reliability across different weather providers.
+This release continues memory optimization efforts to enable stable operation with add-ons and Bluetooth functionality.
+The TFT upload control has been converted from a switch to a substitution for better memory efficiency.
 
-## Critical Fixes
+## Breaking Changes
 
-### Service Call Functionality Restored
+### TFT Upload Configuration Changes
 
-**Fixed service calls broken in recent versions** - resolved issue preventing users from controlling
-devices (lights, covers, climate, etc.) from their panels.
+**The "Update TFT automatically" switch has been removed** as part of memory optimization efforts.
+Automatic TFT upload functionality is now controlled via substitution for better memory efficiency.
 
-**Issue details:**
-- Service call functionality was inadvertently broken in recent optimization releases
-- Users unable to control lights, covers, and other entities from the panel
-- Panel interface appeared to work but commands weren't being executed
+**The "Update TFT display - Baud rate" select has also been removed** and replaced with a substitution.
 
-**Issues Reference:** 
-- #2905
-- #2923
+**The "Sound - Volume" control has been removed** as part of memory optimization efforts.
 
-**Result:** Full device control functionality restored. Users can now control all entities from their panels again.
+**Migration required:**
 
-### Weather Integration Modernization
+**For automatic TFT upload control:**
+- **Old method:** "Update TFT automatically" switch in Home Assistant
+- **New method:** `upload_tft_automatically` substitution in your YAML configuration
 
-**Cleaned up weather implementation** by removing legacy AccuWeather-specific code
-and adopting Home Assistant's standardized weather forecast approach.
+**How to disable automatic TFT upload:**
+```yaml
+substitutions:
+  upload_tft_automatically: false  # Set to true to enable (default)
+```
 
-**Weather improvements:**
-- **Removed AccuWeather-specific legacy code** - old implementation tied to specific integration quirks
-- **Standardized forecast retrieval** - now uses only `weather.get_forecast` action from Home Assistant
-- **Universal compatibility** - works consistently across multiple weather integrations
-- **Improved reliability** - more robust weather data handling
+**For TFT upload baud rate:**
+- **Old method:** "Update TFT display - Baud rate" select in Home Assistant
+- **New method:** `upload_tft_baud_rate` substitution in your YAML configuration
+- **Important:** UART baud rate changes are buggy and may cause failures.
+  The substitution option remains available for advanced users,
+  but changing baud rates carries significant risk of communication failures.
 
-**Benefits:**
-- Better compatibility with various weather integrations (AccuWeather, Met.no, OpenWeatherMap, etc.)
-- More consistent behavior across different weather providers
-- Simplified maintenance through standardized Home Assistant API usage
+**How to change TFT upload baud rate (advanced users only):**
+```yaml
+substitutions:
+  upload_tft_baud_rate: 115200  # Default value, changing not recommended due to UART bugs
+```
+
+**Note:** We're investigating alternatives for future versions,
+including potentially moving all UART communications to 921600 baud rate permanently for improved performance and reliability.
+
+**For sound volume:**
+- **Old method:** "Sound - Volume" control in Home Assistant
+- Volume control has been removed to reduce memory usage
+- Volume now operates at maximum level (as it did before the control was introduced)
+
+**Default behaviors:** 
+- Automatic TFT upload is **enabled by default** (`upload_tft_automatically: true`)
+- TFT upload baud rate defaults to **115200** (`upload_tft_baud_rate: 115200`)
+
+If you had customized these settings via switches/selects, you'll need to add the appropriate substitutions to maintain your preferences.
+
+## Key Improvements
+
+### Continued Memory Optimization
+
+**Further memory reduction** targeting stable operation with memory-intensive add-ons,
+particularly focusing on enabling reliable operation for users who add Bluetooth components to their panels.
+
+**Optimization progress:**
+- **TFT upload control streamlined** - reduced memory usage by converting switch to substitution
+- **Add-on compatibility focus** - freeing memory for stable add-on operation
+- **Bluetooth support goal** - working toward reliable Bluetooth functionality
+- **Bluetooth testing success** - initial tests show successful operation with `bluetooth_proxy`
+
+**Issue Reference:** #2717
+
+**Important note:** While initial testing shows `bluetooth_proxy` working successfully,
+Bluetooth functionality remains officially unsupported at this time.
+Users who choose to add Bluetooth components do so at their own risk, understanding that stability may vary and support is limited.
+
+### Memory Management Strategy
+
+**Systematic approach** to memory optimization by identifying and removing components
+that can be optionally restored via customizations for users who need them.
+
+**Strategy benefits:**
+- **Default configuration optimized** for maximum compatibility
+- **User choice preserved** through substitution options
+- **Targeted memory savings** focusing on high-impact optimizations
 
 ## Technical Details
 
-The service call fix addresses a regression introduced during recent optimization work,
-restoring full entity control functionality. The weather modernization aligns the project
-with Home Assistant's standardized weather integration approach, improving long-term maintainability.
+This release continues the aggressive memory optimization approach,
+targeting components that provide optional functionality while maintaining
+core NSPanel features and user customization options.
 
-**Result:** Restored device control functionality with modernized, more reliable weather integration
-that works consistently across different weather providers.
+**Result:** Additional memory savings contributing toward reliable add-on support and Bluetooth functionality
+for users who add Bluetooth components to their panels.
 
 ---
 
-*Critical service call fix and improved weather integration compatibility.*
+*Continued memory optimization for add-on compatibility with user customization options preserved.*

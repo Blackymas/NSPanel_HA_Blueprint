@@ -34,6 +34,9 @@ substitutions:
   wifi_password: !secret wifi_password
 
   # Add-on configuration (if needed)
+  ## Upload TFT
+  upload_tft_automatically: true
+
   ## Add-on climate
   heater_relay: "1"  # Possible values: "1" or "2"
 
@@ -98,6 +101,9 @@ substitutions:
   wifi_password: !secret wifi_password
 
   # Add-on configuration (if needed)
+  ## Upload TFT
+  upload_tft_automatically: true
+
   ## Add-on climate
   cooler_relay: "1"     # Possible values: "1" or "2"
   temp_units: "°F"      # Temperatures in Fahrenheit
@@ -136,6 +142,9 @@ substitutions:
   wifi_password: !secret wifi_password
 
   # Add-on configuration (if needed)
+  ## Upload TFT
+  upload_tft_automatically: true
+
   ## Add-on climate
   heater_relay: "1"     # Possible values: "1" or "2"
   temp_units: "°F"      # Temperatures in Fahrenheit
@@ -175,6 +184,9 @@ substitutions:
   wifi_password: !secret wifi_password
 
   # Add-on configuration (if needed)
+  ## Upload TFT
+  upload_tft_automatically: true
+
   ## Add-on climate
   heater_relay: "1"     # Possible values: "1" or "2"
   cooler_relay: "2"     # Possible values: "1" or "2"

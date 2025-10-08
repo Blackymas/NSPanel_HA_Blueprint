@@ -4,70 +4,49 @@
 
 #include <cstdint>
 
-// Namespace for nspanel_ha_blueprint, encapsulating definitions related to hardware settings.
 namespace nspanel_ha_blueprint {
 
     /**
-     * @enum ButtonSettings
-     * Represents the settings for hardware buttons using individual bits within a uint8_t value.
-     * This allows efficient storage and manipulation of settings for multiple buttons in a compact form.
+     * @brief Combined hardware settings using bitfields
      * 
-     * The bit allocations are as follows:
-     * - Bit 0: Left button enabled.
-     * - Bit 1: Left button state (0 for `off`, 1 for `on`).
-     * - Bits 2-3: Reserved for future use.
-     * - Bit 4: Right button enabled.
-     * - Bit 5: Right button state (0 for `off`, 1 for `on`).
-     * - Bits 6-7: Reserved for future use.
+     * Packs BOTH button and relay settings into a single byte (uint8_t).
+     * Bits 0-3: Button settings (left enabled, left state, right enabled, right state)
+     * Bits 4-7: Relay settings (relay1 local, relay1 fallback, relay2 local, relay2 fallback)
      * 
-     * These settings facilitate easy manipulation of button states and configurations through bitwise operations.
+     * Memory efficient: Saves 1 byte compared to separate button/relay bytes.
+     * Previous: 2 bytes (1 for buttons + 1 for relays)
+     * Now: 1 byte (contains both)
      */
-    enum ButtonSettings {
-        ButtonLeft_Enabled = 1 << 0,   ///< Enables left button visualization on screen.
-        ButtonLeft_State = 1 << 1,     ///< Indicates current state of the left button.
-        // Bits 2 and 3 are reserved for future expansion.
-        ButtonRight_Enabled = 1 << 4,  ///< Enables right button visualization on screen.
-        ButtonRight_State = 1 << 5,    ///< Indicates current state of the right button.
-        // Bits 6 and 7 are reserved for future expansion.
+    struct HardwareSettings {
+        // Button settings (bits 0-3)
+        uint8_t button_left_enabled : 1;   ///< Bit 0: Left button visualization enabled
+        uint8_t button_left_state : 1;     ///< Bit 1: Left button state (0=off, 1=on)
+        uint8_t button_right_enabled : 1;  ///< Bit 2: Right button visualization enabled
+        uint8_t button_right_state : 1;    ///< Bit 3: Right button state (0=off, 1=on)
+        
+        // Relay settings (bits 4-7)
+        uint8_t relay1_local : 1;          ///< Bit 4: Relay 1 local control enabled
+        uint8_t relay1_fallback : 1;       ///< Bit 5: Relay 1 fallback mode enabled
+        uint8_t relay2_local : 1;          ///< Bit 6: Relay 2 local control enabled
+        uint8_t relay2_fallback : 1;       ///< Bit 7: Relay 2 fallback mode enabled
+
+        // Default constructor - all flags start as false (zero-initialized)
+        HardwareSettings() : button_left_enabled(0), button_left_state(0),
+                            button_right_enabled(0), button_right_state(0),
+                            relay1_local(0), relay1_fallback(0),
+                            relay2_local(0), relay2_fallback(0) {}
     };
 
+    // Note: hardware_settings_raw is declared as uint8_t in ESPHome YAML with restore_value: true
+    // Use the helper function below to access it as a HardwareSettings struct
+    
     /**
-     * @enum RelaySettings
-     * Represents the settings for relays using individual bits within a uint8_t value.
-     * This approach allows for the efficient storage and manipulation of settings for multiple
-     * relays in a single byte, enabling compact representation and ease of setting manipulation.
-     * 
-     * The bit allocations are as follows:
-     * - Bit 0: Relay 1 local control enabled.
-     * - Bit 1: Relay 1 fallback mode enabled.
-     * - Bits 2-3: Reserved for future use.
-     * - Bit 4: Relay 2 local control enabled.
-     * - Bit 5: Relay 2 fallback mode enabled.
-     * - Bits 6-7: Reserved for future use.
-     * 
-     * These settings support flexible relay configuration and state management through bitwise operations.
+     * @brief Get hardware settings as a struct reference from the raw uint8_t
+     * @param raw_value Reference to the uint8_t global variable from YAML
+     * @return Reference to HardwareSettings struct (same memory location)
      */
-    enum RelaySettings {
-        Relay1_Local = 1 << 0,     ///< Enables local control for Relay 1.
-        Relay1_Fallback = 1 << 1,  ///< Enables fallback mode for Relay 1.
-        // Bits 2 and 3 are reserved for future expansion.
-        Relay2_Local = 1 << 4,     ///< Enables local control for Relay 2.
-        Relay2_Fallback = 1 << 5,  ///< Enables fallback mode for Relay 2.
-        // Bits 6 and 7 are reserved for future expansion.
-    };
-
-    /**
-     * Updates a settings byte according to a specified condition and flag.
-     * 
-     * This function template applies a bitwise operation to modify the settings byte based on
-     * the provided condition and flag. If the condition is true, the bit corresponding to the flag
-     * is set; otherwise, it's cleared. This method enables dynamic and conditional settings updates.
-     *
-     * @param settings Reference to the settings byte to be modified.
-     * @param condition Boolean condition determining how the settings byte is modified.
-     * @param flag The specific bit flag (from ButtonSettings or RelaySettings) to modify.
-     */
-    template<typename SettingsEnum>
-    void update_bitwise_setting(uint8_t& settings, bool condition, SettingsEnum flag);
+    inline HardwareSettings& get_hardware_settings(uint8_t& raw_value) {
+        return reinterpret_cast<HardwareSettings&>(raw_value);
+    }
 
 }  // namespace nspanel_ha_blueprint
