@@ -29,13 +29,10 @@ api:
 
   on_client_disconnected:
     then:
-      - if:
-          condition:
-            not:
-              api.connected:
-          then:
-            - lambda: system_flags.api_ready = false;
-      - script.execute: refresh_wifi_icon
+      - lambda: |-
+          if (!api_server->is_connected())
+            system_flags.api_ready = false;
+          refresh_wifi_icon->execute();
 
   actions:
     # Sends custom commands directly to the display for dynamic interactions and updates.
@@ -225,25 +222,16 @@ api:
         qrcode: string  # Data or URL to be encoded into the QR code.
         show: bool      # Flag to immediately display the QR code page upon service invocation.
       then:
-        - if:
-            condition:
-              - lambda: return (current_page_id == ${PAGE_HOME_ID});
-            then:
-              - lambda: |-
-                  disp1->send_command_printf("vis bt_qrcode,%i", qrcode.empty() ? 0 : 1);
         - lambda: |-
+            if (current_page_id == ${PAGE_HOME_ID})
+              disp1->send_command_printf("vis bt_qrcode,%i", qrcode.empty() ? 0 : 1);
             disp1->set_component_text("qrcode.qrcode_label", title.c_str());
             disp1->set_component_text("qrcode.qrcode_value", qrcode.c_str());
-        - if:
-            condition:
-              - lambda: return show;
-            then:
-              - script.execute:
-                  id: goto_page
-                  page_id: ${PAGE_QRCODE_ID}
+            if (show)
+              goto_page->execute(${PAGE_QRCODE_ID});
 
-        # Update blueprint status
-        - lambda: blueprint_status_flags.qrcode = true;
+            // Update blueprint status
+            blueprint_status_flags.qrcode = true;
 
     # Utilities group refresh
     - action: utilities_group_refresh
@@ -254,48 +242,53 @@ api:
         direction: int
         constructor: bool
       then:
-        - if:
-            condition:
-              - lambda: return group_id.empty();
-            then:
-              - lambda: ESP_LOGW("${TAG_API}", "`group_id` is empty");
-            else:
-              - lambda: |-
-                  uint8_t id = findUtilitiesGroupIndex(group_id.c_str());
-                  if (id != UINT8_MAX) {
-                    // Update Value 1
-                    if (!value1.empty() and
-                        (constructor or strcmp(value1.c_str(), UtilitiesGroups[id].value1) != 0)) {
-                      copyStringToCharArray(UtilitiesGroups[id].value1, value1);
-                      disp1->set_component_text(group_id.c_str(), value1.c_str());
-                      delay(${DELAY_DEFAULT});
-                    }
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: utilities_group_refresh");
+            ESP_LOGV("${TAG_API}", "  group_id: %s", group_id.c_str());
+            ESP_LOGV("${TAG_API}", "  value1: %s", value1.c_str());
+            ESP_LOGV("${TAG_API}", "  value2: %s", value2.c_str());
+            ESP_LOGV("${TAG_API}", "  direction: %i", direction);
+            ESP_LOGV("${TAG_API}", "  constructor: %s", YESNO(constructor));
+            if (group_id.empty()) {
+              ESP_LOGW("${TAG_API}", "`group_id` is empty");
+              return;
+            }
 
-                    // Update Value 2
-                    if (!value2.empty() and
-                        (constructor or strcmp(value2.c_str(), UtilitiesGroups[id].value2) != 0)) {
-                      copyStringToCharArray(UtilitiesGroups[id].value2, value2);
-                      disp1->set_component_text((group_id + "b").c_str(), value2.c_str());
-                      delay(${DELAY_DEFAULT});
-                    }
+            uint8_t id = findUtilitiesGroupIndex(group_id.c_str());
+            if (id == UINT8_MAX) {
+              ESP_LOGW("${TAG_API}", "`group_id` not found");
+              return;
+            }
+            // Update Value 1
+            if (!value1.empty() and
+                (constructor or strcmp(value1.c_str(), UtilitiesGroups[id].value1) != 0)) {
+              copyStringToCharArray(UtilitiesGroups[id].value1, value1);
+              disp1->set_component_text(group_id.c_str(), value1.c_str());
+              delay(${DELAY_DEFAULT});
+            }
 
-                    // Update direction
-                    if (group_id != "grid" and !isnan(direction) and
-                        (constructor or direction != UtilitiesGroups[id].direction)) {
-                      UtilitiesGroups[id].direction = direction;
-                      disp1->set_component_value((group_id + "_line_d").c_str(), direction);
-                      delay(${DELAY_DEFAULT});
-                    }
-                  }
+            // Update Value 2
+            if (!value2.empty() and
+                (constructor or strcmp(value2.c_str(), UtilitiesGroups[id].value2) != 0)) {
+              copyStringToCharArray(UtilitiesGroups[id].value2, value2);
+              disp1->set_component_text((group_id + "b").c_str(), value2.c_str());
+              delay(${DELAY_DEFAULT});
+            }
+
+            // Update direction
+            if (group_id != "grid" and !isnan(direction) and
+                (constructor or direction != UtilitiesGroups[id].direction)) {
+              UtilitiesGroups[id].direction = direction;
+              disp1->set_component_value((group_id + "_line_d").c_str(), direction);
+              delay(${DELAY_DEFAULT});
+            }
 
     # Wake Up Service
     - action: wake_up
       variables:
         reset_timer: bool  # Determines whether to reset the sleep and dimming timers upon waking the display.
       then:
-        - script.execute:
-            id: wakeup
-            reset_timer: !lambda return reset_timer;
+        - lambda: wakeup->execute(reset_timer);
 
 esphome:
   platformio_options:
@@ -383,16 +376,13 @@ script:
 
   - id: !extend dump_config
     then:
-      # Report API status
-      - if:
-          condition:
-            - api.connected:
-          then:
-            - lambda: |-
-                ESP_LOGCONFIG("${TAG_API}", "API: Connected");
-          else:
-            - lambda: |-
-                ESP_LOGW("${TAG_API}", "API: DISCONNECTED");
+      - lambda: |-
+          // Report API status
+          if (api_server->is_connected()) {
+            ESP_LOGCONFIG("${TAG_API}", "API: Connected");
+          } else {
+            ESP_LOGW("${TAG_API}", "API: DISCONNECTED");
+          }
 
   - id: ha_button
     mode: parallel
@@ -401,12 +391,11 @@ script:
       component: string
       command: string
     then:
-      - script.execute: timer_reset_all
+      - lambda: timer_reset_all->execute();
       - homeassistant.event:
           event: ${EVENT_NAME}
           data:
             device_name: !lambda return device_name->state.c_str();
-            esphome_version: ${version}
             type: button_click
             page: !lambda return page;
             component: !lambda return component;
@@ -414,34 +403,26 @@ script:
 
   - id: !extend stop_all
     then:
-      - script.stop: api_recover_from_failed
-      - script.stop: ha_button
+      - lambda: |-
+          api_recover_from_failed->stop();
+          ha_button->stop();
 
   - id: !extend watchdog_round
     then:
-      - if:
-          condition:
-            - lambda: return (current_page_id != ${PAGE_BOOT_ID});
-            - lambda: return (current_page_id != ${PAGE_CONFIRM_ID});
-            - lambda: return (current_page_id != ${PAGE_HOME_ID});
-            - lambda: return (current_page_id != ${PAGE_QRCODE_ID});
-            - lambda: return (current_page_id != ${PAGE_SCREENSAVER_ID});
-            - lambda: return (current_page_id != ${PAGE_SETTINGS_ID});
-            - not:
-                - api.connected:
-            - not:
-                - text_sensor.state:
-                    id: current_page
-                    state: blank
-          then:
-            - lambda: |-
-                  ESP_LOGW("${TAG_DATETIME}", "API disconnected. Falling back to Home page.");
-            - script.execute:
-                id: goto_page
-                page_id: ${PAGE_HOME_ID}
-
+      - lambda: |-
+          if (!api_server->is_connected() and
+              current_page_id != ${PAGE_BOOT_ID} and
+              current_page_id != ${PAGE_CONFIRM_ID} and
+              current_page_id != ${PAGE_HOME_ID} and
+              current_page_id != ${PAGE_QRCODE_ID} and
+              current_page_id != ${PAGE_SCREENSAVER_ID} and
+              current_page_id != ${PAGE_SETTINGS_ID} and
+              current_page->state != "blank") {
+            ESP_LOGW("${TAG_DATETIME}", "API disconnected. Falling back to Home page.");
+            goto_page->execute(${PAGE_HOME_ID});
+          }
 wifi:
   on_connect:
     then:
-      - script.execute: api_recover_from_failed
+      - lambda: api_recover_from_failed->execute();
 ...
