@@ -81,6 +81,8 @@ namespace nspanel_ha_blueprint {
         constexpr uint16_t DEEP_ORANGE = 64164;    ///< Heating action (RGB565: 0xFAA4)
         constexpr uint16_t GREEN = 19818;          ///< Armed/active state (RGB565: 0x4D6A)
         constexpr uint16_t GREY = 35921;           ///< Inactive/off state (RGB565: 0x8C51)
+        constexpr uint16_t GRAY_DARK = 6339;       ///< Hidden/disabled buttons
+        constexpr uint16_t GRAY_LIGHT = 48631;     ///< Inactive buttons
         constexpr uint16_t GRAY_MOSS = 33808;      ///< Moss gray/green (RGB565: 0x8410)
         constexpr uint16_t ORANGE = 64704;         ///< Drying action (RGB565: 0xFCC0)
         constexpr uint16_t RED = 63488;            ///< Alert/triggered state (RGB565: 0xF800)
