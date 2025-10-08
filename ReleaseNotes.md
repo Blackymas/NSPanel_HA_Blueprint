@@ -31,12 +31,18 @@ substitutions:
 **For TFT upload baud rate:**
 - **Old method:** "Update TFT display - Baud rate" select in Home Assistant
 - **New method:** `upload_tft_baud_rate` substitution in your YAML configuration
+- **Important:** UART baud rate changes are buggy and may cause failures.
+  The substitution option remains available for advanced users,
+  but changing baud rates carries significant risk of communication failures.
 
-**How to change TFT upload baud rate:**
+**How to change TFT upload baud rate (advanced users only):**
 ```yaml
 substitutions:
-  upload_tft_baud_rate: 115200  # Default value, adjust if needed
+  upload_tft_baud_rate: 115200  # Default value, changing not recommended due to UART bugs
 ```
+
+**Note:** We're investigating alternatives for future versions,
+including potentially moving all UART communications to 921600 baud rate permanently for improved performance and reliability.
 
 **For sound volume:**
 - **Old method:** "Sound - Volume" control in Home Assistant
