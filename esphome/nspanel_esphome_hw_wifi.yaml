@@ -11,11 +11,6 @@ substitutions:
   ## local yaml substitutions ##
   ##############################
   BOOT_STEP_HW_WIFI: '9'
-  MDI_ICON_API_OFF: "\uF256"         # mdi:api-off
-  MDI_ICON_HOME_ASSISTANT: "\uE7CF"  # mdi:home-assistant
-  MDI_ICON_RESTART: "\uE708"         # mdi:restart
-  MDI_ICON_WIFI: "\uE5A8"            # mdi:wifi
-  MDI_ICON_WIFI_OFF: "\uE5A9"        # mdi:wifi-off
   TAG_HW_WIFI: nspanel.hw.wifi
 
 api:
@@ -64,33 +59,50 @@ script:
   - id: refresh_wifi_icon
     mode: single
     then:
-      - if:
-          condition:
-            - lambda: return is_device_ready_for_tasks();
-          then:
-            - lambda: |-
-                disp1->send_command_printf("api=%i",
-                          system_flags.wifi_ready and
-                          system_flags.api_ready and
-                          system_flags.blueprint_ready
-                          ? 1 : 0);
-                // Update Wi-Fi icon color
-                disp1->set_component_font_color("home.wifi_icon", system_flags.blueprint_ready ?
-                                                                    ${COLOR_GRAY_MOSS} : ${COLOR_RED_PRIMARY});
-                // Update Wi-Fi icon
-                disp1->set_component_text("home.wifi_icon",
-                                          system_flags.wifi_ready ?
-                                            (system_flags.api_ready ?
-                                              (system_flags.blueprint_ready ?
-                                                "${MDI_ICON_WIFI}" :           // mdi:wifi - All right!
-                                              "${MDI_ICON_HOME_ASSISTANT}") :  // mdi:home-assistant - Blueprint is out
-                                            "${MDI_ICON_API_OFF}") :           // mdi:api-off
-                                          "${MDI_ICON_WIFI_OFF}");             // mdi:wifi-off
+      - lambda: |-
+          if (not is_device_ready_for_tasks()) {
+            return;
+          }
+
+          // Update API status (only when changed)
+          static bool api_previous = false;
+          const bool api_new = system_flags.wifi_ready and system_flags.api_ready and system_flags.blueprint_ready;
+          if (api_new != api_previous) {
+            disp1->send_command_printf("api=%i", api_new ? 1 : 0);
+            api_previous = api_new;
+          }
+
+          // Determine current icon
+          const char* icon_new = system_flags.wifi_ready ?
+            (system_flags.api_ready ?
+              (system_flags.blueprint_ready ?
+                Icons::WIFI :
+                Icons::HOME_ASSISTANT) :
+              Icons::API_OFF) :
+            Icons::WIFI_OFF;
+
+          // Update WiFi icon (only when changed)
+          static const char* icon_previous = nullptr;
+          if (icon_new != icon_previous) {
+            disp1->set_component_text("home.wifi_icon", icon_new);
+            icon_previous = icon_new;
+          }
+
+          // Determine current color
+          const uint16_t color_new = system_flags.blueprint_ready ? Colors::GRAY_MOSS : Colors::RED;
+
+          // Update WiFi icon color (only when changed)
+          static uint16_t color_previous = 0;
+          if (color_new != color_previous) {
+            disp1->set_component_font_color("home.wifi_icon", static_cast<uint16_t>(color_new));
+            color_previous = color_new;
+          }
 
   - id: !extend stop_all
     then:
-      - script.stop: refresh_wifi_icon
-      - script.stop: wait_for_wifi
+      - lambda: |-
+          refresh_wifi_icon->stop();
+          wait_for_wifi->stop();
 
   - id: wait_for_wifi
     mode: single
