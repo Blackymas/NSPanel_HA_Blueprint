@@ -64,9 +64,8 @@ button:
     entity_category: config
     on_press:
       then:
-        - script.execute:
-            id: upload_tft
-            url: ""
+        - lambda: |-
+            upload_tft->execute("");
 
 display:
   - id: !extend disp1
@@ -115,8 +114,7 @@ script:
           ESP_LOGD("${TAG_UPLOAD_TFT}", "Waiting for empty UART and Nextion queues");
       - wait_until:
           condition:
-            - lambda: return (disp1->queue_size() < 1);
-            - lambda: return (tf_uart->available() < 1);
+            - lambda: return (disp1->queue_size() < 1) and (tf_uart->available() < 1);
           timeout: 10s
       - delay: 2s
       - lambda: |-
@@ -124,45 +122,10 @@ script:
           tft_upload_result = disp1->upload_tft(baud_rate, !disp1->is_setup());
           ESP_LOGV("${TAG_UPLOAD_TFT}", "TFT upload: %s", YESNO(tft_upload_result));
 
-  - id: open_upload_dialog
-    mode: restart
-    then:
-      - lambda: |-
-          ESP_LOGV("${TAG_UPLOAD_TFT}", "Showing upload dialog page");
-          disp1->goto_page("confirm");
-      - wait_until:
-          condition:
-            - lambda: return (current_page_id == ${PAGE_CONFIRM_ID});
-          timeout: 2s
-      - lambda: |-
-          if (current_page_id == ${PAGE_CONFIRM_ID}) {
-            disp1->hide_component("bclose");
-            disp1->hide_component("bt_accept");
-            disp1->hide_component("bt_clear");
-          }
-          #ifdef ARDUINO
-          disp1->set_component_text("confirm.title", "Upload TFT\\rArduino");
-          #elif defined(USE_ESP_IDF)
-          disp1->set_component_text("confirm.title", "Upload TFT\\rESP-IDF");
-          #endif
-
-  - id: report_upload_progress
-    mode: restart
-    parameters:
-      message: string
-    then:
-      - lambda: |-
-          ESP_LOGD("${TAG_UPLOAD_TFT}", message.c_str());
-          if ((display_mode > 0 and display_mode < 4)) {
-            if (current_page->state != "confirm") open_upload_dialog->execute();
-            disp1->set_component_text("confirm.body", wrapText(message.c_str(), 18, id(mui_bytes_per_char)).c_str());
-            disp1->set_backlight_brightness(1);
-            App.feed_wdt();
-          }
-
   - id: !extend stop_all
     then:
-      - script.stop: nextion_status
+      - lambda: |-
+          nextion_status->stop();
 
   - id: upload_tft
     mode: single
@@ -176,29 +139,14 @@ script:
           then:
             - switch.turn_on: screen_power
             - delay: 5s
-      - lambda: if ((display_mode > 0 and display_mode < 4)) disp1->goto_page("home");
-      - delay: 2s
-      - script.execute: open_upload_dialog
-      - script.wait: open_upload_dialog
-      - wait_until:
-          condition:
-            - lambda: return (current_page_id == ${PAGE_CONFIRM_ID});
-          timeout: 2s
-      - script.execute:
-          id: report_upload_progress
-          message: "Set Nextion unavailable for blueprint calls"
-      - script.wait: report_upload_progress
-      - binary_sensor.template.publish:
-          id: nextion_init
-          state: false
-      - script.execute:
-          id: report_upload_progress
-          message: "Preparing for upload..."
-      - script.wait: report_upload_progress
-
-      # Then start the upload
-      - script.execute: nextion_status
       - lambda: |-
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "Set Nextion unavailable for blueprint calls");
+          nextion_init->publish_state(false);
+
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "Preparing for upload...");
+
+          // Then start the upload
+          nextion_status->execute();
           system_flags.tft_upload_active = true;
           ESP_LOGD("${TAG_UPLOAD_TFT}", "Starting the upload script");
           ESP_LOGV("${TAG_UPLOAD_TFT}", "  Valid TFT: %s", YESNO((display_mode > 0 and display_mode < 4)));
@@ -254,8 +202,7 @@ script:
           ESP_LOGV("${TAG_UPLOAD_TFT}", "  Upload URL: %s", resolved_url.c_str());
           disp1->set_tft_url(resolved_url.c_str());
 
-      # Stop Bluetooth
-      - lambda: |-
+          // Stop Bluetooth
           #ifdef USE_BLUETOOTH
           ESP_LOGI("${TAG_UPLOAD_TFT}", "Disabling Bluetooth and releasing memory...");
 
@@ -297,22 +244,10 @@ script:
           ESP_LOGV("${TAG_UPLOAD_TFT}", "Bluetooth not compiled in");
           #endif  // USE_BLUETOOTH
 
-      - lambda: |-
-          if ((display_mode > 0 and display_mode < 4))
-            disp1->goto_page(${PAGE_HOME_ID});
-
       - delay: 2s
-      - script.execute: open_upload_dialog
-      - script.wait: open_upload_dialog
-      - wait_until:
-          condition:
-            - lambda: return (current_page_id == ${PAGE_CONFIRM_ID});
-          timeout: 2s
-      - script.execute:
-          id: report_upload_progress
-          message: "Stopping other scripts"
-      - script.wait: report_upload_progress
-      - script.execute: stop_all
+      - lambda: |-
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "Stopping other scripts");
+          stop_all->execute();
       - script.wait: stop_all
       - wait_until:
           condition:
@@ -338,8 +273,7 @@ script:
       ### Attempt twice at the Nextion's default baud rate (115200bps)
       - if:
           condition:
-            - lambda: return (${upload_tft_baud_rate} != 115200);
-            - lambda: return (tf_uart->get_baud_rate() != 115200);
+            - lambda: return (${upload_tft_baud_rate} != 115200) and (tf_uart->get_baud_rate() != 115200);
           then:
             - script.execute:
                 id: upload_tft_sequence_attempt
@@ -347,15 +281,9 @@ script:
             - script.wait: upload_tft_sequence_attempt
 
       ### Restart Nextion and attempt twice again at default baud rate (115200bps)
-      - script.execute:
-          id: report_upload_progress
-          message: "Restarting Nextion display"
-      - script.wait: report_upload_progress
-      - wait_until:
-          condition:
-            - lambda: return (!(display_mode > 0 and display_mode < 4));
-          timeout: 3s
-      - switch.turn_off: screen_power
+      - lambda: |-
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "Restarting Nextion display");
+          screen_power->turn_off();
       - delay: 2s
       - switch.turn_on: screen_power
       - delay: 5s
@@ -365,42 +293,23 @@ script:
       - script.wait: upload_tft_sequence_attempt
 
       ### All tries failed ###
-      - script.execute:
-          id: report_upload_progress
-          message: "TFT upload failed"
-      - script.wait: report_upload_progress
-      - wait_until:
-          condition:
-            - lambda: return (!(display_mode > 0 and display_mode < 4));
-          timeout: 5s
-      - script.execute:
-          id: report_upload_progress
-          message: "Turn off Nextion and restart ESPHome"
-      - script.wait: report_upload_progress
-      - wait_until:
-          condition:
-            - lambda: return (!(display_mode > 0 and display_mode < 4));
-          timeout: 5s
-      - switch.turn_off: screen_power
-      - delay: 2s
-      # Restart ESPHome
-      - lambda: App.safe_reboot();
+      - lambda: |-
+          ESP_LOGE("${TAG_UPLOAD_TFT}", "TFT upload failed");
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "Turn off Nextion and restart ESPHome");
+          screen_power->turn_off();
+
+          // Restart ESPHome
+          App.safe_reboot();
 
   - id: upload_tft_sequence_attempt
     mode: single
     parameters:
       baud_rate: uint32_t
     then:
-      - script.execute: nextion_status
-      - script.wait: nextion_status
-      - script.execute:
-          id: report_upload_progress
-          message: "Setting baud rate"
-      - script.wait: report_upload_progress
-      - script.execute:
-          id: set_baud_rate
-          target_baud_rate: !lambda return baud_rate;
-          definitive: false
+      - lambda: |-
+          nextion_status->execute();
+          ESP_LOGD("${TAG_UPLOAD_TFT}", "Setting baud rate");
+          set_baud_rate->execute(baud_rate, false);
       - script.wait: set_baud_rate
       - delay: 2s
       - repeat:
@@ -424,30 +333,18 @@ script:
           char update_msg[128];
           sprintf(update_msg, "Attempt #%d at %" PRIu32 " bps", tft_upload_attempt, tf_uart->get_baud_rate());
           tft_upload_result = false;
-          report_upload_progress->execute(update_msg);
-      - script.wait: report_upload_progress
-      - wait_until:
-          condition:
-            - lambda: return (!(display_mode > 0 and display_mode < 4));
-          timeout: 1s
-      - script.execute:
-          id: nextion_upload
-          baud_rate: !lambda return baud_rate;
+          ESP_LOGD("${TAG_UPLOAD_TFT}", update_msg);
+      - delay: 1s
+      - lambda: |-
+          nextion_upload->execute(baud_rate);
       - script.wait: nextion_upload
       - lambda: |-
           char update_msg[128];
           sprintf(update_msg, "Attempt #%d at %" PRIu32 " bps returned: %s", tft_upload_attempt,
                   tf_uart->get_baud_rate(), tft_upload_result ? "Success!" : "FAILED");
-          report_upload_progress->execute(update_msg);
-      - script.wait: report_upload_progress
-      - if:
-          condition:
-            - lambda: return tft_upload_result;
-          then:
-            - delay: 5s
-            - lambda: |-
-                ESP_LOGI("addon_upload_tft.script.upload_tft_attempt", "Restarting ESPHome");
-                App.safe_reboot();
+          ESP_LOGD("${TAG_UPLOAD_TFT}", update_msg);
+          ESP_LOGI("addon_upload_tft.script.upload_tft_attempt", "Restarting ESPHome");
+          App.safe_reboot();
 
 select:
   - id: tft_file_model
