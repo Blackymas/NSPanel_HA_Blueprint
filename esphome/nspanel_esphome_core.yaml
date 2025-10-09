@@ -463,16 +463,16 @@ script:  # Scripts
   - id: !extend stop_all
     mode: single
     then:
-      - script.stop: check_versions
-      - script.stop: wakeup
-      - script.stop: wait_for_api
-      - script.stop: wait_for_blueprint
-      - script.stop: wait_for_version_blueprint
-      - script.stop: wait_for_versions
       - lambda: |-
-          change_climate_state->stop();
-          refresh_relays->stop();
           cleanupUtilitiesGroups();
+          change_climate_state->stop();
+          check_versions->stop();
+          refresh_relays->stop();
+          wait_for_api->stop();
+          wait_for_blueprint->stop();
+          wait_for_version_blueprint->stop();
+          wait_for_versions->stop();
+          wakeup->stop();
 
   - id: wakeup
     mode: single
@@ -501,32 +501,18 @@ script:  # Scripts
       - repeat:
           count: 60  # seconds
           then:
-            - if:
-                condition:
-                  - lambda: return system_flags.wifi_ready;
-                then:
-                  - script.stop: wait_for_api
-            - if:
-                condition:
-                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
-                then:
-                  - script.execute:
-                      id: boot_log
-                      category: "Boot"
-                      log_message: "Waiting for API..."
+            - lambda: |-
+                if (system_flags.wifi_ready) wait_for_api->stop();
+                if (iteration % 5 == 1) boot_log->execute("Boot", "Waiting for API");
             - delay: 1s
 
   - id: wait_for_blueprint
     mode: single
     then:
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: Waiting for Blueprint
+      - lambda: boot_log->execute("Boot", "Waiting for Blueprint");
       - while:
           condition:
-            - lambda: return not (system_flags.blueprint_ready);
-            - lambda: return not is_blueprint_fully_ready();
+            - lambda: return (not system_flags.blueprint_ready) and (not is_blueprint_fully_ready());
           then:
             - lambda: |-
                 ESP_LOGD("${TAG_CORE}", "Blueprint progress: %0.1f%%", blueprint_status_flags.get_completion_percentage());
@@ -536,11 +522,9 @@ script:  # Scripts
                 ESP_LOGV("${TAG_CORE}", "  Version: %s", YESNO(blueprint_status_flags.version));
                 ESP_LOGV("${TAG_CORE}", "  HW Buttons settings: %s", YESNO(blueprint_status_flags.hw_buttons_settings));
             - delay: 1s
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: Blueprint is ready
-      - script.execute: refresh_wifi_icon
+      - lambda: |-
+          boot_log->execute("Boot", "Blueprint is ready");
+          refresh_wifi_icon->execute();
 
   - id: wait_for_version_blueprint
     mode: single
@@ -548,22 +532,9 @@ script:  # Scripts
       - repeat:
           count: 60  # seconds
           then:
-            - if:
-                condition:
-                  - lambda: return not version_blueprint->state.empty();
-                  # - text_sensor.state:  # compare_versions("${version}", version_blueprint->state.c_str());
-                  #     id: version_blueprint
-                  #     state: ${version}
-                then:
-                  - script.stop: wait_for_version_blueprint
-            - if:
-                condition:
-                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
-                then:
-                  - script.execute:
-                      id: boot_log
-                      category: "Boot"
-                      log_message: "Waiting for Blueprint version..."
+            - lambda: |-
+                if (not version_blueprint->state.empty()) wait_for_version_blueprint->stop();
+                if (iteration % 5 == 1) boot_log->execute("Boot", "Waiting for Blueprint version");
             - delay: 1s
 
   - id: wait_for_versions
