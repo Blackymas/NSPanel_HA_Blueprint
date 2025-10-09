@@ -47,10 +47,9 @@ script:
   - id: page_boot
     mode: single
     then:
-      - logger.log: Page boot called
-      - script.execute: page_boot_exit_on_timeout
       - lambda: |-
           ESP_LOGD("${TAG_PAGE_BOOT}", "Page boot constructor started");
+          page_boot_exit_on_timeout->execute();
           disp1->set_component_text("ver_firmware", "Firmware: ${version}");  // ESPHome version
           #ifdef ARDUINO
           disp1->set_component_text("sys_framework", "Framework: Arduino");
@@ -59,10 +58,9 @@ script:
           #else
           disp1->set_component_text("sys_framework", "Framework: Unknown");
           #endif
-      - script.execute: page_boot_show_blueprint_version
-      - script.execute: page_boot_show_ip
-      - script.execute: wait_for_page_boot_exit
-      - lambda: |-
+          page_boot_show_blueprint_version->execute();
+          page_boot_show_ip->execute();
+          wait_for_page_boot_exit->execute();
           ESP_LOGD("${TAG_PAGE_BOOT}", "Page boot constructor completed");
 
   - id: page_boot_exit_on_timeout
@@ -83,13 +81,10 @@ script:
   - id: page_boot_show_ip
     mode: single
     then:
-      - if:
-          condition:
-            - wifi.connected:
-            - lambda: return current_page_id == ${PAGE_BOOT_ID};
-          then:
-            - lambda: |-
-                disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());
+      - lambda: |-
+          if (wifi_component->is_connected() and current_page_id == ${PAGE_BOOT_ID}) {
+            disp1->set_component_text_printf("sys_ip", "IP: %s", network::get_ip_addresses()[0].str().c_str());
+          }
 
   - id: !extend page_change
     then:
@@ -99,13 +94,14 @@ script:
 
   - id: !extend stop_all
     then:
-      - script.stop: wait_for_page_boot_exit
+      - lambda: wait_for_page_boot_exit->stop();
 
   - id: !extend stop_page_constructors
     then:
-      - script.stop: page_boot
-      - script.stop: page_boot_show_blueprint_version
-      - script.stop: page_boot_show_ip
+      - lambda: |-
+          page_boot->stop();
+          page_boot_show_blueprint_version->stop();
+          page_boot_show_ip->stop();
 
   - id: wait_for_page_boot_exit
     mode: restart
