@@ -98,13 +98,7 @@ script:
 
           // Inform Home Assistant when Nextion is initialized
           if (system_flags.api_ready and disp1->is_setup()) {
-            boot_log->execute("Boot", "Send `nextion_init` event to Home Assistant");
-            esphome::api::CustomAPIDevice ha_event;
-            ha_event.fire_homeassistant_event("${EVENT_NAME}", {
-              {"device_name", device_name->state.c_str()},
-              {"type", "boot"},
-              {"step", "nextion_init"}
-            });
+            boot_request_blueprint_settings->execute("nextion_init");
           }
           boot_progress->execute(6);
 
@@ -115,13 +109,7 @@ script:
             - lambda: return not system_flags.blueprint_ready;
           then:
             - lambda: |-
-                ESP_LOGD("${TAG_BOOT}", "Asking Blueprint to start sending data");
-                esphome::api::CustomAPIDevice ha_event;
-                ha_event.fire_homeassistant_event("${EVENT_NAME}", {
-                  {"device_name", device_name->state.c_str()},
-                  {"type", "boot"},
-                  {"step", "start"}
-                });
+                boot_request_blueprint_settings->execute("start");
                 wait_for_blueprint->execute();
             - script.wait: wait_for_blueprint
       - lambda: |-
@@ -185,6 +173,7 @@ script:
       - script.wait: wait_for_wifi
       - script.wait: wait_for_api
       - script.wait: wait_for_blueprint
+      - script.wait: wait_for_version_tft
 
       - lambda: |-
           boot_progress->execute(10);
@@ -237,6 +226,22 @@ script:
             disp1->set_component_value("boot.progress", step*10);
           }
 
+  - id: boot_request_blueprint_settings
+    mode: single
+    parameters:
+      step: string
+    then:
+      - lambda: |-
+          if (not system_flags.blueprint_ready) {
+            ESP_LOGD("${TAG_BOOT}", "Request blueprint settings");
+            esphome::api::CustomAPIDevice ha_event;
+            ha_event.fire_homeassistant_event("${EVENT_NAME}", {
+              {"device_name", device_name->state.c_str()},
+              {"type", "boot"},
+              {"step", step.c_str()}
+            });
+          }
+
   - id: !extend stop_all
     then:
       - lambda: |-
@@ -246,6 +251,8 @@ script:
           boot_log->stop();
           boot_preparation->stop();
           boot_progress->stop();
+          boot_request_blueprint_settings->stop();
+          wait_for_boot_completed->stop();
 
   - id: wait_for_boot_completed
     mode: single
@@ -261,22 +268,8 @@ script:
   - id: !extend watchdog_round
     then:
       - lambda: |-
-          if (not system_flags.blueprint_ready) {
-            ESP_LOGW("${TAG_BOOT}", "Request blueprint settings");
-            esphome::api::CustomAPIDevice ha_event;
-            ha_event.fire_homeassistant_event("${EVENT_NAME}", {
-              {"device_name", device_name->state.c_str()},
-              {"type", "boot"},
-              {"step", "timeout"}
-            });
+          boot_request_blueprint_settings->execute("timeout");
+          if (not system_flags.boot_completed and not boot->is_running()) {
+            boot->execute();
           }
-      - if:
-          condition:
-            - lambda: return not system_flags.boot_completed;
-            - not:
-                - script.is_running: boot
-          then:
-            - delay: 1s
-            - script.execute: boot
-            - script.wait: boot
 ...
