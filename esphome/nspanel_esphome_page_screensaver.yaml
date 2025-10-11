@@ -43,13 +43,11 @@ number:
     restore_value: true
     optimistic: true
     update_interval: never
-    # Extended by:
-    # - page_screensaver
     on_value:
       then:
         - lambda: |-
             disp1->send_command_printf("brightness_sleep=%i", int(x));
-        - script.execute: page_screensaver
+            page_screensaver->execute();
 
   - name: Timeout Sleep
     platform: template
@@ -70,7 +68,7 @@ number:
             if (x == 0 and current_page_id == ${PAGE_SCREENSAVER_ID}) {
               wakeup->execute(false);
             }
-        - script.execute: timer_sleep
+            timer_sleep->execute();
 
 script:
   - id: !extend action_component_color
@@ -99,32 +97,24 @@ script:
 
   - id: !extend page_change
     then:
-      - if:
-          condition:
-            - lambda: return new_page_id == ${PAGE_SCREENSAVER_ID};
-          then:
-            - script.execute: page_screensaver
+      - lambda: if (new_page_id == ${PAGE_SCREENSAVER_ID}) page_screensaver->execute();
 
   - id: page_screensaver
     mode: single
     then:
       - if:
           condition:
-            - lambda: return (current_page_id == ${PAGE_SCREENSAVER_ID});
-            - lambda: return not system_flags.tft_upload_active;
+            - lambda: return (current_page_id == ${PAGE_SCREENSAVER_ID} and not system_flags.tft_upload_active);
           then:
-            - script.execute: page_screensaver_set_brightness
             - lambda: |-
+                page_screensaver_set_brightness->execute();
                 disp1->send_command_printf("wakeup_page_id=%" PRIu8, wakeup_page_id);
-            - if:
-                condition:
-                  - lambda: return id(screensaver_display_time);
-                then:
-                  - lambda: |-
-                      disp1->set_component_font("screensaver.text", id(screensaver_display_time_font));
-                      disp1->set_component_font_color("screensaver.text", id(screensaver_display_time_color));
-                      disp1->show_component("text");
-                  - script.execute: refresh_datetime
+                if (id(screensaver_display_time)) {
+                  disp1->set_component_font("screensaver.text", id(screensaver_display_time_font));
+                  disp1->set_component_font_color("screensaver.text", id(screensaver_display_time_color));
+                  disp1->show_component("text");
+                  refresh_datetime->execute();
+                }
             - delay: 5s
             - script.execute: page_screensaver_set_brightness
 
@@ -137,9 +127,10 @@ script:
 
   - id: !extend stop_all
     then:
-      - script.stop: page_screensaver
-      - script.stop: page_screensaver_set_brightness
-      - script.stop: timer_sleep
+      - lambda: |-
+          page_screensaver->stop();
+          page_screensaver_set_brightness->stop();
+          timer_sleep->stop();
 
   - id: timer_sleep      # Handles the sleep (go to screensaver page) after a timeout
     mode: restart
@@ -166,8 +157,7 @@ script:
 
   - id: !extend watchdog_round
     then:
-      - lambda: |-
-          page_screensaver_set_brightness->execute();
+      - script.execute: page_screensaver_set_brightness
 
 select:
   - id: !extend wakeup_page_name

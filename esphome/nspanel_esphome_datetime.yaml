@@ -36,23 +36,18 @@ script:
 
   - id: !extend boot
     then:
-      - script.execute:
-          id: boot_log
-          category: "Date/Time"
-          log_message: Set time zone
-      - script.execute: set_timezone_from_globals
+      - lambda: |-
+          boot_log->execute("Date/Time", "Set time zone");
+          set_timezone_from_globals->execute();
 
   - id: new_minute
     mode: restart
     then:
-      - script.execute: refresh_datetime
-      - script.execute:
-          id: refresh_relays
-          relay_mask: 3
-      - script.execute:
-          id: refresh_hardware_buttons_bars
-          button_mask: 3
-      - script.execute: refresh_wifi_icon
+      - lambda: |-
+          refresh_datetime->execute();
+          refresh_relays->execute(3);
+          refresh_hardware_buttons_bars->execute(3);
+          refresh_wifi_icon->execute();
 
   - id: !extend page_home
     then:
@@ -61,57 +56,49 @@ script:
   - id: refresh_datetime
     mode: restart
     then:
-      - if:
-          condition:
-            - lambda: return is_device_ready_for_tasks();
-          then:
-            - lambda: |-
-                static std::string time_format_str;
-                time_format_str = id(mui_time_format);
-                if (time_format_str.find("%-H") != std::string::npos) {
-                  time_format_str = time_format_str.replace(time_format_str.find("%-H"), sizeof("%-H")-1,
-                                                            to_string((int)(id(time_provider).now().hour)));
-                }
-                if (time_format_str.find("%-I") != std::string::npos) {
-                  if (id(time_provider).now().hour>12) {
-                    time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1,
-                                                              to_string((int)(id(time_provider).now().hour-12)));
-                  } else if (id(time_provider).now().hour==0) {
-                    time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1, "12");
-                  } else {
-                    time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1,
-                                                              to_string((int)(id(time_provider).now().hour)));
-                  }
-                }
-                std::string meridiem_text = (id(time_provider).now().hour<12) ?
-                                            id(mui_meridiem_am) :
-                                            id(mui_meridiem_pm);
-                if (current_page->state == "screensaver" and id(screensaver_display_time)) {
-                    std::string time_format_str_sleep = time_format_str;
-                    if (time_format_str_sleep.find("%p") != std::string::npos)
-                      time_format_str_sleep.replace(time_format_str_sleep.find("%p"),
-                                                    sizeof("%p")-1,
-                                                    meridiem_text.c_str());
-                    disp1->set_component_text("text", id(time_provider).now().strftime(time_format_str_sleep).c_str());
-                }
-                disp1->set_component_text("home.meridiem", (time_format_str.find("%p") != std::string::npos) ?
-                                                            meridiem_text.c_str() : " ");
-                disp1->set_component_text("home.time", id(time_provider).now().strftime(time_format_str).c_str());
+      - lambda: |-
+          if (not is_device_ready_for_tasks()) {
+            return;
+          }
+          static std::string time_format_str;
+          time_format_str = id(mui_time_format);
+          if (time_format_str.find("%-H") != std::string::npos) {
+            time_format_str = time_format_str.replace(time_format_str.find("%-H"), sizeof("%-H")-1,
+                                                      to_string((int)(id(time_provider).now().hour)));
+          }
+          if (time_format_str.find("%-I") != std::string::npos) {
+            if (id(time_provider).now().hour>12) {
+              time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1,
+                                                        to_string((int)(id(time_provider).now().hour-12)));
+            } else if (id(time_provider).now().hour==0) {
+              time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1, "12");
+            } else {
+              time_format_str = time_format_str.replace(time_format_str.find("%-I"), sizeof("%-I")-1,
+                                                        to_string((int)(id(time_provider).now().hour)));
+            }
+          }
+          std::string meridiem_text = (id(time_provider).now().hour<12) ?
+                                      id(mui_meridiem_am) :
+                                      id(mui_meridiem_pm);
+          if (current_page->state == "screensaver" and id(screensaver_display_time)) {
+              std::string time_format_str_sleep = time_format_str;
+              if (time_format_str_sleep.find("%p") != std::string::npos)
+                time_format_str_sleep.replace(time_format_str_sleep.find("%p"), sizeof("%p")-1, meridiem_text.c_str());
+              disp1->set_component_text("text", id(time_provider).now().strftime(time_format_str_sleep).c_str());
+          }
+          disp1->set_component_text("home.meridiem", (time_format_str.find("%p") != std::string::npos) ?
+                                                      meridiem_text.c_str() : " ");
+          disp1->set_component_text("home.time", id(time_provider).now().strftime(time_format_str).c_str());
 
   - id: set_timezone
     mode: single
     parameters:
       timezone: string
     then:
-      - if:
-          condition:
-            - lambda: return !timezone.empty();
-            - lambda: return (timezone != id(mui_timezone));
-          then:
-            - globals.set:
-                id: mui_timezone
-                value: !lambda return timezone;
-            - script.execute: set_timezone_from_globals
+      - lambda: |-
+          if (timezone.empty() or timezone == id(mui_timezone)) return;
+          id(mui_timezone) = timezone;
+          set_timezone_from_globals->execute();
 
   - id: set_timezone_from_globals
     mode: single
@@ -136,9 +123,10 @@ script:
 
   - id: !extend stop_all
     then:
-      - script.stop: refresh_datetime
-      - script.stop: set_timezone
-      - script.stop: set_timezone_from_globals
+      - lambda: |-
+          refresh_datetime->stop();
+          set_timezone->stop();
+          set_timezone_from_globals->stop();
 
 time:  # Keeps time display updated
   - id: time_provider
@@ -153,5 +141,5 @@ time:  # Keeps time display updated
         - lambda: |-
             ESP_LOGD("${TAG_DATETIME}", "System clock synchronized");
             ESP_LOGD("${TAG_DATETIME}", "Timezone: %s", time_provider->get_timezone().c_str());
-        - script.execute: refresh_datetime
+            refresh_datetime->execute();
 ...
