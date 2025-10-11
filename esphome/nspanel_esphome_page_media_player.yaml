@@ -207,66 +207,78 @@ esphome:
       - -D NSPANEL_HA_BLUEPRINT_PAGE_MEDIA_PLAYER
 
 script:
-  - id: !extend event_from_display_legacy
+script:
+  - id: !extend event_from_display
     then:
       - lambda: |-
-          if (page == "${PAGE_MEDIA_PLAYER_NAME}") {
-            if (json["key"].isNull()) {
-              ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Missing media_player key field");
+          if (params[0] == "${PAGE_MEDIA_PLAYER_NAME}") {
+            // CSV Format:
+            // media_player,volume_mute,<value>
+            // media_player,volume_set,<value>
+            // media_player,<action>
+
+            if (params_count < 2) {
+              ESP_LOGW("${TAG_PAGE_MEDIA_PLAYER}", "Bad params");
               return;
-            } // endif missing key
+            }
 
-            const std::string key = json["key"].as<std::string>();
-            ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Media player control: key=%s", key.c_str());
+            ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "key=%s", params[1].c_str());
 
-            if (key == "volume_mute") {
-              if (json["value"].isNull()) {
-                ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Missing volume_mute value");
+            if (params[1] == "volume_mute") {
+              if (params_count != 3) {
+                ESP_LOGW("${TAG_PAGE_MEDIA_PLAYER}", "Bad params");
                 return;
-              } // endif missing value
-              const std::string value = json["value"].as<std::string>();
-              ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Setting volume mute: %s", value.c_str());
+              }
+
+              ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "volume_mute=%s", params[2].c_str());
+
               esphome::api::CustomAPIDevice ha_event;
               ha_event.fire_homeassistant_event("${EVENT_NAME}", {
                 {"device_name", device_name->state.c_str()},
-                {"esphome_version", "${version}"},
                 {"type", "action_call"},
                 {"action", "media_player.volume_mute"},
                 {"key", "is_volume_muted"},
-                {"value", value.c_str()},
+                {"value", params[2].c_str()},
                 {"entity", detailed_entity->state.c_str()}
               });
-            } else if (key == "volume_set") {
-              if (json["value"].isNull()) {
-                ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Missing volume_set value");
+
+            } else if (params[1] == "volume_set") {
+              if (params_count != 3) {
+                ESP_LOGW("${TAG_PAGE_MEDIA_PLAYER}", "Bad params");
                 return;
-              } // endif missing value
-              const float value_float = json["value"].as<float>();
-              ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Setting volume level: %.2f", value_float / 100.0f);
+              }
+
+              float value_float = atof(params[2].c_str()) / 100.0f;
+              ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "volume_level=%.2f", value_float);
+
               esphome::api::CustomAPIDevice ha_event;
               ha_event.fire_homeassistant_event("${EVENT_NAME}", {
                 {"device_name", device_name->state.c_str()},
-                {"esphome_version", "${version}"},
                 {"type", "action_call"},
                 {"action", "media_player.volume_set"},
                 {"key", "volume_level"},
-                {"value", to_string(value_float / 100.0f)},
+                {"value", to_string(value_float)},
                 {"entity", detailed_entity->state.c_str()}
               });
-            } else if (!key.empty()) {
-              ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Executing media player action: %s", key.c_str());
+
+            } else {
+              // Generic media player action (play, pause, etc.)
+              if (params_count != 2) {
+                ESP_LOGW("${TAG_PAGE_MEDIA_PLAYER}", "Bad params");
+                return;
+              }
+
+              ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "action=%s", params[1].c_str());
+
               esphome::api::CustomAPIDevice ha_event;
               ha_event.fire_homeassistant_event("${EVENT_NAME}", {
                 {"device_name", device_name->state.c_str()},
-                {"esphome_version", "${version}"},
                 {"type", "action_call"},
-                {"action", (std::string("media_player.") + key.c_str())},
+                {"action", (std::string("media_player.") + params[1]).c_str()},
                 {"entity", detailed_entity->state.c_str()}
               });
-            } else {
-              ESP_LOGV("${TAG_PAGE_MEDIA_PLAYER}", "Empty media player key, ignoring");
-            } // endif key handling
-          } // endif page == media_player
+            }
+          }
 
   - id: !extend page_change
     then:
