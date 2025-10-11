@@ -36,103 +36,85 @@ esphome:
       - -D NSPANEL_HA_BLUEPRINT_PAGE_LIGHT
 
 script:
-  - id: !extend event_from_display_legacy
-    then:
-      - lambda: |-
-          if (page == "light") {
-            // Extract component with proper null checking
-            const std::string component = json["component"].isNull() ? "" : json["component"].as<std::string>();
-            ESP_LOGV("${TAG_PAGE_LIGHT}", "  component: %s", component.c_str());
+- id: !extend event_from_display
+  then:
+    - lambda: |-
+        if (params[0] == "light") {
+          // CSV Format varies by type:
+          // light,brightness_pct,<value>
+          // light,color_temp,<value>
+          // light,rgb_color,<red>,<green>,<blue>
+          // light,<component>,<event>,<value>
 
-            // Extract key with proper null checking
-            const std::string key = json["key"].isNull() ? "" : json["key"].as<std::string>();
-            ESP_LOGV("${TAG_PAGE_LIGHT}", "  key: %s", key.c_str());
+          if (params_count < 3) {
+            ESP_LOGW("${TAG_PAGE_LIGHT}", "Need 3+ params");
+            return;
+          }
 
-            // Check for missing value key
-            if (json["value"].isNull()) {
-              ESP_LOGW("${TAG_PAGE_LIGHT}", "Missing 'value' key");
+          // Handle brightness and color temperature
+          if (params[1] == "brightness_pct" or params[1] == "color_temp") {
+            if (params_count != 3) {
+              ESP_LOGW("${TAG_PAGE_LIGHT}", "Need 3 params");
               return;
-            } // endif json["value"].isNull()
-
-            // Handle brightness and color temperature
-            if (key == "brightness_pct" || key == "color_temp") {
-              ESP_LOGV("${TAG_PAGE_LIGHT}", "Set light attributes");
-              const std::string value = json["value"].isNull() ? "" : json["value"].as<std::string>();
-              ESP_LOGV("${TAG_PAGE_LIGHT}", "  value: %s", value.c_str());
-
-              esphome::api::CustomAPIDevice ha_event;
-              ha_event.fire_homeassistant_event("${EVENT_NAME}", {
-                {"device_name", device_name->state.c_str()},
-                {"esphome_version", "${version}"},
-                {"type", "action_call"},
-                {"action", "light.turn_on"},
-                {"key", key.c_str()},
-                {"value", value.c_str()},
-                {"entity", detailed_entity->state.c_str()}
-              });
-
-            } else if (component == "rgb_color") { // endif brightness/color_temp
-              // Validate that value is an array before assignment
-              if (!json["value"].is<JsonArray>()) {
-                ESP_LOGW("${TAG_PAGE_LIGHT}", "Expected array for rgb_color but got different type");
-                return;
-              } // endif !is<JsonArray>()
-
-              const JsonArray rgb_color = json["value"].as<JsonArray>();
-
-              // Validate array size
-              if (rgb_color.size() != 3) {
-                ESP_LOGW("${TAG_PAGE_LIGHT}", "Invalid RGB array size: %zu (expected 3)", rgb_color.size());
-                return;
-              } // endif rgb_color.size() != 3
-
-              // Validate each RGB component is a valid integer
-              for (size_t i = 0; i < 3; i++) {
-                if (rgb_color[i].isNull() || !rgb_color[i].is<int>()) {
-                  ESP_LOGW("${TAG_PAGE_LIGHT}", "Invalid RGB component at index %zu", i);
-                  return;
-                } // endif invalid component
-
-                const int rgb_value = rgb_color[i].as<int>();
-                if (rgb_value < 0 || rgb_value > 255) {
-                  ESP_LOGW("${TAG_PAGE_LIGHT}", "RGB component %zu out of range: %d (0-255)", i, rgb_value);
-                  return;
-                } // endif out of range
-              } // endfor RGB validation
-
-              // Send event to Home Assistant
-              ESP_LOGV("${TAG_PAGE_LIGHT}", "Setting light color:");
-              ESP_LOGV("${TAG_PAGE_LIGHT}", " red: %i", rgb_color[0].as<int>());
-              ESP_LOGV("${TAG_PAGE_LIGHT}", " green: %i", rgb_color[1].as<int>());
-              ESP_LOGV("${TAG_PAGE_LIGHT}", " blue: %i", rgb_color[2].as<int>());
-              esphome::api::CustomAPIDevice ha_event;
-              ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
-                {"device_name", id(device_name).state},
-                {"esphome_version", "${version}"},
-                {"type", "action_call"},
-                {"action", "light.turn_on"},
-                {"key", "rgb_color"},
-                {"red", to_string(rgb_color[0].as<int>())},
-                {"green", to_string(rgb_color[1].as<int>())},
-                {"blue", to_string(rgb_color[2].as<int>())},
-                {"entity", detailed_entity->state.c_str()}
-              });
-            } else { // endif component == "rgb_color"
-              const std::string value = json["value"].isNull() ? "" : json["value"].as<std::string>();
-              ESP_LOGV("${TAG_PAGE_LIGHT}", "  value: %s", value.c_str());
-              esphome::api::CustomAPIDevice ha_event;
-              ha_event.fire_homeassistant_event("${EVENT_NAME}", {
-                {"device_name", device_name->state.c_str()},
-                {"esphome_version", "${version}"},
-                {"type", "generic"},
-                {"page", page.c_str()},
-                {"component", component.c_str()},
-                {"event", event.c_str()},
-                {"value", value.c_str()},
-                {"entity", detailed_entity->state.c_str()}
-              });
             }
-          } // endif page == "light"
+
+            ESP_LOGV("${TAG_PAGE_LIGHT}", "key=%s, value=%s", 
+                      params[1].c_str(), params[2].c_str());
+
+            esphome::api::CustomAPIDevice ha_event;
+            ha_event.fire_homeassistant_event("${EVENT_NAME}", {
+              {"device_name", device_name->state.c_str()},
+              {"type", "action_call"},
+              {"action", "light.turn_on"},
+              {"key", params[1].c_str()},
+              {"value", params[2].c_str()},
+              {"entity", detailed_entity->state.c_str()}
+            });
+
+          } else if (params[1] == "rgb_color") {
+            // RGB color: light,rgb_color,<red>,<green>,<blue>
+            if (params_count != 5) {
+              ESP_LOGW("${TAG_PAGE_LIGHT}", "Need 5 params");
+              return;
+            }
+
+            ESP_LOGV("${TAG_PAGE_LIGHT}", "RGB: r=%s, g=%s, b=%s", 
+                      params[2].c_str(), params[3].c_str(), params[4].c_str());
+
+            esphome::api::CustomAPIDevice ha_event;
+            ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", {
+              {"device_name", device_name->state.c_str()},
+              {"type", "action_call"},
+              {"action", "light.turn_on"},
+              {"key", "rgb_color"},
+              {"red", params[2].c_str()},
+              {"green", params[3].c_str()},
+              {"blue", params[4].c_str()},
+              {"entity", detailed_entity->state.c_str()}
+            });
+
+          } else {
+            // Generic event: light,<component>,<event>,<value>
+            if (params_count != 4) {
+              ESP_LOGW("${TAG_PAGE_LIGHT}", "Bad params");
+              return;
+            }
+
+            ESP_LOGV("${TAG_PAGE_LIGHT}", "component=%s, event=%s, value=%s",
+                      params[1].c_str(), params[2].c_str(), params[3].c_str());
+
+            esphome::api::CustomAPIDevice ha_event;
+            ha_event.fire_homeassistant_event("${EVENT_NAME}", {
+              {"device_name", device_name->state.c_str()},
+              {"type", "generic"},
+              {"page", "light"},
+              {"component", params[1].c_str()},
+              {"event", params[2].c_str()},
+              {"value", params[3].c_str()},
+              {"entity", detailed_entity->state.c_str()}
+            });
+          }
+        }
 
   - id: !extend page_change
     then:
