@@ -22,11 +22,7 @@ display:
                 ) {
               switch (component_id) {
                 case 13:  // bt_oscillate
-                  esphome::api::CustomAPIDevice ha_event_fan_oscillate;
-                  ha_event_fan_oscillate.fire_homeassistant_event("${EVENT_NAME}", {
-                    {"device_name", device_name->state.c_str()},
-                    {"esphome_version", "${version}"},
-                    {"type", "action_call"},
+                  fire_ha_event("action_call", {
                     {"action", "fan.oscillate"},
                     {"key", "oscillating"},
                     {"value", "toggle"},
@@ -34,11 +30,7 @@ display:
                   });
                   break;
                 case 14:  // power_button
-                  esphome::api::CustomAPIDevice ha_event_fan_toggle;
-                  ha_event_fan_toggle.fire_homeassistant_event("${EVENT_NAME}", {
-                    {"device_name", device_name->state.c_str()},
-                    {"esphome_version", "${version}"},
-                    {"type", "action_call"},
+                  fire_ha_event("action_call", {
                     {"action", "fan.toggle"},
                     {"entity", detailed_entity->state.c_str()}
                   });
@@ -55,49 +47,41 @@ script:
   - id: !extend event_from_display
     then:
       - lambda: |-
-          if (page == "fan") {
-            if (json["key"].isNull() || json["value"].isNull()) {
-              ESP_LOGV("${TAG_PAGE_FAN}", "Missing fan `key` or `value` fields");
+          if (params[0] == "fan" and params[1] == "percentage") {
+            // CSV Format: fan,percentage,<value>
+            // params[0]=page, params[1]=percentage, params[2]=value
+
+            if (params_count != 3) {
+              ESP_LOGW("${TAG_PAGE_FAN}", "Bad params");
               return;
-            } // endif missing fields
+            }
 
-            const std::string key = json["key"].as<std::string>();
-            const std::string value = json["value"].as<std::string>();
+            const std::string& value = params[2];
 
-            ESP_LOGV("${TAG_PAGE_FAN}", "Fan control: key=%s, value=%s", key.c_str(), value.c_str());
+            ESP_LOGV("${TAG_PAGE_FAN}", "Fan speed: %s%%", value.c_str());
 
-            if (key == "stop" || value == "0") {
-              ESP_LOGV("${TAG_PAGE_FAN}", "Turning fan off");
-              esphome::api::CustomAPIDevice ha_event;
-              ha_event.fire_homeassistant_event("${EVENT_NAME}", {
-                {"device_name", device_name->state.c_str()},
-                {"esphome_version", "${version}"},
-                {"type", "action_call"},
+            if (value == "0") {
+              ESP_LOGV("${TAG_PAGE_FAN}", "Turn-off fan");
+
+              fire_ha_event("action_call", {
                 {"action", "fan.turn_off"},
                 {"entity", detailed_entity->state.c_str()}
               });
             } else {
-              ESP_LOGV("${TAG_PAGE_FAN}", "Turning fan on with settings");
-              esphome::api::CustomAPIDevice ha_event;
-              ha_event.fire_homeassistant_event("${EVENT_NAME}", {
-                {"device_name", device_name->state.c_str()},
-                {"esphome_version", "${version}"},
-                {"type", "action_call"},
+              ESP_LOGV("${TAG_PAGE_FAN}", "Set fan speed");
+
+              fire_ha_event("action_call", {
                 {"action", "fan.turn_on"},
-                {"key", key.c_str()},
+                {"key", "percentage"},
                 {"value", value.c_str()},
                 {"entity", detailed_entity->state.c_str()}
               });
-            } // endif key == "stop" || value == "0"
-          } // endif page == "fan"
+            }
+          }
 
   - id: !extend page_change
     then:
-      - if:
-          condition:
-            - lambda: return new_page_id == ${PAGE_FAN_ID};
-          then:
-            - script.execute: page_fan
+      - lambda: if (new_page_id == ${PAGE_FAN_ID}) page_fan->execute();
 
   - id: page_fan
     mode: single
@@ -105,5 +89,5 @@ script:
 
   - id: !extend stop_page_constructors
     then:
-      - script.stop: page_fan
+      - lambda: page_fan->stop();
 ...

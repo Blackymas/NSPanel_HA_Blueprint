@@ -11,11 +11,6 @@ substitutions:
   ## local yaml substitutions ##
   ##############################
   BOOT_STEP_HW_WIFI: '9'
-  MDI_ICON_API_OFF: "\uF256"         # mdi:api-off
-  MDI_ICON_HOME_ASSISTANT: "\uE7CF"  # mdi:home-assistant
-  MDI_ICON_RESTART: "\uE708"         # mdi:restart
-  MDI_ICON_WIFI: "\uE5A8"            # mdi:wifi
-  MDI_ICON_WIFI_OFF: "\uE5A9"        # mdi:wifi-off
   TAG_HW_WIFI: nspanel.hw.wifi
 
 api:
@@ -64,33 +59,50 @@ script:
   - id: refresh_wifi_icon
     mode: single
     then:
-      - if:
-          condition:
-            - lambda: return is_device_ready_for_tasks();
-          then:
-            - lambda: |-
-                disp1->send_command_printf("api=%i",
-                          system_flags.wifi_ready and
-                          system_flags.api_ready and
-                          system_flags.blueprint_ready
-                          ? 1 : 0);
-                // Update Wi-Fi icon color
-                disp1->set_component_font_color("home.wifi_icon", system_flags.blueprint_ready ?
-                                                                    ${COLOR_GRAY_MOSS} : ${COLOR_RED_PRIMARY});
-                // Update Wi-Fi icon
-                disp1->set_component_text("home.wifi_icon",
-                                          system_flags.wifi_ready ?
-                                            (system_flags.api_ready ?
-                                              (system_flags.blueprint_ready ?
-                                                "${MDI_ICON_WIFI}" :           // mdi:wifi - All right!
-                                              "${MDI_ICON_HOME_ASSISTANT}") :  // mdi:home-assistant - Blueprint is out
-                                            "${MDI_ICON_API_OFF}") :           // mdi:api-off
-                                          "${MDI_ICON_WIFI_OFF}");             // mdi:wifi-off
+      - lambda: |-
+          if (not is_device_ready_for_tasks()) {
+            return;
+          }
+
+          // Update API status (only when changed)
+          static bool api_previous = false;
+          const bool api_new = system_flags.wifi_ready and system_flags.api_ready and system_flags.blueprint_ready;
+          if (api_new != api_previous) {
+            disp1->send_command_printf("api=%i", api_new ? 1 : 0);
+            api_previous = api_new;
+          }
+
+          // Determine current icon
+          const char* icon_new = system_flags.wifi_ready ?
+            (system_flags.api_ready ?
+              (system_flags.blueprint_ready ?
+                Icons::WIFI :
+                Icons::HOME_ASSISTANT) :
+              Icons::API_OFF) :
+            Icons::WIFI_OFF;
+
+          // Update WiFi icon (only when changed)
+          static const char* icon_previous = nullptr;
+          if (icon_new != icon_previous) {
+            disp1->set_component_text("home.wifi_icon", icon_new);
+            icon_previous = icon_new;
+          }
+
+          // Determine current color
+          const uint16_t color_new = system_flags.blueprint_ready ? Colors::GRAY_MOSS : Colors::RED;
+
+          // Update WiFi icon color (only when changed)
+          static uint16_t color_previous = 0;
+          if (color_new != color_previous) {
+            disp1->set_component_font_color("home.wifi_icon", static_cast<uint16_t>(color_new));
+            color_previous = color_new;
+          }
 
   - id: !extend stop_all
     then:
-      - script.stop: refresh_wifi_icon
-      - script.stop: wait_for_wifi
+      - lambda: |-
+          refresh_wifi_icon->stop();
+          wait_for_wifi->stop();
 
   - id: wait_for_wifi
     mode: single
@@ -102,31 +114,22 @@ script:
           then:
             - wifi.enable:
             - delay: 2s
-      - if:
-          condition:
-            - not:
-                - wifi.connected:
-          then:
-            - wifi.enable:
-            - lambda: |-
-                ESP_LOGW("DEBUG", "Retrying Wi-Fi connection");
-                wifi_component->retry_connect();
+      - lambda: |-
+          if (not wifi_component->is_connected()) {
+            wifi_component->enable();
+            ESP_LOGW("DEBUG", "Retrying Wi-Fi connection");
+            wifi_component->retry_connect();
+          }
       - repeat:
           count: 300  # seconds
           then:
-            - if:
-                condition:
-                  - lambda: return system_flags.wifi_ready;
-                then:
-                  - script.stop: wait_for_wifi
-            - if:
-                condition:
-                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
-                then:
-                  - script.execute:
-                      id: boot_log
-                      category: "Boot"
-                      log_message: "Waiting for Wi-Fi..."
+            - lambda: |-
+                if (system_flags.wifi_ready) {
+                  wait_for_wifi->stop();
+                }
+                if (iteration % 5 == 1) {  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
+                  boot_log->execute("Boot", "Waiting for Wi-Fi");
+                }
             - delay: 1s
 
   - id: !extend watchdog_round
@@ -144,22 +147,7 @@ text_sensor:
     disabled_by_default: false
     update_interval: never
     lambda: |-
-      return { App.get_name() };
-    filters:
-      - lambda: |-
-          std::string result;
-          bool last_was_underscore = false;
-          for (const char& c : x) {
-            if (isalnum(c)) {
-              result += tolower(c);  // Add alphanumeric characters as lowercase
-              last_was_underscore = false;
-            } else if (!last_was_underscore) {  // Replace non-alphanumeric with '_' but avoid consecutive '_'
-              result += '_';
-              last_was_underscore = true;
-            }
-          }
-          ESP_LOGI("${TAG_HW_WIFI}", "Device name: %s", result.c_str());
-          return result;
+      return { cached_device_name };
 
 wifi:
   id: wifi_component
@@ -167,12 +155,27 @@ wifi:
     - id: wifi_default
       ssid: ${wifi_ssid}
       password: ${wifi_password}
+
   on_connect:
     then:
       - lambda: |-
           system_flags.wifi_ready = true;
-          device_name->update();
           refresh_wifi_icon->execute();
+          if (cached_device_name.empty()) {
+            bool last_was_underscore = false;
+            for (const char& c : App.get_name()) {
+              if (isalnum(c)) {
+                cached_device_name += tolower(c);  // Add alphanumeric characters as lowercase
+                last_was_underscore = false;
+              } else if (!last_was_underscore) {  // Replace non-alphanumeric with '_' but avoid consecutive '_'
+                cached_device_name += '_';
+                last_was_underscore = true;
+              }
+            }
+            ESP_LOGI("${TAG_HW_WIFI}", "Device name: %s", cached_device_name.c_str());
+            device_name->publish_state(cached_device_name.c_str());
+          }
+
   on_disconnect:
     then:
       - lambda: |-

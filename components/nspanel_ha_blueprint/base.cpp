@@ -10,4 +10,7 @@ namespace nspanel_ha_blueprint {
     // Define the global blueprint status flags variable (starts with all flags false via default constructor)
     BlueprintStatusFlags blueprint_status_flags{};
 
+    // Cached device name to avoid repeated lookups and string copies
+    std::string cached_device_name;
+
 }  // namespace nspanel_ha_blueprint

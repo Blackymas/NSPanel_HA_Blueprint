@@ -10,7 +10,7 @@ blueprint:
   description: >
     # NSPanel Configuration via Blueprint: Complete UI-Based Setup
 
-    **Version**: v4.3.39
+    **Version**: v4.3.40
 
 
     This project enables comprehensive configuration of your NSPanel through a Blueprint featuring a user interface.
@@ -3801,7 +3801,7 @@ trigger_variables:
     }}
 
 variables:
-  blueprint_version: '4.3.39'
+  blueprint_version: '4.3.40'
   pages:
     current: '{{ states(currentpage) }}'
     home: "home"
@@ -8649,6 +8649,7 @@ action:
                         sequence:
                           - variables:
                               climate_entity_id_valid: '{{ climate is string and climate is match "climate." }}'
+                              climate_friendly_name: '{{ state_attr(climate, "friendly_name") if climate_entity_id_valid else "" }}'
 
                           - *delay_boot
                           - action: 'esphome.{{ nspanel_name }}_component_val'
@@ -8669,7 +8670,7 @@ action:
                                 data:
                                   page: mem
                                   id: addon_climate_friendly_name
-                                  txt: '{{ state_attr(climate, "friendly_name") if climate_entity_id_valid else "" }}'
+                                  txt: '{{ climate_friendly_name if climate_friendly_name is string else "" }}'
                                 continue_on_error: true
 
                           - alias: Embedded climate
@@ -9974,7 +9975,10 @@ action:
 
                       ## PAGE CLIMATE ##
                       - alias: Climate page
-                        conditions: '{{ nspanel_event.page == pages.climate }}'
+                        conditions:
+                          - '{{ nspanel_event is defined }}'
+                          - '{{ nspanel_event.page is defined }}'
+                          - '{{ nspanel_event.page == pages.climate }}'
                         sequence: &refresh_page_climate
                           - &variables_climate_entity
                             variables:
@@ -10004,7 +10008,10 @@ action:
                               friendly_name: '{{ friendly_name_raw if friendly_name_raw and friendly_name_raw is string else "" }}'
                           - if:
                               - '{{ not embedded_climate }}'
+                              - '{{ nspanel_event is defined }}'
+                              - '{{ nspanel_event.page is defined }}'
                               - '{{ nspanel_event.page == pages.climate }}'
+                              - '{{ climate_entity_temp is defined }}'
                               - '{{ climate_entity_temp is not string or climate_entity_temp | length < 9 }}'
                             then:
                               - *delay_default
@@ -10013,8 +10020,6 @@ action:
                                   entity: '{{ climate }}'
                                   back_page: home
                                 continue_on_error: true
-                              - stop: "Climate page was requested with default climate entity"
-                                error: false
 
                           - condition: '{{ settings_entity_domain == "climate" }}'
                           - *delay_default
@@ -10993,12 +10998,25 @@ action:
                   - choose:
                       - alias: Hardware buttons
                         conditions:
+                          - '{{ nspanel_event is defined }}'
+                          - '{{ nspanel_event.component is defined }}'
                           - '{{ nspanel_event.component in ["hw_bt_left", "hw_bt_right"] }}'
                         sequence:
                           - *variables_hardware
                           - variables:
-                              last_click_button: '{{ hardware.buttons.left if nspanel_event.component == "hw_bt_left" else hardware.buttons.right }}'
-                              entity_id: '{{ last_click_button.entity }}'
+                              last_click_button: >
+                                {{
+                                  hardware.buttons.left
+                                  if nspanel_event.component == "hw_bt_left"
+                                  else hardware.buttons.right
+                                }}
+                              entity_id: >
+                                {{
+                                  last_click_button.entity
+                                  if last_click_button is defined and last_click_button.entity is defined
+                                  else None
+                                }}
+                          - condition: '{{ entity_id is string and entity_id | length > 2 }}'
                           - *variable_entity
                           - choose:
                               - alias: Long click
@@ -11050,7 +11068,10 @@ action:
                                 conditions:
                                   - '{{ nspanel_event.command == "short_click" and entity_domain not in ["alarm_control_panel", "climate", "media_player"] }}'
                                 sequence:
-                                  - condition: '{{ last_click_button.entity | length > 0 }}'
+                                  - condition: '{{ last_click_button is defined }}'
+                                  - condition: '{{ last_click_button.entity is defined }}'
+                                  - condition: '{{ last_click_button.entity is string }}'
+                                  - condition: '{{ last_click_button.entity | length > 2 }}'
                                   - condition: '{{ nspanel_event.component != "hw_bt_left" or hardware.buttons.left.entity != relay01_entity }}'
                                   - condition: '{{ nspanel_event.component != "hw_bt_right" or hardware.buttons.right.entity != relay02_entity }}'
                                   - &short_press-service_call
@@ -11081,7 +11102,12 @@ action:
                                         data:
                                           entity_id: '{{ last_click_button.entity }}'
                                         continue_on_error: true
-                          - if: '{{ entity_domain in ["media_player"] }}'
+                          - if:
+                              - '{{ entity_domain in ["media_player"] }}'
+                              - '{{ last_click_button is defined }}'
+                              - '{{ last_click_button.entity is defined }}'
+                              - '{{ last_click_button.entity is string }}'
+                              - '{{ last_click_button.entity | length > 2 }}'
                             then:
                               - delay:
                                   milliseconds: '{{ media_player_update_delay }}'
@@ -11107,13 +11133,26 @@ action:
                                   | rejectattr("entity", "eq", [])
                                   | list
                                 }}
-                          - condition: '{{ last_click_button | count >= 0 }}'
+                          - condition: '{{ last_click_button | count > 0 }}'
                           - variables:
-                              last_click_button: '{{ last_click_button[0] }}'
-                              entity_id: '{{ last_click_button.entity }}'
+                              last_click_button: '{{ last_click_button | first }}'
+                          - condition: '{{ last_click_button is defined }}'
+                          - condition: '{{ last_click_button.entity is defined }}'
+                          - variables:
+                              entity_id: >
+                                {{
+                                  last_click_button.entity
+                                  if
+                                    last_click_button is defined and
+                                    last_click_button.entity is defined and
+                                    last_click_button.entity is string and
+                                    last_click_button.entity | length >= 3
+                                  else None
+                                }}
                               overlap:
                                 icon: '{{ last_click_button.icon if last_click_button.icon is defined else None }}'
                                 name: '{{ last_click_button.name if last_click_button.name is defined else None }}'
+                          - condition: '{{ entity_id is string and entity_id | length >= 3 }}'
                           - *variable_entity
                           - choose:
                               - alias: Long click
@@ -11133,18 +11172,21 @@ action:
 
                       - alias: Climate page
                         conditions:
+                          - '{{ nspanel_event is defined }}'
+                          - '{{ nspanel_event.page is defined }}'
                           - '{{ nspanel_event.page == pages.climate }}'
                         sequence:
                           - *climate-update_custom_buttons-variables
                           - variables:
                               last_click_button: '{{ climate_custom_buttons | selectattr("component", "defined") | selectattr("component", "eq", nspanel_event.component) | list }}'
-                          - condition: '{{ last_click_button | count >= 0 }}'
+                          - condition: '{{ last_click_button | count > 0 }}'
                           - variables:
-                              last_click_button: '{{ last_click_button[0] }}'
+                              last_click_button: '{{ last_click_button | first }}'
                               entity_domain: >
                                 {{
                                   last_click_button.entity.split(".")[0] | default("unknown")
                                   if
+                                    last_click_button.entity is defined and
                                     last_click_button.entity is string and
                                     last_click_button.entity | length > 0 and
                                     last_click_button.entity.split(".") | count > 0
@@ -11173,10 +11215,13 @@ action:
                         sequence:
                           - variables:
                               last_click_button: '{{ home_page.custom_buttons | selectattr("component", "defined") | selectattr("component", "eq", nspanel_event.component) | list }}'
-                            continue_on_error: true
-                          - condition: '{{ last_click_button | count >= 0 }}'
+                          - condition: '{{ last_click_button is defined }}'
+                          - condition: '{{ last_click_button | count > 0 }}'
                           - variables:
-                              last_click_button: '{{ last_click_button[0] }}'
+                              last_click_button: '{{ last_click_button | first }}'
+                          - condition: '{{ last_click_button is defined }}'
+                          - condition: '{{ last_click_button.entity is defined }}'
+                          - variables:
                               entity_id: '{{ last_click_button.entity }}'
                               overlap:
                                 icon: '{{ last_click_button.icon if last_click_button.icon is defined else None }}'

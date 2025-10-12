@@ -97,38 +97,39 @@ script:
             ESP_LOGV("${TAG_ADDON_CLIMATE}", "Not showing the embedded climate");
             return;
           }
-          auto FahrenheitToCelsius = [](float fahrenheit) -> float {
-            return (fahrenheit - 32.0) * 5.0 / 9.0;
-          };
-          std::string temp_units = "${temp_units}";
-          const bool temp_unit_fahrenheit = (temp_units == "°F"
-                                          || temp_units == "F"
-                                          || temp_units == "°f"
-                                          || temp_units == "f");
+
           auto call = thermostat_embedded->make_call();
           float temperature;
 
           ESP_LOGV("${TAG_ADDON_CLIMATE}", "Inform display that is showing embedded climate");
           disp1->set_component_value("climate.embedded", 1);
+
           if (key == "temperature") {
             temperature = stof(value) / 10;
-            if (temp_unit_fahrenheit) temperature = FahrenheitToCelsius(temperature);
+            if (temp_unit_is_fahrenheit) {
+              temperature = fahrenheit_to_celsius(temperature);
+            }
             ESP_LOGV("${TAG_ADDON_CLIMATE}", "Set target temperature to %f", temperature);
             call.set_target_temperature(temperature);
           } else if (key == "target_temp_high") {
             temperature = stof(value) / 10;
-            if (temp_unit_fahrenheit) temperature = FahrenheitToCelsius(temperature);
+            if (temp_unit_is_fahrenheit) {
+              temperature = fahrenheit_to_celsius(temperature);
+            }
             ESP_LOGV("${TAG_ADDON_CLIMATE}", "Set target temperature high to %f", temperature);
             call.set_target_temperature_high(temperature);
           } else if (key == "target_temp_low") {
             temperature = stof(value) / 10;
-            if (temp_unit_fahrenheit) temperature = FahrenheitToCelsius(temperature);
+            if (temp_unit_is_fahrenheit) {
+              temperature = fahrenheit_to_celsius(temperature);
+            }
             ESP_LOGV("${TAG_ADDON_CLIMATE}", "Set target temperature low to %f", temperature);
             call.set_target_temperature_low(temperature);
           } else if (key == "hvac_mode") {
             ESP_LOGV("${TAG_ADDON_CLIMATE}", "Set 'hvac_mode' to '%s'", value.c_str());
             call.set_mode(value);
           }
+
           ESP_LOGV("${TAG_ADDON_CLIMATE}", "Perform action");
           call.perform();
           ESP_LOGV("${TAG_ADDON_CLIMATE}", "Action done");
@@ -146,204 +147,203 @@ script:
           #elif !defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL) && !defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT) && !defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL)
             #error "Invalid settings for add-on Climate. No option selected between Cool, Heat or Dual."
           #endif
-          static const char *const TAG = "nspanel_ha_blueprint";
           const uint cooler_relay = ${cooler_relay};
           const uint heater_relay = ${heater_relay};
-          ESP_LOGCONFIG(TAG, "Add-on climate:");
+          ESP_LOGCONFIG("${TAG_ADDON_CLIMATE}", "Add-on climate:");
           #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL
-          ESP_LOGCONFIG(TAG, "  Cool:  Enabled");
-          ESP_LOGCONFIG(TAG, "  Relay: %u", cooler_relay);
-          ESP_LOGE_IF(TAG, (cooler_relay != 1 and cooler_relay != 2), "  Relay: %u", cooler_relay);
+          ESP_LOGCONFIG("${TAG_ADDON_CLIMATE}", "  Cool:  Enabled");
+          ESP_LOGCONFIG("${TAG_ADDON_CLIMATE}", "  Relay: %u", cooler_relay);
+          ESP_LOGE_IF("${TAG_ADDON_CLIMATE}", (cooler_relay != 1 and cooler_relay != 2), "  Relay: %u", cooler_relay);
           #endif  // NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL
           #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT
-          ESP_LOGCONFIG(TAG, "  Heat:  Enabled");
-          ESP_LOGCONFIG(TAG, "  Relay: %u", heater_relay);
-          ESP_LOGE_IF(TAG, (heater_relay != 1 and heater_relay != 2), "  Relay: %u", heater_relay);
+          ESP_LOGCONFIG("${TAG_ADDON_CLIMATE}", "  Heat:  Enabled");
+          ESP_LOGCONFIG("${TAG_ADDON_CLIMATE}", "  Relay: %u", heater_relay);
+          ESP_LOGE_IF("${TAG_ADDON_CLIMATE}", (heater_relay != 1 and heater_relay != 2), "  Relay: %u", heater_relay);
           #endif  // NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT
           #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
-          ESP_LOGCONFIG(TAG, "  Dual:  Enabled");
-          ESP_LOGCONFIG(TAG, "  Relay (cooler): %u", cooler_relay);
-          ESP_LOGE_IF(TAG, (cooler_relay != 1 and cooler_relay != 2), "  Relay (cooler): %u", cooler_relay);
-          ESP_LOGCONFIG(TAG, "  Relay (heater): %u", heater_relay);
-          ESP_LOGE_IF(TAG, (heater_relay != 1 and heater_relay != 2), "  Relay (heater): %u", heater_relay);
+          ESP_LOGCONFIG("${TAG_ADDON_CLIMATE}", "  Dual:  Enabled");
+          ESP_LOGCONFIG("${TAG_ADDON_CLIMATE}", "  Relay (cooler): %u", cooler_relay);
+          ESP_LOGE_IF("${TAG_ADDON_CLIMATE}", (cooler_relay != 1 and cooler_relay != 2), "  Relay (cooler): %u", cooler_relay);
+          ESP_LOGCONFIG("${TAG_ADDON_CLIMATE}", "  Relay (heater): %u", heater_relay);
+          ESP_LOGE_IF("${TAG_ADDON_CLIMATE}", (heater_relay != 1 and heater_relay != 2), "  Relay (heater): %u", heater_relay);
           #endif  // NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
 
   - id: !extend page_climate
     then:
-      - if:
-          condition:
-            - lambda: return current_page_id == ${PAGE_CLIMATE_ID};
-            - lambda: return id(is_embedded_thermostat);
-            - lambda: return detailed_entity->state.empty() or detailed_entity->state == "embedded_climate";
-          then:
-            - lambda: |-
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "Construct climate page with embedded climate");
-                // Temperature conversion function (constexpr for compile-time optimization)
-                auto celsius_to_fahrenheit = [](const float celsius) -> float {
-                  return (celsius * 9.0f / 5.0f) + 32.0f;
-                };
+      - lambda: |-
+          if (current_page_id != ${PAGE_CLIMATE_ID}) {
+            return;
+          }
+          if (not id(is_embedded_thermostat)) {
+            return;
+          }
+          if (detailed_entity->state.empty()) {
+            return;
+          }
+          if (detailed_entity->state != "embedded_climate") {
+            return;
+          }
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "Construct climate page with embedded climate");
 
-                static const std::string temp_units = "${temp_units}";
-                static const bool temp_unit_fahrenheit = (temp_units == "°F" || temp_units == "F" ||
-                                                          temp_units == "°f" || temp_units == "f");
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "Temperature in Fahrenheit: %s", YESNO(temp_unit_fahrenheit));
+          // Get climate traits
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "Get climate traits");
+          const ClimateTraits traits = thermostat_embedded->get_traits();
 
-                // Get climate traits
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "Get climate traits");
-                const ClimateTraits traits = thermostat_embedded->get_traits();
+          // Set page label
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "Set page label");
+          disp1->set_component_text("page_label", addon_climate_friendly_name.c_str());
 
-                // Set page label
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "Set page label");
-                disp1->set_component_text("page_label", addon_climate_friendly_name.c_str());
+          // Feed watchdog
+          delay(${DELAY_SHORT});
+          App.feed_wdt();
 
-                // Feed watchdog
-                delay(${DELAY_DEFAULT});
-                App.feed_wdt();
+          // Extract temperature values (static since they don't change during runtime)
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "Extract temperature values:");
+          static const float temp_step = traits.get_visual_target_temperature_step();
+          static const float temp_offset = traits.get_visual_min_temperature();
+          static const float temp_max = traits.get_visual_max_temperature();
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_step: %f", temp_step);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_offset: %f", temp_offset);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_max: %f", temp_max);
 
-                // Extract temperature values (static since they don't change during runtime)
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "Extract temperature values:");
-                static const float temp_step = traits.get_visual_target_temperature_step();
-                static const float temp_offset = traits.get_visual_min_temperature();
-                static const float temp_max = traits.get_visual_max_temperature();
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_step: %f", temp_step);
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_offset: %f", temp_offset);
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_max: %f", temp_max);
+          // Feed watchdog
+          delay(${DELAY_SHORT});
+          App.feed_wdt();
 
-                // Feed watchdog
-                delay(${DELAY_DEFAULT});
-                App.feed_wdt();
+          // Calculate static values
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "Calculate static values:");
+          static float display_step, display_offset, total_steps;
+          if (temp_unit_is_fahrenheit) {
+            display_step = std::ceil(temp_step * 1.8f);
+            display_offset = celsius_to_fahrenheit(temp_offset);
+            const float temp_max_f = celsius_to_fahrenheit(temp_max);
+            total_steps = (temp_max_f - display_offset) / display_step;
+          } else {
+            display_step = temp_step;
+            display_offset = temp_offset;
+            total_steps = (temp_max - temp_offset) / temp_step;
+          }
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  display_step: %f", display_step);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  display_offset: %f", display_offset);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  total_steps: %f", total_steps);
 
-                // Calculate static values
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "Calculate static values:");
-                static float display_step, display_offset, total_steps;
-                if (temp_unit_fahrenheit) {
-                  display_step = std::ceil(temp_step * 1.8f);
-                  display_offset = celsius_to_fahrenheit(temp_offset);
-                  const float temp_max_f = celsius_to_fahrenheit(temp_max);
-                  total_steps = (temp_max_f - display_offset) / display_step;
-                } else {
-                  display_step = temp_step;
-                  display_offset = temp_offset;
-                  total_steps = (temp_max - temp_offset) / temp_step;
-                }
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "  display_step: %f", display_step);
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "  display_offset: %f", display_offset);
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "  total_steps: %f", total_steps);
+          // Feed watchdog
+          delay(${DELAY_SHORT});
+          App.feed_wdt();
 
-                // Feed watchdog
-                delay(${DELAY_DEFAULT});
-                App.feed_wdt();
+          // Get dynamic temperature values
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "Get dynamic temperature values:");
+          static float temp_target;
+          temp_target = thermostat_embedded->target_temperature;
+          static float temp_target_high;
+          temp_target_high = thermostat_embedded->target_temperature_high;
+          static float temp_target_low;
+          temp_target_low = thermostat_embedded->target_temperature_low;
+          const float temp_current = thermostat_embedded->current_temperature;
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target: %f", temp_target);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target_high: %f", temp_target_high);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target_low: %f", temp_target_low);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_current: %f", temp_current);
+          feed_wdt_delay(${DELAY_SHORT});
 
-                // Get dynamic temperature values
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "Get dynamic temperature values:");
-                static float temp_target;
-                temp_target = thermostat_embedded->target_temperature;
-                static float temp_target_high;
-                temp_target_high = thermostat_embedded->target_temperature_high;
-                static float temp_target_low;
-                temp_target_low = thermostat_embedded->target_temperature_low;
-                const float temp_current = thermostat_embedded->current_temperature;
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target: %f", temp_target);
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target_high: %f", temp_target_high);
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target_low: %f", temp_target_low);
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_current: %f", temp_current);
+          // Convert dynamic values if using Fahrenheit
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "Convert dynamic values if using Fahrenheit:");
+          static float display_current;
+          display_current = temp_current;
+          if (temp_unit_is_fahrenheit) {
+            display_current = celsius_to_fahrenheit(temp_current);
+            temp_target = celsius_to_fahrenheit(temp_target);
+            temp_target_high = celsius_to_fahrenheit(temp_target_high);
+            temp_target_low = celsius_to_fahrenheit(temp_target_low);
+          }
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  display_current: %f", display_current);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target: %f", temp_target);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target_high: %f", temp_target_high);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target_low: %f", temp_target_low);
+          feed_wdt_delay(${DELAY_SHORT});
 
-                // Feed watchdog
-                delay(${DELAY_DEFAULT});
-                App.feed_wdt();
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+          static const bool is_addon_climate_dual = true;
+          #else
+          static const bool is_addon_climate_dual = false;
+          #endif  // NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "Is add-on Climate dual: %s", YESNO(is_addon_climate_dual));
 
-                // Convert dynamic values if using Fahrenheit
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "Convert dynamic values if using Fahrenheit:");
-                static float display_current;
-                display_current = temp_current;
-                if (temp_unit_fahrenheit) {
-                  display_current = celsius_to_fahrenheit(temp_current);
-                  temp_target = celsius_to_fahrenheit(temp_target);
-                  temp_target_high = celsius_to_fahrenheit(temp_target_high);
-                  temp_target_low = celsius_to_fahrenheit(temp_target_low);
-                }
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "  display_current: %f", display_current);
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target: %f", temp_target);
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target_high: %f", temp_target_high);
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target_low: %f", temp_target_low);
+          // Set vars for set_climate
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "Set vars for set_climate");
 
-                // Feed watchdog
-                delay(${DELAY_DEFAULT});
-                App.feed_wdt();
+          set_climate_current_temp = display_current;
+          set_climate_supported_features = 0;
+          set_climate_target_temp = (is_addon_climate_dual ? -999 : temp_target);
+          set_climate_target_temp_high = (is_addon_climate_dual ? temp_target_high : -999);
+          set_climate_target_temp_low = (is_addon_climate_dual ? temp_target_low : -999);
+          set_climate_temp_step = int(round(display_step*10));
+          set_climate_total_steps = int(round(total_steps));
+          set_climate_temp_offset = int(round(display_offset*10));
+          set_climate_climate_icon = "";
+          set_climate_embedded_climate = true;
+          feed_wdt_delay(${DELAY_SHORT});
 
-                #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
-                static const bool is_addon_climate_dual = true;
-                #else
-                static const bool is_addon_climate_dual = false;
-                #endif  // NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "Is add-on Climate dual: %s", YESNO(is_addon_climate_dual));
+          // Execute set_climate
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "Call set_climate");
+          set_climate->execute();
 
-                // Set vars for set_climate
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "Set vars for set_climate");
+          // Update target temp icon
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "Call update_climate_icon");
+          update_climate_icon->execute("target_icon", int(thermostat_embedded->action), int(thermostat_embedded->mode));
 
-                set_climate_current_temp = display_current;
-                set_climate_supported_features = 0;
-                set_climate_target_temp = (is_addon_climate_dual ? -999 : temp_target);
-                set_climate_target_temp_high = (is_addon_climate_dual ? temp_target_high : -999);
-                set_climate_target_temp_low = (is_addon_climate_dual ? temp_target_low : -999);
-                set_climate_temp_step = int(round(display_step*10));
-                set_climate_total_steps = int(round(total_steps));
-                set_climate_temp_offset = int(round(display_offset*10));
-                set_climate_climate_icon = "";
-                set_climate_embedded_climate = true;
+          // Update buttons bar
+          // Hide not supported hotspots
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "Update buttons bar");
 
-            # Execute set_climate
-            - delay: ${DELAY_DEFAULT}ms
-            - lambda: ESP_LOGV("${TAG_ADDON_CLIMATE}", "Call set_climate");
-            - script.execute: set_climate
+          disp1->hide_component("button01");
+          disp1->set_component_font_color("button01", static_cast<uint16_t>(Colors::GRAY_DARK));
 
-            # Update target temp icon
-            - delay: ${DELAY_DEFAULT}ms
-            - lambda: |-
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "Call update_climate_icon");
-                update_climate_icon->execute("target_icon", int(thermostat_embedded->action), int(thermostat_embedded->mode));
+          #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+          disp1->show_component("button02");
+          disp1->set_component_font_color("button02", static_cast<uint16_t>(
+            (thermostat_embedded->mode==climate::CLIMATE_MODE_HEAT_COOL) ? Colors::WHITE : Colors::GRAY_LIGHT));
+          #else
+          disp1->hide_component("button02");
+          disp1->set_component_font_color("button02", static_cast<uint16_t>(
+            (thermostat_embedded->mode==climate::CLIMATE_MODE_HEAT_COOL) ? Colors::WHITE : Colors::GRAY_DARK));
+          #endif  // NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+          feed_wdt_delay(${DELAY_SHORT});
 
-            # Update buttons bar
-            # Hide not supported hotspots
-            - delay: ${DELAY_DEFAULT}ms
-            - lambda: |-
-                ESP_LOGV("${TAG_ADDON_CLIMATE}", "Update buttons bar");
+          #if defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT) || defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL)
+          disp1->show_component("button03");  // Heat
+          disp1->set_component_font_color("button03", static_cast<uint16_t>(
+            (thermostat_embedded->mode==climate::CLIMATE_MODE_HEAT) ? Colors::DEEP_ORANGE : Colors::GRAY_LIGHT));
+          #else
+          disp1->hide_component("button03");  // Heat
+          disp1->set_component_font_color("button03", static_cast<uint16_t>(
+            (thermostat_embedded->mode==climate::CLIMATE_MODE_HEAT) ? Colors::DEEP_ORANGE : Colors::GRAY_DARK));
+          #endif  // NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT || NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+          feed_wdt_delay(${DELAY_SHORT});
 
-                disp1->hide_component("button01");
-                disp1->set_component_font_color("button01", 6339);
+          #if defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL) || defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL)
+          disp1->show_component("button04");  // Cool
+          disp1->set_component_font_color("button04", static_cast<uint16_t>(
+            (thermostat_embedded->mode==climate::CLIMATE_MODE_COOL) ? Colors::BLUE : Colors::GRAY_LIGHT));
+          #else
+          disp1->hide_component("button04");  // Cool
+          disp1->set_component_font_color("button04", static_cast<uint16_t>(
+            (thermostat_embedded->mode==climate::CLIMATE_MODE_COOL) ? Colors::BLUE : Colors::GRAY_DARK));
+          #endif  // NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL || NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+          feed_wdt_delay(${DELAY_SHORT});
 
-                #ifdef NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
-                disp1->show_component("button02");
-                disp1->set_component_font_color("button02", (thermostat_embedded->mode==climate::CLIMATE_MODE_HEAT_COOL) ? 65535 : 48631);
-                #else
-                disp1->hide_component("button02");
-                disp1->set_component_font_color("button02", (thermostat_embedded->mode==climate::CLIMATE_MODE_HEAT_COOL) ? 65535 : 6339);
-                #endif  // NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+          disp1->hide_component("button05");
+          disp1->set_component_font_color("button05", static_cast<uint16_t>(Colors::GRAY_DARK));
+          feed_wdt_delay(${DELAY_SHORT});
 
-                #if defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT) || defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL)
-                disp1->show_component("button03");  // Heat
-                disp1->set_component_font_color("button03", (thermostat_embedded->mode==climate::CLIMATE_MODE_HEAT) ? 64164 : 48631);
-                #else
-                disp1->hide_component("button03");  // Heat
-                disp1->set_component_font_color("button03", (thermostat_embedded->mode==climate::CLIMATE_MODE_HEAT) ? 64164 : 6339);
-                #endif  // NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_HEAT || NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
+          disp1->hide_component("button06");
+          disp1->set_component_font_color("button06", static_cast<uint16_t>(Colors::GRAY_DARK));
+          feed_wdt_delay(${DELAY_SHORT});
 
-                #if defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL) || defined(NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL)
-                disp1->show_component("button04");  // Cool
-                disp1->set_component_font_color("button04", (thermostat_embedded->mode==climate::CLIMATE_MODE_COOL) ? 1055 : 48631);
-                #else
-                disp1->hide_component("button04");  // Cool
-                disp1->set_component_font_color("button04", (thermostat_embedded->mode==climate::CLIMATE_MODE_COOL) ? 1055 : 6339);
-                #endif  // NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_COOL || NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
-
-                disp1->hide_component("button05");
-                disp1->set_component_font_color("button05", 6339);
-
-                disp1->hide_component("button06");
-                disp1->set_component_font_color("button06", 6339);
-
-                disp1->show_component("button07");  // Off
-                disp1->set_component_font_color("button07", (thermostat_embedded->mode==climate::CLIMATE_MODE_OFF) ? 10597 : 35921);
+          disp1->show_component("button07");  // Off
+          disp1->set_component_font_color("button07", static_cast<uint16_t>(
+                                                                  (thermostat_embedded->mode==climate::CLIMATE_MODE_OFF)
+                                                                  ? Colors::BLUE_INDIGO : Colors::GREY));
 
   - id: !extend page_home
     then:
@@ -354,7 +354,8 @@ script:
 
   - id: !extend stop_all
     then:
-      - script.stop: update_climate_icon
+      - lambda: |-
+          update_climate_icon->stop();
 
   - id: update_climate_icon
     mode: single

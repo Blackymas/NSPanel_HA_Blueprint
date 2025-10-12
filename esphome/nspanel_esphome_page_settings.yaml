@@ -49,31 +49,34 @@ number:
 
 script:
   - id: !extend event_from_display
-    parameters:
-      json: JsonDocument
-      page: string
-      event: string
     then:
       - lambda: |-
-          if (page == "settings") {
-            const uint8_t value = json["value"].isNull() ? UINT8_MAX : json["value"].as<uint8_t>();
-            if (value > 100) {
-              ESP_LOGV("${TAG_PAGE_SETTINGS}", "Invalid json:");
-              ESP_LOGV("${TAG_PAGE_SETTINGS}", "  event: %s", event.c_str());
-              ESP_LOGV("${TAG_PAGE_SETTINGS}", "  value: %" PRIu8, value);
+          if (params[0] == "settings") {
+            // CSV Format: settings,<event>,<value>
+            // params[0]=page, params[1]=event, params[2]=value
+
+            if (params_count != 3) {
+              ESP_LOGW("${TAG_PAGE_SETTINGS}", "Bed params");
               return;
             }
-            if (event == "bright") {
+
+            uint8_t value = atoi(params[2].c_str());
+
+            if (value > 100) {
+              ESP_LOGW("${TAG_PAGE_SETTINGS}", "Invalid value: %" PRIu8, value);
+              return;
+            }
+
+            if (params[1] == "bright") {
               auto call = id(display_brightness).make_call();
               call.set_value(value);
               call.perform();
-              return;
-            }
-            if (event == "dim") {
+            } else if (params[1] == "dim") {
               auto call = id(display_dim_brightness).make_call();
               call.set_value(value);
               call.perform();
-              return;
+            } else {
+              ESP_LOGW("${TAG_PAGE_SETTINGS}", "Unknown event: %s", params[1].c_str());
             }
           }
 
@@ -94,5 +97,5 @@ script:
 
   - id: !extend stop_page_constructors
     then:
-      - script.stop: page_settings
+      - lambda: page_settings->stop();
 ...

@@ -16,8 +16,6 @@
  * - Icons: Unicode characters for display icons (MDI)
  * - Colors: RGB565 color values for state visualization
  * - IconData: Structure pairing icons with colors
- * - Enums: Climate action and mode enumerations
- * - Lookup tables: Const arrays for efficient icon/color selection
  */
 
 namespace nspanel_ha_blueprint {
@@ -34,6 +32,16 @@ namespace nspanel_ha_blueprint {
     * different device states and modes on the NSPanel display.
     */
     namespace Icons {
+        // Alarm icons
+        constexpr const char* SHIELD_ALERT_OUTLINE = "\uEECC";     ///< mdi:shield-alert-outline - Triggered
+        constexpr const char* SHIELD_OFF_OUTLINE = "\uE99B";       ///< mdi:shield-off-outline - Disarmed
+        constexpr const char* SHIELD_HOME_OUTLINE = "\uECCA";      ///< mdi:shield-home-outline - Armed home
+        constexpr const char* SHIELD_LOCK_OUTLINE = "\uECCB";      ///< mdi:shield-lock-outline - Armed away
+        constexpr const char* SHIELD_MOON_OUTLINE = "\uF828";      ///< mdi:shield-moon-outline - Armed night
+        constexpr const char* SHIELD_AIRPLANE_OUTLINE = "\uECC6";  ///< mdi:shield-airplane-outline - Armed vacation
+        constexpr const char* SHIELD_HALF_FULL = "\uE77F";         ///< mdi:shield-half-full - Armed custom bypass
+        constexpr const char* SHIELD_OUTLINE = "\uE498";           ///< mdi:shield-outline - Pending/arming
+
         // Climate icons
         constexpr const char* AUTORENEW = "\uE069";      ///< mdi:autorenew - Auto/heat-cool mode
         constexpr const char* SNOWFLAKE = "\uE716";      ///< mdi:snowflake - Cooling mode
@@ -43,6 +51,13 @@ namespace nspanel_ha_blueprint {
         constexpr const char* CALENDAR_SYNC = "\uEE8D";  ///< mdi:calendar-sync - Auto mode
         constexpr const char* THERMOMETER = "\uE50E";    ///< mdi:thermometer - Idle state
         constexpr const char* NONE = "\uFFFF";           ///< Hidden/no icon (blank character)
+
+        // System/WiFi icons
+        constexpr const char* WIFI = "\uE5A8";                 ///< mdi:wifi - WiFi connected
+        constexpr const char* WIFI_OFF = "\uE5A9";             ///< mdi:wifi-off - WiFi disconnected
+        constexpr const char* API_OFF = "\uF256";              ///< mdi:api-off - API disconnected
+        constexpr const char* HOME_ASSISTANT = "\uE7CF";       ///< mdi:home-assistant - Blueprint disconnected
+        constexpr const char* RESTART = "\uE708";              ///< mdi:restart - System restart
     }  // namespace Icons
 
     // =============================================================================
@@ -58,12 +73,22 @@ namespace nspanel_ha_blueprint {
     * the Nextion display hardware.
     */
     namespace Colors {
-        constexpr uint16_t BLACK = 0;            ///< Hidden/invisible (RGB565: 0x0000)
-        constexpr uint16_t GREY = 35921;         ///< Inactive/off state (RGB565: 0x8C51)
-        constexpr uint16_t BLUE = 1055;          ///< Cooling action (RGB565: 0x041F)
-        constexpr uint16_t DEEP_ORANGE = 64164;  ///< Heating action (RGB565: 0xFAA4)
-        constexpr uint16_t ORANGE = 64704;       ///< Drying action (RGB565: 0xFCC0)
-        constexpr uint16_t CYAN = 1530;          ///< Fan action (RGB565: 0x05FA)
+        constexpr uint16_t BLACK = 0;              ///< Hidden/invisible (RGB565: 0x0000)
+        constexpr uint16_t BLUE = 1055;            ///< Cooling action (RGB565: 0x041F)
+        constexpr uint16_t BLUE_INDIGO = 10597;    ///< Indigo blue (RGB565: 0x2965)
+        constexpr uint16_t CYAN = 1530;            ///< Fan action (RGB565: 0x05FA)
+        constexpr uint16_t CYAN_BRIGHT = 7519;     ///< Bright cyan (RGB565: 0x1D5F)
+        constexpr uint16_t DEEP_ORANGE = 64164;    ///< Heating action (RGB565: 0xFAA4)
+        constexpr uint16_t GREEN = 19818;          ///< Armed/active state (RGB565: 0x4D6A)
+        constexpr uint16_t GREY = 35921;           ///< Inactive/off state (RGB565: 0x8C51)
+        constexpr uint16_t GRAY_DARK = 6339;       ///< Hidden/disabled buttons
+        constexpr uint16_t GRAY_LIGHT = 48631;     ///< Inactive buttons
+        constexpr uint16_t GRAY_MOSS = 33808;      ///< Moss gray/green (RGB565: 0x8410)
+        constexpr uint16_t ORANGE = 64704;         ///< Drying action (RGB565: 0xFCC0)
+        constexpr uint16_t RED = 63488;            ///< Alert/triggered state (RGB565: 0xF800)
+        constexpr uint16_t WHITE = 65535;          ///< White/default (RGB565: 0xFFFF)
+        constexpr uint16_t YELLOW = 65024;         ///< Warning/pending state (RGB565: 0xFE00)
+        constexpr uint16_t YELLOW_GOLDEN = 64992;  ///< Golden yellow (RGB565: 0xFDE0)
     }  // namespace Colors
 
     // =============================================================================

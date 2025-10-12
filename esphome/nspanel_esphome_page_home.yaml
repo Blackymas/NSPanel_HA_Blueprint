@@ -32,93 +32,71 @@ api:
         utilities_icon_color: int[]            # RGB color array for utilities page button icon.
         outdoor_temp_font: int                 # Font Id for outdoor temperature indication on the "Home" page.
       then:
-        - lambda: boot_log->execute("Service", "init_page_home");
-        # Localization
-        - delay: ${DELAY_DEFAULT}ms
-        - globals.set:
-            id: mui_time_format
-            value: !lambda return time_format;
-        - if:
-            condition:
-              - lambda: return (meridiem.size() == 2);
-            then:
-              - lambda: |-
-                  id(mui_meridiem_am) = meridiem[0];
-                  id(mui_meridiem_pm) = meridiem[1];
-
-        # Date & Time colors
-        - delay: ${DELAY_DEFAULT}ms
-        - globals.set:
-            id: home_date_color
-            value: !lambda return rgbTo565(date_color);
-        - globals.set:
-            id: home_time_color
-            value: !lambda return rgbTo565(time_color);
         - lambda: |-
+            boot_log->execute("Service", "init_page_home");
+
+            // Time format
+            id(mui_time_format) = time_format;
+            if (meridiem.size() == 2) {
+              id(mui_meridiem_am) = meridiem[0];
+              id(mui_meridiem_pm) = meridiem[1];
+            }
+
+            // Date & Time colors
+            id(home_date_color) = rgbTo565(date_color);
+            id(home_time_color) = rgbTo565(time_color);
             disp1->set_component_font_color("home.date", id(home_date_color));
             disp1->set_component_font_color("home.time", id(home_time_color));
+            feed_wdt_delay(${DELAY_SHORT});
 
-        # Chips icon size
-        - delay: ${DELAY_DEFAULT}ms
-        - lambda: |-
+            // Chips icon size
             disp1->set_component_font("home.chip_relay1", chip_font);
             disp1->set_component_font("home.chip_relay2", chip_font);
             disp1->set_component_font("home.chip_climate", chip_font);
             for (int i = 1; i <= 7; ++i) {
-              delay(${DELAY_DEFAULT});
               disp1->send_command_printf("home.chip%02d.font=%" PRIi32, i, chip_font);
+              feed_wdt_delay(${DELAY_SHORT});
             }
             disp1->set_component_font("home.wifi_icon", chip_font);
-        - globals.set:
-            id: home_chip_font_id
-            value: !lambda return chip_font;
+            id(home_chip_font_id) = chip_font;
 
-        # Custom buttons icon size
-        - delay: ${DELAY_DEFAULT}ms
-        - globals.set:
-            id: home_custom_buttons_font_id
-            value: !lambda return custom_buttons_font;
-        - lambda: |-
+            // Custom buttons icon size
+            id(home_custom_buttons_font_id) = custom_buttons_font;
             for (int i = 1; i <= 7; ++i) {
               disp1->send_command_printf("home.button%02d.font=%" PRIu8, i, id(home_custom_buttons_font_id));
-              delay(${DELAY_DEFAULT});
+              feed_wdt_delay(${DELAY_SHORT});
             }
             disp1->set_component_font("home.bt_notific", id(home_custom_buttons_font_id));
             disp1->set_component_font("home.bt_qrcode", id(home_custom_buttons_font_id));
             disp1->set_component_font("home.bt_entities", id(home_custom_buttons_font_id));
+            feed_wdt_delay(${DELAY_SHORT});
 
-        # Outdoor temperature font size
-        - delay: ${DELAY_DEFAULT}ms
-        - lambda: |-
+            // Outdoor temperature font size
             disp1->set_component_font("home.outdoor_temp", outdoor_temp_font);
 
-        # QRCode button
-        - delay: ${DELAY_DEFAULT}ms
-        - lambda: |-
+            // QRCode button
             disp1->set_component_text("home.bt_qrcode", qrcode_icon.c_str());
             disp1->set_component_font_color("home.bt_qrcode", rgbTo565(qrcode_icon_color));
             if (current_page_id == ${PAGE_HOME_ID}) disp1->send_command_printf("vis bt_qrcode,%i", qrcode ? 1 : 0);
+            feed_wdt_delay(${DELAY_SHORT});
 
-        # Entities pages button
-        - delay: ${DELAY_DEFAULT}ms
-        - lambda: |-
+            // Entities pages button
             disp1->set_component_text("home.bt_entities", entities_pages_icon.c_str());
             disp1->set_component_font_color("home.bt_entities", rgbTo565(entities_pages_icon_color));
             if (current_page_id == ${PAGE_HOME_ID}) {
               disp1->send_command("is_entitypages=is_entitypage01|is_entitypage02|is_entitypage03|is_entitypage04");
               disp1->send_command("vis bt_entities,is_entitypages");
             }
+            feed_wdt_delay(${DELAY_SHORT});
 
-        # Utilities button
-        - delay: ${DELAY_DEFAULT}ms
-        - lambda: |-
+            // Utilities button
             disp1->send_command_printf("is_utilities=%i", utilities ? 1 : 0);
             disp1->set_component_text("home.bt_utilities", utilities_icon.c_str());
             disp1->set_component_font_color("home.bt_utilities", rgbTo565(utilities_icon_color));
             if (current_page_id == ${PAGE_HOME_ID}) disp1->send_command("vis bt_utilities,is_utilities");
 
-        # Update blueprint status
-        - lambda: blueprint_status_flags.page_home = true;
+            // Update blueprint status
+            blueprint_status_flags.page_home = true;
 
 esphome:
   platformio_options:
@@ -176,14 +154,19 @@ script:
             id(is_climate) = (val != 0);
 
   - id: !extend event_from_display
-    parameters:
-      json: JsonDocument
-      page: string
-      event: string
     then:
       - lambda: |-
-          if (page == "home" and (event == "short_click" or event == "long_click") and !json["component"].isNull()) {
-            const std::string component = json["component"].as<std::string>();
+          if (params[0] == "home" and (params[1] == "short_click" or params[1] == "long_click")) {
+            // CSV Format: home,<event>,<component>
+            // params[0]=page, params[1]=event, params[2]=component
+
+            if (params_count != 3) {
+              ESP_LOGW("${TAG_PAGE_HOME}", "Bad params");
+              return;
+            }
+
+            const std::string& component = params[2];
+
             if (api_server->is_connected() and component == "weather") {
               goto_page->execute(${PAGE_WEATHER01_ID});
             } else if (id(is_climate) and (component == "indr_temp" or component == "indr_temp_icon")) {
@@ -195,11 +178,7 @@ script:
 
   - id: !extend page_change
     then:
-      - if:
-          condition:
-            - lambda: return new_page_id == ${PAGE_HOME_ID};
-          then:
-            - script.execute: page_home
+      - lambda: if (new_page_id == ${PAGE_HOME_ID}) page_home->execute();
 
   - id: page_home
     mode: single
@@ -210,5 +189,5 @@ script:
 
   - id: !extend stop_all
     then:
-      - script.stop: page_home  # Page home is an exception to the stop_page_constructor, as it can be constructed in the background
+      - lambda: page_home->stop();  // Page home is an exception to the stop_page_constructor, as it can be constructed in the background
 ...
