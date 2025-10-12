@@ -58,30 +58,38 @@ script:
               id(embedded_indoor_temp) = (val>0);
             }
           }
+
+  - id: !extend boot_preparation
+    then:
+      - lambda: |-
+          temp_unit_is_fahrenheit = (strcmp("${temp_units}", "°F") == 0
+                                  || strcmp("${temp_units}", "F") == 0
+                                  || strcmp("${temp_units}", "°f") == 0
+                                  || strcmp("${temp_units}", "f") == 0);
+
   - id: display_embedded_temp  # Show panel's temperature if selected, or API or Wi-Fi are out
     mode: single
     then:
-      - if:
-          condition:
-            - or:
-                - lambda: return id(embedded_indoor_temp);
-                - lambda: return not system_flags.api_ready;
-                - lambda: return not system_flags.wifi_ready;
-          then:
-            - lambda: |-
-                static const std::string temp_units = "${temp_units}";
-                static const bool temp_unit_fahrenheit =
-                                  (temp_units == "°F" || temp_units == "F" || temp_units == "°f" || temp_units == "f");
-                static char buffer[15]; // Buffer for formatted temperature string
-                if (temp_unit_fahrenheit) {
-                  snprintf(buffer, sizeof(buffer), "%.0f${temp_units}",
-                                    (temp_nspanel->state * 9.0 / 5.0) + 32); // Fahrenheit with no decimal
-                } else {
-                  snprintf(buffer, sizeof(buffer), "%.1f${temp_units}",
-                                    temp_nspanel->state); // Celsius with one decimal
-                }
-                disp1->set_component_text("home.indr_temp",
-                                            adjustDecimalSeparator(buffer, id(mui_decimal_separator)[0]).c_str());
+      - lambda: |-
+          if (id(embedded_indoor_temp) or !system_flags.api_ready or !system_flags.wifi_ready) {
+            static char buffer[15];
+
+            if (temp_unit_is_fahrenheit) {
+              // Fahrenheit with no decimal
+              snprintf(buffer, sizeof(buffer), "%.0f${temp_units}", celsius_to_fahrenheit(temp_nspanel->state));
+            } else {
+              // Celsius with one decimal
+              snprintf(buffer, sizeof(buffer), "%.1f${temp_units}", temp_nspanel->state);
+            }
+
+            disp1->set_component_text("home.indr_temp",
+                                      adjustDecimalSeparator(buffer, id(mui_decimal_separator)[0]).c_str());
+          }
+
+  - id: !extend dump_config
+    then:
+      - lambda: |-
+          ESP_LOGCONFIG("${TAG_HW_TEMPERATURE}", "Temperature unit: ${temp_units}");
 
   - id: !extend stop_all
     then:
