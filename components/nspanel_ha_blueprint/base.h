@@ -1,6 +1,8 @@
 // base.h - Generic flag system for NSPanel HA Blueprint
 #pragma once
 
+#include "esphome/core/application.h"  // For App
+#include "esphome/core/hal.h"          // For delay()
 #include "esphome/core/log.h"
 #include <cstdint>
 
@@ -135,6 +137,38 @@ namespace nspanel_ha_blueprint {
         }
 
         return fully_ready;
+    }
+
+    /// @brief Feed the watchdog timer with an optional delay
+    ///
+    /// This utility function combines a delay with a watchdog timer feed operation.
+    /// It's commonly used in long-running operations to prevent watchdog timeouts
+    /// while giving the system time to process other tasks.
+    ///
+    /// @param ms Delay duration in milliseconds before feeding the watchdog (default: 5ms)
+    ///
+    /// @note This function is blocking - execution will pause for the specified duration
+    /// @note Minimum recommended delay is 5ms to allow system task processing
+    ///
+    /// @code
+    /// // Example usage with default 5ms delay
+    /// feed_wdt_delay();
+    ///
+    /// // Example usage with custom 25ms delay
+    /// feed_wdt_delay(25);
+    ///
+    /// // Common pattern in loops
+    /// for (uint8_t i = 0; i < 10; ++i) {
+    ///   // ... do work ...
+    ///   feed_wdt_delay(5);  // Prevent watchdog timeout
+    /// }
+    /// @endcode
+    ///
+    /// @see delay()
+    /// @see App.feed_wdt()
+    inline void feed_wdt_delay(uint32_t ms = 5) {
+        esphome::delay(ms);       // Block execution for specified milliseconds
+        esphome::App.feed_wdt();  // Reset the watchdog timer
     }
 
 }  // namespace nspanel_ha_blueprint
