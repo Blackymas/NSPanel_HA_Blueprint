@@ -1,6 +1,7 @@
 // base.h - Generic flag system for NSPanel HA Blueprint
 #pragma once
 
+#include "esphome/components/api/custom_api_device.h"  // For API HA event call
 #include "esphome/core/application.h"  // For App
 #include "esphome/core/hal.h"          // For delay()
 #include "esphome/core/log.h"
@@ -173,5 +174,31 @@ namespace nspanel_ha_blueprint {
 
     // Cached device name to avoid repeated lookups and string copies
     extern std::string cached_device_name;
+
+    /**
+    * @brief Fire a Home Assistant event for NSPanel HA Blueprint
+    *
+    * Automatically adds device_name and type to the event data.
+    *
+    * @param type Event type (e.g., "button_click", "page_changed", "boot")
+    * @param data Additional event data (device_name and type added automatically)
+    *
+    * @note The event name is automatically set to "esphome.nspanel_ha_blueprint"
+    * @note Call init_device_name_cache() during boot before using this function
+    *
+    * @code
+    * fire_ha_event("button_click", {
+    *   {"page", "home"},
+    *   {"component", "bt_left"}
+    * });
+    * @endcode
+    */
+    inline void fire_ha_event(const std::string& type, std::map<std::string, std::string> data = {}) {
+        data["device_name"] = cached_device_name;
+        data["type"] = type;
+
+        esphome::api::CustomAPIDevice ha_event;
+        ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", data);
+    }
 
 }  // namespace nspanel_ha_blueprint
