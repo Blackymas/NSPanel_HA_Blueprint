@@ -147,22 +147,7 @@ text_sensor:
     disabled_by_default: false
     update_interval: never
     lambda: |-
-      return { App.get_name() };
-    filters:
-      - lambda: |-
-          std::string result;
-          bool last_was_underscore = false;
-          for (const char& c : x) {
-            if (isalnum(c)) {
-              result += tolower(c);  // Add alphanumeric characters as lowercase
-              last_was_underscore = false;
-            } else if (!last_was_underscore) {  // Replace non-alphanumeric with '_' but avoid consecutive '_'
-              result += '_';
-              last_was_underscore = true;
-            }
-          }
-          ESP_LOGI("${TAG_HW_WIFI}", "Device name: %s", result.c_str());
-          return result;
+      return { cached_device_name };
 
 wifi:
   id: wifi_component
@@ -170,12 +155,28 @@ wifi:
     - id: wifi_default
       ssid: ${wifi_ssid}
       password: ${wifi_password}
+
   on_connect:
     then:
       - lambda: |-
           system_flags.wifi_ready = true;
-          device_name->update();
           refresh_wifi_icon->execute();
+          if (cached_device_name.empty()) {
+            const std::string raw_name = App.get_name();
+            bool last_was_underscore = false;
+            for (const char& c : raw_name) {
+              if (isalnum(c)) {
+                cached_device_name += tolower(c);  // Add alphanumeric characters as lowercase
+                last_was_underscore = false;
+              } else if (!last_was_underscore) {  // Replace non-alphanumeric with '_' but avoid consecutive '_'
+                cached_device_name += '_';
+                last_was_underscore = true;
+              }
+            }
+            ESP_LOGI("${TAG_HW_WIFI}", "Device name: %s", cached_device_name.c_str());
+            device_name->publish_state(cached_device_name.c_str());
+          }
+
   on_disconnect:
     then:
       - lambda: |-

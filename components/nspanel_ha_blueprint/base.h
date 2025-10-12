@@ -171,4 +171,7 @@ namespace nspanel_ha_blueprint {
         esphome::App.feed_wdt();  // Reset the watchdog timer
     }
 
+    // Cached device name to avoid repeated lookups and string copies
+    extern std::string cached_device_name;
+
 }  // namespace nspanel_ha_blueprint
