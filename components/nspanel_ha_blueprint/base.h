@@ -1,6 +1,9 @@
 // base.h - Generic flag system for NSPanel HA Blueprint
 #pragma once
 
+#include "esphome/components/api/custom_api_device.h"  // For API HA event call
+#include "esphome/core/application.h"  // For App
+#include "esphome/core/hal.h"          // For delay()
 #include "esphome/core/log.h"
 #include <cstdint>
 
@@ -135,6 +138,67 @@ namespace nspanel_ha_blueprint {
         }
 
         return fully_ready;
+    }
+
+    /// @brief Feed the watchdog timer with an optional delay
+    ///
+    /// This utility function combines a delay with a watchdog timer feed operation.
+    /// It's commonly used in long-running operations to prevent watchdog timeouts
+    /// while giving the system time to process other tasks.
+    ///
+    /// @param ms Delay duration in milliseconds before feeding the watchdog (default: 5ms)
+    ///
+    /// @note This function is blocking - execution will pause for the specified duration
+    /// @note Minimum recommended delay is 5ms to allow system task processing
+    ///
+    /// @code
+    /// // Example usage with default 5ms delay
+    /// feed_wdt_delay();
+    ///
+    /// // Example usage with custom 25ms delay
+    /// feed_wdt_delay(25);
+    ///
+    /// // Common pattern in loops
+    /// for (uint8_t i = 0; i < 10; ++i) {
+    ///   // ... do work ...
+    ///   feed_wdt_delay(5);  // Prevent watchdog timeout
+    /// }
+    /// @endcode
+    ///
+    /// @see delay()
+    /// @see App.feed_wdt()
+    inline void feed_wdt_delay(uint32_t ms = 5) {
+        esphome::delay(ms);       // Block execution for specified milliseconds
+        esphome::App.feed_wdt();  // Reset the watchdog timer
+    }
+
+    // Cached device name to avoid repeated lookups and string copies
+    extern std::string cached_device_name;
+
+    /**
+    * @brief Fire a Home Assistant event for NSPanel HA Blueprint
+    *
+    * Automatically adds device_name and type to the event data.
+    *
+    * @param type Event type (e.g., "button_click", "page_changed", "boot")
+    * @param data Additional event data (device_name and type added automatically)
+    *
+    * @note The event name is automatically set to "esphome.nspanel_ha_blueprint"
+    * @note Call init_device_name_cache() during boot before using this function
+    *
+    * @code
+    * fire_ha_event("button_click", {
+    *   {"page", "home"},
+    *   {"component", "bt_left"}
+    * });
+    * @endcode
+    */
+    inline void fire_ha_event(const std::string& type, std::map<std::string, std::string> data = {}) {
+        data["device_name"] = cached_device_name;
+        data["type"] = type;
+
+        esphome::api::CustomAPIDevice ha_event;
+        ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", data);
     }
 
 }  // namespace nspanel_ha_blueprint

@@ -32,249 +32,135 @@ script:
       - lambda: |-
           ESP_LOGI("TAG_BOOT", "Starting boot sequence");
           blueprint_status_flags.reset();
-      - script.execute: wait_to_be_ready
-      - script.execute: boot_preparation
-      - script.execute: boot_critical_components
+          wait_to_be_ready->execute();
+          boot_preparation->execute();
+          boot_critical_components->execute();
       - script.wait: boot_critical_components
-      - script.execute: boot_early_routines
+      - lambda: boot_early_routines->execute();
       - script.wait: boot_early_routines
 
       - delay: 1s
       # This should be moved somewhere else
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: "Starting sequence"
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_progress
-          step: 0
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_progress
-          step: 1
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_progress
-          step: 2
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: "Waiting for Wi-Fi"
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute: wait_for_wifi
+      - lambda: |-
+          boot_log->execute("Boot", "Starting sequence");
+          boot_progress->execute(0);
+          boot_log->execute("Boot", "Waiting for Wi-Fi");
+          wait_for_wifi->execute();
       - script.wait: wait_for_wifi
+
+      - delay: ${DELAY_SHORT}ms
       - if:
           condition:
             - lambda: |-
                 return !system_flags.wifi_ready;
           then:
-            - script.execute:
-                id: boot_log
-                category: Boot
-                log_message: "Wi-Fi not available"
+            - lambda: |-
+                boot_log->execute("Boot", "Wi-Fi not available");
           else:  # Wi-Fi connected
-            - script.execute:
-                id: boot_log
-                category: Boot
-                log_message: "Wi-Fi connected"
-            - delay: ${DELAY_DEFAULT}ms
-            - script.execute:
-                id: boot_progress
-                step: 3
-            - if:
-                condition:
-                  - lambda: return current_page_id == ${PAGE_BOOT_ID};
-                then:
-                  - delay: ${DELAY_DEFAULT}ms
-                  - lambda: |-
-                      disp1->set_component_text_printf("sys_ip", "IP: %s",
-                                                        network::get_ip_addresses()[0].str().c_str());
-            - script.execute: wait_for_api
-            - script.wait: wait_for_api
-            - if:
-                condition:
-                  - lambda: |-
-                      return not system_flags.api_ready;
-                then:
-                  - delay: ${DELAY_DEFAULT}ms
-                  - script.execute:
-                      id: boot_log
-                      category: Boot
-                      log_message: "API not available"
-                else:  # API connected
-                  - delay: ${DELAY_DEFAULT}ms
-                  - script.execute:
-                      id: boot_log
-                      category: Boot
-                      log_message: "API connected"
-                  - script.execute:
-                      id: boot_progress
-                      step: 4
+            - lambda: |-
+                boot_log->execute("Boot", "Wi-Fi connected");
+                boot_progress->execute(3);
+                page_boot_show_ip->execute();
 
-      # Display settings
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: "Sending display settings"
-      - delay: ${DELAY_DEFAULT}ms
+      - lambda: wait_for_api->execute();
+      - script.wait: wait_for_api
       - lambda: |-
+          boot_progress->execute(4);
+          if (system_flags.api_ready) {
+            boot_log->execute("Boot", "API connected");
+          } else {
+            boot_log->execute("Boot", "API not available");
+          }
+
+          // Display settings
+          boot_log->execute("Boot", "Sending display settings");
           disp1->send_command_printf("brightness=%i", int(display_brightness->state));
           disp1->set_component_value("settings.brightslider", int(display_brightness->state));
+          feed_wdt_delay(${DELAY_SHORT});
           disp1->send_command_printf("brightness_dim=%i", int(display_dim_brightness->state));
           disp1->set_component_value("settings.dimslider", int(display_dim_brightness->state));
+          feed_wdt_delay(${DELAY_SHORT});
           disp1->send_command_printf("brightness_sleep=%i", int(display_sleep_brightness->state));
           disp1->send_command_printf("wakeup_page_id=%" PRIu8, get_page_id(wakeup_page_name->state.c_str()));
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_progress
-          step: 5
+          boot_progress->execute(5);
+          feed_wdt_delay(${DELAY_SHORT});
 
-      # Publish Nextion state
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: "Publish Nextion state"
-      - delay: ${DELAY_DEFAULT}ms
-      - binary_sensor.template.publish:
-          id: nextion_init
-          state: !lambda return disp1->is_setup();
-
-      # Inform Home Assistant when Nextion is initialized
-      - delay: ${DELAY_DEFAULT}ms
-      - if:
-          condition:
-            - lambda: |-
-                return system_flags.api_ready;
-            - lambda: return disp1->is_setup();
-          then:
-            - delay: ${DELAY_DEFAULT}ms
-            - script.execute:
-                id: boot_log
-                category: Boot
-                log_message: "Send `nextion_init` event to Home Assistant"
-            - homeassistant.event:
-                event: ${EVENT_NAME}
-                data:
-                  device_name: !lambda return device_name->state.c_str();
-                  esphome_version: ${version}
-                  type: boot
-                  step: nextion_init
-      - script.execute:
-          id: boot_progress
-          step: 6
+          // Publish Nextion state
+          boot_log->execute("Boot", "Publish Nextion state");
+          nextion_init->publish_state(disp1->is_setup());
+          boot_progress->execute(6);
 
       # Wait for a response from the blueprint
+      - delay: ${DELAY_DEFAULT}ms
       - if:
           condition:
             - lambda: return not system_flags.blueprint_ready;
           then:
-            - delay: ${DELAY_DEFAULT}ms
             - lambda: |-
-                ESP_LOGD("${TAG_BOOT}", "Asking Blueprint to start sending data");
-            - homeassistant.event:
-                event: ${EVENT_NAME}
-                data:
-                  device_name: !lambda return device_name->state.c_str();
-                  esphome_version: ${version}
-                  type: boot
-                  step: start
-            - script.execute: wait_for_blueprint
+                boot_request_blueprint_settings->execute("start");
+                wait_for_blueprint->execute();
             - script.wait: wait_for_blueprint
-            - if:
-                condition:
-                  - lambda: return system_flags.blueprint_ready;
-                then:
-                  - delay: ${DELAY_DEFAULT}ms
-                  - script.execute:
-                      id: boot_progress
-                      step: 7
-                else:
-                  - script.execute:
-                      id: boot_log
-                      category: Boot
-                      log_message: "Blueprint not available"
-
-      # Setup Home page
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: "Set Home page elements"
-
-      # Chips icon size
-      - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
+          if (not system_flags.blueprint_ready) {
+            boot_log->execute("Boot", "Blueprint not available");
+          }
+          boot_progress->execute(7);
+
+          // Setup Home page
+          boot_log->execute("Boot", "Set Home page elements");
+
+          // Refresh relay chips with correct state-based colors after blueprint settings are received
+          refresh_relays->execute(3);
+          feed_wdt_delay(${DELAY_SHORT});
+
+          // Chips icon size
           for (uint8_t i = 1; i <= 7; ++i) {
             disp1->send_command_printf("home.chip%02d.font=%i", i, id(home_chip_font_id));
+            feed_wdt_delay(${DELAY_SHORT});
           }
 
-      # Custom buttons icon size
-      - delay: ${DELAY_DEFAULT}ms
-      - lambda: |-
+          // Custom buttons icon size
           for (uint8_t i = 1; i <= 7; ++i) {
             disp1->send_command_printf("home.button%02d.font=%i", i, id(home_custom_buttons_font_id));
+            feed_wdt_delay(${DELAY_SHORT});
           }
 
-      # Other components icons size and color
-      - delay: ${DELAY_DEFAULT}ms
-      - lambda: |-
+          // Other components icons size and color
           disp1->set_component_font("home.bt_notific", id(home_custom_buttons_font_id));
           disp1->set_component_font("home.bt_qrcode", id(home_custom_buttons_font_id));
           disp1->set_component_font("home.bt_entities", id(home_custom_buttons_font_id));
           disp1->set_component_font("home.wifi_icon", id(home_chip_font_id));
-          disp1->set_component_font_color("home.chip_relay1", id(home_relay1_icon_color));
-          disp1->set_component_font_color("home.chip_relay2", id(home_relay2_icon_color));
+          feed_wdt_delay(${DELAY_SHORT});
 
-      # Bluetooth icon
-      - delay: ${DELAY_DEFAULT}ms
-      - lambda: |-
-          #if defined(USE_ESP32_BLE_SERVER) || defined(USE_ESP32_BLE_CLIENT) || defined(USE_BLUETOOTH_PROXY) || defined(USE_IMPROV)
+          // Set relay chips to invisible initially (will be updated by refresh_relays when home page loads)
+          disp1->set_component_font_color("home.chip_relay1", Colors::BLACK);
+          disp1->set_component_font_color("home.chip_relay2", Colors::BLACK);
+          feed_wdt_delay(${DELAY_SHORT});
+
+          // Bluetooth icon
+          #ifdef USE_BLUETOOTH
           disp1->set_component_text("home.bt_icon", "\uE0AE");
           #else
           disp1->set_component_text("home.bt_icon", "");
           #endif
+          feed_wdt_delay(${DELAY_SHORT});
 
-      # Wrap-up
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_progress
-          step: 8
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: "Wait to finish"
-      - script.execute: wait_for_wifi
-      - script.execute: wait_for_api
-      - script.execute: wait_for_blueprint
+          // Wrap-up
+          boot_progress->execute(8);
+          boot_log->execute("Boot", "Wait to finish");
+          wait_for_wifi->execute();
+          wait_for_api->execute();
+          wait_for_blueprint->execute();
       - script.wait: wait_for_wifi
       - script.wait: wait_for_api
       - script.wait: wait_for_blueprint
-      - script.execute:
-          id: boot_progress
-          step: 9
+      - script.wait: wait_for_version_tft
 
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_progress
-          step: 10
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: set_brightness
-          brightness: !lambda return display_brightness->state;
-      - delay: ${DELAY_DEFAULT}ms
-      - script.execute:
-          id: boot_log
-          category: Boot
-          log_message: "Jump to wake-up page"
-
-      - script.execute:
-          id: wakeup
-          reset_timer: true
+      - lambda: |-
+          boot_progress->execute(10);
+          set_brightness->execute(display_brightness->state);
+          boot_log->execute("Boot", "Jump to wake-up page");
+          wakeup->execute(true);
 
   - id: boot_critical_components
     mode: single
@@ -311,27 +197,38 @@ script:
     parameters:
       step: uint
     then:
-      - if:
-          condition:
-            - lambda: return (step == 10);
-          then:
-            - lambda: |-
-                ESP_LOGD("${TAG_BOOT}", "Progress: Completed");
-                disp1->set_component_value("boot.progress", 100);
-                system_flags.boot_completed = true;
-          else:
-            - lambda: |-
-                ESP_LOGD("${TAG_BOOT}", "Progress: %.1f%%", blueprint_status_flags.get_completion_percentage());
-                disp1->set_component_value("boot.progress", step);
+      - lambda: |-
+          if (step >= 10) {
+            ESP_LOGD("${TAG_BOOT}", "Progress: Completed");
+            disp1->set_component_value("boot.progress", 100);
+            system_flags.boot_completed = true;
+          } else {
+            ESP_LOGD("${TAG_BOOT}", "Progress: %.1f%%", blueprint_status_flags.get_completion_percentage());
+            disp1->set_component_value("boot.progress", step*10);
+          }
+
+  - id: boot_request_blueprint_settings
+    mode: single
+    parameters:
+      step: string
+    then:
+      - lambda: |-
+          if (not system_flags.blueprint_ready) {
+            ESP_LOGD("${TAG_BOOT}", "Request blueprint settings");
+            fire_ha_event("boot", {{"step", step.c_str()}});
+          }
 
   - id: !extend stop_all
     then:
-      - script.stop: boot
-      - script.stop: boot_critical_components
-      - script.stop: boot_early_routines
-      - script.stop: boot_log
-      - script.stop: boot_preparation
-      - script.stop: boot_progress
+      - lambda: |-
+          boot->stop();
+          boot_critical_components->stop();
+          boot_early_routines->stop();
+          boot_log->stop();
+          boot_preparation->stop();
+          boot_progress->stop();
+          boot_request_blueprint_settings->stop();
+          wait_for_boot_completed->stop();
 
   - id: wait_for_boot_completed
     mode: single
@@ -339,43 +236,16 @@ script:
       - repeat:
           count: 300  # seconds
           then:
-            - if:
-                condition:
-                  - lambda: return system_flags.wifi_ready;
-                then:
-                  - script.stop: wait_for_wifi
-            - if:
-                condition:
-                  - lambda: return (iteration % 5 == 1);  // Log every 5 seconds (at iterations 1, 6, 11, etc.)
-                then:
-                  - script.execute:
-                      id: boot_log
-                      category: "Boot"
-                      log_message: "Waiting for Wi-Fi..."
+            - lambda: |-
+                if (system_flags.wifi_ready) wait_for_wifi->stop();
+                if (iteration % 5 == 1) boot_log->execute("Boot", "Waiting for Wi-Fi...");
             - delay: 1s
 
   - id: !extend watchdog_round
     then:
-      - if:
-          condition:
-            - lambda: return not system_flags.blueprint_ready;
-          then:
-            - lambda: |-
-                ESP_LOGW("${TAG_BOOT}", "Request blueprint settings");
-            - homeassistant.event:
-                event: ${EVENT_NAME}
-                data:
-                  device_name: !lambda return device_name->state.c_str();
-                  esphome_version: ${version}
-                  type: boot
-                  step: timeout
-      - if:
-          condition:
-            - lambda: return not system_flags.boot_completed;
-            - not:
-                - script.is_running: boot
-          then:
-            - delay: 1s
-            - script.execute: boot
-            - script.wait: boot
+      - lambda: |-
+          boot_request_blueprint_settings->execute("timeout");
+          if (not system_flags.boot_completed and not boot->is_running()) {
+            boot->execute();
+          }
 ...

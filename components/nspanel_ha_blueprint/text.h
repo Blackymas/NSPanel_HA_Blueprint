@@ -47,4 +47,6 @@ namespace nspanel_ha_blueprint {
     */
     bool isStringInList(const std::string& strToSearch, std::initializer_list<std::string> list);
 
+    uint32_t decode_utf8(const char* bytes);
+
 }  // namespace nspanel_ha_blueprint

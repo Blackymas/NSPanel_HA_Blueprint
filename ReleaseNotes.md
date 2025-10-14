@@ -1,36 +1,54 @@
-# v4.3.39 - Screen Update Fix
+# v4.3.40 - Major Memory Optimization
 
 ## Summary
 
-This release fixes a critical issue that prevented screen components from updating correctly,
-causing page construction failures.
+This release delivers significant memory optimization through a complete restructuring of the Nextion-ESPHome communication protocol, replacing JSON with CSV format for substantially reduced memory usage.
 
-## Critical Fix
+## Key Improvements
 
-### Screen Component Update Issue Resolved
+### Communication Protocol Overhaul
 
-**Fixed components failing to update on screen** - resolved issue where components would not refresh
-if an update had already been sent previously, breaking the construction of various pages.
+**Completely replaced JSON-based communication with CSV format** between Nextion display and ESPHome,
+resulting in dramatic memory savings and improved efficiency.
 
-**Issue details:**
-- Recently introduced regression prevented proper screen component updates
-- Components that received previous updates would fail to refresh with new data
-- Affected multiple pages where components needed to be updated during page construction
-- Pages would appear incomplete or show stale data
+**Protocol changes:**
 
-**Issue Reference:** #2939
+- **Replaced JSON parsing with CSV** - eliminated heavy JSON library dependencies
+- **Reduced memory footprint** - CSV parsing requires significantly less memory than JSON
+- **Improved performance** - faster parsing and lower overhead
+- **Maintained functionality** - all features work identically from user perspective
 
-**Result:** Screen components now update correctly regardless of previous update state,
-ensuring proper page construction and data display.
+**Benefits:**
+
+- **Substantial memory savings** - major reduction in RAM usage during communication
+- **Better Bluetooth compatibility** - more memory available for Bluetooth and add-ons
+- **Increased stability** - reduced memory pressure improves overall system reliability
+- **No user impact** - change is completely transparent to users
+
+### Additional Memory Optimizations
+
+**Extensive memory optimization work** throughout the codebase beyond the protocol change,
+targeting maximum memory efficiency while preserving all core functionality.
+
+**Optimization scope:**
+
+- Component memory usage reviewed and optimized
+- Data structure efficiency improvements
+- Eliminated unnecessary memory allocations
+- Streamlined memory-intensive operations
 
 ## Technical Details
 
-This fix addresses a regression in the component update mechanism that was introduced
-during recent optimization work, restoring reliable screen refresh functionality
-across all pages and components.
+The JSON to CSV conversion represents a fundamental architectural improvement in how the panel
+communicates internally. CSV’s simplicity and efficiency make it ideal for the constrained
+embedded environment, providing the same functionality with a fraction of the memory overhead.
 
-**Result:** Reliable screen component updates with proper page construction and data display.
+This release represents one of the most significant memory optimization efforts in the project,
+opening the door for more reliable operation with memory-intensive features like Bluetooth.
 
----
+**Result:** Dramatically reduced memory usage through protocol modernization and comprehensive optimization,
+improving stability and compatibility with add-ons and Bluetooth functionality.
 
-*Critical fix for screen component update and page construction issues.*
+-----
+
+*Major memory optimization release with fundamental communication protocol improvements.*
