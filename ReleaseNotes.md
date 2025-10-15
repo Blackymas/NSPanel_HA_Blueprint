@@ -1,54 +1,35 @@
-# v4.3.40 - Major Memory Optimization
+# v4.3.41 - Critical Button Page Format Fix
 
 ## Summary
 
-This release delivers significant memory optimization through a complete restructuring of the Nextion-ESPHome communication protocol, replacing JSON with CSV format for substantially reduced memory usage.
+This hotfix resolves a critical issue where button pages were still using the old JSON format
+after the CSV conversion in v4.3.40, causing button page functionality to fail.
 
-## Key Improvements
+## Critical Fix
 
-### Communication Protocol Overhaul
+### Button Page Format Conversion Completed
 
-**Completely replaced JSON-based communication with CSV format** between Nextion display and ESPHome,
-resulting in dramatic memory savings and improved efficiency.
+**Fixed button pages still using JSON format** - resolved issue where button pages weren't converted
+to the new CSV format during the v4.3.40 protocol overhaul, causing button page failures.
 
-**Protocol changes:**
+**Issue details:**
+- Button pages retained old JSON communication format after v4.3.40 update
+- Button pages would fail to load or display correctly
+- Inconsistency between button page format and rest of system using CSV
+- Affected all users who updated to v4.3.40
 
-- **Replaced JSON parsing with CSV** - eliminated heavy JSON library dependencies
-- **Reduced memory footprint** - CSV parsing requires significantly less memory than JSON
-- **Improved performance** - faster parsing and lower overhead
-- **Maintained functionality** - all features work identically from user perspective
+**Issue Reference:** #2957
 
-**Benefits:**
-
-- **Substantial memory savings** - major reduction in RAM usage during communication
-- **Better Bluetooth compatibility** - more memory available for Bluetooth and add-ons
-- **Increased stability** - reduced memory pressure improves overall system reliability
-- **No user impact** - change is completely transparent to users
-
-### Additional Memory Optimizations
-
-**Extensive memory optimization work** throughout the codebase beyond the protocol change,
-targeting maximum memory efficiency while preserving all core functionality.
-
-**Optimization scope:**
-
-- Component memory usage reviewed and optimized
-- Data structure efficiency improvements
-- Eliminated unnecessary memory allocations
-- Streamlined memory-intensive operations
+**Result:** Button pages now use CSV format consistently with the rest of the system,
+restoring full button page functionality.
 
 ## Technical Details
 
-The JSON to CSV conversion represents a fundamental architectural improvement in how the panel
-communicates internally. CSV’s simplicity and efficiency make it ideal for the constrained
-embedded environment, providing the same functionality with a fraction of the memory overhead.
+This hotfix completes the JSON to CSV migration started in v4.3.40 by converting
+the button page communication that was inadvertently missed during the initial conversion.
 
-This release represents one of the most significant memory optimization efforts in the project,
-opening the door for more reliable operation with memory-intensive features like Bluetooth.
+**Result:** Complete and consistent CSV-based communication across all pages and components.
 
-**Result:** Dramatically reduced memory usage through protocol modernization and comprehensive optimization,
-improving stability and compatibility with add-ons and Bluetooth functionality.
+---
 
------
-
-*Major memory optimization release with fundamental communication protocol improvements.*
+*Critical hotfix completing the CSV protocol conversion for button pages.*
