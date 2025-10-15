@@ -1,35 +1,41 @@
-# v4.3.41 - Critical Button Page Format Fix
+# v4.3.42 - Climate Page CSV Conversion
 
 ## Summary
 
-This hotfix resolves a critical issue where button pages were still using the old JSON format
-after the CSV conversion in v4.3.40, causing button page functionality to fail.
+This release completes additional JSON to CSV conversions, primarily for the climate page,
+continuing the protocol migration started in v4.3.40.
 
-## Critical Fix
+## Key Improvements
 
-### Button Page Format Conversion Completed
+### Climate Page JSON Cleanup
 
-**Fixed button pages still using JSON format** - resolved issue where button pages weren't converted
-to the new CSV format during the v4.3.40 protocol overhaul, causing button page failures.
+**Fixed remaining JSON format usage on climate page** - addressed components that were missed
+during the initial CSV conversion, completing the climate page migration.
 
-**Issue details:**
-- Button pages retained old JSON communication format after v4.3.40 update
-- Button pages would fail to load or display correctly
-- Inconsistency between button page format and rest of system using CSV
-- Affected all users who updated to v4.3.40
+**Improvements:**
+- **Remaining climate components now use CSV** - finished converting missed components
+- **Complete climate page consistency** - all climate page components now use unified CSV format
+- **Additional memory savings** - eliminated remaining JSON parsing on climate page
+- **Better overall consistency** - climate page fully aligned with CSV protocol
 
-**Issue Reference:** #2957
+### Additional JSON Cleanup
 
-**Result:** Button pages now use CSV format consistently with the rest of the system,
-restoring full button page functionality.
+**Resolved other remaining JSON format references** throughout the system,
+ensuring more complete migration to the efficient CSV protocol.
+
+**Benefits:**
+- **Improved protocol consistency** - fewer legacy JSON references remaining
+- **Additional memory savings** - eliminated more JSON parsing overhead
+- **Enhanced stability** - reduced memory usage and processing overhead
 
 ## Technical Details
 
-This hotfix completes the JSON to CSV migration started in v4.3.40 by converting
-the button page communication that was inadvertently missed during the initial conversion.
+This release continues the systematic conversion from JSON to CSV format,
+addressing the climate page and other remaining areas that were using the legacy JSON protocol.
 
-**Result:** Complete and consistent CSV-based communication across all pages and components.
+**Result:** Further memory optimization and protocol consistency with climate page CSV conversion
+and additional JSON reference cleanup.
 
 ---
 
-*Critical hotfix completing the CSV protocol conversion for button pages.*
+*Continued CSV protocol migration with climate page conversion and JSON cleanup.*
