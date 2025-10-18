@@ -10,7 +10,7 @@ blueprint:
   description: >
     # NSPanel Configuration via Blueprint: Complete UI-Based Setup
 
-    **Version**: v4.3.42
+    **Version**: v4.3.43
 
 
     This project enables comprehensive configuration of your NSPanel through a Blueprint featuring a user interface.
@@ -3714,6 +3714,28 @@ blueprint:
               filter:
                 domain:
                   - sun
+        device_name_override:
+          name: Device Name Override (Optional)
+          description: >
+            **USE WITH CAUTION**
+
+            Manually specify the device name used to construct entity IDs (e.g., `sensor.DEVICENAME_temperature`).
+
+            This overrides the automatic device name detection. Only use if you know the exact device name used in your ESPHome configuration.
+
+            **Requirements:**
+            - Must match the ESPHome device name exactly (case-sensitive before sanitization)
+            - Will be sanitized: special characters replaced with `_`, converted to lowercase
+            - Leave empty to use automatic detection
+
+            **Example:** If your ESPHome device is named `NSPanel Kitchen`, enter `NSPanel Kitchen` here.
+            It will be converted to `nspanel_kitchen` for entity IDs.
+          default: ""
+          selector:
+            text:
+              multiline: false
+              multiple: false
+              type: text
 
 mode: parallel
 max: 50
@@ -3723,12 +3745,23 @@ trace:
 
 trigger_variables:
   nspanel_deviceid: !input nspanel_name
+  device_name_override: !input device_name_override
   nspanel_entities: '{{ device_entities(nspanel_deviceid) }}'
   device_name: >
-    {%- if nspanel_entities | count > 0 %}
-      {{ (nspanel_entities | selectattr(None, "search", "_nextion_display") | list | first).split(".")[1].split("_nextion_display")[0] }}
-    {%- elif nspanel_deviceid is string %}
-      {{ nspanel_deviceid | regex_replace("[^a-zA-Z0-9]", "_") | regex_replace("_+", "_") | lower }}
+    {%- if device_name_override is string and device_name_override | length > 0 %}
+      {{ device_name_override | regex_replace("[^a-zA-Z0-9]", "_") | regex_replace("_+", "_") | lower }}
+    {%- else %}
+      {%- set display_entities = nspanel_entities | selectattr(None, "search", "_nextion_display") | list %}
+      {%- if display_entities | count > 0 %}
+        {%- set entity_first = display_entities | first %}
+        {%- set entity_parts = entity_first.split(".") %}
+        {%- set entity_parts_last = entity_parts | list | last %}
+        {%- set name_parts = entity_parts_last.split("_nextion_display") %}
+        {%- set name_parts_first = name_parts | first %}
+        {{ name_parts_first }}
+      {%- else %}
+        {{ nspanel_deviceid | default("nspanel") | string | regex_replace("[^a-zA-Z0-9]", "_") | regex_replace("_+", "_") | lower }}
+      {%- endif %}
     {%- endif %}
 
   device_name_sensor: >
@@ -3801,7 +3834,7 @@ trigger_variables:
     }}
 
 variables:
-  blueprint_version: '4.3.42'
+  blueprint_version: '4.3.43'
   pages:
     current: '{{ states(currentpage) }}'
     home: "home"
@@ -3862,7 +3895,7 @@ variables:
     }}
 
 # yamllint disable rule:indentation rule:comments-indentation
-trigger:
+triggers:
   ##### Trigger - General #################################################################################################################
 
     ##### Panel Event - This is the new main event handler introduced on v4.0 to get info from the panel #####
@@ -10011,13 +10044,12 @@ action:
                               - '{{ nspanel_event is defined }}'
                               - '{{ nspanel_event.page is defined }}'
                               - '{{ nspanel_event.page == pages.climate }}'
-                              - '{{ climate_entity_temp is defined }}'
-                              - '{{ climate_entity_temp is not string or climate_entity_temp | length < 9 }}'
+                              - '{{ climate_entity is defined }}'
                             then:
                               - *delay_default
                               - action: 'esphome.{{ nspanel_name }}_entity_details_show'
                                 data:
-                                  entity: '{{ climate }}'
+                                  entity: '{{ climate_entity }}'
                                   back_page: home
                                 continue_on_error: true
 
@@ -10998,7 +11030,6 @@ action:
                   - choose:
                       - alias: Hardware buttons
                         conditions:
-                          - '{{ nspanel_event is defined }}'
                           - '{{ nspanel_event.component is defined }}'
                           - '{{ nspanel_event.component in ["hw_bt_left", "hw_bt_right"] }}'
                         sequence:
@@ -11016,7 +11047,6 @@ action:
                                   if last_click_button is defined and last_click_button.entity is defined
                                   else None
                                 }}
-                          - condition: '{{ entity_id is string and entity_id | length > 2 }}'
                           - *variable_entity
                           - choose:
                               - alias: Long click

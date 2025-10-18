@@ -193,12 +193,6 @@ namespace nspanel_ha_blueprint {
     * });
     * @endcode
     */
-    inline void fire_ha_event(const std::string& type, std::map<std::string, std::string> data = {}) {
-        data["device_name"] = cached_device_name;
-        data["type"] = type;
-
-        esphome::api::CustomAPIDevice ha_event;
-        ha_event.fire_homeassistant_event("esphome.nspanel_ha_blueprint", data);
-    }
+    void fire_ha_event(const std::string &type, std::map<std::string, std::string> data = {});
 
 }  // namespace nspanel_ha_blueprint

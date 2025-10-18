@@ -95,6 +95,32 @@ script:
             }
           }
 
+  - id: change_climate_state
+    mode: restart
+    parameters:
+      embedded: bool
+      key: string
+      value: string
+    then:
+      - lambda: |-
+          if (!embedded and is_device_ready_for_tasks()) {
+            if (key == "temperature" or key == "target_temp_high" or key == "target_temp_low") {
+              fire_ha_event("action_call", {
+                {"action", "climate.set_temperature"},
+                {"key", key.c_str()},
+                {"value", to_string(stof(value) / 10)},
+                {"entity", detailed_entity->state.c_str()}
+              });
+            } else if (key == "hvac_mode") {
+              fire_ha_event("action_call", {
+                {"action", "climate.set_hvac_mode"},
+                {"key", "hvac_mode"},
+                {"value", value.c_str()},
+                {"entity", detailed_entity->state.c_str()}
+              });
+            }
+          }
+
   - id: !extend event_from_display  # Defined by hw_display
     then:
       - lambda: |-
@@ -102,31 +128,15 @@ script:
               // CSV Format: climate,key,<value>,...
               // params[0]=page, params[1]=key, params[2]=value,...
 
-            if (params_count < 3) {
+            if (params_count != 4) {
               ESP_LOGW("${TAG_PAGE_CLIMATE}", "Bad params");
               return;
             }
 
             const std::string& key = params[1];
             const std::string& value = params[2];
-
-            if (key == "temperature") {
-              // CSV Format: climate,temperature,<value*10>,<embedded>
-              // params[0]=page, params[1]=temperature, params[2]=temperature value, params[3]=embedded (0/1)
-
-              if (params_count != 4) {
-                ESP_LOGW("${TAG_PAGE_CLIMATE}", "Bad params");
-                return;
-              }
-              const std::string& embedded = params[3];
-              change_climate_state->execute(embedded == "1", key.c_str(), value.c_str());
-            }
-
-            fire_ha_event("generic", {  // Send event to Home Assistant
-              {"page", "climate"},
-              {"value", value.c_str()},
-              {"entity", detailed_entity->state.c_str()}
-            });
+            const std::string& embedded = params[3];
+            change_climate_state->execute(embedded == "1", key.c_str(), value.c_str());
           }
 
   - id: !extend page_change
@@ -265,6 +275,10 @@ script:
             disp1->set_component_value("active_slider", active_slider);
 
           disp1->set_component_value("embedded", (set_climate_embedded_climate) ? 1 : 0);
+
+  - id: !extend stop_all
+    then:
+      - lambda: change_climate_state->stop();
 
   - id: !extend stop_page_constructors
     then:
