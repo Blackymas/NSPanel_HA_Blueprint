@@ -1,41 +1,54 @@
-# v4.3.42 - Climate Page CSV Conversion
+# v4.3.43 - Bug Fixes and Memory Optimization
 
 ## Summary
 
-This release completes additional JSON to CSV conversions, primarily for the climate page,
-continuing the protocol migration started in v4.3.40.
+This release addresses several bugs on climate and home pages while continuing memory optimization efforts
+to support Bluetooth functionality.
+
+## Bug Fixes
+
+### Climate Page Issues Resolved
+
+**Fixed multiple issues on climate page** affecting display and functionality.
+
+**Issues resolved:**
+- Climate page display corrections
+- Improved climate page reliability
+- Better climate control behavior
+
+### Home Page Issues Resolved
+
+**Fixed various issues on home page** improving overall user experience and functionality.
+
+**Issues resolved:**
+- Home page display corrections
+- Enhanced home page stability
+- Improved home page component behavior
 
 ## Key Improvements
 
-### Climate Page JSON Cleanup
+### Continued Memory Optimization
 
-**Fixed remaining JSON format usage on climate page** - addressed components that were missed
-during the initial CSV conversion, completing the climate page migration.
+**Additional memory reduction** targeting stable Bluetooth support for users who add Bluetooth components to their panels.
 
-**Improvements:**
-- **Remaining climate components now use CSV** - finished converting missed components
-- **Complete climate page consistency** - all climate page components now use unified CSV format
-- **Additional memory savings** - eliminated remaining JSON parsing on climate page
-- **Better overall consistency** - climate page fully aligned with CSV protocol
-
-### Additional JSON Cleanup
-
-**Resolved other remaining JSON format references** throughout the system,
-ensuring more complete migration to the efficient CSV protocol.
+**Optimization progress:**
+- **Further memory savings** across various components
+- **Bluetooth compatibility focus** - continued work toward reliable Bluetooth operation
+- **System stability improvements** - reduced memory pressure throughout
 
 **Benefits:**
-- **Improved protocol consistency** - fewer legacy JSON references remaining
-- **Additional memory savings** - eliminated more JSON parsing overhead
-- **Enhanced stability** - reduced memory usage and processing overhead
+- **Closer to Bluetooth support goal** - incremental progress toward stable Bluetooth functionality
+- **Improved overall stability** - benefits all users through reduced memory usage
+- **Better add-on compatibility** - more memory available for add-ons and customizations
 
 ## Technical Details
 
-This release continues the systematic conversion from JSON to CSV format,
-addressing the climate page and other remaining areas that were using the legacy JSON protocol.
+This release combines targeted bug fixes with ongoing memory optimization efforts,
+addressing user-reported issues while continuing the systematic work toward full Bluetooth compatibility.
 
-**Result:** Further memory optimization and protocol consistency with climate page CSV conversion
-and additional JSON reference cleanup.
+**Result:** Resolved climate and home page issues with additional memory savings
+contributing toward reliable Bluetooth support.
 
 ---
 
-*Continued CSV protocol migration with climate page conversion and JSON cleanup.*
+*Bug fixes and continued memory optimization for Bluetooth compatibility.*
