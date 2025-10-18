@@ -1,54 +1,38 @@
-# v4.3.43 - Bug Fixes and Memory Optimization
+# v4.3.44 - Cover Add-on Fix
 
 ## Summary
 
-This release addresses several bugs on climate and home pages while continuing memory optimization efforts
-to support Bluetooth functionality.
+This release fixes a critical issue with the cover add-on where opening and closing operations
+were both incorrectly calling the closing routine.
 
-## Bug Fixes
+## Critical Fix
 
-### Climate Page Issues Resolved
+### Cover Add-on Open/Close Actions Corrected
 
-**Fixed multiple issues on climate page** affecting display and functionality.
+**Fixed cover add-on action routing** - resolved issue where both opening and closing operations
+were incorrectly calling the closing routine instead of their respective routines.
 
-**Issues resolved:**
-- Climate page display corrections
-- Improved climate page reliability
-- Better climate control behavior
+**Issue details:**
+- Cover add-on opening action was calling the closing routine (script)
+- Cover add-on closing action was correctly calling the closing routine
+- Opening operations would execute closing behavior instead
+- Affected all users using the cover add-on
 
-### Home Page Issues Resolved
+**Fix implemented:**
+- Open action now correctly calls the opening routine (script)
+- Close action continues to correctly call the closing routine
+- Both operations now execute their intended behavior
 
-**Fixed various issues on home page** improving overall user experience and functionality.
-
-**Issues resolved:**
-- Home page display corrections
-- Enhanced home page stability
-- Improved home page component behavior
-
-## Key Improvements
-
-### Continued Memory Optimization
-
-**Additional memory reduction** targeting stable Bluetooth support for users who add Bluetooth components to their panels.
-
-**Optimization progress:**
-- **Further memory savings** across various components
-- **Bluetooth compatibility focus** - continued work toward reliable Bluetooth operation
-- **System stability improvements** - reduced memory pressure throughout
-
-**Benefits:**
-- **Closer to Bluetooth support goal** - incremental progress toward stable Bluetooth functionality
-- **Improved overall stability** - benefits all users through reduced memory usage
-- **Better add-on compatibility** - more memory available for add-ons and customizations
+**Result:** Cover add-on now operates correctly with opening and closing actions
+executing their proper routines.
 
 ## Technical Details
 
-This release combines targeted bug fixes with ongoing memory optimization efforts,
-addressing user-reported issues while continuing the systematic work toward full Bluetooth compatibility.
+This fix corrects the action routing in the cover add-on, ensuring that opening and closing
+operations call their respective scripts rather than both calling the same closing routine.
 
-**Result:** Resolved climate and home page issues with additional memory savings
-contributing toward reliable Bluetooth support.
+**Result:** Proper cover add-on operation with correctly routed opening and closing actions.
 
 ---
 
-*Bug fixes and continued memory optimization for Bluetooth compatibility.*
+*Critical fix for cover add-on action routing.*
