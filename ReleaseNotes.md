@@ -1,38 +1,44 @@
-# v4.3.44 - Cover Add-on Fix
+# v4.3.45 - Alarm Security Vulnerability Fix
 
 ## Summary
 
-This release fixes a critical issue with the cover add-on where opening and closing operations
-were both incorrectly calling the closing routine.
+This release fixes a critical security vulnerability in the alarm module where triggered alarms
+could be bypassed by switching to another armed state.
 
-## Critical Fix
+## Critical Security Fix
 
-### Cover Add-on Open/Close Actions Corrected
+### Alarm Bypass Vulnerability Resolved
 
-**Fixed cover add-on action routing** - resolved issue where both opening and closing operations
-were incorrectly calling the closing routine instead of their respective routines.
+**Fixed security vulnerability allowing alarm trigger bypass** - resolved issue where switching
+to another armed state while alarm was triggered would cancel the trigger, effectively bypassing the alarm.
 
-**Issue details:**
-- Cover add-on opening action was calling the closing routine (script)
-- Cover add-on closing action was correctly calling the closing routine
-- Opening operations would execute closing behavior instead
-- Affected all users using the cover add-on
+**Vulnerability details:**
+- **Previous behavior:** When alarm was armed and triggered, switching to another armed state (e.g., arm away to arm home) would cancel the trigger
+- **Security risk:** Allowed bypassing active alarm triggers without disarming
+- **Impact:** All users with alarm functionality were potentially affected
 
 **Fix implemented:**
-- Open action now correctly calls the opening routine (script)
-- Close action continues to correctly call the closing routine
-- Both operations now execute their intended behavior
+- **Once armed, arming, or triggered:** Only disarm action is allowed
+- **All other state changes disabled:** Prevents bypassing triggered alarms
+- **Security enforced:** Triggered alarms can only be resolved by proper disarming
 
-**Result:** Cover add-on now operates correctly with opening and closing actions
-executing their proper routines.
+**Result:** Alarm system now properly enforces security by requiring disarm action
+for triggered alarms, closing the security loophole.
+
+## Community Contribution
+
+**Special thanks to @ecov773** for identifying this security vulnerability and providing the fix.
+
+**Pull Request:** #2981
 
 ## Technical Details
 
-This fix corrects the action routing in the cover add-on, ensuring that opening and closing
-operations call their respective scripts rather than both calling the same closing routine.
+This fix strengthens alarm security by restricting state transitions when the alarm is armed, arming, or triggered.
+The only permitted action from these states is disarm, preventing security bypasses through state switching.
 
-**Result:** Proper cover add-on operation with correctly routed opening and closing actions.
+**Result:** Enhanced alarm security with proper state transition enforcement
+preventing alarm trigger bypass.
 
 ---
 
-*Critical fix for cover add-on action routing.*
+*Critical security fix for alarm trigger bypass vulnerability. Thanks @ecov773!*
