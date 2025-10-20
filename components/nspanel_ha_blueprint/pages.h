@@ -7,12 +7,12 @@
 #include <string>
 #include <initializer_list>
 
-namespace nspanel_ha_blueprint {
+/**
+* @file pages.h
+* Defines constants and functions related to page names for the NSPanel HA Blueprint project.
+*/
 
-    /**
-    * @file pages.h
-    * Defines constants and functions related to page names for the NSPanel HA Blueprint project.
-    */
+namespace nspanel_ha_blueprint {
 
     // Constants
     /**
