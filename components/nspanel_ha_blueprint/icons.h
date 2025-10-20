@@ -75,6 +75,7 @@ namespace nspanel_ha_blueprint {
     namespace Colors {
         constexpr uint16_t BLACK = 0;              ///< Hidden/invisible (RGB565: 0x0000)
         constexpr uint16_t BLUE = 1055;            ///< Cooling action (RGB565: 0x041F)
+        constexpr uint16_t BLUE_BLUETOOTH = 1279;  ///< Bluetooth blue (RGB565: 0x04FF)
         constexpr uint16_t BLUE_INDIGO = 10597;    ///< Indigo blue (RGB565: 0x2965)
         constexpr uint16_t CYAN = 1530;            ///< Fan action (RGB565: 0x05FA)
         constexpr uint16_t CYAN_BRIGHT = 7519;     ///< Bright cyan (RGB565: 0x1D5F)
