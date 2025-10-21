@@ -18,12 +18,23 @@ to another armed state while alarm was triggered would cancel the trigger, effec
 - **Impact:** All users with alarm functionality were potentially affected
 
 **Fix implemented:**
-- **Once armed, arming, or triggered:** Only disarm action is allowed
-- **All other state changes disabled:** Prevents bypassing triggered alarms
-- **Security enforced:** Triggered alarms can only be resolved by proper disarming
+- **When alarm is triggered:** Only disarm action is available (always enforced)
+- **When alarm is armed (optional):** Set `require_disarm_before_rearm: true` to require disarm before switching armed states
+- **Configurable behavior:** Users can choose whether to require disarm when switching between armed states
+
+**Configuration:**
+```yaml
+substitutions:
+  require_disarm_before_rearm: false  # Set to true to require disarm before switching armed states (default: false)
+```
+
+**Default behavior:** 
+- Disarm always required when triggered (security enforced)
+- Switching between armed states allowed by default (`require_disarm_before_rearm: false`)
+- Can be made more restrictive by setting substitution to `true`
 
 **Result:** Alarm system now properly enforces security by requiring disarm action
-for triggered alarms, closing the security loophole.
+for triggered alarms, with optional enforcement for armed state transitions.
 
 ## Community Contribution
 
