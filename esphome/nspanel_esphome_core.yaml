@@ -142,31 +142,6 @@ switch:
             refresh_relays->execute(2);
             refresh_hardware_buttons_bars->execute(2);
 
-##### START - TEXT SENSOR CONFIGURATION #####
-text_sensor:
-  ##### Versioning #####
-  - id: version_blueprint
-    name: Version Blueprint
-    platform: template
-    entity_category: diagnostic
-    icon: mdi:tag-text-outline
-    internal: false
-    update_interval: never
-    on_value:
-      then:
-        - lambda: |-
-            ESP_LOGD("${TAG_CORE}", "Blueprint version: %s", x.c_str());
-            if (!x.empty()) blueprint_status_flags.version = true;
-            check_versions->execute(x != "${version}");
-
-  - id: version_esphome
-    name: Version ESPHome
-    platform: template
-    entity_category: diagnostic
-    icon: mdi:tag-text-outline
-    internal: false
-    update_interval: never
-
 script:  # Scripts
   - id: !extend action_component_color
     then:
@@ -185,16 +160,14 @@ script:  # Scripts
     then:
       - lambda: |-
           if (page == "mem") {
-            if (component == "ver_blueprint") {
-              version_blueprint->publish_state(txt.c_str());
-            } else if (component == "decimal_separator") {
+            if (component == "decimal_separator") {
               id(mui_decimal_separator) = txt[0];
             } else if (component == "relay1_icon") {
               id(home_relay1_icon) = txt;
-              disp1->set_component_text("home.chip_relay1", id(home_relay1_icon).c_str());
+              disp1->set_component_text(hmi::home::CHIP_RELAY1.name, id(home_relay1_icon).c_str());
             } else if (component == "relay2_icon") {
               id(home_relay2_icon) = txt;
-              disp1->set_component_text("home.chip_relay2", id(home_relay2_icon).c_str());
+              disp1->set_component_text(hmi::home::CHIP_RELAY2.name, id(home_relay2_icon).c_str());
             }
           }
 
@@ -215,88 +188,9 @@ script:  # Scripts
             }
           }
 
-  - id: !extend boot
-    then:
-      - delay: ${DELAY_DEFAULT}ms
-      - lambda: |-
-          version_esphome->publish_state("${version}");
-
-  - id: check_versions
-    mode: restart
-    parameters:
-      reset_flag: bool
-    then:
-      - lambda: |-
-          ESP_LOGV("${TAG_CORE}", "Script: Check version");
-          ESP_LOGV("${TAG_CORE}", "  reset_flag: %s", TRUEFALSE(reset_flag));
-          ESP_LOGV("${TAG_CORE}", "  VERSION_CHECK_OK: %s", (system_flags.version_check_ok) ? "Set" : "NOT set");
-          ESP_LOGV("${TAG_CORE}", "  is_device_ready_for_tasks: %s", YESNO(is_device_ready_for_tasks()));
-          ESP_LOGV("${TAG_CORE}", "  Versions:");
-          ESP_LOGV("${TAG_CORE}", "    Blueprint: %s", version_blueprint->state.c_str());
-          ESP_LOGV("${TAG_CORE}", "    ESPHome: ${version}");
-          ESP_LOGV("${TAG_CORE}", "    TFT: %s", version_tft->state.c_str());
-          if (reset_flag) system_flags.version_check_ok = false;
-          if (system_flags.version_check_ok) {
-            ESP_LOGD("${TAG_CORE}", "VERSION_CHECK_OK is already set");
-            return;
-          }
-          if (!is_device_ready_for_tasks()) {
-            ESP_LOGD("${TAG_CORE}", "Device not ready for tasks - Skip version check");
-            return;
-          }
-      - delay: 5s
-      - script.execute: wait_for_versions
-      - script.wait: wait_for_versions
-      - lambda: |-
-          ESP_LOGD("${TAG_CORE}", "Versions:");
-          ESP_LOGD("${TAG_CORE}", "  Blueprint: %s", version_blueprint->state.c_str());
-          ESP_LOGD("${TAG_CORE}", "  ESPHome:   ${version}");
-          ESP_LOGD("${TAG_CORE}", "  TFT:       %s", version_tft->state.c_str());
-          system_flags.version_check_ok = true;
-          if (version_blueprint->state != "${version}") {
-            ESP_LOGE("${TAG_CORE}", "Blueprint version mismatch!");
-            system_flags.version_check_ok = false;
-          }
-          if (version_tft->state != "${version}") {
-            ESP_LOGE("${TAG_CORE}", "TFT version mismatch!");
-            system_flags.version_check_ok = false;
-          }
-          fire_ha_event("version", {
-            {"tft", version_tft->state.c_str()},
-            {"esphome", "${version}"},
-            {"blueprint", version_blueprint->state.c_str()}
-          });
-          ESP_LOGD("${TAG_CORE}", "Check version completed");
-
   - id: !extend dump_config
     then:
-      # Report API status
       - lambda: |-
-          // Report blueprint version
-          ESP_LOGCONFIG("${TAG_CORE}", "Blueprint:");
-          if (system_flags.blueprint_ready) {
-            ESP_LOGCONFIG("${TAG_CORE}", "  Version: %s", version_blueprint->state.c_str());
-            ESP_LOGCONFIG("${TAG_CORE}", "  Progress: %0.1f%%", blueprint_status_flags.get_completion_percentage());
-          } else {
-            ESP_LOGW("${TAG_CORE}", "  Progress: %0.1f%%", blueprint_status_flags.get_completion_percentage());
-            ESP_LOGW("${TAG_CORE}", "  State: %s", (system_flags.wifi_ready and system_flags.api_ready)
-                                                    ? "Pending" : "DISCONNECTED");
-          }
-
-          // Report ESPHome
-          ESP_LOGCONFIG("${TAG_CORE}", "ESPHome:");
-          ESP_LOGCONFIG("${TAG_CORE}", "  Version: ${version}");
-          ESP_LOGCONFIG("${TAG_CORE}", "  Compiler: %s", ESPHOME_VERSION);
-
-          // Report framework
-          #ifdef USE_ESP_IDF
-          ESP_LOGCONFIG("${TAG_CORE}", "  Framework: ESP-IDF");
-          #elif defined(USE_ARDUINO)
-          ESP_LOGW("${TAG_CORE}", "  Framework: Arduino");
-          #else
-          ESP_LOGE("${TAG_CORE}", "  Framework: Unknown");
-          #endif
-
           // Report Packages
           ESP_LOGCONFIG("${TAG_CORE}", "Packages:");
           #ifdef NSPANEL_HA_BLUEPRINT_CORE
@@ -354,14 +248,6 @@ script:  # Scripts
   - id: page_blank
     mode: single
     then:
-      - lambda: |-
-          ESP_LOGW("${TAG_CORE}", "Construct blank page");
-          disp1->set_component_text("esp_version", "FW: ${version}");  // ESPHome version
-          #ifdef ARDUINO
-          disp1->set_component_text("framework", "Arduino");
-          #elif defined(USE_ESP_IDF)
-          disp1->set_component_text("framework", "ESP-IDF");
-          #endif
 
   - id: page_utilities
     mode: single
@@ -422,12 +308,9 @@ script:  # Scripts
     then:
       - lambda: |-
           cleanupUtilitiesGroups();
-          check_versions->stop();
           refresh_relays->stop();
           wait_for_api->stop();
           wait_for_blueprint->stop();
-          wait_for_version_blueprint->stop();
-          wait_for_versions->stop();
           wakeup->stop();
 
   - id: wakeup
@@ -488,24 +371,4 @@ script:  # Scripts
       - lambda: |-
           boot_log->execute("Boot", "Blueprint is ready");
           refresh_wifi_icon->execute();
-
-  - id: wait_for_version_blueprint
-    mode: single
-    then:
-      - repeat:
-          count: 60  # seconds
-          then:
-            - lambda: |-
-                if (not version_blueprint->state.empty()) wait_for_version_blueprint->stop();
-                if (iteration % 5 == 1) boot_log->execute("Boot", "Waiting for Blueprint version");
-                if (iteration % 9) boot_request_blueprint_settings->execute("timeout");
-            - delay: 1s
-
-  - id: wait_for_versions
-    mode: single
-    then:
-      - script.execute: wait_for_version_blueprint
-      - script.execute: wait_for_version_tft
-      - script.wait: wait_for_version_blueprint
-      - script.wait: wait_for_version_tft
 ...
