@@ -22,7 +22,7 @@ namespace nspanel_ha_blueprint {
         data["type"] = type;
 
         // Log the event being fired
-        ESP_LOGD(TAG_COMPONENT_BASE, "Firing HA event: type=%s, device=%s", type.c_str(), cached_device_name.c_str());
+        ESP_LOGD(TAG_COMPONENT_BASE, "Firing HA event: %s", type.c_str());
 
         // Log additional data if verbose logging is enabled
         #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE

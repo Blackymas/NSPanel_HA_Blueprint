@@ -7,6 +7,9 @@
 
 ---
 substitutions:
+  qrcode_initial_value: ''
+  qrcode_title_initial_value: ''
+  qrcode_restore_value: false
   PAGE_QRCODE_ID: 17
 
 api:
@@ -19,31 +22,75 @@ api:
         show: bool      # Flag to immediately display the QR code page upon service invocation.
       then:
         - lambda: |-
-            if (current_page_id == ${PAGE_HOME_ID})
-              disp1->send_command_printf("vis bt_qrcode,%i", qrcode.empty() ? 0 : 1);
-            disp1->set_component_text("qrcode.qrcode_label", title.c_str());
-            disp1->set_component_text("qrcode.qrcode_value", qrcode.c_str());
-            if (show)
+            id(qrcode_title) = title;
+            id(qrcode_string) = qrcode;
+            if (show) {
               goto_page->execute(${PAGE_QRCODE_ID});
+            } else {
+              page_qrcode->execute();
+            }
+            page_home_qrcode->execute();
 
             // Update blueprint status
             blueprint_status_flags.qrcode = true;
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_PAGE_QRCODE
+
+globals:
+  - id: qrcode_title
+    type: std::string
+    restore_value: ${qrcode_restore_value}
+    initial_value: '${qrcode_title_initial_value}'
+
+  - id: qrcode_string
+    type: std::string
+    restore_value: ${qrcode_restore_value}
+    initial_value: '${qrcode_initial_value}'
 
 script:
   - id: !extend boot
     then:
       - lambda: |-
-          disp1->set_component_font("home.bt_qrcode", id(home_custom_buttons_font_id));
+          disp1->set_component_font(hmi::home::BT_QRCODE.name, id(home_custom_buttons_font_id));
 
   - id: !extend page_change
     then:
       - lambda: if (new_page_id == ${PAGE_QRCODE_ID}) page_qrcode->execute();
 
+  - id: !extend page_home
+    then:
+      - script.execute: page_home_qrcode
+
+  - id: page_home_qrcode
+    mode: single
+    then:
+      - lambda: |-
+          if (current_page_id == ${PAGE_HOME_ID}) {
+            if (not id(qrcode_string).empty()) {
+              disp1->show_component(hmi::home::BT_QRCODE.name);
+            }
+          }
+
   - id: page_qrcode
     mode: single
     then:  # There's nothing here so far
+      - lambda: |-
+          if (current_page_id != ${PAGE_QRCODE_ID}) {
+            return;  // Page QRcode not visible
+          }
+          if (not id(qrcode_title).empty()) {
+            disp1->set_component_text(hmi::qrcode::QRCODE_LABEL.name, id(qrcode_title).c_str());
+          }
+          if (not id(qrcode_string).empty()) {
+            disp1->qrcode(25, 25, id(qrcode_string).c_str());
+          }
 
   - id: !extend stop_page_constructors
     then:
-      - lambda: page_qrcode->stop();
+      - lambda: |-
+          page_home_qrcode->stop();
+          page_qrcode->stop();
 ...
