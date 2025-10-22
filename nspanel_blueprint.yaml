@@ -10,7 +10,7 @@ blueprint:
   description: >
     # NSPanel Configuration via Blueprint: Complete UI-Based Setup
 
-    **Version**: v4.3.44
+    **Version**: v4.3.45
 
 
     This project enables comprehensive configuration of your NSPanel through a Blueprint featuring a user interface.
@@ -1303,9 +1303,18 @@ blueprint:
           default: ""
           selector:
             text:
+        qrcode_entity:
+          name: QR Code content entity (Optional)
+          description: "Entity containing the value you want to display as QR code."
+          default: []
+          selector:
+            entity:
+              domain:
+                - input_text
+                - sensor
         qrcode_value:
-          name: QR Code content - VALUE (Optional)
-          description: "Value you want to display as QR code."
+          name: QR Code content - Fallback static value (Optional)
+          description: "Value you want to display as QR code when an entity is not selected or is unavailable."
           default: ""
           selector:
             text:
@@ -3804,6 +3813,8 @@ trigger_variables:
       else ("climate." ~ device_name ~ "_thermostat")
     }}
 
+  qrcode_enabled: !input qrcode_enabled
+
   utilities_line_reference:
     page01:
       main: !input utilities_page01_main_line_reference
@@ -3834,7 +3845,7 @@ trigger_variables:
     }}
 
 variables:
-  blueprint_version: '4.3.44'
+  blueprint_version: '4.3.45'
   pages:
     current: '{{ states(currentpage) }}'
     home: "home"
@@ -4477,6 +4488,12 @@ triggers:
       entity_id: !input right_button_state_entity
       id: right_button_alt_state
 
+  ##### Trigger - Page QRcode - State change
+    #### QR Code changed ###
+    - platform: state
+      entity_id: !input "qrcode_entity"
+      id: qrcode_changed
+
   ##### Trigger - Page utilities - State change #################################################################################################################
     ##### Page utilities - Main line #####
     - platform: template
@@ -4702,6 +4719,11 @@ condition:
     {{
       trigger.id != "indoortemp_state" or
       ((home_page_background_update or pages.current == pages.home ) and not embedded_indoor_temperature)
+    }}
+  - >  # Don't update qrcode if not enabled
+    {{
+      trigger.id != "qrcode_changed" or
+      qrcode_enabled
     }}
   - condition: or  # Do not update component if state haven't changed (ignore attributes changed) - event based triggers
     conditions:
@@ -8563,18 +8585,29 @@ action:
                               txt: '{{ hardware.buttons.right.name }}'
                             continue_on_error: true
 
-                      - alias: QRcode
-                        sequence:
+                      - &qrcode_update
+                        alias: QRcode
+                        if: '{{ qrcode_enabled }}'
+                        then:
                           - variables:
-                              qrcode:
-                                enabled: !input qrcode_enabled
-                                title: !input qrcode_label
-                                qrcode: !input qrcode_value
+                              qrcode_title: !input qrcode_label
+                              qrcode_entity: !input qrcode_entity
+                              qrcode_fallback_value: !input qrcode_value
+                              qrcode_value: >
+                                {{
+                                  states(qrcode_entity, rounded=True, with_unit=True)
+                                  if
+                                    qrcode_entity is defined and
+                                    qrcode_entity is string and
+                                    has_value(qrcode_entity)
+                                  else
+                                    qrcode_fallback_value
+                                }}
                           - *delay_boot
                           - action: 'esphome.{{ nspanel_name }}_qrcode'
                             data:
-                              title: '{{ qrcode.title if qrcode.enabled else "" }}'
-                              qrcode: '{{ qrcode.qrcode if qrcode.enabled else "" }}'
+                              title: '{{ qrcode_title }}'
+                              qrcode: '{{ qrcode_value }}'
                               show: false
                             continue_on_error: true
 
@@ -11676,6 +11709,15 @@ action:
           - repeat:
               for_each: '{{ pages_utilities.groups | selectattr("name", "in", groups) | list }}'
               sequence: *refresh_page_utilities_group
+
+      ##### QRCODE VALUES #####
+      - alias: Update QRCode
+        conditions:
+          - condition: trigger
+            id: qrcode_changed
+          - '{{ qrcode_enabled }}'
+        sequence:
+          - *qrcode_update
 
       ########## TRIGGER - HOME PAGE ###########
 
