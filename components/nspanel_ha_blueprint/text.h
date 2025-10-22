@@ -49,4 +49,36 @@ namespace nspanel_ha_blueprint {
 
     uint32_t decode_utf8(const char* bytes);
 
+    /**
+    * @brief Compile-time string comparison for C++17/20.
+    *
+    * Compares two null-terminated C-strings at compile time.
+    * This function is constexpr-compatible and can be used in
+    * compile-time contexts where std::strcmp is not available
+    * (std::strcmp becomes constexpr only in C++23).
+    *
+    * @param a First null-terminated string to compare.
+    * @param b Second null-terminated string to compare.
+    * @return true if strings are identical, false otherwise.
+    *
+    * @note Both pointers must be valid and point to null-terminated strings.
+    * @note Comparison stops at the first difference or null terminator.
+    *
+    * Example usage:
+    * @code
+    * constexpr bool is_home = strings_equal(page_names[1], "home");
+    * static_assert(strings_equal("test", "test"));  // Compile-time check
+    * @endcode
+    */
+    constexpr bool strings_equal(const char* a, const char* b) {
+        // Compare characters while both strings have non-null characters
+        while (*a && *b) {
+            if (*a != *b) return false;  // Different characters found
+            ++a;
+            ++b;
+        }
+        // Strings are equal only if both reached null terminator
+        return *a == *b;
+    }
+
 }  // namespace nspanel_ha_blueprint

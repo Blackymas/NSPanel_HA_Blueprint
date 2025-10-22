@@ -7,12 +7,12 @@
 #include <string>
 #include <initializer_list>
 
-namespace nspanel_ha_blueprint {
+/**
+* @file pages.h
+* Defines constants and functions related to page names for the NSPanel HA Blueprint project.
+*/
 
-    /**
-    * @file pages.h
-    * Defines constants and functions related to page names for the NSPanel HA Blueprint project.
-    */
+namespace nspanel_ha_blueprint {
 
     // Constants
     /**
@@ -20,7 +20,7 @@ namespace nspanel_ha_blueprint {
     * These names correspond to various pages of the Nextion TFT file in use,
     * such as settings, home, weather information, and more.
     */
-    constexpr std::array<const char*, 30> page_names = {
+    constexpr const char* const page_names[] = {
         "boot",
         "home",
         "weather01",
@@ -52,6 +52,8 @@ namespace nspanel_ha_blueprint {
         "home_smpl",
         "debug"
     };
+
+    constexpr size_t PAGE_COUNT = sizeof(page_names) / sizeof(page_names[0]);
 
     // Global system flags - initialized to 0 (all flags false)
     extern uint8_t current_page_id;

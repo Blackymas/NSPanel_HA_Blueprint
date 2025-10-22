@@ -18,6 +18,7 @@ LWIP_TCP_MSS = "lwip_tcp_mss"
 MAIN_TASK_STACK_SIZE = "main_task_stack_size"
 PSRAM_CLK_PIN = "psram_clk_pin"
 PSRAM_CS_PIN = "psram_cs_pin"
+REQUIRE_DISARM_BEFORE_REARM = "require_disarm_before_rearm"
 TASK_WDT_TIMEOUT_S = "task_wdt_timeout_s"
 
 CONFIG_SCHEMA = cv.Schema({
@@ -26,6 +27,7 @@ CONFIG_SCHEMA = cv.Schema({
     cv.Optional(MAIN_TASK_STACK_SIZE): cv.int_range(8192, 32768),
     cv.Optional(PSRAM_CLK_PIN): pins.internal_gpio_output_pin_number,
     cv.Optional(PSRAM_CS_PIN): pins.internal_gpio_output_pin_number,
+    cv.Optional(REQUIRE_DISARM_BEFORE_REARM): cv.boolean,
     cv.Optional(TASK_WDT_TIMEOUT_S): cv.int_range(min=5, max=300),
 })
 
@@ -82,6 +84,9 @@ async def to_code(config):
             add_idf_sdkconfig_option("CONFIG_ESP_TASK_WDT_TIMEOUT_S", config[TASK_WDT_TIMEOUT_S])
         if LWIP_TCP_MSS in config:
             add_idf_sdkconfig_option("CONFIG_LWIP_TCP_MSS", config[LWIP_TCP_MSS])
+
+    if REQUIRE_DISARM_BEFORE_REARM in config and config[REQUIRE_DISARM_BEFORE_REARM]:
+        cg.add_define("USE_REQUIRE_DISARM_BEFORE_REARM")
 
     cg.add_define("USE_NSPANEL_HA_BLUEPRINT")
     cg.add_global(nspanel_ha_blueprint_ns.using)
