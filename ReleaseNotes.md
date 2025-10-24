@@ -27,7 +27,8 @@ reverted with configuration).
 - **Removes subjectivity:** No need to classify changes as major/medium/minor
 - **Enables faster releases:** Supports "fail fast, fix fast" development approach
 - **Calendar clarity:** Users can immediately see when a release was published
-- **Memory efficient:** Numeric format saves bytes compared to date strings
+- **Memory efficient:** Numeric format saves bytes compared to date strings (also used by
+  ESPHome Builder and Home Assistant)
 - **Reduces confusion:** Different format from ESPHome Builder and Home Assistant (`yyyy.mm.x`)
   helps distinguish between firmware version and builder/HA version when users report issues
 
@@ -77,6 +78,26 @@ substitutions:
 **Issues Reference:** #2675
 
 **Result:** Enhanced visual consistency with configurable text color behavior for button bars.
+
+## Bug Fixes
+
+### Notification Icon Persistence
+
+**Fixed notification icon not clearing on home page** - resolved issue where the notification
+icon remained visible on the home page after the notification was cleared.
+
+**Issue details:**
+- **Problem:** Notification icon on home page persisted even after clearing the notification
+- **Impact:** Users had no visual indication that notifications were actually cleared
+- **Affected area:** Home page notification indicator
+
+**Fix implemented:**
+- Notification icon now properly clears when notification is dismissed
+- Home page visual state correctly reflects notification status
+
+**Issues Reference:** #2627
+
+**Result:** Notification icon state now correctly syncs with notification status.
 
 ---
 

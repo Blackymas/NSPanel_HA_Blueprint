@@ -360,7 +360,7 @@ It plays a crucial role in ensuring a responsive and user-friendly interface for
 - `supported_features` (int): A bitmask indicating the features supported by the alarm system.
 This determines the controls and options available on the alarm settings page.
 The bitmask values are aligned with the
-[Home Assistant Alarm Control Panel Supported Features](https://github.com/home-assistant/core/blob/33ff6b5b6ee3d92f4bb8deb9594d67748ea23d7c/homeassistant/components/alarm_control_panel/const.py#L32).
+[Home Assistant Alarm Control Panel Supported Features](#supported-features-of-the-alarm-control-panel-entity).
 - `code_format` (string): Specifies the code format required for arming/disarming the alarm system, such as numeric or alphanumeric.
 - `code_arm_required` (bool): Indicates whether a code is required to arm the system.
 - `entity` (string): The entity ID of the alarm system, used for state updates and control actions.
@@ -388,6 +388,14 @@ data:
 > Ensure to replace `<your_panel_name>` with the actual name of your panel configured in Home Assistant.
 > This action configuration allows for the alarm settings page to dynamically reflect the current features, state, and control options of your alarm system, enhancing the overall user experience.
 
+#### Supported features of the alarm control panel entity
+- ARM_HOME = 1
+- ARM_AWAY = 2
+- ARM_NIGHT = 4
+- TRIGGER = 8
+- ARM_CUSTOM_BYPASS = 16
+- ARM_VACATION = 32
+
 ### Climate Page Action: `page_climate`
 Updates the climate page with the current state information, seamlessly integrating with the panel's interface to display the latest climate settings and statuses.
 
@@ -401,7 +409,7 @@ It's crucial for maintaining a responsive and informative interface for efficien
 These features determine the available climate controls and settings on the device.
 The bitmask values correspond to features such as temperature control, mode setting, fan speed adjustment, etc., as defined in Home Assistant's climate component constants.
 For detailed descriptions of each feature and its corresponding bitmask value, refer to the
-[Home Assistant Climate Component Constants](https://github.com/home-assistant/core/blob/33ff6b5b6ee3d92f4bb8deb9594d67748ea23d7c/homeassistant/components/climate/const.py#L156C7-L156C27).
+[Home Assistant Climate Component Constants](#supported-features-of-the-climate-entity).
 - `target_temp` (float): The set target temperature.
 - `target_temp_high` (float): The high end of the target temperature range, for devices that support temperature ranges.
 - `target_temp_low` (float): The low end of the target temperature range.
@@ -433,6 +441,17 @@ data:
 > Replace `<your_panel_name>` with the specific name of your panel configured in Home Assistant.
 > This action ensures the climate page reflects the latest in climate control settings, enhancing the user experience by providing up-to-date information.
 
+#### Supported features of the climate entity
+- TARGET_TEMPERATURE = 1
+- TARGET_TEMPERATURE_RANGE = 2
+- TARGET_HUMIDITY = 4
+- FAN_MODE = 8
+- PRESET_MODE = 16
+- SWING_MODE = 32
+- AUX_HEAT = 64
+- TURN_OFF = 128
+- TURN_ON = 256
+
 ### Media Player Page Action: `page_media_player`
 Updates the media player page with current configuration and state information,
 integrating seamlessly with the panel's interface to display the latest media playback status and controls.
@@ -454,7 +473,7 @@ This action is essential for providing a responsive and user-friendly interface 
 - `media_position_delta` (float): The amount of time in seconds since the last update of the media position.
 - `supported_features` (int): A bitmask indicating the features supported by the media player, such as play/pause, next/previous track, volume control, etc.
 The bitmask values correspond to the
-[Home Assistant Media Player Supported Features](https://github.com/home-assistant/core/blob/33ff6b5b6ee3d92f4bb8deb9594d67748ea23d7c/homeassistant/components/media_player/const.py#L177).
+[Home Assistant Media Player Supported Features](#supported-features-of-the-media-player-entity).
 
 **Home Assistant Example:**
 ```yaml
@@ -475,6 +494,30 @@ data:
 > [!NOTE]
 > Replace `<your_panel_name>` with the specific name of your panel configured in Home Assistant.
 > This action ensures the media player page reflects the latest in media playback settings and status, enhancing the user experience by providing up-to-date information.
+
+#### Supported features of the media player entity
+- PAUSE = 1
+- SEEK = 2
+- VOLUME_SET = 4
+- VOLUME_MUTE = 8
+- PREVIOUS_TRACK = 16
+- NEXT_TRACK = 32
+
+- TURN_ON = 128
+- TURN_OFF = 256
+- PLAY_MEDIA = 512
+- VOLUME_STEP = 1024
+- SELECT_SOURCE = 2048
+- STOP = 4096
+- CLEAR_PLAYLIST = 8192
+- PLAY = 16384
+- SHUFFLE_SET = 32768
+- SELECT_SOUND_MODE = 65536
+- BROWSE_MEDIA = 131072
+- REPEAT_SET = 262144
+- GROUPING = 524288
+- MEDIA_ANNOUNCE = 1048576
+- MEDIA_ENQUEUE = 2097152
 
 ### QR Code Action: `qrcode`
 Displays a QR code on the display, which can be used for various purposes such as sharing a WiFi password or linking to a website.
