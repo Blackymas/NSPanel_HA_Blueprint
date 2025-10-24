@@ -53,6 +53,14 @@ api:
         color: int[]  # New color for the component, specified as an RGB array (e.g., [255, 0, 0] for red).
       then:
         - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: component_color");
+            ESP_LOGV("${TAG_API}", "  page: %s", page.c_str());
+            ESP_LOGV("${TAG_API}", "  id: %s", id.c_str());
+            ESP_LOGV("${TAG_API}", "  color: %" PRIu16, rgbTo565(color));
+            if (page != "mem" and page != hmi::home::PAGE.name and page != current_page->state) {
+              ESP_LOGV("${TAG_API}", "  Only page 'home' can get a color when not visible");
+              return;
+            }
             action_component_color->execute(
               page.c_str(),
               id.c_str(),
@@ -150,7 +158,7 @@ api:
 
     - action: icon  # Updates icon, color, and visibility for display components
       variables:
-        page: string       # Page name for visibility control. If empty, visibility is applied immediately.
+        page: string       # Page name for visibility control (mandatory).
         id: string         # Identifier of the component.
         icon: string       # Icon codepoint, e.g., "/uE6E8" for `mdi:lightbulb-on-outline`.
         icon_color: int[]  # RGB color array for the icon, e.g., [0, 255, 0] for green.
@@ -159,13 +167,24 @@ api:
         - lambda: |-
             ESP_LOGV("${TAG_API}", "Action: icon");
 
-            if (id.empty()) {
-              ESP_LOGW("${TAG_API}", "Empty component ID provided");
+            // Validate mandatory parameters
+            if (page.empty() or id.empty()) {
+              ESP_LOGW("${TAG_API}", "Bad params");
               return;
             }
 
             ESP_LOGV("${TAG_API}", "Processing component ID: %s", id.c_str());
-            ESP_LOGV("${TAG_API}", "  page: %s", page.empty() ? "none (global)" : page.c_str());
+            ESP_LOGV("${TAG_API}", "  page: %s", page.c_str());
+
+            const bool is_home_page = (page == hmi::home::PAGE.name);
+            const bool is_current_page = (page == current_page->state);
+
+            // Only process if home page (global) OR current page
+            if (!is_home_page && !is_current_page) {
+              ESP_LOGV("${TAG_API}", "Skipping: Not current page");
+              return;
+            }
+
             #if ESP_LOG_LEVEL >= ESP_LOG_VERBOSE
             const uint16_t icon_len = icon.length();
             if (icon_len == 3) {
@@ -180,25 +199,32 @@ api:
             ESP_LOGV("${TAG_API}", "  icon_color: %" PRIu16, rgbTo565(icon_color));
             ESP_LOGV("${TAG_API}", "  visible: %s", YESNO(visible));
 
-            // Always set icon and color using the full ID as-is
-            disp1->set_component_text(id.c_str(), icon.c_str());
+            // Determine component identifier format
+            const char* target_id = id.c_str();
+            char full_id[30];  // 14 + 1 (dot) + 14 + 1 (null) = 30
 
-            // Set icon color if provided
+            if (!is_current_page) {  // is_home_page is implicit
+              // Use page.id for global component not on current page
+              snprintf(full_id, sizeof(full_id), "%s.%s", page.c_str(), id.c_str());
+              target_id = full_id;
+            }
+            ESP_LOGV("${TAG_API}", "  target: %s", target_id);
+
+            // Set icon and color
+            disp1->set_component_text(target_id, icon.c_str());
             if (icon_color.size() == 3) {
-              disp1->set_component_font_color(id.c_str(), rgbTo565(icon_color));
+              disp1->set_component_font_color(target_id, rgbTo565(icon_color));
             }
 
-            if (page.empty() or current_page->state == page) {
-              ESP_LOGV("${TAG_API}", "  Applying visibility changes");
-              if (visible) {
-                disp1->show_component(id.c_str());
-              } else {
-                disp1->hide_component(id.c_str());
-              }
+            // Apply visibility only if on current page
+            if (!is_current_page) {
+              ESP_LOGV("${TAG_API}", "  Skipping visibility (not current page)");
+              return;
+            }
+            if (visible) {
+              disp1->show_component(id.c_str());
             } else {
-              ESP_LOGV("${TAG_API}",
-                        "  Current page (%s) doesn't match specified page (%s), skipping visibility update",
-                        current_page->state.c_str(), page.c_str());
+              disp1->hide_component(id.c_str());
             }
 
     # Utilities group refresh
@@ -316,6 +342,9 @@ script:
       # Extended by:
       # - hw_buttons
       # - page_home
+      # - page_qrcode
+      # - page_screensaver
+      # - version
       - lambda: |-
           ESP_LOGV("${TAG_API}", "Script: action_component_val");
           ESP_LOGV("${TAG_API}", "  page: %s", page.c_str());

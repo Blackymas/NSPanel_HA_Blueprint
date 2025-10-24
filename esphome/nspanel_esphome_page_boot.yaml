@@ -53,24 +53,33 @@ script:
             // CSV Format: boot,params,<display_mode>,<charset>,<version>
             // params[0]=page, params[1]=params, params[2]=display_mode, params[3]=charset, params[4]=version
 
+            system_flags.display_settings_received = false;
+
             if (params_count != 5) {
               ESP_LOGW("${TAG_PAGE_BOOT}", "Bad params");
-              system_flags.display_settings_received = false;
               return;
             }
 
             // Parse display parameters
             display_mode = atoi(params[2].c_str());
             display_charset = atoi(params[3].c_str());
-            version_tft->publish_state(params[4]);
+            auto tft_ver = parse_number<float>(params[4]);
+            if (tft_ver.has_value() and tft_ver.value() > 0) {
+              version_tft->publish_state(tft_ver.value());
+            }
 
             ESP_LOGI("${TAG_PAGE_BOOT}", "Display params:");
             ESP_LOGI("${TAG_PAGE_BOOT}", "  Mode:        %" PRIu8, display_mode);
             ESP_LOGI("${TAG_PAGE_BOOT}", "  Charset:     %" PRIu8, display_charset);
-            ESP_LOGI("${TAG_PAGE_BOOT}", "  TFT version: v%s", version_tft->state.c_str());
-
-            system_flags.display_settings_received = true;
-            disp1->send_command("tm_esphome.en=0");
+            if (tft_ver.has_value() and tft_ver.value() > 0) {
+              ESP_LOGI("${TAG_PAGE_BOOT}", "  TFT version: v%0.1f", version_tft->state);
+              if (display_mode > 0 and display_charset > 0) {
+                system_flags.display_settings_received = true;
+                disp1->send_command("tm_esphome.en=0");
+              }
+            } else {
+              ESP_LOGE("${TAG_PAGE_BOOT}", "  TFT version: UNKNOWN");
+            }
           }
 
   - id: page_boot
@@ -105,8 +114,8 @@ script:
     mode: single
     then:
       - lambda: |-
-          if (current_page_id == ${PAGE_BOOT_ID} and !version_blueprint->state.empty())
-            disp1->set_component_text_printf("ver_blueprint", "Blueprint: %s", version_blueprint->state.c_str());
+          if (current_page_id == ${PAGE_BOOT_ID} and version_blueprint->state > 0)
+            disp1->set_component_text_printf("ver_blueprint", "Blueprint: %0.1f", version_blueprint->state);
 
   - id: page_boot_show_ip
     mode: single
@@ -147,10 +156,10 @@ script:
   - id: !extend watchdog_round
     then:
       - lambda: |-
-          if (current_page_id == ${PAGE_BOOT_ID} and not version_tft->state.empty())
+          if (current_page_id == ${PAGE_BOOT_ID} and version_tft->state > 0)
             wakeup->execute(true);
 
-text_sensor:
+sensor:
   - id: !extend version_blueprint
     on_value:
       then:

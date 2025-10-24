@@ -11,94 +11,6 @@ substitutions:
   PAGE_HOME_ID: 1
   TAG_PAGE_HOME: nspanel.page.home
 
-api:
-  actions:
-    # Sets up the "Home" page in ESPHome with customized settings and UI elements as defined in the project blueprint.
-    - action: init_page_home
-      variables:
-        date_color: int[]                      # RGB color array for the date display.
-        time_format: string                    # Time display format string, utilizing standard formatting symbols.
-        time_color: int[]                      # RGB color array for the time display.
-        meridiem: string[]                     # Optional array for AM/PM labels if included in time format.
-        chip_font: int                         # Font Id for chip icons displayed on the "Home" page.
-        custom_buttons_font: int               # Font Id for icons on custom buttons.
-        qrcode: bool                           # Enable/disable flag for QR code button display.
-        qrcode_icon: string                    # Icon codepoint for QR code button, sourced from HASwitchPlate Material Design Icons.
-        qrcode_icon_color: int[]               # RGB color array for QR code button icon.
-        entities_pages_icon: string            # Icon codepoint for entities page button, sourced from HASwitchPlate Material Design Icons.
-        entities_pages_icon_color: int[]       # RGB color array for entities page button icon.
-        utilities: bool                        # Enable/disable flag for utilities page button display.
-        utilities_icon: string                 # Icon codepoint for utilities page button, sourced from HASwitchPlate Material Design Icons.
-        utilities_icon_color: int[]            # RGB color array for utilities page button icon.
-        outdoor_temp_font: int                 # Font Id for outdoor temperature indication on the "Home" page.
-      then:
-        - lambda: |-
-            boot_log->execute("Action", "init_page_home");
-
-            // Time format
-            id(mui_time_format) = time_format;
-            if (meridiem.size() == 2) {
-              id(mui_meridiem_am) = meridiem[0];
-              id(mui_meridiem_pm) = meridiem[1];
-            }
-
-            // Date & Time colors
-            id(home_date_color) = rgbTo565(date_color);
-            id(home_time_color) = rgbTo565(time_color);
-            disp1->set_component_font_color(hmi::home::DATE.name, id(home_date_color));
-            disp1->set_component_font_color(hmi::home::TIME.name, id(home_time_color));
-            feed_wdt_delay(${DELAY_SHORT});
-
-            // Chips icon size
-            disp1->set_component_font(hmi::home::CHIP_RELAY1.name, chip_font);
-            disp1->set_component_font(hmi::home::CHIP_RELAY2.name, chip_font);
-            disp1->set_component_font(hmi::home::CHIP_CLIMATE.name, chip_font);
-            for (int i = 1; i <= 7; ++i) {
-              disp1->send_command_printf("home.chip%02d.font=%" PRIi32, i, chip_font);
-              feed_wdt_delay(${DELAY_SHORT});
-            }
-            disp1->set_component_font(hmi::home::WIFI_ICON.name, chip_font);
-            id(home_chip_font_id) = chip_font;
-
-            // Custom buttons icon size
-            id(home_custom_buttons_font_id) = custom_buttons_font;
-            for (int i = 1; i <= 7; ++i) {
-              disp1->send_command_printf("home.button%02d.font=%" PRIu8, i, id(home_custom_buttons_font_id));
-              feed_wdt_delay(${DELAY_SHORT});
-            }
-            disp1->set_component_font(hmi::home::BT_NOTIFIC.name, id(home_custom_buttons_font_id));
-            disp1->set_component_font(hmi::home::BT_QRCODE.name, id(home_custom_buttons_font_id));
-            disp1->set_component_font(hmi::home::BT_ENTITIES.name, id(home_custom_buttons_font_id));
-            feed_wdt_delay(${DELAY_SHORT});
-
-            // Outdoor temperature font size
-            disp1->set_component_font("home.outdoor_temp", outdoor_temp_font);
-
-            // QRCode button
-            disp1->set_component_text(hmi::home::BT_QRCODE.name, qrcode_icon.c_str());
-            disp1->set_component_font_color(hmi::home::BT_QRCODE.name, rgbTo565(qrcode_icon_color));
-            if (current_page_id == hmi::home::PAGE.id) disp1->send_command_printf("vis bt_qrcode,%i", qrcode ? 1 : 0);
-            if (!qrcode) blueprint_status_flags.qrcode = true;
-            feed_wdt_delay(${DELAY_SHORT});
-
-            // Entities pages button
-            disp1->set_component_text(hmi::home::BT_ENTITIES.name, entities_pages_icon.c_str());
-            disp1->set_component_font_color(hmi::home::BT_ENTITIES.name, rgbTo565(entities_pages_icon_color));
-            if (current_page_id == hmi::home::PAGE.id) {
-              disp1->send_command("is_entitypages=is_entitypage01|is_entitypage02|is_entitypage03|is_entitypage04");
-              disp1->send_command("vis bt_entities,is_entitypages");
-            }
-            feed_wdt_delay(${DELAY_SHORT});
-
-            // Utilities button
-            disp1->send_command_printf("is_utilities=%i", utilities ? 1 : 0);
-            disp1->set_component_text(hmi::home::BT_UTILITIES.name, utilities_icon.c_str());
-            disp1->set_component_font_color(hmi::home::BT_UTILITIES.name, rgbTo565(utilities_icon_color));
-            if (current_page_id == hmi::home::PAGE.id) disp1->send_command("vis bt_utilities,is_utilities");
-
-            // Update blueprint status
-            blueprint_status_flags.page_home = true;
-
 esphome:
   platformio_options:
     build_flags:
@@ -148,11 +60,78 @@ globals:
     initial_value: '8'
 
 script:
+  - id: !extend action_component_color
+    then:
+      - lambda: |-
+          if (page == "mem") {
+            if (component == "date_color") {
+              id(home_date_color) = color;
+              disp1->set_component_font_color(hmi::home::DATE.name, color);
+              return;
+            } else if (component == "time_color") {
+              id(home_time_color) = color;
+              disp1->set_component_font_color(hmi::home::TIME.name, color);
+              return;
+            } else if (component == "utilities_icon_color") {  // Utilities button color
+              disp1->set_component_font_color(hmi::home::BT_UTILITIES.name, color);
+              return;
+            }
+          }
+
+  - id: !extend action_component_text
+    then:
+      - lambda: |-
+          if (page == "mem") {
+            if (component == "") {  // Utilities button
+              disp1->set_component_text(hmi::home::BT_UTILITIES.name, txt.c_str());
+            }
+          }
+
   - id: !extend action_component_val
     then:
       - lambda: |-
-          if (page == "mem" and component == "is_climate")
-            id(is_climate) = (val != 0);
+          if (page == "mem") {
+            if (component == "utilities_enabled") {  // Utilities button enabled
+              disp1->send_command_printf("is_utilities=%i", val);
+              if (current_page_id == hmi::home::PAGE.id)
+                disp1->send_command_printf("vis bt_utilities,%i", val);
+              return;
+            } else if (component == "is_climate") {
+              id(is_climate) = (val != 0);
+              return;
+            } else if (component == "chip_font") {
+              // Chips icon size
+              disp1->set_component_font(hmi::home::CHIP_RELAY1.name, val);
+              disp1->set_component_font(hmi::home::CHIP_RELAY2.name, val);
+              disp1->set_component_font(hmi::home::CHIP_CLIMATE.name, val);
+              feed_wdt_delay(${DELAY_DEFAULT});
+              for (int i = 1; i <= 7; ++i) {
+                disp1->send_command_printf("home.chip%02d.font=%" PRIi32, i, val);
+                feed_wdt_delay(${DELAY_SHORT});
+              }
+              feed_wdt_delay(${DELAY_DEFAULT});
+              disp1->set_component_font(hmi::home::WIFI_ICON.name, val);
+              disp1->set_component_font(hmi::home::BT_ICON.name, val);
+              id(home_chip_font_id) = val;
+              return;
+            } else if (component == "custom_buttons_font") {
+              // Custom buttons icon size
+              id(home_custom_buttons_font_id) = val;
+              for (int i = 1; i <= 7; ++i) {
+                disp1->send_command_printf("home.button%02d.font=%" PRIu8, i, val);
+                feed_wdt_delay(${DELAY_SHORT});
+              }
+              feed_wdt_delay(${DELAY_DEFAULT});
+              disp1->set_component_font(hmi::home::BT_NOTIFIC.name, val);
+              disp1->set_component_font(hmi::home::BT_QRCODE.name, val);
+              disp1->set_component_font(hmi::home::BT_ENTITIES.name, val);
+              blueprint_status_flags.page_home = true;
+              return;
+            } else if (component == "outdoor_temp_font") {  // Outdoor temperature font size
+              disp1->set_component_font(hmi::home::OUTDOOR_TEMP.name, val);
+              return;
+            }
+          }
 
   - id: !extend boot_nextion
     then:
