@@ -99,14 +99,30 @@ api:
     # Supports both simple component IDs and page-specific IDs (page.component format).
     - action: components_visibility
       variables:
-        page: string  # Send `mem` for a memory var
-        ids: string[]  # Identifier of the component to be hidden/shown. Can be 'component' or 'page.component' format.
-        visible: bool  # Set to true to show the component, or false to hide it.
+        page: string    # Page name for visibility control. Empty string applies to current page.
+        ids: string[]   # Component identifiers. Can be 'component' or 'page.component' format.
+        visible: bool   # Set to true to show the component, or false to hide it.
       then:
         - lambda: |-
             ESP_LOGV("${TAG_API}", "Action: components_visibility");
-            ESP_LOGV("${TAG_API}", "  page: %s", page.c_str());
 
+            // Resolve page to current page if empty
+            const std::string resolved_page = page.empty() ? current_page->state : page;
+            ESP_LOGV("${TAG_API}", "  page: %s", resolved_page.c_str());
+
+            // Determine if we should process based on page context
+            const bool is_current_page = (resolved_page == current_page->state);
+
+            if (!is_current_page) {
+              ESP_LOGW("${TAG_API}", "Not the current page (%s vs %s)",
+                      resolved_page.c_str(), current_page->state.c_str());
+              return;
+            }
+
+            ESP_LOGV("${TAG_API}", "  visible: %s", YESNO(visible));
+
+            // Process each component ID
+            size_t processed_count = 0;
             for (const std::string& component_id : ids) {
               if (component_id.empty()) {
                 ESP_LOGW("${TAG_API}", "Skipping empty component ID");
@@ -114,19 +130,21 @@ api:
               }
 
               ESP_LOGV("${TAG_API}", "Processing component ID: %s", component_id.c_str());
-              if (page.empty() or current_page->state == page) {
-                ESP_LOGV("${TAG_API}", "  Applying visibility changes");
-                disp1->set_component_visibility(component_id.c_str(), visible);
-              } else {
-                ESP_LOGV("${TAG_API}",
-                          "  Current page (%s) doesn't match specified page (%s), skipping visibility update",
-                          current_page->state.c_str(), page.c_str());
-              }
 
-            } // #endfor component_id iteration
+              // Extract component information using helper function
+              const NextionComponent component = extractNextionComponent(component_id, resolved_page);
 
-            ESP_LOGV("${TAG_API}", "Processed %zu component IDs with visibility: %s",
-                    ids.size(), YESNO(visible));
+              // Use short format for current page components
+              const char* target_id = component.component_id;
+              ESP_LOGV("${TAG_API}", "  target: %s", target_id);
+
+              // Apply visibility change
+              disp1->set_component_visibility(target_id, visible);
+              processed_count++;
+            }  // #endfor component_id iteration
+
+            ESP_LOGVV("${TAG_API}", "Processed %zu/%zu component IDs with visibility: %s",
+                      processed_count, ids.size(), YESNO(visible));
 
     # Displays detailed information for a specific entity.
     - action: entity_details_show
@@ -164,7 +182,7 @@ api:
             ESP_LOGV("${TAG_API}", "Action: icon");
 
             // Validate mandatory parameters
-            if (page.empty() or id.empty()) {
+            if (page.empty() || id.empty()) {
               ESP_LOGW("${TAG_API}", "Bad params");
               return;
             }
@@ -195,15 +213,24 @@ api:
             ESP_LOGV("${TAG_API}", "  icon_color: %" PRIu16, rgbTo565(icon_color));
             ESP_LOGV("${TAG_API}", "  visible: %s", YESNO(visible));
 
-            // Determine component identifier format
-            const char* target_id = id.c_str();
+            // Extract component information using helper function
+            const NextionComponent component = extractNextionComponent(id, page);
+
+            // Determine target ID format based on page context
+            const char* target_id;
             char full_id[30];  // 14 + 1 (dot) + 14 + 1 (null) = 30
 
-            if (!is_current_page) {  // is_home_page is implicit
-              // Use page.id for global component not on current page
-              snprintf(full_id, sizeof(full_id), "%s.%s", page.c_str(), id.c_str());
+            if (is_current_page) {
+              // Use short format for current page: "id"
+              target_id = component.component_id;
+              // Apply visibility only on current page
+              disp1->set_component_visibility(target_id, visible);
+            } else {
+              // Use full format for global components: "page.id"
+              snprintf(full_id, sizeof(full_id), "%s.%s", component.page, component.component_id);
               target_id = full_id;
             }
+
             ESP_LOGV("${TAG_API}", "  target: %s", target_id);
 
             // Set icon and color
@@ -211,13 +238,6 @@ api:
             if (icon_color.size() == 3) {
               disp1->set_component_font_color(target_id, rgbTo565(icon_color));
             }
-
-            // Apply visibility only if on current page
-            if (!is_current_page) {
-              ESP_LOGV("${TAG_API}", "  Skipping visibility (not current page)");
-              return;
-            }
-            disp1->set_component_visibility(id.c_str(), visible);
 
     # Utilities group refresh
     - action: utilities_group_refresh
