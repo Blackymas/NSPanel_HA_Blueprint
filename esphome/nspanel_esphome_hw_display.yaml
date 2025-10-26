@@ -383,6 +383,7 @@ script:
           timer_reset_all->stop();
           wait_for_uart_available->stop();
           wait_for_version_tft->stop();
+          wakeup->stop();
 
   - id: stop_page_constructors
     mode: single
@@ -494,6 +495,33 @@ script:
     then:
       - script.execute: wait_for_version_tft
       - script.wait: wait_for_version_tft
+
+  - id: wakeup
+    mode: single
+    parameters:
+      reset_timer: bool
+    then:
+      - lambda: |-
+          ESP_LOGV("${TAG_HW_DISPLAY}", "Wake-up (%s->%s)", page_names[current_page_id], page_names[wakeup_page_id]);
+          ESP_LOGV("${TAG_HW_DISPLAY}", "  reset timer: %s", YESNO(reset_timer));
+          if (version_tft->state < 1) {
+            ESP_LOGE("${TAG_HW_DISPLAY}", "TFT version invalid");
+            return;
+          }
+          if (current_page_id == ${PAGE_SCREENSAVER_ID} or current_page_id == ${PAGE_BOOT_ID}) {
+            ESP_LOGD("${TAG_HW_DISPLAY}", "Wake-up on page %s", page_names[wakeup_page_id]);
+            if (wakeup_page_id == ${PAGE_CLIMATE_ID}) {
+              detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
+              disp1->set_component_value("climate.embedded", id(is_embedded_thermostat) ? 1 : 0);
+            }
+            goto_page->execute(wakeup_page_id);
+          }
+          if (reset_timer) {
+            timer_reset_all->execute();
+          } else {
+            timer_sleep->execute();
+            timer_dim->execute();
+          }
 
   - id: !extend watchdog_round
     then:
