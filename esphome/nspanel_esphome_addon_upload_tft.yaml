@@ -80,12 +80,29 @@ script:
   - id: !extend check_versions
     then:
       - lambda: |-
-          if (${'true' if upload_tft_automatically else 'false'} and
-              version_tft->state != ${version}f and
-              tft_file_model->active_index().value_or(0) > 1) {  // Only when std TFT is selected
-            ESP_LOGI("${TAG_UPLOAD_TFT}", "Auto updating TFT");
-            upload_tft->execute("");
+          static const bool upload_tft_automatically = ${'true' if upload_tft_automatically else 'false'};
+
+          // Automatic upload is disabled
+          if (!upload_tft_automatically) {
+            ESP_LOGV("${TAG_UPLOAD_TFT}", "Auto updating is disabled");
+            return;
           }
+
+          // Return if sensor has value and versions match (no update needed)
+          if (!isnan(version_tft->state) and static_cast<uint32_t>(version_tft->state) == ${version}) {
+            ESP_LOGV("${TAG_UPLOAD_TFT}", "Same version");
+            return;
+          }
+
+          // Only proceed when std TFT is selected (indices 2+)
+          if (tft_file_model->active_index().value_or(0) <= 1) {
+            ESP_LOGV("${TAG_UPLOAD_TFT}", "No standard TFT selected");
+            return;
+          }
+
+          ESP_LOGI("${TAG_UPLOAD_TFT}", "Auto updating TFT from %" PRIu32 " to ${version}",
+                    static_cast<uint32_t>(version_tft->state));
+          upload_tft->execute("");
 
   - id: !extend dump_config
     then:

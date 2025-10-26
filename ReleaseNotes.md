@@ -1,9 +1,10 @@
-# v202510.1 - Bug Fixes
+# v20251001 (formerly v202510.1) - Bug Fixes & Versioning Update
 
 ## Summary
 
-This release focuses on bug fixes addressing several issues reported in v202510.0, and includes
-improvements to the home page icon navigation engine.
+This release focuses on bug fixes addressing several issues reported in v202510.0, includes
+improvements to the home page icon navigation engine, and updates the versioning format to
+integer-based `yyyymmxx` to avoid floating-point precision issues.
 
 ## Bug Fixes
 
@@ -29,6 +30,37 @@ updates on the home page for QR code and utilities page access.
 - Enhanced reliability when calling utilities page from home page icon
 
 **Result:** More robust icon-based navigation from home page to QR code and utilities pages.
+
+## Versioning Format Change
+
+### Integer-Based Versioning
+
+**Updated versioning format to integer-based `yyyymmxx`** - changed from `yyyymm.x` to
+`yyyymmxx` format to avoid floating-point precision issues.
+
+**Previous format (v202510.0):**
+- Format: `yyyymm.x` (year, month, sequential with decimal)
+- Issue: Floating-point precision problems in some systems
+- Adopted in: v202510.0 (short-lived)
+
+**New format (v20251101):**
+- Format: `yyyymmxx` (year, month, zero-padded sequential starting from 01)
+- First release of month: `yyyymm01` (e.g., `20251101` for first November 2025 release)
+- Second release: `20251102`, then `20251103`, etc.
+- Sequential counter: 01-99 (supports up to 99 releases per month)
+- Pure integer format avoids floating-point issues
+
+**Rationale:**
+- **Eliminates floating-point precision issues:** Integer format ensures consistent parsing
+- **Maintains calendar clarity:** Year and month still immediately visible
+- **Retains sequential ordering:** Two-digit sequential counter supports up to 99 releases/month
+- **System compatibility:** Works reliably across all platforms and parsers
+
+**Note:** This change comes shortly after adopting the `yyyymm.x` format, but is necessary to
+address technical limitations discovered during testing.
+
+**Result:** Robust integer-based versioning that avoids floating-point precision issues while
+maintaining calendar-based benefits.
 
 ## Bug Fixes (continued)
 
