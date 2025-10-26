@@ -1,104 +1,132 @@
-# v202510.0 - Memory Optimization & UI Enhancements
+# v2025101 (formerly v202510.1) - Bug Fixes & Versioning Update
 
 ## Summary
 
-This release introduces a new calendar-based versioning model, focuses on memory optimization,
-and changes button bar text to match button bar colors by default (breaking change - can be
-reverted with configuration).
-
-## Versioning Model Change
-
-### New Calendar-Based Versioning
-
-**Transitioned from semantic to calendar-based versioning** - version numbers now follow a
-`yyyymm.x` format for more predictable and frequent releases.
-
-**Previous versioning:**
-- Format: `v4.3.46` (major.medium.minor)
-- Based on perceived importance/criticality of changes
-- Required subjective decisions about version number increments
-
-**New versioning:**
-- Format: `v202510.0` (yyyymm.sequential)
-- Year and month followed by sequential number within that month
-- First release of October 2025 is `v202510.0`, second would be `v202510.1`, etc.
-
-**Rationale:**
-- **Removes subjectivity:** No need to classify changes as major/medium/minor
-- **Enables faster releases:** Supports "fail fast, fix fast" development approach
-- **Calendar clarity:** Users can immediately see when a release was published
-- **Memory efficient:** Numeric format saves bytes compared to date strings (also used by
-  ESPHome Builder and Home Assistant)
-- **Reduces confusion:** Different format from ESPHome Builder and Home Assistant (`yyyy.mm.x`)
-  helps distinguish between firmware version and builder/HA version when users report issues
-
-**Result:** More predictable versioning with frequent, iterative releases and reduced decision overhead.
-
-## Key Enhancements
-
-### Memory Optimization
-
-**Further memory optimizations implemented** - additional improvements to reduce flash memory
-usage, providing more headroom for future features and customizations.
-
-**Improvements:**
-- Optimized code structure to reduce flash memory footprint
-- Enhanced memory efficiency across core components
-- Improved resource utilization for ESP32 devices
-
-**Result:** Reduced flash memory usage, ensuring better performance and leaving more space
-available for user customizations and future updates.
-
-### Button Bar Text Color Matching
-
-**Breaking Change: Button bar text now matches button bar color by default** - button bar text
-color now follows the button bar background color, creating a more cohesive visual appearance.
-Users who prefer the previous behavior can opt out of this change.
-
-**Configuration:**
-```yaml
-substitutions:
-  # Set to false to restore previous text color behavior (default: true)
-  buttons_bar_text_follow_color: false
-```
-
-**Behavior:**
-- **Default (`true`):** Button bar text color matches the button bar background color (NEW)
-- **When set to `false`:** Button bar text uses the standard/default text color (PREVIOUS)
-
-**Migration:**
-- If you prefer the previous text color appearance, set `buttons_bar_text_follow_color: false`
-- No action needed if you want the new color-matched appearance
-
-**Use cases:**
-- Improved visual consistency across the interface
-- Better color coordination for themed designs
-- Flexibility to maintain traditional appearance if preferred
-
-**Issues Reference:** #2675
-
-**Result:** Enhanced visual consistency with configurable text color behavior for button bars.
+This release focuses on bug fixes addressing several issues reported in v202510.0, includes
+improvements to the home page icon navigation engine, and updates the versioning format to
+integer-based `yyyymmx` to avoid floating-point precision issues.
 
 ## Bug Fixes
 
-### Notification Icon Persistence
+### QR Code Icon Display
 
-**Fixed notification icon not clearing on home page** - resolved issue where the notification
-icon remained visible on the home page after the notification was cleared.
+**Fixed QR code icon showing when feature was disabled** - resolved issue where the QR code icon
+was displayed on the home page even when the QR code feature was disabled in configuration.
+
+**Issues Reference:** #3003
+
+**Result:** QR code icon now correctly hidden when QR code feature is disabled.
+
+## Improvements
+
+### Home Page Icon Engine
+
+**Rebuilt home page icon engine for page navigation** - improved the engine that handles icon
+updates on the home page for QR code and utilities page access.
+
+**Improvements:**
+- Rebuilt icon update mechanism for home page
+- Enhanced reliability when calling QR code page from home page icon
+- Enhanced reliability when calling utilities page from home page icon
+
+**Result:** More robust icon-based navigation from home page to QR code and utilities pages.
+
+## Versioning Format Change
+
+### Integer-Based Versioning
+
+**Updated versioning format to integer-based `yyyymmx`** - changed from `yyyymm.x` to
+`yyyymmx` format to avoid floating-point precision issues.
+
+**Previous format (v202510.0):**
+- Format: `yyyymm.x` (year, month, sequential with decimal)
+- Issue: Floating-point precision problems in some systems
+- Adopted in: v202510.0 (short-lived)
+
+**New format (v2025111):**
+- Format: `yyyymmx` (year, month, zero-padded sequential starting from 01)
+- First release of month: `yyyymm1` (e.g., `2025110` for first November 2025 release)
+- Second release: `2025111`, then `20251102`, etc.
+- Sequential counter: 0-9
+- Pure integer format avoids floating-point issues
+
+**Rationale:**
+- **Eliminates floating-point precision issues:** Integer format ensures consistent parsing
+- **Maintains calendar clarity:** Year and month still immediately visible
+- **Retains sequential ordering:** Two-digit sequential counter supports up to 99 releases/month
+- **System compatibility:** Works reliably across all platforms and parsers
+
+**Note:** This change comes shortly after adopting the `yyyymm.x` format, but is necessary to
+address technical limitations discovered during testing.
+
+**Result:** Robust integer-based versioning that avoids floating-point precision issues while
+maintaining calendar-based benefits.
+
+## Bug Fixes (continued)
+
+### Utility Icon Visibility
+
+**Fixed utility icon not being displayed on home page** - resolved issue where the utility icon
+was not shown on the home page when it should have been visible.
+
+**Issues Reference:** #3004
+
+**Result:** Utility icon now displays correctly on the home page when utilities are configured.
+
+### Partial Wake-Up on Button Press
+
+**Fixed incomplete wake-up behavior with button press** - resolved issue where pressing buttons
+resulted in partial wake-up behavior on the screensaver page.
+
+**Behavior:**
+- **When `wakeup_with_button_press: true`:** Button presses now properly wake up the display from
+  screensaver mode
+- **When `wakeup_with_button_press: false` (default):** Panel stays in sleep mode as intended
+- Button commands are processed regardless of the wake-up setting
+
+**Issues Reference:** #3007
+
+**Result:** Button press wake-up behavior now works correctly based on configuration, while
+button commands are always processed.
+
+### Blueprint Boot Initialization
+
+**Fixed excessive requests to Blueprint during boot** - resolved issue causing too many requests
+to be sent to the Blueprint during the initialization process, which could overload Wi-Fi.
 
 **Issue details:**
-- **Problem:** Notification icon on home page persisted even after clearing the notification
-- **Impact:** Users had no visual indication that notifications were actually cleared
-- **Affected area:** Home page notification indicator
+- Multiple simultaneous requests during boot could overload Wi-Fi
+- Problem was more pronounced on slower Wi-Fi connections
+- Created a feedback loop where slow Wi-Fi made the issue worse
 
-**Fix implemented:**
-- Notification icon now properly clears when notification is dismissed
-- Home page visual state correctly reflects notification status
+**Issues Reference:** #3011
 
-**Issues Reference:** #2627
+**Result:** Reduced boot-time requests to Blueprint, improving initialization performance and
+preventing Wi-Fi overload, especially on slower connections.
 
-**Result:** Notification icon state now correctly syncs with notification status.
+### Alarm Disarm from Triggered State
+
+**Fixed alarm only disarming from triggered state** - resolved issue where the alarm could only
+be disarmed when in triggered state, preventing normal disarm operations from armed states.
+
+**Issues Reference:** #3013
+
+**Result:** Alarm can now be properly disarmed from both armed and triggered states.
+
+### Offline Panel Behavior
+
+**Fixed panel not working properly when offline** - resolved issue where the panel did not
+function correctly when disconnected from Blueprint data.
+
+**Offline conditions:**
+- Blueprint automation disabled, missing, or has errors
+- Home Assistant inaccessible
+- Wi-Fi connection lost or unavailable
+
+**Issues Reference:** #3012
+
+**Result:** Panel now operates correctly in offline mode when not receiving data from Blueprint.
 
 ---
 
-*Memory optimization and improved button bar aesthetics.*
+*Bug fix release for v202510.0 issues.*

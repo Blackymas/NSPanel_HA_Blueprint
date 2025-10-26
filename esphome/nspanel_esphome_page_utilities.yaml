@@ -1,0 +1,151 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - Page utilities                                                             #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+substitutions:
+  BOOT_STEP_PAGE_UTILITIES: '24'
+  PAGE_UTILITIES_ID: 27
+  TAG_PAGE_UTILITIES: nspanel.page.utilities
+
+api:
+  actions:
+    # Utilities group refresh
+    - action: utilities_group_refresh
+      variables:
+        group_id: string
+        value1: string
+        value2: string
+        direction: int
+        constructor: bool
+      then:
+        - lambda: |-
+            ESP_LOGV("${TAG_API}", "Action: utilities_group_refresh");
+            ESP_LOGV("${TAG_API}", "  group_id: %s", group_id.c_str());
+            ESP_LOGV("${TAG_API}", "  value1: %s", value1.c_str());
+            ESP_LOGV("${TAG_API}", "  value2: %s", value2.c_str());
+            ESP_LOGV("${TAG_API}", "  direction: %i", direction);
+            ESP_LOGV("${TAG_API}", "  constructor: %s", YESNO(constructor));
+            if (group_id.empty()) {
+              ESP_LOGW("${TAG_API}", "`group_id` is empty");
+              return;
+            }
+
+            uint8_t id = findUtilitiesGroupIndex(group_id.c_str());
+            if (id == UINT8_MAX) {
+              ESP_LOGW("${TAG_API}", "`group_id` not found");
+              return;
+            }
+            // Update Value 1
+            if (!value1.empty() and
+                (constructor or strcmp(value1.c_str(), UtilitiesGroups[id].value1) != 0)) {
+              copyStringToCharArray(UtilitiesGroups[id].value1, value1);
+              disp1->set_component_text(group_id.c_str(), value1.c_str());
+              delay(${DELAY_DEFAULT});
+            }
+
+            // Update Value 2
+            if (!value2.empty() and
+                (constructor or strcmp(value2.c_str(), UtilitiesGroups[id].value2) != 0)) {
+              copyStringToCharArray(UtilitiesGroups[id].value2, value2);
+              disp1->set_component_text((group_id + "b").c_str(), value2.c_str());
+              delay(${DELAY_DEFAULT});
+            }
+
+            // Update direction
+            if (group_id != "grid" and !isnan(direction) and
+                (constructor or direction != UtilitiesGroups[id].direction)) {
+              UtilitiesGroups[id].direction = direction;
+              disp1->set_component_value((group_id + "_line_d").c_str(), direction);
+              delay(${DELAY_DEFAULT});
+            }
+
+display:
+  - id: !extend disp1
+    on_touch:
+      then:
+        - lambda: |-
+            if (touch_event) return;  // Ignore the touch, so only the release will be used
+            if (page_id == hmi::home::PAGE.id and               // Page `home`
+                component_id == hmi::home::BT_UTILITIES.id and  // Utilities button
+                page_utilities_enabled) {                       // Page utilities is enabled
+              goto_page->execute(hmi::utilities::PAGE.id);
+              return;
+            }
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_PAGE_UTILITIES
+
+script:
+  - id: !extend action_component_color
+    then:
+      - lambda: |-
+          if (page == "mem") {
+            if (component == "utilities_icon_color") {  // Utilities button color
+              page_utilities_icon_color = color;
+              page_home_icon_visibility->execute(hmi::home::BT_UTILITIES.name,
+                                                  page_utilities_icon_color,
+                                                  page_utilities_enabled);
+              blueprint_status_flags.page_utilities = true;
+              return;
+            }
+          }
+
+  - id: !extend action_component_text
+    then:
+      - lambda: |-
+          if (page == "mem") {
+            if (component == "utilities_icon") {  // Utilities button
+              disp1->set_component_text(hmi::home::BT_UTILITIES.name, txt.c_str());
+              blueprint_status_flags.page_utilities = true;
+              return;
+            }
+          }
+
+  - id: !extend action_component_val
+    then:
+      - lambda: |-
+          if (page == "mem") {
+            if (component == "utilities_enabled") {  // Utilities button enabled
+              page_utilities_enabled = (val != 0);
+              page_home_icon_visibility->execute(hmi::home::BT_UTILITIES.name,
+                                                  page_utilities_icon_color,
+                                                  page_utilities_enabled);
+              blueprint_status_flags.page_utilities = true;
+              return;
+            }
+          }
+
+  - id: !extend page_change
+    then:
+      - lambda: |-
+          if (current_page->state == "utilities") page_utilities->execute();
+
+  - id: !extend page_home
+    then:
+      - lambda: |-
+          page_home_icon_visibility->execute(hmi::home::BT_UTILITIES.name,
+                                              page_utilities_icon_color,
+                                              page_utilities_enabled);
+
+  - id: page_utilities
+    mode: single
+    then:
+      - lambda: if (UtilitiesGroups == nullptr) resetUtilitiesGroups();
+
+  - id: !extend stop_all
+    mode: single
+    then:
+      - lambda: |-
+          cleanupUtilitiesGroups();
+
+  - id: !extend stop_page_constructors
+    then:
+      - lambda: page_utilities->stop();
+
+...
