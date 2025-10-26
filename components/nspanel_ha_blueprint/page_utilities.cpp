@@ -1,6 +1,9 @@
-// utilities.cpp
+// page_utilities.cpp
 
-#include "utilities.h"
+#ifdef NSPANEL_HA_BLUEPRINT_PAGE_UTILITIES
+
+#include "icons.h"
+#include "page_utilities.h"
 #include <cstdlib> // For malloc/free
 #ifdef USE_ESP_IDF
 #include "esp_heap_caps.h"
@@ -9,6 +12,9 @@
 #endif
 
 namespace nspanel_ha_blueprint {
+
+    bool page_utilities_enabled = false;
+    uint16_t page_utilities_icon_color = Colors::GRAY_LIGHT;
 
     UtilitiesGroupValues *UtilitiesGroups = nullptr;
 
@@ -61,3 +67,5 @@ namespace nspanel_ha_blueprint {
     }
 
 }  // namespace nspanel_ha_blueprint
+
+#endif  // NSPANEL_HA_BLUEPRINT_PAGE_UTILITIES
