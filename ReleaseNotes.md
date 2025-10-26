@@ -1,10 +1,10 @@
-# v20251001 (formerly v202510.1) - Bug Fixes & Versioning Update
+# v2025101 (formerly v202510.1) - Bug Fixes & Versioning Update
 
 ## Summary
 
 This release focuses on bug fixes addressing several issues reported in v202510.0, includes
 improvements to the home page icon navigation engine, and updates the versioning format to
-integer-based `yyyymmxx` to avoid floating-point precision issues.
+integer-based `yyyymmx` to avoid floating-point precision issues.
 
 ## Bug Fixes
 
@@ -35,19 +35,19 @@ updates on the home page for QR code and utilities page access.
 
 ### Integer-Based Versioning
 
-**Updated versioning format to integer-based `yyyymmxx`** - changed from `yyyymm.x` to
-`yyyymmxx` format to avoid floating-point precision issues.
+**Updated versioning format to integer-based `yyyymmx`** - changed from `yyyymm.x` to
+`yyyymmx` format to avoid floating-point precision issues.
 
 **Previous format (v202510.0):**
 - Format: `yyyymm.x` (year, month, sequential with decimal)
 - Issue: Floating-point precision problems in some systems
 - Adopted in: v202510.0 (short-lived)
 
-**New format (v20251101):**
-- Format: `yyyymmxx` (year, month, zero-padded sequential starting from 01)
-- First release of month: `yyyymm01` (e.g., `20251101` for first November 2025 release)
-- Second release: `20251102`, then `20251103`, etc.
-- Sequential counter: 01-99 (supports up to 99 releases per month)
+**New format (v2025111):**
+- Format: `yyyymmx` (year, month, zero-padded sequential starting from 01)
+- First release of month: `yyyymm1` (e.g., `2025110` for first November 2025 release)
+- Second release: `2025111`, then `20251102`, etc.
+- Sequential counter: 0-9
 - Pure integer format avoids floating-point issues
 
 **Rationale:**
