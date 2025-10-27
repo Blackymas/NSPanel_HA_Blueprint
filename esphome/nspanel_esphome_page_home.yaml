@@ -72,18 +72,6 @@ script:
               id(home_time_color) = color;
               disp1->set_component_font_color(hmi::home::TIME.name, color);
               return;
-            } else if (component == "utilities_icon_color") {  // Utilities button color
-              disp1->set_component_font_color(hmi::home::BT_UTILITIES.name, color);
-              return;
-            }
-          }
-
-  - id: !extend action_component_text
-    then:
-      - lambda: |-
-          if (page == "mem") {
-            if (component == "") {  // Utilities button
-              disp1->set_component_text(hmi::home::BT_UTILITIES.name, txt.c_str());
             }
           }
 
@@ -91,12 +79,7 @@ script:
     then:
       - lambda: |-
           if (page == "mem") {
-            if (component == "utilities_enabled") {  // Utilities button enabled
-              disp1->send_command_printf("is_utilities=%i", val);
-              if (current_page_id == hmi::home::PAGE.id)
-                disp1->send_command_printf("vis bt_utilities,%i", val);
-              return;
-            } else if (component == "is_climate") {
+            if (component == "is_climate") {
               id(is_climate) = (val != 0);
               return;
             } else if (component == "chip_font") {
@@ -206,7 +189,43 @@ script:
           id: refresh_relays
           relay_mask: 3
 
+  - id: page_home_icon_visibility
+    mode: parallel
+    max_runs: 8
+    parameters:
+      component_id: string
+      color: uint32_t
+      show: bool
+    then:
+      - lambda: |-
+          const bool is_current_page = (current_page_id == hmi::home::PAGE.id);
+
+          // Extract component parts (handles both "id" and "page.id" formats)
+          const NextionComponent component = extractNextionComponent(component_id, hmi::home::PAGE.name);
+
+          // Determine target format: use page.id if not current, otherwise just id
+          char target_id[30];  // 14 + 1 (dot) + 14 + 1 (null) = 30
+          if (is_current_page) {
+            // Apply visibility only if on current page
+            #if ESPHOME_VERSION_CODE < VERSION_CODE(2025, 11, 0)  // Code for ESPHome earlier than v2025.11.0
+            if (show) disp1->show_component(component.component_id); else disp1->hide_component(component.component_id);
+            #else
+            disp1->set_component_visibility(component.component_id, show);
+            #endif
+
+            // Current page: use short id
+            snprintf(target_id, sizeof(target_id), "%s", component.component_id);
+          } else {
+            // Not current page: use page.id format
+            snprintf(target_id, sizeof(target_id), "%s.%s", component.page, component.component_id);
+          }
+
+          // Set color (works for both current and non-current page)
+          disp1->set_component_font_color(target_id, show ? color : Colors::BLACK);
+
   - id: !extend stop_all
     then:
-      - lambda: page_home->stop();  // Page home is an exception to the stop_page_constructor, as it can be constructed in the background
+      - lambda: |-
+          page_home->stop();  // Page home is an exception to the stop_page_constructor, as it can be constructed in the background
+          page_home_icon_visibility->stop();
 ...

@@ -54,31 +54,33 @@ namespace nspanel_ha_blueprint {
      */
     struct BlueprintStatusFlags {
         uint8_t page_home : 1;            ///< Home page initialization completed
-        uint8_t qrcode : 1;               ///< QR code configuration completed
+        uint8_t page_qrcode : 1;          ///< QR code configuration completed
         uint8_t relay_settings : 1;       ///< Relay settings configuration completed
         uint8_t version : 1;              ///< Blueprint version received
         uint8_t hw_buttons_settings : 1;  ///< Hardware buttons settings completed
-        uint8_t reserved : 3;             ///< Reserved (not used in percentage calculation)
+        uint8_t page_utilities : 1;       ///< Utilities page configuration completed
+        uint8_t reserved : 2;             ///< Reserved (not used in percentage calculation)
 
         // Default constructor - all flags start as false (zero-initialized)
-        BlueprintStatusFlags() : page_home(0), qrcode(0), relay_settings(0),
-                                version(0), hw_buttons_settings(0), reserved(0) {}
+        BlueprintStatusFlags() : page_home(0), page_qrcode(0), relay_settings(0),
+                                version(0), hw_buttons_settings(0), page_utilities(0),
+                                reserved(0) {}
 
         /**
          * @brief Check if all active flags (bits 1-5) are set
          * @return true if all active flags are set, false otherwise
          */
         bool all_active_flags_set() const {
-            // All 5 active flags must be set
-            return page_home && qrcode && relay_settings && version && hw_buttons_settings;
+            // All 6 active flags must be set
+            return page_home && page_qrcode && relay_settings && version && hw_buttons_settings && page_utilities;
         }
 
         /**
-         * @brief Count active flags (bits 1-5) set
+         * @brief Count active flags (bits 1-6) set
          * @return Number of flags set
          */
         uint8_t count_active_flags_set() const {
-            return page_home + qrcode + relay_settings + version + hw_buttons_settings;
+            return page_home + page_qrcode + relay_settings + version + hw_buttons_settings + page_utilities;
         }
 
         /**
@@ -86,7 +88,7 @@ namespace nspanel_ha_blueprint {
          * @return Percentage (0.0-100.0) of active flags set (bits 1-5 only)
          */
         float get_completion_percentage() const {
-            static constexpr uint8_t TOTAL_ACTIVE_FLAGS = 5;
+            static constexpr uint8_t TOTAL_ACTIVE_FLAGS = 6;
             return (static_cast<float>(count_active_flags_set()) / TOTAL_ACTIVE_FLAGS) * 100.0f;
         }
 
@@ -98,10 +100,11 @@ namespace nspanel_ha_blueprint {
          */
         void reset() {
             page_home = false;
-            qrcode = false;
+            page_qrcode = false;
             relay_settings = false;
             version = false;
             hw_buttons_settings = false;
+            page_utilities = false;
             reserved = 0;
         }
     };

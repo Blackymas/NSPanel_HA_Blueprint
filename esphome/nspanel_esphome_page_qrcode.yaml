@@ -9,6 +9,7 @@
 substitutions:
   qrcode_initial_value: ''
   qrcode_title_initial_value: ''
+  qrcode_icon_color_initial_value: 'Colors::GRAY_LIGHT'
   qrcode_restore_value: false
   qrcode_size: 222
   qrcode_background_color: 65535
@@ -40,14 +41,29 @@ api:
             id(qrcode_title) = title;
             id(qrcode_string) = qrcode;
             if (show) {
-              goto_page->execute(${PAGE_QRCODE_ID});
+              goto_page->execute(hmi::qrcode::PAGE.id);
             } else {
               page_qrcode->execute();
             }
-            page_home_qrcode->execute();
+            page_home_icon_visibility->execute(hmi::home::BT_QRCODE.name,
+                                                id(qrcode_icon_color),
+                                                (not id(qrcode_string).empty()));
 
             // Update blueprint status
-            blueprint_status_flags.qrcode = true;
+            blueprint_status_flags.page_qrcode = true;
+
+display:
+  - id: !extend disp1
+    on_touch:
+      then:
+        - lambda: |-
+            if (touch_event) return;  // Ignore the touch, so only the release will be used
+            if (page_id == hmi::home::PAGE.id and            // Page `home`
+                component_id == hmi::home::BT_QRCODE.id and  // QRcode button
+                !id(qrcode_string).empty()) {                // QRcode string is not empty
+              goto_page->execute(hmi::qrcode::PAGE.id);
+              return;
+            }
 
 esphome:
   platformio_options:
@@ -55,15 +71,20 @@ esphome:
       - -D NSPANEL_HA_BLUEPRINT_PAGE_QRCODE
 
 globals:
-  - id: qrcode_title
-    type: std::string
+  - id: qrcode_icon_color
+    type: uint16_t
     restore_value: ${qrcode_restore_value}
-    initial_value: '${qrcode_title_initial_value}'
+    initial_value: '${qrcode_initial_value}'
 
   - id: qrcode_string
     type: std::string
     restore_value: ${qrcode_restore_value}
     initial_value: '${qrcode_initial_value}'
+
+  - id: qrcode_title
+    type: std::string
+    restore_value: ${qrcode_restore_value}
+    initial_value: '${qrcode_title_initial_value}'
 
 script:
   - id: !extend action_component_color
@@ -71,7 +92,11 @@ script:
       - lambda: |-
           if (page == "mem") {
             if (component == "qrcode_icon_color") {
-              disp1->set_component_font_color(hmi::home::BT_QRCODE.name, color);
+              id(qrcode_icon_color) = color;
+              page_home_icon_visibility->execute(hmi::home::BT_QRCODE.name,
+                                                  id(qrcode_icon_color),
+                                                  (not id(qrcode_string).empty()));
+              blueprint_status_flags.page_qrcode = true;
               return;
             }
           }
@@ -82,6 +107,7 @@ script:
           if (page == "mem") {
             if (component == "qrcode_icon") {
               disp1->set_component_text(hmi::home::BT_QRCODE.name, txt.c_str());
+              blueprint_status_flags.page_qrcode = true;
               return;
             }
           }
@@ -91,10 +117,11 @@ script:
       - lambda: |-
           if (page == "mem") {
             if (component == "qrcode_enabled") {
-              if (current_page_id == hmi::home::PAGE.id) {
-                disp1->send_command_printf("vis bt_qrcode,%i", val);
-              }
-              blueprint_status_flags.qrcode = true;
+              if (val < 1) id(qrcode_string) = "";
+              page_home_icon_visibility->execute(hmi::home::BT_QRCODE.name,
+                                                  id(qrcode_icon_color),
+                                                  (not id(qrcode_string).empty()));
+              blueprint_status_flags.page_qrcode = true;
               return;
             }
           }
@@ -106,27 +133,20 @@ script:
 
   - id: !extend page_change
     then:
-      - lambda: if (new_page_id == ${PAGE_QRCODE_ID}) page_qrcode->execute();
+      - lambda: if (new_page_id == hmi::qrcode::PAGE.id) page_qrcode->execute();
 
   - id: !extend page_home
     then:
-      - script.execute: page_home_qrcode
-
-  - id: page_home_qrcode
-    mode: single
-    then:
       - lambda: |-
-          if (current_page_id == ${PAGE_HOME_ID}) {
-            if (not id(qrcode_string).empty()) {
-              disp1->show_component("bt_qrcode");
-            }
-          }
+          page_home_icon_visibility->execute(hmi::home::BT_QRCODE.name,
+                                              id(qrcode_icon_color),
+                                              (not id(qrcode_string).empty()));
 
   - id: page_qrcode
     mode: single
     then:  # There's nothing here so far
       - lambda: |-
-          if (current_page_id != ${PAGE_QRCODE_ID}) {
+          if (current_page_id != hmi::qrcode::PAGE.id) {
             return;  // Page QRcode not visible
           }
           if (not id(qrcode_title).empty()) {
@@ -164,7 +184,5 @@ script:
 
   - id: !extend stop_page_constructors
     then:
-      - lambda: |-
-          page_home_qrcode->stop();
-          page_qrcode->stop();
+      - lambda: page_qrcode->stop();
 ...

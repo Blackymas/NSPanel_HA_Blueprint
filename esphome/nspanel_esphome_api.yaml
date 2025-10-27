@@ -99,14 +99,30 @@ api:
     # Supports both simple component IDs and page-specific IDs (page.component format).
     - action: components_visibility
       variables:
-        page: string  # Send `mem` for a memory var
-        ids: string[]  # Identifier of the component to be hidden/shown. Can be 'component' or 'page.component' format.
-        visible: bool  # Set to true to show the component, or false to hide it.
+        page: string    # Page name for visibility control. Empty string applies to current page.
+        ids: string[]   # Component identifiers. Can be 'component' or 'page.component' format.
+        visible: bool   # Set to true to show the component, or false to hide it.
       then:
         - lambda: |-
             ESP_LOGV("${TAG_API}", "Action: components_visibility");
-            ESP_LOGV("${TAG_API}", "  page: %s", page.c_str());
 
+            // Resolve page to current page if empty
+            const std::string resolved_page = page.empty() ? current_page->state : page;
+            ESP_LOGV("${TAG_API}", "  page: %s", resolved_page.c_str());
+
+            // Determine if we should process based on page context
+            const bool is_current_page = (resolved_page == current_page->state);
+
+            if (!is_current_page) {
+              ESP_LOGW("${TAG_API}", "Not the current page (%s vs %s)",
+                      resolved_page.c_str(), current_page->state.c_str());
+              return;
+            }
+
+            ESP_LOGV("${TAG_API}", "  visible: %s", YESNO(visible));
+
+            // Process each component ID
+            size_t processed_count = 0;
             for (const std::string& component_id : ids) {
               if (component_id.empty()) {
                 ESP_LOGW("${TAG_API}", "Skipping empty component ID");
@@ -114,23 +130,25 @@ api:
               }
 
               ESP_LOGV("${TAG_API}", "Processing component ID: %s", component_id.c_str());
-              if (page.empty() or current_page->state == page) {
-                ESP_LOGV("${TAG_API}", "  Applying visibility changes");
-                if (visible) {
-                  disp1->show_component(component_id.c_str());
-                } else {
-                  disp1->hide_component(component_id.c_str());
-                }
-              } else {
-                ESP_LOGV("${TAG_API}",
-                          "  Current page (%s) doesn't match specified page (%s), skipping visibility update",
-                          current_page->state.c_str(), page.c_str());
-              }
 
-            } // #endfor component_id iteration
+              // Extract component information using helper function
+              const NextionComponent component = extractNextionComponent(component_id, resolved_page);
 
-            ESP_LOGV("${TAG_API}", "Processed %zu component IDs with visibility: %s",
-                    ids.size(), YESNO(visible));
+              // Use short format for current page components
+              const char* target_id = component.component_id;
+              ESP_LOGV("${TAG_API}", "  target: %s", target_id);
+
+              // Apply visibility change
+              #if ESPHOME_VERSION_CODE < VERSION_CODE(2025, 11, 0)  // Code for ESPHome earlier than v2025.11.0
+              if (visible) disp1->show_component(target_id); else disp1->hide_component(target_id);
+              #else
+              disp1->set_component_visibility(target_id, visible);
+              #endif
+              processed_count++;
+            }  // #endfor component_id iteration
+
+            ESP_LOGVV("${TAG_API}", "Processed %zu/%zu component IDs with visibility: %s",
+                      processed_count, ids.size(), YESNO(visible));
 
     # Displays detailed information for a specific entity.
     - action: entity_details_show
@@ -168,7 +186,7 @@ api:
             ESP_LOGV("${TAG_API}", "Action: icon");
 
             // Validate mandatory parameters
-            if (page.empty() or id.empty()) {
+            if (page.empty() || id.empty()) {
               ESP_LOGW("${TAG_API}", "Bad params");
               return;
             }
@@ -199,15 +217,28 @@ api:
             ESP_LOGV("${TAG_API}", "  icon_color: %" PRIu16, rgbTo565(icon_color));
             ESP_LOGV("${TAG_API}", "  visible: %s", YESNO(visible));
 
-            // Determine component identifier format
-            const char* target_id = id.c_str();
+            // Extract component information using helper function
+            const NextionComponent component = extractNextionComponent(id, page);
+
+            // Determine target ID format based on page context
+            const char* target_id;
             char full_id[30];  // 14 + 1 (dot) + 14 + 1 (null) = 30
 
-            if (!is_current_page) {  // is_home_page is implicit
-              // Use page.id for global component not on current page
-              snprintf(full_id, sizeof(full_id), "%s.%s", page.c_str(), id.c_str());
+            if (is_current_page) {
+              // Use short format for current page: "id"
+              target_id = component.component_id;
+              // Apply visibility only on current page
+              #if ESPHOME_VERSION_CODE < VERSION_CODE(2025, 11, 0)  // Code for ESPHome earlier than v2025.11.0
+              if (visible) disp1->show_component(target_id); else disp1->hide_component(target_id);
+              #else
+              disp1->set_component_visibility(target_id, visible);
+              #endif
+            } else {
+              // Use full format for global components: "page.id"
+              snprintf(full_id, sizeof(full_id), "%s.%s", component.page, component.component_id);
               target_id = full_id;
             }
+
             ESP_LOGV("${TAG_API}", "  target: %s", target_id);
 
             // Set icon and color
@@ -215,74 +246,6 @@ api:
             if (icon_color.size() == 3) {
               disp1->set_component_font_color(target_id, rgbTo565(icon_color));
             }
-
-            // Apply visibility only if on current page
-            if (!is_current_page) {
-              ESP_LOGV("${TAG_API}", "  Skipping visibility (not current page)");
-              return;
-            }
-            if (visible) {
-              disp1->show_component(id.c_str());
-            } else {
-              disp1->hide_component(id.c_str());
-            }
-
-    # Utilities group refresh
-    - action: utilities_group_refresh
-      variables:
-        group_id: string
-        value1: string
-        value2: string
-        direction: int
-        constructor: bool
-      then:
-        - lambda: |-
-            ESP_LOGV("${TAG_API}", "Action: utilities_group_refresh");
-            ESP_LOGV("${TAG_API}", "  group_id: %s", group_id.c_str());
-            ESP_LOGV("${TAG_API}", "  value1: %s", value1.c_str());
-            ESP_LOGV("${TAG_API}", "  value2: %s", value2.c_str());
-            ESP_LOGV("${TAG_API}", "  direction: %i", direction);
-            ESP_LOGV("${TAG_API}", "  constructor: %s", YESNO(constructor));
-            if (group_id.empty()) {
-              ESP_LOGW("${TAG_API}", "`group_id` is empty");
-              return;
-            }
-
-            uint8_t id = findUtilitiesGroupIndex(group_id.c_str());
-            if (id == UINT8_MAX) {
-              ESP_LOGW("${TAG_API}", "`group_id` not found");
-              return;
-            }
-            // Update Value 1
-            if (!value1.empty() and
-                (constructor or strcmp(value1.c_str(), UtilitiesGroups[id].value1) != 0)) {
-              copyStringToCharArray(UtilitiesGroups[id].value1, value1);
-              disp1->set_component_text(group_id.c_str(), value1.c_str());
-              delay(${DELAY_DEFAULT});
-            }
-
-            // Update Value 2
-            if (!value2.empty() and
-                (constructor or strcmp(value2.c_str(), UtilitiesGroups[id].value2) != 0)) {
-              copyStringToCharArray(UtilitiesGroups[id].value2, value2);
-              disp1->set_component_text((group_id + "b").c_str(), value2.c_str());
-              delay(${DELAY_DEFAULT});
-            }
-
-            // Update direction
-            if (group_id != "grid" and !isnan(direction) and
-                (constructor or direction != UtilitiesGroups[id].direction)) {
-              UtilitiesGroups[id].direction = direction;
-              disp1->set_component_value((group_id + "_line_d").c_str(), direction);
-              delay(${DELAY_DEFAULT});
-            }
-
-    # Wake Up Service
-    - action: wake_up
-      variables:
-        reset_timer: bool  # Determines whether to reset the sleep and dimming timers upon waking the display.
-      then:
-        - lambda: wakeup->execute(reset_timer);
 
 esphome:
   platformio_options:
@@ -383,18 +346,23 @@ script:
 
   - id: ha_button
     mode: parallel
+    max_runs: 8
     parameters:
       page: string
       component: string
       command: string
     then:
       - lambda: |-
-          timer_reset_all->execute();
+          ESP_LOGV("${TAG_API}", "Send 'button_click' event to HA:");
+          ESP_LOGV("${TAG_API}", "  page: %s", page.c_str());
+          ESP_LOGV("${TAG_API}", "  component: %s", component.c_str());
+          ESP_LOGV("${TAG_API}", "  command: %s", command.c_str());
           fire_ha_event("button_click", {
             {"page", page.c_str()},
             {"component", component.c_str()},
             {"command", command.c_str()}
           });
+          ESP_LOGV("${TAG_API}", "'button_click' event sent");
 
   - id: !extend stop_all
     then:
@@ -413,7 +381,7 @@ script:
               current_page_id != ${PAGE_SCREENSAVER_ID} and
               current_page_id != ${PAGE_SETTINGS_ID} and
               current_page->state != "blank") {
-            ESP_LOGW("${TAG_DATETIME}", "API disconnected. Falling back to Home page.");
+            ESP_LOGW("${TAG_API}", "API disconnected. Falling back to Home page.");
             goto_page->execute(${PAGE_HOME_ID});
           }
 wifi:

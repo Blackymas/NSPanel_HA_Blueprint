@@ -28,6 +28,15 @@ substitutions:
     inverted: true
   TAG_HW_DISPLAY: nspanel.hw.display
 
+api:
+  actions:
+    # Wake Up Service
+    - action: wake_up
+      variables:
+        reset_timer: bool  # Determines whether to reset the sleep and dimming timers upon waking the display.
+      then:
+        - lambda: wakeup->execute(reset_timer);
+
 binary_sensor:
   - id: nextion_init  # Delays initial info from HA to the display
     name: Nextion display
@@ -295,7 +304,6 @@ script:
           else if (current_page->state == "buttonpage02") page_buttonpage02->execute();
           else if (current_page->state == "buttonpage03") page_buttonpage03->execute();
           else if (current_page->state == "buttonpage04") page_buttonpage04->execute();
-          else if (current_page->state == "utilities") page_utilities->execute();
           else if (current_page->state == "weather01") page_weather01->execute();
           else if (current_page->state == "weather02") page_weather02->execute();
           else if (current_page->state == "weather03") page_weather03->execute();
@@ -378,6 +386,7 @@ script:
           timer_reset_all->stop();
           wait_for_uart_available->stop();
           wait_for_version_tft->stop();
+          wakeup->stop();
 
   - id: stop_page_constructors
     mode: single
@@ -390,7 +399,6 @@ script:
           page_entitypage02->stop();
           page_entitypage03->stop();
           page_entitypage04->stop();
-          page_utilities->stop();
           page_weather->stop();
           page_weather01->stop();
           page_weather02->stop();
@@ -489,6 +497,33 @@ script:
     then:
       - script.execute: wait_for_version_tft
       - script.wait: wait_for_version_tft
+
+  - id: wakeup
+    mode: single
+    parameters:
+      reset_timer: bool
+    then:
+      - lambda: |-
+          ESP_LOGV("${TAG_HW_DISPLAY}", "Wake-up (%s->%s)", page_names[current_page_id], page_names[wakeup_page_id]);
+          ESP_LOGV("${TAG_HW_DISPLAY}", "  reset timer: %s", YESNO(reset_timer));
+          if (version_tft->state < 1) {
+            ESP_LOGE("${TAG_HW_DISPLAY}", "TFT version invalid");
+            return;
+          }
+          if (current_page_id == ${PAGE_SCREENSAVER_ID} or current_page_id == ${PAGE_BOOT_ID}) {
+            ESP_LOGD("${TAG_HW_DISPLAY}", "Wake-up on page %s", page_names[wakeup_page_id]);
+            if (wakeup_page_id == ${PAGE_CLIMATE_ID}) {
+              detailed_entity->publish_state((id(is_embedded_thermostat)) ? "embedded_climate" : "");
+              disp1->set_component_value("climate.embedded", id(is_embedded_thermostat) ? 1 : 0);
+            }
+            goto_page->execute(wakeup_page_id);
+          }
+          if (reset_timer) {
+            timer_reset_all->execute();
+          } else {
+            timer_sleep->execute();
+            timer_dim->execute();
+          }
 
   - id: !extend watchdog_round
     then:

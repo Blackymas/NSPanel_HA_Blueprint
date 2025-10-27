@@ -72,12 +72,12 @@ namespace nspanel_ha_blueprint {
     */
     constexpr IconData climate_off_mode_icons[] = {
         {Icons::NONE, Colors::BLACK},           // CLIMATE_MODE_OFF (0)
-        {Icons::AUTORENEW, Colors::GREY},       // CLIMATE_MODE_HEAT_COOL (1)
-        {Icons::SNOWFLAKE, Colors::GREY},       // CLIMATE_MODE_COOL (2)
-        {Icons::FIRE, Colors::GREY},            // CLIMATE_MODE_HEAT (3)
-        {Icons::FAN, Colors::GREY},             // CLIMATE_MODE_FAN_ONLY (4)
-        {Icons::WATER_PERCENT, Colors::GREY},   // CLIMATE_MODE_DRY (5)
-        {Icons::CALENDAR_SYNC, Colors::GREY}    // CLIMATE_MODE_AUTO (6)
+        {Icons::AUTORENEW, Colors::GRAY},       // CLIMATE_MODE_HEAT_COOL (1)
+        {Icons::SNOWFLAKE, Colors::GRAY},       // CLIMATE_MODE_COOL (2)
+        {Icons::FIRE, Colors::GRAY},            // CLIMATE_MODE_HEAT (3)
+        {Icons::FAN, Colors::GRAY},             // CLIMATE_MODE_FAN_ONLY (4)
+        {Icons::WATER_PERCENT, Colors::GRAY},   // CLIMATE_MODE_DRY (5)
+        {Icons::CALENDAR_SYNC, Colors::GRAY}    // CLIMATE_MODE_AUTO (6)
     };
 
     /**
@@ -102,7 +102,7 @@ namespace nspanel_ha_blueprint {
         {Icons::NONE, Colors::BLACK},           // Unused index 1
         {Icons::SNOWFLAKE, Colors::BLUE},       // CLIMATE_ACTION_COOLING (2)
         {Icons::FIRE, Colors::DEEP_ORANGE},     // CLIMATE_ACTION_HEATING (3)
-        {Icons::THERMOMETER, Colors::GREY},     // CLIMATE_ACTION_IDLE (4)
+        {Icons::THERMOMETER, Colors::GRAY},     // CLIMATE_ACTION_IDLE (4)
         {Icons::WATER_PERCENT, Colors::ORANGE}, // CLIMATE_ACTION_DRYING (5)
         {Icons::FAN, Colors::CYAN}              // CLIMATE_ACTION_FAN (6)
     };
