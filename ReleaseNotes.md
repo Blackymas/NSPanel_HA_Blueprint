@@ -44,9 +44,9 @@ updates on the home page for QR code and utilities page access.
 - Adopted in: v202510.0 (short-lived)
 
 **New format (v2025111):**
-- Format: `yyyymmx` (year, month, zero-padded sequential starting from 01)
-- First release of month: `yyyymm1` (e.g., `2025110` for first November 2025 release)
-- Second release: `2025111`, then `20251102`, etc.
+- Format: `yyyymmx` (year, month, zero-padded sequential starting from 0)
+- First release of month: `yyyymm0` (e.g., `2025110` for first November 2025 release)
+- Second release: `2025111`, then `2025112`, etc.
 - Sequential counter: 0-9
 - Pure integer format avoids floating-point issues
 
@@ -126,6 +126,21 @@ function correctly when disconnected from Blueprint data.
 **Issues Reference:** #3012
 
 **Result:** Panel now operates correctly in offline mode when not receiving data from Blueprint.
+
+### Alarm Control Panel Crash on ESPHome 2025.10.0+
+
+**Fixed panel crashing when calling alarm_control_panel actions** - resolved crash issue that
+occurred when using alarm control panel actions on ESPHome 2025.10.0 and later versions.
+
+**Issue details:**
+- Alarm control panel actions caused panel crashes on ESPHome 2025.10.0+
+- Worked correctly on previous ESPHome versions
+- Breaking change in ESPHome API required code adjustment
+
+**Issues Reference:** #2972
+
+**Result:** Alarm control panel actions now work correctly on ESPHome 2025.10.0+ without
+crashing.
 
 ---
 
