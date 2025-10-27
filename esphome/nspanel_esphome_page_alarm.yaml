@@ -222,54 +222,48 @@ script:
       pin: string
     then:
       - lambda: |-
-          ESP_LOGV("${TAG_PAGE_ALARM}", "Alarm control panel action call:");
+          ESP_LOGV("${TAG_PAGE_ALARM}", "Alarm control panel action call");
           ESP_LOGV("${TAG_PAGE_ALARM}", "  entity_id: %s", entity.c_str());
-          ESP_LOGV("${TAG_PAGE_ALARM}", "  pin: %s", YESNO(not pin.empty()));
+          ESP_LOGV("${TAG_PAGE_ALARM}", "  key: %s", key.c_str());
+          ESP_LOGV("${TAG_PAGE_ALARM}", "  pin provided: %s", pin.empty() ? "NO" : "YES");
 
-          // Build action: alarm_control_panel.alarm_<suffix>
-          // For bypass: arm_custom_bypass, others: arm_<key> or disarm
-          std::string action = "alarm_control_panel.alarm_";
-          if (key != "disarm") action += "arm_";
-          if (key == "bypass") action += "custom_";
-          action += key;
-          ESP_LOGV("${TAG_PAGE_ALARM}", "  action: %s", action.c_str());
+          // Build action string
+          static std::string action_str;
+          action_str = "alarm_control_panel.alarm_";
+          if (key != "disarm") action_str += "arm_";
+          if (key == "bypass") action_str += "custom_";
+          action_str += key;
+          ESP_LOGV("${TAG_PAGE_ALARM}", "  action: %s", action_str.c_str());
 
-          // Create action request based on ESPHome version
-          #if ESPHOME_VERSION_CODE < VERSION_CODE(2025, 10, 0)  // ESPHome earlier than v2025.10.0
-          ESP_LOGV("${TAG_PAGE_ALARM}", "Using HomeassistantServiceResponse (ESPHome < 2025.10.0)");
-          esphome::api::HomeassistantServiceResponse action_request;
-          #else  // ESPHome v2025.10.0 or newer
-          ESP_LOGV("${TAG_PAGE_ALARM}", "Using HomeassistantActionRequest (ESPHome >= 2025.10.0)");
+          // Create action request
           esphome::api::HomeassistantActionRequest action_request;
-          #endif  // ESPHome version check
+          action_request.set_service(StringRef(action_str));
+          ESP_LOGV("${TAG_PAGE_ALARM}", "Service set");
 
-          action_request.set_service(StringRef(action));
+          // IMPORTANT: FixedVector needs capacity before emplace_back()
+          const bool has_code = !pin.empty();
+          action_request.data.init(has_code ? 2 : 1);  // entity_id [+ code]
 
-          // Add entity_id parameter
-          ESP_LOGV("${TAG_PAGE_ALARM}", "Adding entity_id parameter");
-          esphome::api::HomeassistantServiceMap kv_entity;
-          kv_entity.set_key(StringRef("entity_id"));
-          kv_entity.value = entity;
-          action_request.data.push_back(kv_entity);
-
-          // Add code parameter if pin is provided
-          if (!pin.empty()) {
-            ESP_LOGV("${TAG_PAGE_ALARM}", "Adding code parameter");
-            esphome::api::HomeassistantServiceMap kv_code;
-            kv_code.set_key(StringRef("code"));
-            kv_code.value = pin;
-            action_request.data.push_back(kv_code);
+          // Add entity_id
+          {
+            auto &kv = action_request.data.emplace_back();
+            kv.set_key(StringRef("entity_id"));
+            kv.value = entity;
           }
 
-          // Send action call to Home Assistant
-          ESP_LOGV("${TAG_PAGE_ALARM}", "Sending action call to Home Assistant");
-          #if ESPHOME_VERSION_CODE < VERSION_CODE(2025, 10, 0)  // ESPHome earlier than v2025.10.0
-          global_api_server->send_homeassistant_service_call(action_request);
-          #else  // ESPHome v2025.10.0 or newer
-          api_server->send_homeassistant_action(action_request);
-          #endif  // ESPHome version check
+          // Add code if present
+          if (has_code) {
+            auto &kv = action_request.data.emplace_back();
+            kv.set_key(StringRef("code"));
+            kv.value = pin;
+          }  // if (has_code)
 
-          ESP_LOGV("${TAG_PAGE_ALARM}", "Alarm control panel action completed");
+          ESP_LOGV("${TAG_PAGE_ALARM}", "Final data size: %zu", action_request.data.size());
+          ESP_LOGV("${TAG_PAGE_ALARM}", "  (will send entity_id=%s%s)",
+                  entity.c_str(), has_code ? " and code=<hidden>" : "");
+
+          ESP_LOGV("${TAG_PAGE_ALARM}", "Sending action to Home Assistant");
+          api_server->send_homeassistant_action(action_request);
 
   - id: !extend dump_config  # Defined by nspanel_esphome_core_base.yaml
     then:
