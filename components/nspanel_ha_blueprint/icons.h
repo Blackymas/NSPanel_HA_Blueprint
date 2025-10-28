@@ -54,7 +54,9 @@ namespace nspanel_ha_blueprint {
 
         // System/WiFi icons
         constexpr const char* WIFI = "\uE5A8";                 ///< mdi:wifi - WiFi connected
-        constexpr const char* WIFI_OFF = "\uE5A9";             ///< mdi:wifi-off - WiFi disconnected
+        // Renamed to avoid collision with Arduino WiFiType.h macro WIFI_OFF
+        constexpr const char* WIFI_DISCONNECTED = "\uE5A9";    ///< mdi:wifi-off - WiFi disconnected
+        // constexpr const char* WIFI_OFF = "\uE5A9";             ///< mdi:wifi-off - WiFi disconnected
         constexpr const char* API_OFF = "\uF256";              ///< mdi:api-off - API disconnected
         constexpr const char* HOME_ASSISTANT = "\uE7CF";       ///< mdi:home-assistant - Blueprint disconnected
         constexpr const char* RESTART = "\uE708";              ///< mdi:restart - System restart
