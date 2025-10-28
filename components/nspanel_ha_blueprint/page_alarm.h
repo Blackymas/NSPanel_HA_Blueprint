@@ -2,8 +2,7 @@
 
 #ifdef NSPANEL_HA_BLUEPRINT_PAGE_ALARM
 
-namespace esphome {
-namespace nspanel {
+namespace nspanel_ha_blueprint {
 
   // Home Assistant alarm control panel supported features
   // Matches Home Assistant AlarmControlPanelEntityFeature values
@@ -16,7 +15,6 @@ namespace nspanel {
     ALWAYS_SHOW = 0          // Special value for always-visible buttons
   };
 
-}  // namespace nspanel
-}  // namespace esphome
+}  // namespace nspanel_ha_blueprint
 
 #endif  // NSPANEL_HA_BLUEPRINT_PAGE_ALARM
