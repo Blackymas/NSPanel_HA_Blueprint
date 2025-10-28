@@ -33,21 +33,81 @@ api:
         - lambda: |-
             if (current_page_id != ${PAGE_ALARM_ID}) return;
 
+            // Helper function to update alarm button state and visibility
+            // Handles feature checking, logging, and UI updates for all buttons including disarm
+            auto update_alarm_button = [&](
+                const char* button_name,  // Button prefix (e.g., "bt_home", "bt_disarm")
+                const char* armed_state,  // State string (e.g., "armed_home", "disarmed")
+                bool is_armed,
+                bool is_triggered,
+                AlarmFeature feature_bit  // Supported feature bit (ALWAYS_SHOW = always show)
+            ) {
+              // Check if button should be processed
+              if (feature_bit != AlarmFeature::ALWAYS_SHOW &&
+                  !((supported_features & static_cast<uint8_t>(feature_bit)) || (state == armed_state))) {
+                return;
+              }
+
+              ESP_LOGV("${TAG_PAGE_ALARM}", "Button - %s (state: %s)", button_name, armed_state);
+
+              const bool is_this_state = (state == armed_state);
+
+              // Update button appearance based on state
+              disp1->set_component_pic(
+                  (std::string(button_name) + "_pic").c_str(),
+                  is_this_state ? 43 : 42
+              );
+
+              const uint32_t bg_color = is_this_state ? Colors::GREEN : Colors::GRAY_LIGHT;
+              const uint32_t font_color = is_this_state ? Colors::WHITE : Colors::BLACK;
+
+              disp1->set_component_background_color((std::string(button_name) + "_text").c_str(), bg_color);
+              disp1->set_component_background_color((std::string(button_name) + "_icon").c_str(), bg_color);
+              disp1->set_component_font_color((std::string(button_name) + "_text").c_str(), font_color);
+              disp1->set_component_font_color((std::string(button_name) + "_icon").c_str(), font_color);
+
+              // Handle visibility based on button type and configuration
+              bool should_hide;
+              if (feature_bit == AlarmFeature::ALWAYS_SHOW) {
+                // Disarm button: hide when already disarmed
+                should_hide = is_this_state;
+              } else {
+                // Armed mode buttons: hide based on configuration
+                #ifdef USE_REQUIRE_DISARM_BEFORE_REARM
+                should_hide = is_armed || is_triggered;
+                #else  // USE_REQUIRE_DISARM_BEFORE_REARM
+                should_hide = is_this_state || is_triggered;
+                #endif  // USE_REQUIRE_DISARM_BEFORE_REARM
+              }
+
+              #if ESPHOME_VERSION_CODE >= VERSION_CODE(2025, 11, 0)  // ESPHome v2025.11.0+
+              disp1->set_component_visibility(button_name, !should_hide);
+              #else  // ESPHome < v2025.11.0
+              disp1->send_command_printf("vis %s,%i", button_name, should_hide ? 0 : 1);
+              #endif  // ESPHOME_VERSION_CODE
+
+              feed_wdt_delay(${PAGE_ALARM_DELAY_SHORT});
+            };
+
             // Set detailed entity sensor
             ESP_LOGV("${TAG_PAGE_ALARM}", "Set detailed entity sensor");
             detailed_entity->publish_state(entity.c_str());
-            feed_wdt_delay(${PAGE_ALARM_DELAY_SHORT});
 
-            // Page header - Icon
-            ESP_LOGV("${TAG_PAGE_ALARM}", "Page header - Icon");
-            update_alarm_icon->execute("icon_state", state.c_str());
+            // Determine alarm states
+            const bool is_armed = (state.find("armed_") == 0) || (state == "arming") || (state == "pending");
+            const bool is_triggered = (state == "triggered");
+            #ifdef USE_REQUIRE_DISARM_BEFORE_REARM
+            ESP_LOGV("${TAG_PAGE_ALARM}", "Alarm is armed: %s", YESNO(is_armed));
+            #endif  // USE_REQUIRE_DISARM_BEFORE_REARM
+            ESP_LOGV("${TAG_PAGE_ALARM}", "Alarm is triggered: %s", YESNO(is_triggered));
 
-            // Page header - Title
-            ESP_LOGV("${TAG_PAGE_ALARM}", "Page header - Title");
-            if (page_title.find("\\r") != std::string::npos) {
-              page_title = page_title.replace(page_title.find("\\r"), 2, " ");
-            }
-            disp1->set_component_text("page_label", page_title.c_str());
+            // Update all alarm mode buttons
+            update_alarm_button("bt_home", "armed_home", is_armed, is_triggered, AlarmFeature::ARM_HOME);
+            update_alarm_button("bt_away", "armed_away", is_armed, is_triggered, AlarmFeature::ARM_AWAY);
+            update_alarm_button("bt_night", "armed_night", is_armed, is_triggered, AlarmFeature::ARM_NIGHT);
+            update_alarm_button("bt_vacat", "armed_vacation", is_armed, is_triggered, AlarmFeature::ARM_VACATION);
+            update_alarm_button("bt_bypass", "armed_custom_bypass", is_armed, is_triggered, AlarmFeature::ARM_CUSTOM_BYPASS);
+            update_alarm_button("bt_disarm", "disarmed", is_armed, is_triggered, AlarmFeature::ALWAYS_SHOW);
 
             // Page - Params
             ESP_LOGV("${TAG_PAGE_ALARM}", "Page - Params");
@@ -55,7 +115,7 @@ api:
             disp1->set_component_text("code_arm_req", code_arm_required ? "1" : "0");
             feed_wdt_delay(${PAGE_ALARM_DELAY_SHORT});
 
-            //Buttons - Text
+            // Buttons - Text
             ESP_LOGV("${TAG_PAGE_ALARM}", "Buttons - Text");
             disp1->set_component_text("bt_away_text", wrapText(mui_alarm[1].c_str(), 10, id(mui_bytes_per_char)).c_str());
             disp1->set_component_text("bt_night_text", wrapText(mui_alarm[2].c_str(), 10, id(mui_bytes_per_char)).c_str());
@@ -64,107 +124,14 @@ api:
             disp1->set_component_text("bt_disarm_text", wrapText(mui_alarm[5].c_str(), 10, id(mui_bytes_per_char)).c_str());
             feed_wdt_delay(${PAGE_ALARM_DELAY_SHORT});
 
-            // Determine if alarm is triggered
-            #ifdef USE_REQUIRE_DISARM_BEFORE_REARM
-            const bool is_armed = (state.find("armed_") == 0) || (state == "arming") || (state == "pending");
-            ESP_LOGV("${TAG_PAGE_ALARM}", "Alarm is armed: %s", YESNO(is_armed));
-            #endif
-            const bool is_triggered = (state == "triggered");
-            ESP_LOGV("${TAG_PAGE_ALARM}", "Alarm is triggered: %s", YESNO(is_triggered));
-
-            // Button - Home
-            if ((supported_features & 1) or (state == "armed_home")) {
-              ESP_LOGV("${TAG_PAGE_ALARM}", "Button - Home");
-              const bool is_armed_home = (state == "armed_home");
-              disp1->set_component_pic("bt_home_pic", is_armed_home ? 43 : 42);
-              disp1->set_component_background_color("bt_home_text", is_armed_home ? Colors::GREEN : Colors::GRAY_LIGHT);
-              disp1->set_component_background_color("bt_home_icon", is_armed_home ? Colors::GREEN : Colors::GRAY_LIGHT);
-              disp1->set_component_font_color("bt_home_text", is_armed_home ? Colors::WHITE : Colors::BLACK);
-              disp1->set_component_font_color("bt_home_icon", is_armed_home ? Colors::WHITE : Colors::BLACK);
-              #ifdef USE_REQUIRE_DISARM_BEFORE_REARM
-              disp1->send_command_printf("vis bt_home,%i", (is_armed or is_triggered) ? 0 : 1);
-              #else  // USE_REQUIRE_DISARM_BEFORE_REARM
-              disp1->send_command_printf("vis bt_home,%i", (is_armed_home or is_triggered) ? 0 : 1);
-              #endif  // USE_REQUIRE_DISARM_BEFORE_REARM
-              feed_wdt_delay(${PAGE_ALARM_DELAY_SHORT});
+            // Page header
+            ESP_LOGV("${TAG_PAGE_ALARM}", "Page header");
+            update_alarm_icon->execute("icon_state", state.c_str());  // Icon
+            // Page header - Title
+            if (page_title.find("\\r") != std::string::npos) {
+              page_title = page_title.replace(page_title.find("\\r"), 2, " ");
             }
-
-            // Button - Away
-            if ((supported_features & 2) or (state == "armed_away")) {
-              ESP_LOGV("${TAG_PAGE_ALARM}", "Button - Away");
-              const bool is_armed_away = (state == "armed_away");
-              disp1->set_component_pic("bt_away_pic", is_armed_away ? 43 : 42);
-              disp1->set_component_background_color("bt_away_text", is_armed_away ? Colors::GREEN : Colors::GRAY_LIGHT);
-              disp1->set_component_background_color("bt_away_icon", is_armed_away ? Colors::GREEN : Colors::GRAY_LIGHT);
-              disp1->set_component_font_color("bt_away_text", is_armed_away ? Colors::WHITE : Colors::BLACK);
-              disp1->set_component_font_color("bt_away_icon", is_armed_away ? Colors::WHITE : Colors::BLACK);
-              #ifdef USE_REQUIRE_DISARM_BEFORE_REARM
-              disp1->send_command_printf("vis bt_away,%i", (is_armed or is_triggered) ? 0 : 1);
-              #else  // USE_REQUIRE_DISARM_BEFORE_REARM
-              disp1->send_command_printf("vis bt_away,%i", (is_armed_away or is_triggered) ? 0 : 1);
-              #endif  // USE_REQUIRE_DISARM_BEFORE_REARM
-              feed_wdt_delay(${PAGE_ALARM_DELAY_SHORT});
-            }
-
-            // Button - Night
-            if ((supported_features & 4) or (state == "armed_night")) {
-              ESP_LOGV("${TAG_PAGE_ALARM}", "Button - Night");
-              const bool is_armed_night = (state == "armed_night");
-              disp1->set_component_pic("bt_night_pic", is_armed_night ? 43 : 42);
-              disp1->set_component_background_color("bt_night_text", is_armed_night ? Colors::GREEN : Colors::GRAY_LIGHT);
-              disp1->set_component_background_color("bt_night_icon", is_armed_night ? Colors::GREEN : Colors::GRAY_LIGHT);
-              disp1->set_component_font_color("bt_night_text", is_armed_night ? Colors::WHITE : Colors::BLACK);
-              disp1->set_component_font_color("bt_night_icon", is_armed_night ? Colors::WHITE : Colors::BLACK);
-              #ifdef USE_REQUIRE_DISARM_BEFORE_REARM
-              disp1->send_command_printf("vis bt_night,%i", (is_armed or is_triggered) ? 0 : 1);
-              #else  // USE_REQUIRE_DISARM_BEFORE_REARM
-              disp1->send_command_printf("vis bt_night,%i", (is_armed_night or is_triggered) ? 0 : 1);
-              #endif  // USE_REQUIRE_DISARM_BEFORE_REARM
-            }
-
-            // Button - Vacation
-            if ((supported_features & 32) or (state == "armed_vacation")) {
-              ESP_LOGV("${TAG_PAGE_ALARM}", "Button - Vacation");
-              const bool is_armed_vacation = (state == "armed_vacation");
-              disp1->set_component_pic("bt_vacat_pic", is_armed_vacation ? 43 : 42);
-              disp1->set_component_background_color("bt_vacat_text", is_armed_vacation ? Colors::GREEN : Colors::GRAY_LIGHT);
-              disp1->set_component_background_color("bt_vacat_icon", is_armed_vacation ? Colors::GREEN : Colors::GRAY_LIGHT);
-              disp1->set_component_font_color("bt_vacat_text", is_armed_vacation ? Colors::WHITE : Colors::BLACK);
-              disp1->set_component_font_color("bt_vacat_icon", is_armed_vacation ? Colors::WHITE : Colors::BLACK);
-              #ifdef USE_REQUIRE_DISARM_BEFORE_REARM
-              disp1->send_command_printf("vis bt_vacat,%i", (is_armed or is_triggered) ? 0 : 1);
-              #else  // USE_REQUIRE_DISARM_BEFORE_REARM
-              disp1->send_command_printf("vis bt_vacat,%i", (is_armed_vacation or is_triggered) ? 0 : 1);
-              #endif  // USE_REQUIRE_DISARM_BEFORE_REARM
-              feed_wdt_delay(${PAGE_ALARM_DELAY_SHORT});
-            }
-
-            // Button - Custom bypass
-            if ((supported_features & 16) or (state == "armed_custom_bypass")) {
-              ESP_LOGV("${TAG_PAGE_ALARM}", "Button - Custom bypass");
-              const bool is_triggered_custom_bypass = (state == "armed_custom_bypass");
-              disp1->set_component_pic("bt_bypass_pic", is_triggered_custom_bypass ? 43 : 42);
-              disp1->set_component_background_color("bt_bypass_text", is_triggered_custom_bypass ? Colors::GREEN : Colors::GRAY_LIGHT);
-              disp1->set_component_background_color("bt_bypass_icon", is_triggered_custom_bypass ? Colors::GREEN : Colors::GRAY_LIGHT);
-              disp1->set_component_font_color("bt_bypass_text", is_triggered_custom_bypass ? Colors::WHITE : Colors::BLACK);
-              disp1->set_component_font_color("bt_bypass_icon", is_triggered_custom_bypass ? Colors::WHITE : Colors::BLACK);
-              #ifdef USE_REQUIRE_DISARM_BEFORE_REARM
-              disp1->send_command_printf("vis bt_bypass,%i", (is_armed or is_triggered) ? 0 : 1);
-              #else  // USE_REQUIRE_DISARM_BEFORE_REARM
-              disp1->send_command_printf("vis bt_bypass,%i", (is_triggered_custom_bypass or is_triggered) ? 0 : 1);
-              #endif  // USE_REQUIRE_DISARM_BEFORE_REARM
-              feed_wdt_delay(${PAGE_ALARM_DELAY_SHORT});
-            }
-
-            // Button - Disarm (enabled when armed, disabled when disarmed)
-            ESP_LOGV("${TAG_PAGE_ALARM}", "Button - Disarm");
-            const bool is_disarmed = (state == "disarmed");
-            disp1->set_component_pic("bt_disarm_pic", is_disarmed ? 43 : 42);
-            disp1->set_component_background_color("bt_disarm_text", is_disarmed ? Colors::GREEN : Colors::GRAY_LIGHT);
-            disp1->set_component_background_color("bt_disarm_icon", is_disarmed ? Colors::GREEN : Colors::GRAY_LIGHT);
-            disp1->set_component_font_color("bt_disarm_text", is_disarmed ? Colors::WHITE : Colors::BLACK);
-            disp1->set_component_font_color("bt_disarm_icon", is_disarmed ? Colors::WHITE : Colors::BLACK);
-            disp1->send_command_printf("vis bt_disarm,%i", (is_disarmed) ? 0 : 1);
+            disp1->set_component_text("page_label", page_title.c_str());  // Title
 
             ESP_LOGV("${TAG_PAGE_ALARM}", "Done!");
 
