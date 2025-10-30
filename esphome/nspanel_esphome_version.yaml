@@ -16,19 +16,20 @@ substitutions:
 
 esphome:
   project:
-    version: '"${ version | string }"'
+    version: '"${ version}"'
   platformio_options:
     build_flags:
       - -D NSPANEL_HA_BLUEPRINT_VERSIONING
   min_version: ${min_esphome_compiler_version}
 
 script:
-  - id: !extend action_component_val
+  - id: !extend action_component_text
     then:
       - lambda: |-
           if (page == "mem") {
             if (component == "ver_blueprint") {
-              version_blueprint->publish_state(val);
+              ESP_LOGI("${TAG_VERSIONING}", "Blueprint version: %s", txt.c_str());
+              version_blueprint->publish_state(txt);
             }
           }
 
@@ -36,7 +37,7 @@ script:
     then:
       - delay: ${DELAY_DEFAULT}ms
       - lambda: |-
-          version_esphome->publish_state(${version});
+          version_esphome->publish_state("${version}");
 
   - id: check_versions
     mode: restart
@@ -49,9 +50,9 @@ script:
           ESP_LOGV("${TAG_VERSIONING}", "  VERSION_CHECK_OK: %s", (system_flags.version_check_ok) ? "Set" : "NOT set");
           ESP_LOGV("${TAG_VERSIONING}", "  is_device_ready_for_tasks: %s", YESNO(is_device_ready_for_tasks()));
           ESP_LOGV("${TAG_VERSIONING}", "  Versions:");
-          ESP_LOGV("${TAG_VERSIONING}", "    Blueprint: %" PRIu32, static_cast<uint32_t>(version_blueprint->state));
-          ESP_LOGV("${TAG_VERSIONING}", "    ESPHome: ${version | string}");
-          ESP_LOGV("${TAG_VERSIONING}", "    TFT: %" PRIu32, static_cast<uint32_t>(version_tft->state));
+          ESP_LOGV("${TAG_VERSIONING}", "    Blueprint: %s", version_blueprint->state.c_str());
+          ESP_LOGV("${TAG_VERSIONING}", "    ESPHome: ${version}");
+          ESP_LOGV("${TAG_VERSIONING}", "    TFT: %s", version_tft->state.c_str());
           if (reset_flag) system_flags.version_check_ok = false;
           if (system_flags.version_check_ok) {
             ESP_LOGD("${TAG_VERSIONING}", "VERSION_CHECK_OK is already set");
@@ -66,35 +67,31 @@ script:
       - script.wait: wait_for_versions
       - lambda: |-
           ESP_LOGD("${TAG_VERSIONING}", "Versions:");
-          ESP_LOGD("${TAG_VERSIONING}", "  Blueprint: %" PRIu32, static_cast<uint32_t>(version_blueprint->state));
-          ESP_LOGD("${TAG_VERSIONING}", "  ESPHome:   ${version | string}");
-          ESP_LOGD("${TAG_VERSIONING}", "  TFT:       %" PRIu32, static_cast<uint32_t>(version_tft->state));
+          ESP_LOGD("${TAG_VERSIONING}", "  Blueprint: %s", version_blueprint->state.c_str());
+          ESP_LOGD("${TAG_VERSIONING}", "  ESPHome:   ${version}");
+          ESP_LOGD("${TAG_VERSIONING}", "  TFT:       %s", version_tft->state.c_str());
           system_flags.version_check_ok = true;
-          if (static_cast<uint32_t>(version_blueprint->state) != ${version}) {
+          if (version_blueprint->state != "${version}") {
             ESP_LOGW("${TAG_VERSIONING}", "TFT Blueprint mismatch!");
-            if (static_cast<uint32_t>(version_blueprint->state) < ${min_blueprint_version}) {
+            if (version_blueprint->state < "${min_blueprint_version}") {
               ESP_LOGE("${TAG_VERSIONING}", "v${min_tft_version} or later is required");
               system_flags.version_check_ok = false;
             }
           }
-          if (static_cast<uint32_t>(version_tft->state) != ${version}) {
+          if (version_tft->state != "${version}") {
             ESP_LOGW("${TAG_VERSIONING}", "TFT version mismatch!");
-            if (static_cast<uint32_t>(version_tft->state) < ${min_tft_version}) {
+            if (version_tft->state < "${min_tft_version}") {
               ESP_LOGE("${TAG_VERSIONING}", "v${min_tft_version} or later is required");
               system_flags.version_check_ok = false;
             }
           }
-          char tft_str[16];
-          char blueprint_str[16];
-          snprintf(tft_str, sizeof(tft_str), "%" PRIu32, static_cast<uint32_t>(version_tft->state));
-          snprintf(blueprint_str, sizeof(blueprint_str), "%" PRIu32, static_cast<uint32_t>(version_blueprint->state));
 
           fire_ha_event("version", {
-            {"tft", tft_str},
-            {"min_tft_version", "${min_tft_version | string}"},
-            {"esphome", "${version | string}"},
-            {"blueprint", blueprint_str},
-            {"min_blueprint_version", "${min_blueprint_version | string}"}
+            {"blueprint", version_blueprint->state.c_str()},
+            {"min_blueprint_version", "${min_blueprint_version}"},
+            {"esphome", "${version}"},
+            {"tft", version_tft->state.c_str()},
+            {"min_tft_version", "${min_tft_version}"}
           });
           ESP_LOGD("${TAG_VERSIONING}", "Check version completed");
 
@@ -104,7 +101,7 @@ script:
           // Report blueprint version
           ESP_LOGCONFIG("${TAG_VERSIONING}", "Blueprint:");
           if (system_flags.blueprint_ready) {
-            ESP_LOGCONFIG("${TAG_VERSIONING}", "  Version: %" PRIu32, static_cast<uint32_t>(version_blueprint->state));
+            ESP_LOGCONFIG("${TAG_VERSIONING}", "  Version: %s", version_blueprint->state.c_str());
             ESP_LOGCONFIG("${TAG_VERSIONING}", "  Progress: %0.1f%%", blueprint_status_flags.get_completion_percentage());
           } else {
             ESP_LOGW("${TAG_VERSIONING}", "  Progress: %0.1f%%", blueprint_status_flags.get_completion_percentage());
@@ -151,7 +148,7 @@ script:
           count: 60  # seconds
           then:
             - lambda: |-
-                if (version_blueprint->state > 0) wait_for_version_blueprint->stop();
+                if (not version_blueprint->state.empty()) wait_for_version_blueprint->stop();
                 if (iteration % 5 == 1) boot_log->execute("Boot", "Waiting for Blueprint version");
                 if (iteration % 9) boot_request_blueprint_settings->execute("timeout");
             - delay: 1s
@@ -162,7 +159,7 @@ script:
       - script.execute: wait_for_version_blueprint
       - script.wait: wait_for_version_blueprint
 
-sensor:
+text_sensor:
   - id: version_blueprint
     name: Version Blueprint
     platform: template
@@ -170,13 +167,11 @@ sensor:
     icon: mdi:tag-text-outline
     internal: false
     update_interval: never
-    accuracy_decimals: 0
     on_value:
       then:
         - lambda: |-
-            ESP_LOGD("${TAG_VERSIONING}", "Blueprint version: %" PRIu32, static_cast<uint32_t>(x));
-            if (x > 0) blueprint_status_flags.version = true;
-            check_versions->execute(x != ${version});
+            if (!x.empty()) blueprint_status_flags.version = true;
+            check_versions->execute(x != "${version}");
 
   - id: version_esphome
     name: Version ESPHome
@@ -185,7 +180,6 @@ sensor:
     icon: mdi:tag-text-outline
     internal: false
     update_interval: never
-    accuracy_decimals: 0
 
   - id: version_tft
     name: Version TFT
@@ -194,9 +188,8 @@ sensor:
     icon: mdi:tag-text-outline
     internal: false
     update_interval: never
-    accuracy_decimals: 0
     on_value:
       then:
         - lambda: |-
-            check_versions->execute(x != ${version});
+            check_versions->execute(x != "${version}");
 ...
