@@ -10,7 +10,7 @@ blueprint:
   description: >
     # NSPanel Configuration via Blueprint: Complete UI-Based Setup
 
-    **Version**: v2025101
+    **Version**: v2025102
 
 
     This project enables comprehensive configuration of your NSPanel through a Blueprint featuring a user interface.
@@ -3849,7 +3849,7 @@ trigger_variables:
     }}
 
 variables:
-  blueprint_version: 2025101
+  blueprint_version: 2025102
   pages:
     current: '{{ states(currentpage) }}'
     home: "home"
@@ -4717,7 +4717,12 @@ condition:
     {{
       trigger.id != "trigger_buttonpage_state" or
       pages.current in pages.buttonpages or
-      (pages.current in [pages.light, pages.cover, pages.climate, pages.fan, pages.alarm] and trigger.entity_id is defined and trigger.entity_id == states(detailed_entity))
+      (
+        pages.current in [pages.light, pages.cover, pages.climate, pages.fan, pages.alarm] and
+        trigger.entity_id is defined and
+        detailed_entity | length > 0 and
+        trigger.entity_id == states(detailed_entity)
+      )
     }}
   - >  # Don't update indoor temp when embedded temp is used
     {{
@@ -8120,6 +8125,9 @@ action:
         alias: Variable Entity
         variables:
           entity_id_valid: '{{ entity_id is defined and entity_id is string and entity_id.split(".") | count == 2 }}'
+          overlap_icon_valid: '{{ overlap is defined and overlap.icon is defined and overlap.icon is string and overlap.icon | length > 0 }}'
+          overlap_icon_color_valid: '{{ overlap is defined and overlap.icon_color is defined and overlap.icon_color is list and overlap.icon_color | count == 3 }}'
+          overlap_name_valid: '{{ overlap is defined and overlap.name is defined and overlap.name is string and overlap.name | length > 0 }}'
           entity_state: '{{ states(entity_id) | default("unknown") if entity_id_valid }}'
           entity_has_value: '{{ has_value(entity_id) if entity_id_valid }}'
           entity_domain: '{{ entity_id.split(".")[0] if entity_id_valid }}'
@@ -8146,120 +8154,176 @@ action:
             }}
           entity_state_is_unknown: '{{ ((not entity_state_is_on) and (not entity_state_is_off)) if entity_id_valid }}'
           entity_icon_color: >
-            {{
-              (
-                (
-                  overlap.icon_color
-                  if overlap is defined and overlap.icon_color is defined and overlap.icon_color is sequence and overlap.icon_color | count == 3
-                  else nextion.color.on
-                )
-                if ((not entity_state_is_off) and (not entity_state_is_unknown))
-                else nextion.color.off
-              ) if entity_id_valid
-            }}
+            {%- if entity_id_valid -%}
+              {#- Entity ID is valid: determine color based on state -#}
+              {%- set default_color = overlap.icon_color if overlap_icon_color_valid else nextion.color.on -%}
+              {{ default_color if (not entity_state_is_off and not entity_state_is_unknown) else nextion.color.off }}
+            {%- else -%}
+              {#- Entity ID invalid: use overlap color or black -#}
+              {{ overlap.icon_color if overlap_icon_color_valid else [0, 0, 0] }}
+            {%- endif -%}
           entity_friendly_name: '{{ state_attr(entity_id, "friendly_name") | default("") if entity_id_valid }}'
+          entity_friendly_name_valid: '{{ entity_friendly_name is string and entity_friendly_name | length > 0 }}'
           entity_device_class: '{{ state_attr(entity_id, "device_class") | default("") if entity_id_valid }}'
           entity:
             name: >
-              {{
-                (
-                  overlap.name
-                  if overlap is defined and overlap.name is defined and overlap.name is string and overlap.name | length > 0
-                  else (entity_friendly_name if entity_friendly_name is string and entity_friendly_name | length > 0 else entity_id)
-                ) if entity_id_valid
-              }}
+              {%- if entity_id_valid -%}
+                {#- Use overlap name if valid, otherwise fall back to entity name or ID -#}
+                {%- if overlap_name_valid -%}
+                  {{ overlap.name }}
+                {%- elif entity_friendly_name_valid -%}
+                  {{ entity_friendly_name }}
+                {%- else -%}
+                  {{ entity_id }}
+                {%- endif -%}
+              {%- endif -%}
+
             icon: >
-              {% if entity_id_valid %}
-                {% set icon_domain = nextion.icon.domain[entity_domain] | default(all_icons.unknown) if entity_domain else all_icons.unknown %}
-                {% if overlap is defined and overlap.icon is defined and overlap.icon is string and overlap.icon | length > 0 %}
-                  {{ all_icons[overlap.icon.split(":")[1]] | default(icon_domain) if overlap.icon.split(":") | count == 2 else overlap.icon }}
-                {% elif entity_domain == "climate" %}
-                  {% set entity_hvac_action = state_attr(entity_id, "hvac_action") | default("") %}
-                  {% set entity_climate_action = (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state) %}
-                  {% if "off" in entity_climate_action %}{{ all_icons.thermostat }}
-                  {% elif "heat_cool" in entity_climate_action %}{{ all_icons.autorenew }}
-                  {% elif "heating" in entity_climate_action or "heat" in entity_climate_action %}{{ all_icons["thermometer-lines"] }}
-                  {% elif "cooling" in entity_climate_action or "cool" in entity_climate_action %}{{ all_icons.snowflake }}
-                  {% elif "drying" in entity_climate_action or "dry" in entity_climate_action %}{{ all_icons["water-percent"] }}
-                  {% elif "fan" in entity_climate_action or "fan_only" in entity_climate_action %}{{ all_icons.fan }}
-                  {% elif "auto" in entity_climate_action %}{{ all_icons["calendar-sync"] }}
-                  {% elif "idle" in entity_climate_action %}{{ all_icons.thermometer }}
-                  {% else %}{{ icon_domain }}
-                  {% endif %}
-                {% elif entity_domain == "alarm_control_panel" %}
-                  {% if entity_state in ["disarmed", "disarming"] %}{{ all_icons["shield-off-outline"] }}
-                  {% elif entity_state == "armed_home" %}{{ all_icons["shield-home-outline"] }}
-                  {% elif entity_state == "armed_away" %}{{ all_icons["shield-lock-outline"] }}
-                  {% elif entity_state == "armed_night" %}{{ all_icons["shield-moon-outline"] }}
-                  {% elif entity_state == "armed_vacation" %}{{ all_icons["shield-airplane-outline"] }}
-                  {% elif entity_state == "armed_bypass" %}{{ all_icons["shield-half-full"] }}
-                  {% elif entity_state in ["pending", "arming"] %}{{ all_icons["shield-outline"] }}
-                  {% else %}{{ all_icons["shield-alert-outline"] }}
-                  {% endif %}
-                {% elif entity_domain == "lock" %}
-                  {% if entity_state in ["locked"] %}{{ all_icons["lock"] }}
-                  {% elif entity_state in ["unlocked"] %}{{ all_icons["lock-open-variant"] }}
-                  {% else %}
+              {%- if entity_id_valid -%}
+                {#- Set default icon based on entity domain -#}
+                {%- set icon_domain = nextion.icon.domain[entity_domain] | default(all_icons.unknown) if entity_domain else all_icons.unknown -%}
+                {#- Priority 1: Use overlap icon if valid -#}
+                {%- if overlap_icon_valid -%}
+                  {%- set icon_parts = overlap.icon.split(":") -%}
+                  {%- if icon_parts | count == 2 -%}
+                    {{ all_icons[icon_parts[1]] | default(icon_domain) }}
+                  {%- else -%}
+                    {{ overlap.icon }}
+                  {%- endif -%}
+                {#- Priority 2: Domain-specific icon logic -#}
+                {%- elif entity_domain == "climate" -%}
+                  {%- set entity_hvac_action = state_attr(entity_id, "hvac_action") | default("") -%}
+                  {%- set entity_climate_action = entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state -%}
+                  {%- if "off" in entity_climate_action -%}
+                    {{ all_icons.thermostat }}
+                  {%- elif "heat_cool" in entity_climate_action -%}
+                    {{ all_icons.autorenew }}
+                  {%- elif "heating" in entity_climate_action or "heat" in entity_climate_action -%}
+                    {{ all_icons["thermometer-lines"] }}
+                  {%- elif "cooling" in entity_climate_action or "cool" in entity_climate_action -%}
+                    {{ all_icons.snowflake }}
+                  {%- elif "drying" in entity_climate_action or "dry" in entity_climate_action -%}
+                    {{ all_icons["water-percent"] }}
+                  {%- elif "fan" in entity_climate_action or "fan_only" in entity_climate_action -%}
+                    {{ all_icons.fan }}
+                  {%- elif "auto" in entity_climate_action -%}
+                    {{ all_icons["calendar-sync"] }}
+                  {%- elif "idle" in entity_climate_action -%}
+                    {{ all_icons.thermometer }}
+                  {%- else -%}
+                    {{ icon_domain }}
+                  {%- endif -%}
+                {%- elif entity_domain == "alarm_control_panel" -%}
+                  {%- if entity_state in ["disarmed", "disarming"] -%}
+                    {{ all_icons["shield-off-outline"] }}
+                  {%- elif entity_state == "armed_home" -%}
+                    {{ all_icons["shield-home-outline"] }}
+                  {%- elif entity_state == "armed_away" -%}
+                    {{ all_icons["shield-lock-outline"] }}
+                  {%- elif entity_state == "armed_night" -%}
+                    {{ all_icons["shield-moon-outline"] }}
+                  {%- elif entity_state == "armed_vacation" -%}
+                    {{ all_icons["shield-airplane-outline"] }}
+                  {%- elif entity_state == "armed_bypass" -%}
+                    {{ all_icons["shield-half-full"] }}
+                  {%- elif entity_state in ["pending", "arming"] -%}
+                    {{ all_icons["shield-outline"] }}
+                  {%- else -%}
+                    {{ all_icons["shield-alert-outline"] }}
+                  {%- endif -%}
+                {%- elif entity_domain == "lock" -%}
+                  {%- if entity_state == "locked" -%}
+                    {{ all_icons["lock"] }}
+                  {%- elif entity_state == "unlocked" -%}
+                    {{ all_icons["lock-open-variant"] }}
+                  {%- else -%}
                     {{ all_icons["lock-alert"] }}
-                  {% endif %}
-                {% elif entity_icon is defined and entity_icon is string and entity_icon.split(":") | count == 2 and entity_icon.split(":")[1] in all_icons %}
-                  {{ all_icons[entity_icon.split(":")[1]] }}
-                {% elif
-                    entity_domain in ["binary_sensor", "cover", "sensor", "switch"] and
-                    entity_device_class is defined and entity_device_class is string and entity_device_class | length > 0 %}
-                  {% set entity_device_class_icon = entity_device_class + (("-" + entity_state) if entity_domain not in ["sensor"] else "") %}
-                  {% set entity_device_class_icon = device_class_icons[entity_domain][entity_device_class_icon] if entity_device_class_icon in device_class_icons[entity_domain] else icon_domain %}
-                  {{ all_icons[entity_device_class_icon] if entity_device_class_icon in all_icons else icon_domain }}
-                {% else %}
+                  {%- endif -%}
+                {#- Priority 3: Use entity's custom icon if available -#}
+                {%- elif entity_icon is defined and entity_icon is string -%}
+                  {%- set icon_parts = entity_icon.split(":") -%}
+                  {%- if icon_parts | count == 2 and icon_parts[1] in all_icons -%}
+                    {{ all_icons[icon_parts[1]] }}
+                  {%- else -%}
+                    {{ icon_domain }}
+                  {%- endif -%}
+                {#- Priority 4: Use device class based icon -#}
+                {%- elif entity_domain in ["binary_sensor", "cover", "sensor", "switch"] and entity_device_class is defined and entity_device_class is string and entity_device_class | length > 0 -%}
+                  {%- set state_suffix = ("-" + entity_state) if entity_domain != "sensor" else "" -%}
+                  {%- set device_class_key = entity_device_class + state_suffix -%}
+                  {%- if device_class_key in device_class_icons[entity_domain] -%}
+                    {%- set device_class_icon_name = device_class_icons[entity_domain][device_class_key] -%}
+                    {{ all_icons[device_class_icon_name] if device_class_icon_name in all_icons else icon_domain }}
+                  {%- else -%}
+                    {{ icon_domain }}
+                  {%- endif -%}
+                {#- Priority 5: Fall back to domain default -#}
+                {%- else -%}
                   {{ icon_domain }}
-                {% endif %}
-              {% endif %}
+                {%- endif -%}
+              {%- endif -%}
+
             icon_color: >
-              {% if entity_id_valid %}
-                {% if entity_domain == "alarm_control_panel" %}
-                  {% if entity_state == "disarmed" %}{{ nextion.color.off }}
-                  {% elif entity_state in ["armed_home", "armed_away", "armed_night", "armed_vacation", "armed_bypass"] %}{{ nextion.color.green }}
-                  {% elif entity_state in ["pending", "arming", "disarming"] %}{{ nextion.color.amber }}
-                  {% elif entity_state == "triggered" %}{{ nextion.color.red }}
-                  {% else %}{{ entity_icon_color }}
-                  {% endif %}
-                {% elif entity_domain == "climate" %}
-                  {% set entity_hvac_action = state_attr(entity_id, "hvac_action") | default("") %}
-                  {% set entity_climate_action = (entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state) %}
-                  {% if "off" in entity_climate_action %}{{ nextion.color.off }}
-                  {% elif "heat_cool" in entity_climate_action %}{{ nextion.color.amber }}
-                  {% elif "heating" in entity_climate_action or "heat" in entity_climate_action %}{{ nextion.color.deep_orange}}
-                  {% elif "cooling" in entity_climate_action or "cool" in entity_climate_action %}{{ nextion.color.blue }}
-                  {% elif "drying" in entity_climate_action or "dry" in entity_climate_action %}{{ nextion.color.orange }}
-                  {% elif "fan" in entity_climate_action or "fan_only" in entity_climate_action %}{{ nextion.color.cyan }}
-                  {% elif "auto" in entity_climate_action %}{{ nextion.color.green }}
-                  {% elif "idle" in entity_climate_action %}{{ nextion.color.off }}
-                  {% else %}{{ entity_icon_color }}
-                  {% endif %}
-                {% elif entity_domain == "light" %}
-                  {% if entity_state != "on" %}{{ nextion.color.off }}
-                  {% else %}
-                    {% set entity_rgb_color_attr = state_attr(entity_id, "rgb_color") | default("") %}
-                    {% set entity_rgb_color = entity_rgb_color_attr if entity_rgb_color_attr is sequence and entity_rgb_color_attr | count == 3 else entity_icon_color %}
-                    {% set entity_brightness = state_attr(entity_id, "brightness") | default("") %}
-                    {% set entity_brightness_index = (entity_brightness | int(255))/255 if is_number(entity_brightness) else 1 %}
-                    {{
-                      [
-                        min(200,entity_rgb_color[0] * entity_brightness_index) | round(0),
-                        min(200,entity_rgb_color[1] * entity_brightness_index) | round(0),
-                        min(200,entity_rgb_color[2] * entity_brightness_index) | round(0)
-                      ]
-                    }}
-                  {% endif %}
-                {% elif entity_domain == "lock" %}
-                  {% if entity_state in ["locked"] %}{{ nextion.color.green }}
-                  {% elif entity_state in ["unlocked"] %}{{ nextion.color.red }}
-                  {% else %}
+              {%- if entity_id_valid -%}
+                {#- Domain-specific color logic with fallback to entity_icon_color -#}
+                {%- if entity_domain == "alarm_control_panel" -%}
+                  {%- if entity_state == "disarmed" -%}
+                    {{ nextion.color.off }}
+                  {%- elif entity_state in ["armed_home", "armed_away", "armed_night", "armed_vacation", "armed_bypass"] -%}
+                    {{ nextion.color.green }}
+                  {%- elif entity_state in ["pending", "arming", "disarming"] -%}
+                    {{ nextion.color.amber }}
+                  {%- elif entity_state == "triggered" -%}
+                    {{ nextion.color.red }}
+                  {%- else -%}
                     {{ entity_icon_color }}
-                  {% endif %}
-                {% else %}{{ entity_icon_color }}
-                {% endif %}
-              {% endif %}
+                  {%- endif -%}
+                {%- elif entity_domain == "climate" -%}
+                  {%- set entity_hvac_action = state_attr(entity_id, "hvac_action") | default("") -%}
+                  {%- set entity_climate_action = entity_hvac_action if entity_hvac_action and entity_hvac_action not in enum.states.unknown else entity_state -%}
+                  {%- if "off" in entity_climate_action -%}
+                    {{ nextion.color.off }}
+                  {%- elif "heat_cool" in entity_climate_action -%}
+                    {{ nextion.color.amber }}
+                  {%- elif "heating" in entity_climate_action or "heat" in entity_climate_action -%}
+                    {{ nextion.color.deep_orange }}
+                  {%- elif "cooling" in entity_climate_action or "cool" in entity_climate_action -%}
+                    {{ nextion.color.blue }}
+                  {%- elif "drying" in entity_climate_action or "dry" in entity_climate_action -%}
+                    {{ nextion.color.orange }}
+                  {%- elif "fan" in entity_climate_action or "fan_only" in entity_climate_action -%}
+                    {{ nextion.color.cyan }}
+                  {%- elif "auto" in entity_climate_action -%}
+                    {{ nextion.color.green }}
+                  {%- elif "idle" in entity_climate_action -%}
+                    {{ nextion.color.off }}
+                  {%- else -%}
+                    {{ entity_icon_color }}
+                  {%- endif -%}
+                {%- elif entity_domain == "light" -%}
+                  {%- if entity_state != "on" -%}
+                    {{ nextion.color.off }}
+                  {%- else -%}
+                    {%- set entity_rgb_color_attr = state_attr(entity_id, "rgb_color") | default("") -%}
+                    {%- if entity_rgb_color_attr is list and entity_rgb_color_attr | count == 3 -%}
+                      {{ entity_rgb_color_attr }}
+                    {%- else -%}
+                      {{ entity_icon_color }}
+                    {%- endif -%}
+                  {%- endif -%}
+                {%- elif entity_domain == "lock" -%}
+                  {%- if entity_state == "locked" -%}
+                    {{ nextion.color.green }}
+                  {%- elif entity_state == "unlocked" -%}
+                    {{ nextion.color.red }}
+                  {%- else -%}
+                    {{ entity_icon_color }}
+                  {%- endif -%}
+                {#- Default: use entity_icon_color for all other domains -#}
+                {%- else -%}
+                  {{ entity_icon_color }}
+                {%- endif -%}
+              {%- endif -%}
 
   - alias: Main choices
     choose:
@@ -8315,11 +8379,11 @@ action:
                           - &delay_boot
                             delay:
                               milliseconds: !input delay_boot
-                          - action: 'esphome.{{ nspanel_name }}_component_val'
+                          - action: 'esphome.{{ nspanel_name }}_component_text'
                             data:
                               page: mem
                               id: ver_blueprint
-                              val: '{{ blueprint_version }}'
+                              txt: '{{ blueprint_version }}'
                             continue_on_error: true
 
                       - &variables_hardware
@@ -8508,13 +8572,21 @@ action:
                       ###### Notification button ######
                       - &refresh_page_home_notification_button
                         sequence:
+                          - variables:
+                              home_button04_icon_color01: !input home_button04_icon_color01
+                              bt_notific_icon_color: >
+                                {{
+                                  home_button04_icon_color01
+                                  if home_button04_icon_color01 is list and home_button04_icon_color01 | count == 3
+                                  else [200, 204, 200]
+                                }}
                           ##### Home page - Notification icon (bt_notific) - Colors
                           - *delay_boot
                           - action: 'esphome.{{ nspanel_name }}_component_color'
                             data:
                               page: mem
                               id: notification_icon_color_normal
-                              color: !input home_button04_icon_color01
+                              color: '{{ bt_notific_icon_color }}'
                             continue_on_error: true
                           - *delay_boot
                           - action: 'esphome.{{ nspanel_name }}_component_color'
@@ -8538,7 +8610,7 @@ action:
                                   if bt_notific_icon is string and bt_notific_icon.split(":")[1] in all_icons
                                   else all_icons.email
                                 }}
-                              icon_color: !input home_button04_icon_color01
+                              icon_color: '{{ bt_notific_icon_color }}'
                               visible: false
                             continue_on_error: true
 
@@ -9327,7 +9399,12 @@ action:
                                         page: home
                                         id: '{{ repeat.item.component }}'
                                         icon: '{{ entity.icon if entity.icon is defined else all_icons.blank }}'
-                                        icon_color: '{{ entity.icon_color if entity.icon_color is defined else [0, 0, 0] }}'
+                                        icon_color: >
+                                          {{
+                                            entity.icon_color
+                                            if entity.icon_color is defined and entity.icon_color is list and entity.icon_color | count == 3
+                                            else [0, 0, 0]
+                                          }}
                                         visible: true
                                       continue_on_error: true
                                   else:
@@ -9393,19 +9470,17 @@ action:
                                   then:
                                     - *delay_default
                                     - variables:
+                                        icon_color_rgb_valid: >
+                                          {{
+                                            repeat.item.icon_color_rgb is defined and
+                                            repeat.item.icon_color_rgb is list and
+                                            repeat.item.icon_color_rgb | count == 3 and
+                                            repeat.item.icon_color_rgb != [0, 0, 0]
+                                          }}
                                         entity_id: '{{ repeat.item.entity }}'
                                         overlap:
                                           icon: '{{ repeat.item.icon if repeat.item.icon is defined else None }}'
-                                          icon_color: >
-                                            {{
-                                              repeat.item.icon_color_rgb
-                                              if
-                                                repeat.item.icon_color_rgb is defined and
-                                                repeat.item.icon_color_rgb is sequence and
-                                                repeat.item.icon_color_rgb | count == 3 and
-                                                repeat.item.icon_color_rgb != [0, 0, 0]
-                                              else None
-                                            }}
+                                          icon_color: '{{ repeat.item.icon_color_rgb if icon_color_rgb_valid else None }}'
                                     - *variable_entity
                                     - condition: '{{ entity_has_value }}'
                                     - variables:
@@ -9441,13 +9516,17 @@ action:
                                         id: '{{ repeat.item.component }}'
                                         icon: '{{ entity.icon if chip_visible and entity.icon is defined else "" }}'
                                         icon_color: >
-                                          {{
-                                            entity.icon_color
-                                            if
-                                              chip_visible and
-                                              entity.icon_color is defined
-                                            else [0, 0, 0]
-                                          }}
+                                          {% if not chip_visible %}
+                                            [0, 0, 0]
+                                          {% elif repeat.item.inverted and icon_color_rgb_valid %}
+                                            {{ repeat.item.icon_color_rgb }}
+                                          {% elif entity.icon_color is defined and entity.icon_color is list and entity.icon_color | count == 3 %}
+                                            {{ entity.icon_color }}
+                                          {% elif icon_color_rgb_valid %}
+                                            {{ repeat.item.icon_color_rgb }}
+                                          {% else %}
+                                            [255, 255, 255]
+                                          {% endif %}
                                         visible: true
                                       continue_on_error: true
 
@@ -9479,7 +9558,7 @@ action:
                                               repeat.item.icon_color_rgb
                                               if
                                                 repeat.item.icon_color_rgb is defined and
-                                                repeat.item.icon_color_rgb is sequence and
+                                                repeat.item.icon_color_rgb is list and
                                                 repeat.item.icon_color_rgb != [200, 204, 200]
                                               else None
                                             }}
@@ -9700,7 +9779,7 @@ action:
                                     "rgb" in supported_color_modes or
                                     "rgbw" in supported_color_modes or
                                     "rgbww" in supported_color_modes or
-                                    state_attr(entity_id, "rgb_color") | default("unknown") is sequence
+                                    state_attr(entity_id, "rgb_color") | default("unknown") is list
                                   )
                                 }}
                               color_mode_color_temp: >
@@ -10619,76 +10698,98 @@ action:
                                     {
                                       'datetime': '{{ forecast | default([])
                                         | selectattr("datetime", "defined")
+                                        | rejectattr("datetime", "none")
                                         | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | as_datetime )
                                         | selectattr("datetime", "<", (today_at("00:00") + timedelta(days= (page_index+1))) | as_timestamp | as_datetime )
                                         | map(attribute="datetime") | list | first | as_timestamp | timestamp_utc
                                         if forecast | default([])
                                         | selectattr("datetime", "defined")
+                                        | rejectattr("datetime", "none")
                                         | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | as_datetime )
                                         | selectattr("datetime", "<", (today_at("00:00") + timedelta(days= (page_index+1))) | as_timestamp | as_datetime )
                                         | map(attribute="datetime") | list | count > 0
                                         else "" }}',
                                       'condition': '{{ forecast | default([])
                                         | selectattr("condition", "defined")
+                                        | rejectattr("condition", "none")
                                         | selectattr("datetime", "defined")
+                                        | rejectattr("datetime", "none")
                                         | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | as_datetime )
                                         | selectattr("datetime", "<", (today_at("00:00") + timedelta(days= (page_index+1))) | as_timestamp | as_datetime )
                                         | map(attribute="condition") | list | first
                                         if forecast | default([])
                                         | selectattr("condition", "defined")
+                                        | rejectattr("condition", "none")
                                         | selectattr("datetime", "defined")
+                                        | rejectattr("datetime", "none")
                                         | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | as_datetime )
                                         | selectattr("datetime", "<", (today_at("00:00") + timedelta(days= (page_index+1))) | as_timestamp | as_datetime )
                                         | map(attribute="condition") | list | count > 0
                                         else "" }}',
                                       'temperature': '{{ forecast | default([])
                                         | selectattr("temperature", "defined")
+                                        | rejectattr("temperature", "none")
                                         | selectattr("datetime", "defined")
+                                        | rejectattr("datetime", "none")
                                         | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | as_datetime )
                                         | selectattr("datetime", "<", (today_at("00:00") + timedelta(days= (page_index+1))) | as_timestamp | as_datetime )
                                         | map(attribute="temperature") | list | first
                                         if forecast | default([])
                                         | selectattr("temperature", "defined")
+                                        | rejectattr("temperature", "none")
                                         | selectattr("datetime", "defined")
+                                        | rejectattr("datetime", "none")
                                         | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | as_datetime )
                                         | selectattr("datetime", "<", (today_at("00:00") + timedelta(days= (page_index+1))) | as_timestamp | as_datetime )
                                         | map(attribute="temperature") | list | count > 0
                                         else "" }}',
                                       'templow': '{{ forecast | default([])
                                         | selectattr("templow", "defined")
+                                        | rejectattr("templow", "none")
                                         | selectattr("datetime", "defined")
+                                        | rejectattr("datetime", "none")
                                         | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | as_datetime )
                                         | selectattr("datetime", "<", (today_at("00:00") + timedelta(days= (page_index+1))) | as_timestamp | as_datetime )
                                         | map(attribute="templow") | list | first
                                         if forecast | default([])
                                         | selectattr("templow", "defined")
+                                        | rejectattr("templow", "none")
                                         | selectattr("datetime", "defined")
+                                        | rejectattr("datetime", "none")
                                         | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | as_datetime )
                                         | selectattr("datetime", "<", (today_at("00:00") + timedelta(days= (page_index+1))) | as_timestamp | as_datetime )
                                         | map(attribute="templow") | list | count > 0
                                         else "" }}',
                                       'precipitation': '{{ forecast | default([])
                                         | selectattr("precipitation", "defined")
+                                        | rejectattr("precipitation", "none")
                                         | selectattr("datetime", "defined")
+                                        | rejectattr("datetime", "none")
                                         | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | as_datetime )
                                         | selectattr("datetime", "<", (today_at("00:00") + timedelta(days= (page_index+1))) | as_timestamp | as_datetime )
                                         | map(attribute="precipitation") | list | first
                                         if forecast | default([])
                                         | selectattr("precipitation", "defined")
+                                        | rejectattr("precipitation", "none")
                                         | selectattr("datetime", "defined")
+                                        | rejectattr("datetime", "none")
                                         | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | as_datetime )
                                         | selectattr("datetime", "<", (today_at("00:00") + timedelta(days= (page_index+1))) | as_timestamp | as_datetime )
                                         | map(attribute="precipitation") | list | count > 0
                                         else "" }}',
                                       'wind_speed': '{{ forecast | default([])
                                         | selectattr("wind_speed", "defined")
+                                        | rejectattr("wind_speed", "none")
                                         | selectattr("datetime", "defined")
+                                        | rejectattr("datetime", "none")
                                         | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | as_datetime )
                                         | selectattr("datetime", "<", (today_at("00:00") + timedelta(days= (page_index+1))) | as_timestamp | as_datetime )
                                         | map(attribute="wind_speed") | list | first
                                         if forecast | default([])
                                         | selectattr("wind_speed", "defined")
+                                        | rejectattr("Wind_speed", "none")
                                         | selectattr("datetime", "defined")
+                                        | rejectattr("datetime", "none")
                                         | selectattr("datetime", ">=", (today_at("00:00") + timedelta(days= page_index)) | as_timestamp | as_datetime )
                                         | selectattr("datetime", "<", (today_at("00:00") + timedelta(days= (page_index+1))) | as_timestamp | as_datetime )
                                         | map(attribute="wind_speed") | list | count > 0
@@ -10715,11 +10816,18 @@ action:
                                   - variables:
                                       temp_min: >
                                         {{
-                                          forecast_day | selectattr("templow", "defined") | map(attribute="templow") | map("float") | list | min
-                                          if forecast_day | selectattr("templow", "defined") | map(attribute="templow") | map("float") | list | count > 0
+                                          forecast_day
+                                            | selectattr("templow", "defined")
+                                            | rejectattr("templow", "none")
+                                            | map(attribute="templow") | map("float") | list | min
+                                          if forecast_day
+                                              | selectattr("templow", "defined")
+                                              | rejectattr("templow", "none")
+                                              | map(attribute="templow") | map("float") | list | count > 0
                                           else
                                             forecast_day
                                             | selectattr("temperature", "defined")
+                                            | rejectattr("temperature", "none")
                                             | rejectattr("temperature", "eq", "")
                                             | map(attribute="temperature")
                                             | map("float") | list | min | default("unknown")
@@ -10728,12 +10836,14 @@ action:
                                         {{
                                           forecast_day
                                           | selectattr("temperature", "defined")
+                                          | rejectattr("temperature", "none")
                                           | rejectattr("temperature", "eq", "")
                                           | map(attribute="temperature")
                                           | map("float") | list | max
                                           if
                                             forecast_day
                                             | selectattr("temperature", "defined")
+                                            | rejectattr("temperature", "none")
                                             | rejectattr("temperature", "eq", "")
                                             | map(attribute="temperature")
                                             | map("float") | list | count > 0
@@ -10743,11 +10853,13 @@ action:
                                         {{
                                           forecast_day
                                           | selectattr("condition", "defined")
+                                          | rejectattr("condition", "none")
                                           | rejectattr("condition", "eq", "")
                                           | map(attribute="condition") | list | first
                                           if
                                             forecast_day
                                             | selectattr("condition", "defined")
+                                            | rejectattr("condition", "none")
                                             | rejectattr("condition", "eq", "")
                                             | map(attribute="condition") | list | count > 0
                                           else None
@@ -10756,12 +10868,14 @@ action:
                                         {{
                                           forecast_day
                                           | selectattr("precipitation", "defined")
+                                          | rejectattr("precipitation", "none")
                                           | rejectattr("precipitation", "eq", "")
                                           | map(attribute="precipitation")
                                           | map("float") | list | sum | round(0)
                                           if
                                             forecast_day
                                             | selectattr("precipitation", "defined")
+                                            | rejectattr("precipitation", "none")
                                             | rejectattr("precipitation", "eq", "")
                                             | map(attribute="precipitation")
                                             | map("float") | list | count > 0
@@ -10771,12 +10885,14 @@ action:
                                         {{
                                           forecast_day
                                           | selectattr("precipitation_probability", "defined")
+                                          | rejectattr("precipitation_probability", "none")
                                           | rejectattr("precipitation_probability", "eq", "")
                                           | map(attribute="precipitation_probability")
                                           | map("float") | list | max | round(0)
                                           if
                                             forecast_day
                                             | selectattr("precipitation_probability", "defined")
+                                            | rejectattr("precipitation_probability", "none")
                                             | rejectattr("precipitation_probability", "eq", "")
                                             | map(attribute="precipitation_probability")
                                             | map("float") | list | count > 0
@@ -10786,12 +10902,14 @@ action:
                                         {{
                                           forecast_day
                                           | selectattr("pressure", "defined")
+                                          | rejectattr("pressure", "none")
                                           | rejectattr("pressure", "eq", "")
                                           | map(attribute="pressure")
                                           | map("float") | list | max | round(0)
                                           if
                                             forecast_day
                                             | selectattr("pressure", "defined")
+                                            | rejectattr("pressure", "none")
                                             | rejectattr("pressure", "eq", "")
                                             | map(attribute="pressure")
                                             | map("float") | list | count > 0
@@ -10801,12 +10919,14 @@ action:
                                         {{
                                           forecast_day
                                           | selectattr("wind_speed", "defined")
+                                          | rejectattr("wind_speed", "none")
                                           | rejectattr("wind_speed", "eq", "")
                                           | map(attribute="wind_speed")
                                           | map("float") | list | max | round(0)
                                           if
                                             forecast_day
                                             | selectattr("wind_speed", "defined")
+                                            | rejectattr("wind_speed", "none")
                                             | rejectattr("wind_speed", "eq", "")
                                             | map(attribute="wind_speed")
                                             | map("float") | list | count > 0
@@ -10816,6 +10936,7 @@ action:
                                         {{
                                           forecast_day
                                           | selectattr("hours_of_sun", "defined")
+                                          | rejectattr("hours_of_sun", "none")
                                           | rejectattr("hours_of_sun", "eq", "")
                                           | map(attribute="hours_of_sun")
                                           | map("float")
@@ -10825,6 +10946,7 @@ action:
                                           if
                                             forecast_day
                                             | selectattr("hours_of_sun", "defined")
+                                            | rejectattr("hours_of_sun", "none")
                                             | rejectattr("hours_of_sun", "eq", "")
                                             | map(attribute="hours_of_sun")
                                             | map("float")
@@ -10836,6 +10958,7 @@ action:
                                         {{
                                           forecast_day
                                           | selectattr("uv_index", "defined")
+                                          | rejectattr("uv_index", "none")
                                           | rejectattr("uv_index", "eq", "")
                                           | map(attribute="uv_index")
                                           | map("float")
@@ -10845,6 +10968,7 @@ action:
                                           if
                                             forecast_day
                                             | selectattr("uv_index", "defined")
+                                            | rejectattr("uv_index", "none")
                                             | rejectattr("uv_index", "eq", "")
                                             | map(attribute="uv_index")
                                             | map("float")
@@ -10856,6 +10980,7 @@ action:
                                         {{
                                           forecast_day
                                           | selectattr("thunderstorm_probability", "defined")
+                                          | rejectattr("thunderstorm_probability", "none")
                                           | rejectattr("thunderstorm_probability", "eq", "")
                                           | map(attribute="thunderstorm_probability") | map("float")
                                           | list
@@ -10864,6 +10989,7 @@ action:
                                           if
                                             forecast_day
                                             | selectattr("thunderstorm_probability", "defined")
+                                            | rejectattr("thunderstorm_probability", "none")
                                             | rejectattr("thunderstorm_probability", "eq", "")
                                             | map(attribute="thunderstorm_probability")
                                             | map("float")
@@ -10875,6 +11001,7 @@ action:
                                         {{
                                           forecast_day
                                           | selectattr("humidity", "defined")
+                                          | rejectattr("humidity", "none")
                                           | rejectattr("humidity", "eq", "")
                                           | map(attribute="humidity")
                                           | map("float")
@@ -10884,6 +11011,7 @@ action:
                                           if
                                             forecast_day
                                             | selectattr("humidity", "defined")
+                                            | rejectattr("humidity", "none")
                                             | rejectattr("humidity", "eq", "")
                                             | map(attribute="humidity")
                                             | map("float")
@@ -11043,7 +11171,12 @@ action:
                                         page: utilities
                                         id: '{{ repeat.item.name }}_icon'
                                         icon: '{{ all_icons[icon_code] if icon_code in all_icons else "" }}'
-                                        icon_color: '{{ repeat.item.color }}'
+                                        icon_color: >
+                                          {{
+                                            repeat.item.color
+                                            if repeat.item.color is defined and repeat.item.color is list and repeat.item.color | count == 3
+                                            else [0, 0, 0]
+                                          }}
                                         visible: '{{ icon_code in all_icons }}'
                                       continue_on_error: true
                                 - alias: Utilities - Label
@@ -11437,18 +11570,18 @@ action:
                 sequence:
                   - variables:
                       versions:
-                        blueprint: '{{ blueprint_version | float (0) | round(1) }}'
-                        esphome: '{{ nspanel_event.esphome | float (0) | round(1) }}'
-                        tft: '{{ nspanel_event.tft | float (0) | round(1) }}'
+                        blueprint: '{{ blueprint_version | int(0) }}'
+                        esphome: '{{ nspanel_event.esphome | int(0) }}'
+                        tft: '{{ nspanel_event.tft | int(0) }}'
                         tft_min: >
                           {{
-                            nspanel_event.min_tft_version | float (0) | round(1)
+                            nspanel_event.min_tft_version | int(0)
                             if nspanel_event.min_tft_version is defined
                             else 0
                           }}
                         blueprint_min: >
                           {{
-                            nspanel_event.min_blueprint_version | float (0) | round(1)
+                            nspanel_event.min_blueprint_version | int(0)
                             if nspanel_event.min_blueprint_version is defined
                             else 0
                           }}
@@ -11460,7 +11593,7 @@ action:
                       - alias: All versions are the same
                         conditions:
                           - '{{ oldest[1] == newest[1] }}'
-                          - '{{ nspanel_event.blueprint | float (0) | round(1) == blueprint_version }}'
+                          - '{{ nspanel_event.blueprint | int(0) == blueprint_version }}'
                         sequence:
                           - action: persistent_notification.dismiss
                             data:
@@ -11693,8 +11826,11 @@ action:
           - condition: or
             conditions:
               - '{{ pages.current in pages.buttonpages }}'
-              - '{{ pages.current in [pages.light, pages.cover, pages.climate, pages.fan, pages.alarm] and trigger.entity_id == states(detailed_entity) }}'
+              - '{{ pages.current in [pages.light, pages.cover, pages.climate, pages.fan, pages.alarm] }}'
+              - '{{ detailed_entity | length > 0 and trigger.entity_id == states(detailed_entity) }}'
         sequence:
+          - variables:
+              detailed_entity_state: '{{ states(detailed_entity) if detailed_entity | length > 0 else "" }}'
           - choose:
               - alias: Button pages
                 conditions:
@@ -11716,37 +11852,37 @@ action:
                 conditions:
                   - '{{ pages.current == pages.light }}'
                   - '{{ trigger.entity_id is match "light." }}'
-                  - '{{ trigger.entity_id == states(detailed_entity) }}'
+                  - '{{ trigger.entity_id == detailed_entity_state }}'
                 sequence: *refresh_page_light
               - alias: 'Cover settings page'
                 conditions:
                   - '{{ pages.current == pages.cover }}'
                   - '{{ trigger.entity_id is match "cover." }}'
-                  - '{{ trigger.entity_id == states(detailed_entity) }}'
+                  - '{{ trigger.entity_id == detailed_entity_state }}'
                 sequence: *refresh_page_cover
               - alias: 'Climate page'
                 conditions:
                   - '{{ pages.current == pages.climate }}'
                   - '{{ trigger.entity_id is match "climate." }}'
-                  - '{{ trigger.entity_id == states(detailed_entity) }}'
+                  - '{{ trigger.entity_id == detailed_entity_state }}'
                 sequence: *refresh_page_climate
               - alias: 'Fan page'
                 conditions:
                   - '{{ pages.current == pages.fan }}'
                   - '{{ trigger.entity_id is match "fan." }}'
-                  - '{{ trigger.entity_id == states(detailed_entity) }}'
+                  - '{{ trigger.entity_id == detailed_entity_state }}'
                 sequence: *refresh_page_fan
               - alias: 'Media player page'
                 conditions:
                   - '{{ pages.current == pages.media_player }}'
                   - '{{ trigger.entity_id is match "media_player." }}'
-                  - '{{ trigger.entity_id == states(detailed_entity) }}'
+                  - '{{ trigger.entity_id == detailed_entity_state }}'
                 sequence: *refresh_page_media_player
               - alias: 'Alarm page'
                 conditions:
                   - '{{ pages.current == pages.alarm }}'
                   - '{{ trigger.entity_id is match "alarm_control_panel." }}'
-                  - '{{ trigger.entity_id == states(detailed_entity) }}'
+                  - '{{ trigger.entity_id == detailed_entity_state }}'
                 sequence: *refresh_page_alarm
 
       ##### UPDATE ENTITY PAGES #####
@@ -11808,6 +11944,7 @@ action:
           - if:
               - '{{ trigger.event.data.new_state.state not in enum.states.unknown }}'
               - '{{ pages.current == pages.climate }}'
+              - '{{ detailed_entity | length > 0 }}'
               - '{{ trigger.event.data.entity_id == states(detailed_entity) }}'
             then:
               - variables:
@@ -11853,6 +11990,7 @@ action:
         sequence:
           - variables:
               trigger_entity_id: '{{ trigger.entity_id if trigger.entity_id is defined else trigger.event.data.entity_id }}'
+              detailed_entity_state: '{{ states(detailed_entity) if detailed_entity | length > 0 else "" }}'
           - choose:
               - alias: "Home page"
                 conditions:
@@ -11865,37 +12003,37 @@ action:
                 conditions:
                   - '{{ pages.current == pages.light }}'
                   - '{{ trigger_entity_id is match "light." }}'
-                  - '{{ trigger_entity_id == states(detailed_entity) }}'
+                  - '{{ trigger_entity_id == detailed_entity_state }}'
                 sequence: *refresh_page_light
               - alias: 'Cover settings page'
                 conditions:
                   - '{{ pages.current == pages.cover }}'
                   - '{{ trigger_entity_id is match "cover." }}'
-                  - '{{ trigger_entity_id == states(detailed_entity) }}'
+                  - '{{ trigger_entity_id == detailed_entity_state }}'
                 sequence: *refresh_page_cover
               - alias: 'Climate page'
                 conditions:
                   - '{{ pages.current == pages.climate }}'
                   - '{{ trigger_entity_id is match "climate." }}'
-                  - '{{ trigger_entity_id == states(detailed_entity) }}'
+                  - '{{ trigger_entity_id == detailed_entity_state }}'
                 sequence: *refresh_page_climate
               - alias: 'Fan page'
                 conditions:
                   - '{{ pages.current == pages.fan }}'
                   - '{{ trigger_entity_id is match "fan." }}'
-                  - '{{ trigger_entity_id == states(detailed_entity) }}'
+                  - '{{ trigger_entity_id == detailed_entity_state }}'
                 sequence: *refresh_page_fan
               - alias: 'Media player page'
                 conditions:
                   - '{{ pages.current == pages.media_player }}'
                   - '{{ trigger_entity_id is match "media_player." }}'
-                  - '{{ trigger_entity_id == states(detailed_entity) }}'
+                  - '{{ trigger_entity_id == detailed_entity_state }}'
                 sequence: *refresh_page_media_player
               - alias: 'Alarm page'
                 conditions:
                   - '{{ pages.current == pages.alarm }}'
                   - '{{ trigger_entity_id is match "alarm_control_panel." }}'
-                  - '{{ trigger_entity_id == states(detailed_entity) }}'
+                  - '{{ trigger_entity_id == detailed_entity_state }}'
                 sequence: *refresh_page_alarm
 
       ##### Home page - Entity States #####
