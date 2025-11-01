@@ -8125,13 +8125,29 @@ action:
         alias: Variable Entity
         variables:
           entity_id_valid: '{{ entity_id is defined and entity_id is string and entity_id.split(".") | count == 2 }}'
-          overlap_icon_valid: '{{ overlap is defined and overlap.icon is defined and overlap.icon is string and overlap.icon | length > 0 }}'
+          overlap_icon_valid: >
+            {{
+              overlap is defined and
+              overlap.icon is defined and
+              overlap.icon is string and
+              overlap.icon | length > 2 and
+              overlap.icon.split(":") | count == 2 and
+              overlap.icon.split(":")[1] in all_icons
+            }}
           overlap_icon_color_valid: '{{ overlap is defined and overlap.icon_color is defined and overlap.icon_color is list and overlap.icon_color | count == 3 }}'
           overlap_name_valid: '{{ overlap is defined and overlap.name is defined and overlap.name is string and overlap.name | length > 0 }}'
           entity_state: '{{ states(entity_id) | default("unknown") if entity_id_valid }}'
           entity_has_value: '{{ has_value(entity_id) if entity_id_valid }}'
           entity_domain: '{{ entity_id.split(".")[0] if entity_id_valid }}'
           entity_icon: '{{ state_attr(entity_id, "icon") | default("") if entity_id_valid }}'
+          entity_icon_valid: >
+            {{
+              entity_icon is defined and
+              entity_icon is string and
+              entity_icon | length > 2 and
+              entity_icon.split(":") | count == 2 and
+              entity_icon.split(":")[1] in all_icons
+            }}
           entity_state_is_on: >
             {{
               (
@@ -8240,7 +8256,7 @@ action:
                     {{ all_icons["lock-alert"] }}
                   {%- endif -%}
                 {#- Priority 3: Use entity's custom icon if available -#}
-                {%- elif entity_icon is defined and entity_icon is string -%}
+                {%- elif entity_icon_valid -%}
                   {%- set icon_parts = entity_icon.split(":") -%}
                   {%- if icon_parts | count == 2 and icon_parts[1] in all_icons -%}
                     {{ all_icons[icon_parts[1]] }}
@@ -8679,13 +8695,31 @@ action:
                           for_each: '{{ home_page.entity_value | list }}'
                           sequence:
                             - variables:
-                                value_entity_id_is_valid: '{{ repeat.item.entity is defined and repeat.item.entity is string and repeat.item.entity.split(".") | count == 2 }}'
+                                entity_id: '{{ repeat.item.entity }}'
+                                overlap:
+                                  icon: '{{ repeat.item.icon }}'
+                                  icon_color: >
+                                    {{
+                                      repeat.item.icon_color_rgb
+                                      if repeat.item.icon_color_rgb is defined and
+                                          repeat.item.icon_color_rgb is list and
+                                          repeat.item.icon_color_rgb | count == 3
+                                      else [200, 204, 200]
+                                    }}
+                            - *variable_entity
                             - *delay_boot
                             - action: 'esphome.{{ nspanel_name }}_component_color'
                               data:
                                 page: home
                                 id: '{{ repeat.item.component }}'
-                                color: '{{ repeat.item.label_color_rgb if value_entity_id_is_valid else [0, 0, 0] }}'
+                                color: >
+                                  {{
+                                    entity.icon_color
+                                    if entity.icon_color is defined and
+                                        entity.icon_color is list and
+                                        entity.icon_color | count == 3
+                                    else overlap.icon_color
+                                  }}
                               continue_on_error: true
                             - *delay_boot
                             - action: 'esphome.{{ nspanel_name }}_component_text'
@@ -8694,13 +8728,8 @@ action:
                                 id: '{{ repeat.item.component }}_icon'
                                 txt: >
                                   {{
-                                    all_icons[repeat.item.icon.split("mdi:")[1]]
-                                    if
-                                      value_entity_id_is_valid and
-                                      repeat.item.icon is defined and
-                                      repeat.item.icon is string and
-                                      repeat.item.icon.split("mdi:") | count == 2 and
-                                      repeat.item.icon.split("mdi:")[1] in all_icons
+                                    entity.icon
+                                    if entity.icon is defined and entity.icon is string and entity.icon | length > 0
                                     else all_icons.blank
                                   }}
                               continue_on_error: true
