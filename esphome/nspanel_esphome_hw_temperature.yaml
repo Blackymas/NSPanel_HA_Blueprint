@@ -43,8 +43,6 @@ number:
     update_interval: never
     on_value:
       then:
-        - script.execute: wait_to_be_ready
-        - script.wait: wait_to_be_ready
         - logger.log: Temperature correction changed.
         - delay: 1s
         - lambda: temp_nspanel->publish_state(temp_nspanel->raw_state);
@@ -101,42 +99,52 @@ script:
 
   - id: !extend stop_all
     then:
-      - script.stop: display_embedded_temp
+      - lambda: display_embedded_temp->stop();
 
 sensor:
-  - id: ntc_source  # Internal temperature sensor: ADC value
+  # 1) Raw ADC — fast sampling, early spike removal
+  - id: ntc_source
     platform: adc
     pin: ${GPIO_TEMPERATURE_ADC_PIN}
     attenuation: 12db
-    samples: 4
+    samples: 16
+    update_interval: 1s
     filters:
-      - sliding_window_moving_average:
-          window_size: 6
+      - median:
+          window_size: 5
           send_every: 1
 
-  - id: resistance_sensor  # Internal temperature sensor: ADC reading converted to resistance (calculation)
+  # 2) Convert to resistance
+  - id: resistance_sensor
     platform: resistance
     sensor: ntc_source
     configuration: DOWNSTREAM
     resistor: 11.2kOhm
 
-  - id: temp_nspanel  # Internal temperature sensor: Resistance to temperature (calculation)
+  # 3) Temperature (HA-facing)
+  - id: temp_nspanel
     name: Temperature
     platform: ntc
     sensor: resistance_sensor
-    unit_of_measurement: °C
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
     internal: false
     calibration:
       b_constant: 3950
       reference_temperature: 25°C
       reference_resistance: 10kOhm
     filters:
+      # apply offset first so it’s part of smoothing
       - lambda: |-
           return x + temperature_correction->state;
+      # smooth but stay responsive
+      - exponential_moving_average:
+          alpha: 0.2
+          send_every: 1
+      # publish immediately on meaningful change
+      - delta: 0.1
+
     on_value:
       then:
-        - script.execute: wait_to_be_ready
-        - script.wait: wait_to_be_ready
-        # Show panel's temperature if API or Wi-Fi are out
         - script.execute: display_embedded_temp
 ...

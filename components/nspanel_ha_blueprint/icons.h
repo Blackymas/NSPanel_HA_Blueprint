@@ -48,7 +48,8 @@ namespace nspanel_ha_blueprint {
         constexpr const char* FIRE = "\uE237";           ///< mdi:fire - Heating mode
         constexpr const char* FAN = "\uE20F";            ///< mdi:fan - Fan mode
         constexpr const char* WATER_PERCENT = "\uE58D";  ///< mdi:water-percent - Dry/dehumidify mode
-        constexpr const char* CALENDAR_SYNC = "\uEE8D";  ///< mdi:calendar-sync - Auto mode
+        constexpr const char* CALENDAR_SYNC = "\uEE8D";  ///< mdi:calendar-sync - Auto mode (deprecated)
+        constexpr const char* REFRESH_AUTO = "\uF8F1";   ///< mdi:refresh-auto - Auto mode
         constexpr const char* THERMOMETER = "\uE50E";    ///< mdi:thermometer - Idle state
         constexpr const char* NONE = "\uFFFF";           ///< Hidden/no icon (blank character)
 
