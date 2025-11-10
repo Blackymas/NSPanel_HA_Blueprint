@@ -13,6 +13,8 @@ substitutions:
   ##############################
   BOOT_STEP_HW_TEMPERATURE: '8'
   GPIO_TEMPERATURE_ADC_PIN: 38
+  ntc_source_filter_delta: 0.002  # adjust to your sensor’s voltage jitter level
+  ntc_source_filter_heartbeat: 5min
   TAG_HW_TEMPERATURE: nspanel.hw.temperature
 
 esphome:
@@ -109,10 +111,26 @@ sensor:
     attenuation: 12db
     samples: 16
     update_interval: 1s
+    internal: true
+
     filters:
+      # (A) Remove single-spike noise
       - median:
           window_size: 5
           send_every: 1
+          send_first_at: 1
+
+      # (B) Smooth the curve
+      - exponential_moving_average:
+          alpha: 0.2
+          send_every: 1
+          send_first_at: 1
+
+      # (C) Only publish when the smoothed value actually changes
+      - delta: ${ntc_source_filter_delta}
+
+      # (D) If nothing changes, publish once every 5 minutes
+      - heartbeat: ${ntc_source_filter_heartbeat}
 
   # 2) Convert to resistance
   - id: resistance_sensor
@@ -120,6 +138,7 @@ sensor:
     sensor: ntc_source
     configuration: DOWNSTREAM
     resistor: 11.2kOhm
+    internal: true
 
   # 3) Temperature (HA-facing)
   - id: temp_nspanel
@@ -133,15 +152,12 @@ sensor:
       b_constant: 3950
       reference_temperature: 25°C
       reference_resistance: 10kOhm
+
     filters:
-      # apply offset first so it’s part of smoothing
       - lambda: |-
           return x + temperature_correction->state;
-      # smooth but stay responsive
-      - exponential_moving_average:
-          alpha: 0.2
-          send_every: 1
-      # publish immediately on meaningful change
+
+      # publish only when temperature changes meaningfully
       - delta: 0.1
 
     on_value:
