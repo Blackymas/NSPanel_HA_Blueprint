@@ -1,0 +1,81 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME ADD-ON - DISPLAY LIGHT                                                            #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+---
+substitutions:
+  TAG_ADDON_DISPLAY_LIGHT: nspanel.addon.display_light
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_ADDON_DISPLAY_LIGHT
+
+light:
+  # Add the display as a light in Home Assistant
+  - id: display_light
+    name: Display
+    icon: mdi:tablet-dashboard
+    platform: monochromatic
+    output: display_output
+    default_transition_length: 0s
+    on_turn_on:
+      then:
+        - lambda: |-
+            if (current_page_id == ${PAGE_SCREENSAVER_ID}) disp1->goto_page(wakeup_page_id);
+            timer_reset_all->execute();
+    on_turn_off:
+      then:
+        - lambda: |-
+            goto_page->execute(${PAGE_SCREENSAVER_ID});
+
+output:
+  # Output required by `display_light` to send the commands to Nextion
+  - id: display_output
+    platform: template
+    type: float
+    write_action:
+      - lambda: |-
+          ESP_LOGV("${TAG_ADDON_DISPLAY_LIGHT}", "state: %f", state);
+          uint8_t target_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
+          ESP_LOGV("${TAG_ADDON_DISPLAY_LIGHT}", "target_brightness: %" PRIu8 "%%", target_brightness);
+          set_brightness->execute(target_brightness);
+
+script:
+  - id: !extend dump_config
+    then:
+      - lambda: |-
+          ESP_LOGCONFIG("${TAG_ADDON_DISPLAY_LIGHT}", "Add-on 'Display as a light'");
+
+  # Updates the existing `page_change` script to update the `display_light` status when a page changes
+  - id: !extend page_change
+    then:
+      - lambda: |-
+          ESP_LOGV("${TAG_ADDON_DISPLAY_LIGHT}", "is_on(): %s", display_light->current_values.is_on() ? "True" : "False");
+          if (current_page_id == ${PAGE_SCREENSAVER_ID} and display_light->current_values.is_on()) {
+            auto call = display_light->turn_off();
+            call.perform();
+          } else if (current_page_id != ${PAGE_SCREENSAVER_ID} and (not display_light->current_values.is_on())) {
+            auto call = display_light->turn_on();
+            call.perform();
+          }
+
+  # Updates the existing `set_brightness` script to update the `display_light` status when a new brightness level is set
+  - id: !extend set_brightness
+    then:
+      - lambda: |-
+          uint8_t current_light_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
+          if (brightness != current_light_brightness) {
+            if (current_page_id != ${PAGE_SCREENSAVER_ID} and brightness > 0) {
+              auto call = display_light->turn_on();
+              call.set_brightness(brightness_current / 100.0f);
+              call.perform();
+            } else if (display_light->current_values.is_on()) {
+              auto call = display_light->turn_off();
+              call.set_brightness(0);
+              call.perform();
+            }
+          }
+...
