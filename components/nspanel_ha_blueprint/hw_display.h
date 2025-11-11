@@ -14,6 +14,7 @@
 
 namespace nspanel_ha_blueprint {
 
+    extern uint8_t brightness_current;
     extern uint8_t display_mode;
     extern uint8_t display_charset;
 
