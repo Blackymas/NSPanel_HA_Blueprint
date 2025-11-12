@@ -1,19 +1,18 @@
-# v2025110 - Display Control Light Entity & Bug Fixes
+# v2025110 - Display Light Add-on & Bug Fixes
 
 ## Summary
 
-This release introduces native display control via a light entity, eliminates the need for
-custom YAML configurations, and prepares the codebase for upcoming ESPHome 2025.11.x
-optimizations. It also includes numerous bug fixes, some imported from the unreleased v4.4
-branch.
+This release introduces an optional display control light entity add-on, prepares the codebase
+for upcoming ESPHome 2025.11.x optimizations, and includes numerous bug fixes, some imported
+from the unreleased v4.4 branch.
 
 ## Key Enhancements
 
-### Panel Display Control via Light Entity
+### Panel Display Control via Light Entity (Add-on)
 
-**Added native light entity for display control** - integrated display brightness, wake-up, and
-sleep control through a standard light entity, previously only available as a custom
-configuration.
+**Added optional light entity add-on for display control** - introduced a new add-on that
+exposes display brightness, wake-up, and sleep control through a standard light entity in Home
+Assistant.
 
 **New capabilities:**
 - Control display brightness through a light entity
@@ -21,10 +20,23 @@ configuration.
 - Put the display to sleep by turning the light off
 - Native integration with Home Assistant lighting controls and automations
 
+**Configuration:**
+To enable this add-on, uncomment the following line in your ESPHome YAML packages section:
+```yaml
+packages:
+  remote_package:
+    url: https://github.com/Blackymas/NSPanel_HA_Blueprint
+    ref: main
+    files:
+      - nspanel_esphome.yaml
+      # Optional add-ons
+      - esphome/nspanel_esphome_addon_display_light.yaml  # Uncomment to enable
+```
+
 **Migration:**
-- **Action required:** Remove any existing custom YAML configuration for display control
-- The light entity is now part of the core functionality
-- Previous customizations (like those from customization docs) are no longer needed
+- **If using custom display light configuration:** Remove your custom YAML and use this add-on
+  instead for official support
+- **If not using display light control:** No action required, this is optional
 
 **Use cases:**
 - Control display brightness alongside room lights
@@ -34,8 +46,8 @@ configuration.
 
 **Issues Reference:** #2091
 
-**Result:** Simplified display control with native light entity integration, eliminating the
-need for custom YAML configurations.
+**Result:** Optional add-on providing display control via light entity, with cleaner integration
+than previous custom configurations.
 
 ### ESPHome 2025.11.x Optimization Support
 

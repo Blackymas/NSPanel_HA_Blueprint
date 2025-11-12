@@ -136,6 +136,7 @@ Follow these steps to add a new device in the ESPHome Dashboard:
          - esphome/nspanel_esphome_addon_climate_heat.yaml
          # - esphome/nspanel_esphome_addon_climate_dual.yaml
          # - esphome/nspanel_esphome_addon_cover.yaml
+         # - esphome/nspanel_esphome_addon_display_light.yaml  # Show the display as a light in Home Assistant
    ```
 
    ![YAML Code](pics/ha_esphome_dashboard_new_device_06.png)
