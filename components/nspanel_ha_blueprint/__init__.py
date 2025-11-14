@@ -40,50 +40,34 @@ async def to_code(config):
 
     if PSRAM_CLK_PIN in config:
         clk_pin = config[PSRAM_CLK_PIN]
-
-        if CORE.using_arduino:
-            cg.add_build_flag(f"-DCONFIG_D0WD_PSRAM_CLK_IO={clk_pin}")
-
-        if CORE.using_esp_idf:
-            add_idf_sdkconfig_option("CONFIG_D0WD_PSRAM_CLK_IO", clk_pin)
+        add_idf_sdkconfig_option("CONFIG_D0WD_PSRAM_CLK_IO", clk_pin)
 
     if PSRAM_CS_PIN in config:
         cs_pin = config[PSRAM_CS_PIN]
-
-        if CORE.using_arduino:
-            cg.add_build_flag(f"-DCONFIG_D0WD_PSRAM_CS_IO={cs_pin}")
-
-        if CORE.using_esp_idf:
-            add_idf_sdkconfig_option("CONFIG_D0WD_PSRAM_CS_IO", cs_pin)
+        add_idf_sdkconfig_option("CONFIG_D0WD_PSRAM_CS_IO", cs_pin)
 
     # Handle bootloader logs configuration - Only when explicitly disabled
     if DISABLE_BOOTLOADER_LOGS in config and config[DISABLE_BOOTLOADER_LOGS]:
-        if CORE.using_esp_idf:
-            add_idf_sdkconfig_option("CONFIG_BOOTLOADER_LOG_LEVEL_NONE", True)
-            add_idf_sdkconfig_option("CONFIG_BOOTLOADER_LOG_LEVEL", 0)
-        else:
-            # Arduino framework - add build flags for compatibility
-            cg.add_build_flag("-DCONFIG_BOOTLOADER_LOG_LEVEL_NONE")
-            cg.add_build_flag("-DCONFIG_BOOTLOADER_LOG_LEVEL=0")
+        add_idf_sdkconfig_option("CONFIG_BOOTLOADER_LOG_LEVEL_NONE", True)
+        add_idf_sdkconfig_option("CONFIG_BOOTLOADER_LOG_LEVEL", 0)
 
-    if CORE.using_esp_idf:
-        add_idf_sdkconfig_option("CONFIG_BT_ALLOCATION_FROM_SPIRAM_FIRST", True)
-        add_idf_sdkconfig_option("CONFIG_BT_BLE_DYNAMIC_ENV_MEMORY", True)
-        add_idf_sdkconfig_option("CONFIG_ESP_PHY_REDUCE_TX_POWER", True)
-        add_idf_sdkconfig_option("CONFIG_ESP32_REV_MIN_3", True)
-        add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_BUFFER", True)
-        add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_FREE_CA_CERT", True)
-        add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA", True)
-        add_idf_sdkconfig_option("CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC", True)
-        add_idf_sdkconfig_option("CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY", True)
-        add_idf_sdkconfig_option("CONFIG_SPIRAM_RODATA", True)
-        add_idf_sdkconfig_option("CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP", True)
-        if MAIN_TASK_STACK_SIZE in config:
-            add_idf_sdkconfig_option("CONFIG_ESP_MAIN_TASK_STACK_SIZE", config[MAIN_TASK_STACK_SIZE])
-        if TASK_WDT_TIMEOUT_S in config:
-            add_idf_sdkconfig_option("CONFIG_ESP_TASK_WDT_TIMEOUT_S", config[TASK_WDT_TIMEOUT_S])
-        if LWIP_TCP_MSS in config:
-            add_idf_sdkconfig_option("CONFIG_LWIP_TCP_MSS", config[LWIP_TCP_MSS])
+    add_idf_sdkconfig_option("CONFIG_BT_ALLOCATION_FROM_SPIRAM_FIRST", True)
+    add_idf_sdkconfig_option("CONFIG_BT_BLE_DYNAMIC_ENV_MEMORY", True)
+    add_idf_sdkconfig_option("CONFIG_ESP_PHY_REDUCE_TX_POWER", True)
+    add_idf_sdkconfig_option("CONFIG_ESP32_REV_MIN_3", True)
+    add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_BUFFER", True)
+    add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_FREE_CA_CERT", True)
+    add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA", True)
+    add_idf_sdkconfig_option("CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC", True)
+    add_idf_sdkconfig_option("CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY", True)
+    add_idf_sdkconfig_option("CONFIG_SPIRAM_RODATA", True)
+    add_idf_sdkconfig_option("CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP", True)
+    if MAIN_TASK_STACK_SIZE in config:
+        add_idf_sdkconfig_option("CONFIG_ESP_MAIN_TASK_STACK_SIZE", config[MAIN_TASK_STACK_SIZE])
+    if TASK_WDT_TIMEOUT_S in config:
+        add_idf_sdkconfig_option("CONFIG_ESP_TASK_WDT_TIMEOUT_S", config[TASK_WDT_TIMEOUT_S])
+    if LWIP_TCP_MSS in config:
+        add_idf_sdkconfig_option("CONFIG_LWIP_TCP_MSS", config[LWIP_TCP_MSS])
 
     if REQUIRE_DISARM_BEFORE_REARM in config and config[REQUIRE_DISARM_BEFORE_REARM]:
         cg.add_define("USE_REQUIRE_DISARM_BEFORE_REARM")
