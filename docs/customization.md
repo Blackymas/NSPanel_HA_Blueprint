@@ -101,6 +101,7 @@ packages:
       # - esphome/nspanel_esphome_addon_climate_heat.yaml
       # - esphome/nspanel_esphome_addon_climate_dual.yaml
       # - esphome/nspanel_esphome_addon_cover.yaml
+      # - esphome/nspanel_esphome_addon_display_light.yaml  # Show the display as a light in Home Assistant
 ```
 
 ## Memory Management
@@ -402,9 +403,31 @@ button:
 
 ### Set display as a light
 
-> [!WARNING]
-> This was incorporated to the core yaml and therefore was removed from customizations docs.
-> If you have this added as a customization, please remove it to avoid conflicts.
+> [!NOTE]
+> This functionality is now available as an official add-on. If you have this added as a
+> customization, please remove it and use the add-on instead for official support and updates.
+
+You can set your display as a light in Home Assistant, allowing you to control the brightness
+and turn on/off just like any other light. This is useful for automations that control when
+your panel is on with the same automation you use for your lights.
+
+**To enable this add-on**, uncomment the following line in your ESPHome YAML packages section:
+```yaml
+packages:
+  remote_package:
+    url: https://github.com/Blackymas/NSPanel_HA_Blueprint
+    ref: main
+    files:
+      - nspanel_esphome.yaml
+      # Optional add-ons
+      - esphome/nspanel_esphome_addon_display_light.yaml  # Uncomment to enable
+```
+
+**Features:**
+- Control display brightness through Home Assistant
+- Turn display on/off like any other light entity
+- Include display in lighting automations
+- Schedule display sleep/wake times
 
 ### Current brightness sensor
 Exposes to Home Assistant the current brightness of your panel.
@@ -581,9 +604,9 @@ binary_sensor:
       then:
     on_press:
       then:
-        switch.turn_on: relay_1
+        - switch.turn_on: relay_1
     on_release:
-        switch.turn_off: relay_1
+        - switch.turn_off: relay_1
 
   # Right button custom action: Push button / Momentary switch - Relay 2
   - id: !extend right_button
@@ -591,9 +614,9 @@ binary_sensor:
       then:
     on_press:
       then:
-        switch.turn_on: relay_2
+        - switch.turn_on: relay_2
     on_release:
-        switch.turn_off: relay_2
+        - switch.turn_off: relay_2
 ```
 
 ### Hardware button scripts (v4.3.30+)
