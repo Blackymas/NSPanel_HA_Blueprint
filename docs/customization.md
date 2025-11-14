@@ -604,9 +604,9 @@ binary_sensor:
       then:
     on_press:
       then:
-        switch.turn_on: relay_1
+        - switch.turn_on: relay_1
     on_release:
-        switch.turn_off: relay_1
+        - switch.turn_off: relay_1
 
   # Right button custom action: Push button / Momentary switch - Relay 2
   - id: !extend right_button
@@ -614,9 +614,9 @@ binary_sensor:
       then:
     on_press:
       then:
-        switch.turn_on: relay_2
+        - switch.turn_on: relay_2
     on_release:
-        switch.turn_off: relay_2
+        - switch.turn_off: relay_2
 ```
 
 ### Hardware button scripts (v4.3.30+)
