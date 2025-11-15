@@ -162,6 +162,7 @@ Our goal? To make the customization of your NSPanel seamless, intuitive, and com
   - Wind speed
 
 ### Display Settings
+This page is accessible with a long press in the time area on the Home page.
 
 ![Settings EU](docs/pics/eu_settings.png)
 

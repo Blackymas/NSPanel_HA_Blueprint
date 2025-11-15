@@ -19,7 +19,7 @@ Table of contents:
   - [Enforce time zone](#enforce-time-zone)
   - [Compiling ESPHome on lower powered machines](#compiling-esphome-on-lower-powered-machines)
   - [Sleep & Wake-up buttons](#sleep--wake-up-buttons)
-  - [Set display as a light](#set-display-as-a-light)
+  - [Set display as a light](#set-display-as-a-light) - DEPRECATED
   - [Current brightness sensor](#current-brightness-sensor)
   - [Scheduled actions](#scheduled-actions)
     - [Scheduled relay](#scheduled-relay)
@@ -101,6 +101,7 @@ packages:
       # - esphome/nspanel_esphome_addon_climate_heat.yaml
       # - esphome/nspanel_esphome_addon_climate_dual.yaml
       # - esphome/nspanel_esphome_addon_cover.yaml
+      # - esphome/nspanel_esphome_addon_display_light.yaml  # Show the display as a light in Home Assistant
 ```
 
 ## Memory Management
@@ -401,88 +402,32 @@ button:
 ```
 
 ### Set display as a light
-You can set your display as a light in Home Assistant, so you can control the brightness and turn on/off just like any other light,
-and even use this in your automation to control when your panel is on with the same automation you use for your lights:
 
+> [!NOTE]
+> This functionality is now available as an official add-on. If you have this added as a
+> customization, please remove it and use the add-on instead for official support and updates.
+
+You can set your display as a light in Home Assistant, allowing you to control the brightness
+and turn on/off just like any other light. This is useful for automations that control when
+your panel is on with the same automation you use for your lights.
+
+**To enable this add-on**, uncomment the following line in your ESPHome YAML packages section:
 ```yaml
-light:
-  # Add the display as a light in Home Assistant
-  - name: Display
-    id: display_light
-    icon: mdi:tablet-dashboard
-    platform: monochromatic
-    output: display_output
-    default_transition_length: 0s
-    on_turn_on:
-      then:
-        - lambda: |-
-            ESP_LOGD("light.display_light", "Turn-on");
-            if (current_page_id == ${PAGE_SCREENSAVER_ID}) disp1->goto_page(wakeup_page_id);
-            timer_reset_all->execute();
-    on_turn_off:
-      then:
-        - lambda: |-
-            ESP_LOGD("light.display_light", "Turn-off");
-            goto_page->execute(${PAGE_SCREENSAVER_ID});
-
-output:
-  # Output required by `display_light` to send the commands to Nextion
-  - id: display_output
-    platform: template
-    type: float
-    write_action:
-      - lambda: |-
-          ESP_LOGV("output.display_output", "state: %f", state);
-          uint8_t current_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
-          ESP_LOGV("output.display_output", "current_brightness: %i%%", current_brightness);
-          set_brightness->execute(current_brightness);
-    
-script:
-  # Updates the existing `page_change` script to update the `display_light` status when a page changes
-  - id: !extend page_change
-    then:
-      - lambda: |-
-          ESP_LOGD("script.page_change(custom)", "page: %s", current_page->state.c_str());
-          ESP_LOGV("script.page_change(custom)", "is_on(): %s", display_light->current_values.is_on() ? "True" : "False");
-          if (current_page_id == ${PAGE_SCREENSAVER_ID} and display_light->current_values.is_on()) {
-            auto call = display_light->turn_off();
-            call.perform();
-          } else if (current_page_id != ${PAGE_SCREENSAVER_ID} and (not display_light->current_values.is_on())) {
-            auto call = display_light->turn_on();
-            call.perform();
-          }
-
-  # Updates the existing `set_brightness` script to update the `display_light` status when a new brightness level is set
-  - id: !extend set_brightness
-    then:
-      - lambda: |-
-          ESP_LOGD("script.set_brightness(custom)", "brightness: %.0f%%", brightness);
-          uint8_t current_light_brightness = int(round(display_light->current_values.is_on() ? (display_light->current_values.get_brightness() * 100.0f) : 0.0));
-          ESP_LOGV("script.set_brightness(custom)", "current_light_brightness: %i%%", current_light_brightness);
-          if (brightness != current_light_brightness) {
-            if (current_page_id != ${PAGE_SCREENSAVER_ID} and brightness > 0) {
-              auto call = display_light->turn_on();
-              call.set_brightness(static_cast<float>(current_brightness->state) / 100.0f);
-              call.perform();
-            } else if (display_light->current_values.is_on()) {
-              auto call = display_light->turn_off();
-              call.set_brightness(0);
-              call.perform();
-            }
-          }
-
-sensor:
-  - id: current_brightness  # Display Brightness - Current value (%)
-    name: Display Current brightness
-    platform: nextion
-    variable_name: dim
-    precision: 0
-    accuracy_decimals: 0
-    unit_of_measurement: "%"
-    icon: mdi:brightness-percent
-    internal: false
-    disabled_by_default: false
+packages:
+  remote_package:
+    url: https://github.com/Blackymas/NSPanel_HA_Blueprint
+    ref: main
+    files:
+      - nspanel_esphome.yaml
+      # Optional add-ons
+      - esphome/nspanel_esphome_addon_display_light.yaml  # Uncomment to enable
 ```
+
+**Features:**
+- Control display brightness through Home Assistant
+- Turn display on/off like any other light entity
+- Include display in lighting automations
+- Schedule display sleep/wake times
 
 ### Current brightness sensor
 Exposes to Home Assistant the current brightness of your panel.
@@ -659,9 +604,9 @@ binary_sensor:
       then:
     on_press:
       then:
-        switch.turn_on: relay_1
+        - switch.turn_on: relay_1
     on_release:
-        switch.turn_off: relay_1
+        - switch.turn_off: relay_1
 
   # Right button custom action: Push button / Momentary switch - Relay 2
   - id: !extend right_button
@@ -669,9 +614,9 @@ binary_sensor:
       then:
     on_press:
       then:
-        switch.turn_on: relay_2
+        - switch.turn_on: relay_2
     on_release:
-        switch.turn_off: relay_2
+        - switch.turn_off: relay_2
 ```
 
 ### Hardware button scripts (v4.3.30+)
@@ -865,8 +810,6 @@ binary_sensor:
           - switch.turn_on: screen_power
           - delay: 2s
           - lambda: disp1->soft_reset();
-          - delay: 2s
-          - script.execute: setup_sequence
 
   # Restarts ESPHome after pressing and holding the right button for 15s
   - id: !extend right_button

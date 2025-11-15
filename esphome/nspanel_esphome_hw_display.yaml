@@ -59,7 +59,11 @@ display:
       then:
         - lambda: |-
             current_page_id = ${PAGE_BOOT_ID};
+            #if ESPHOME_VERSION_CODE >= VERSION_CODE(2025, 11, 0)  // Code for ESPHome newer than v2025.11.0
+            wakeup_page_id = get_page_id(wakeup_page_name->current_option());
+            #else
             wakeup_page_id = get_page_id(wakeup_page_name->state.c_str());
+            #endif
         - script.stop: wait_for_display
         - lambda: |-
             ESP_LOGI("${TAG_HW_DISPLAY}", "Nextion setup triggered");
@@ -297,19 +301,6 @@ script:
             });
           }
 
-          // Call page constructor
-          ESP_LOGV("${TAG_HW_DISPLAY}", "Call page constructor");
-          if (current_page->state == "blank") page_blank->execute();
-          else if (current_page->state == "buttonpage01") page_buttonpage01->execute();
-          else if (current_page->state == "buttonpage02") page_buttonpage02->execute();
-          else if (current_page->state == "buttonpage03") page_buttonpage03->execute();
-          else if (current_page->state == "buttonpage04") page_buttonpage04->execute();
-          else if (current_page->state == "weather01") page_weather01->execute();
-          else if (current_page->state == "weather02") page_weather02->execute();
-          else if (current_page->state == "weather03") page_weather03->execute();
-          else if (current_page->state == "weather04") page_weather04->execute();
-          else if (current_page->state == "weather05") page_weather05->execute();
-
           // Update buttons bars on screen
           ESP_LOGV("${TAG_HW_DISPLAY}", "Update buttons bars on screen");
           refresh_hardware_buttons_bars->execute(3);
@@ -355,13 +346,12 @@ script:
     parameters:
       brightness: uint8_t
     then:
-      - if:
-          condition:
-            - lambda: return brightness <= 100;
-            - lambda: return is_device_ready_for_tasks();
-          then:
-            - lambda: |-
-                disp1->set_backlight_brightness(brightness / 100.0f);
+      - lambda: |-
+          if (brightness <= 100 and brightness_current != brightness) {
+            ESP_LOGD("${TAG_HW_DISPLAY}", "Brightness: %" PRIu8 "%%->%" PRIu8 "%%", brightness_current, brightness);
+            brightness_current = brightness;
+            disp1->set_backlight_brightness(brightness / 100.0f);
+          }
 
   - id: set_component_font_color
     mode: single
@@ -390,20 +380,7 @@ script:
 
   - id: stop_page_constructors
     mode: single
-    then:
-      # Page home is an exception, as it can be constructed in the background
-      - lambda: |-
-          page_blank->stop();
-          page_entitypage->stop();
-          page_entitypage01->stop();
-          page_entitypage02->stop();
-          page_entitypage03->stop();
-          page_entitypage04->stop();
-          page_weather->stop();
-          page_weather01->stop();
-          page_weather02->stop();
-          page_weather03->stop();
-          page_weather04->stop();
+    then: # Page home is an exception, as it can be constructed in the background
 
   ###### Timers ######
   - id: timer_dim        # Handles the brightness dimming after a timeout
