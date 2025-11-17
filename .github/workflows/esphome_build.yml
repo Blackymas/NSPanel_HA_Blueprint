@@ -33,8 +33,8 @@ concurrency:
 
 jobs:
   # Common setup and validation
-  setup_dependencies:
-    name: Setup & Cache Dependencies
+  setup_environment:
+    name: Setup Environment & Cache Dependencies
     runs-on: ubuntu-latest
     outputs:
       cache-hit-idf: ${{ steps.cache-idf.outputs.cache-hit }}
@@ -57,113 +57,168 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install pipx
+        run: python -m pip install --upgrade pip pipx
+
+      - name: Ensure pipx PATH
+        run: |
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          echo "PATH=$HOME/.local/bin:$PATH" >> $GITHUB_ENV
 
       - name: Install ESPHome
-        run: |
-          python -m pip install --upgrade pip wheel
-          pip install esphome yamllint
+        run: pipx install esphome
+
+      - name: Verify ESPHome
+        run: esphome version
 
   code_scan:
     name: Code scan (YAML)
     runs-on: ubuntu-latest
-    needs: setup_dependencies
+    needs: setup_environment
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Install Yamllint
+        run: pip install yamllint
+
       - name: Validate YAML files
         run: find . -name "*.yaml" -exec yamllint -c ./.rules/yamllint.yml {} +
 
-  # Core builds
-  build_core:
-    name: Core
-    needs: [code_scan, setup_dependencies]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build Core Firmware
-        run: esphome compile .test/esphome_idf_basic.yaml
-
+  # Arduino Framework Chain
   build_core_arduino:
     name: Core (Arduino)
     needs: build_core
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Build Core Firmware (Arduino)
-        run: esphome compile .test/esphome_ard_basic.yaml
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  # ESP-IDF builds
+      - name: Build Core Firmware
+        if: needs.setup_environment.outputs.cache-hit-idf != 'true'
+        uses: esphome/build-action@v4
+        with:
+          yaml-file: ".test/esphome_ard_basic.yaml"
+
+  # ESP-IDF Framework Chain
+  build_core:
+    name: Core
+    needs: [code_scan, setup_environment]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Core Firmware
+        if: needs.setup_environment.outputs.cache-hit-idf != 'true'
+        uses: esphome/build-action@v4
+        with:
+          yaml-file: ".test/esphome_idf_basic.yaml"
+
   build_ble_tracker:
     name: BLE Tracker
     needs: build_core
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Build BLE Tracker Firmware
-        run: esphome compile .test/esphome_idf_ble_tracker.yaml
+        uses: esphome/build-action@v4
+        with:
+          yaml-file: ".test/esphome_idf_ble_tracker.yaml"
 
   build_bluetooth_proxy:
     name: Bluetooth Proxy
     needs: build_core
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Build Bluetooth Proxy Firmware
-        run: esphome compile .test/esphome_idf_bluetooth_proxy.yaml
+        uses: esphome/build-action@v4
+        with:
+          yaml-file: ".test/esphome_idf_bluetooth_proxy.yaml"
 
   build_climate_cool:
     name: Climate Cool
     needs: build_core
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Build Climate Cool Firmware
-        run: esphome compile .test/esphome_idf_climate_cool.yaml
+        uses: esphome/build-action@v4
+        with:
+          yaml-file: ".test/esphome_idf_climate_cool.yaml"
 
   build_climate_heat:
     name: Climate Heat
     needs: build_core
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Build Climate Heat Firmware
-        run: esphome compile .test/esphome_idf_climate_heat.yaml
+        uses: esphome/build-action@v4
+        with:
+          yaml-file: ".test/esphome_idf_climate_heat.yaml"
 
   build_climate_dual:
     name: Climate Dual
     needs: build_core
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Build Climate Dual Firmware
-        run: esphome compile .test/esphome_idf_climate_dual.yaml
+        uses: esphome/build-action@v4
+        with:
+          yaml-file: ".test/esphome_idf_climate_dual.yaml"
 
   build_cover:
     name: Cover
     needs: build_core
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Build Cover Firmware
-        run: esphome compile .test/esphome_idf_cover.yaml
+        uses: esphome/build-action@v4
+        with:
+          yaml-file: ".test/esphome_idf_cover.yaml"
 
   build_customizations:
     name: Customizations
     needs: build_climate_heat
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Build Customizations Firmware
-        run: esphome compile .test/esphome_idf_climate_heat_customizations.yaml
+        uses: esphome/build-action@v4
+        with:
+          yaml-file: ".test/esphome_idf_climate_heat_customizations.yaml"
 
   build_climate_ble_proxy:
     name: Climate Cool + Bluetooth Proxy
     needs: [build_climate_cool, build_bluetooth_proxy]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Build Climate Cool + BLE Proxy Firmware
-        run: esphome compile .test/esphome_idf_climate_cool_bluetooth_proxy.yaml
+        uses: esphome/build-action@v4
+        with:
+          yaml-file: ".test/esphome_idf_climate_cool_bluetooth_proxy.yaml"
 ...
