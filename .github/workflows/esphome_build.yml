@@ -1,0 +1,268 @@
+---
+name: Build ESPHome
+
+# yamllint disable-line rule:truthy
+on:
+  push:
+    paths:
+      - "nspanel_esphome*.yaml"
+      - "esphome/nspanel_esphome*.yaml"
+      - "prebuilt/nspanel_esphome*.yaml"
+      - "prebuilt/wall_display*.yaml"
+      - ".test/*.yaml"
+      - "*.h"
+      - "*.c"
+      - "*.cpp"
+      - "*.py"
+  pull_request:
+    paths:
+      - "nspanel_esphome*.yaml"
+      - "esphome/nspanel_esphome*.yaml"
+      - "prebuilt/nspanel_esphome*.yaml"
+      - "prebuilt/wall_display*.yaml"
+      - ".test/*.yaml"
+      - "*.h"
+      - "*.c"
+      - "*.cpp"
+      - "*.py"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  code_scan:
+    name: Code scan (YAML)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Run yamllint
+        run: find . -name "*.yaml" -exec yamllint -c ./.rules/yamllint.yml {} +
+
+  build_core:
+    name: Core
+    needs: code_scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio/packages
+            ~/.platformio/platforms
+          key: ${{ runner.os }}-pio-idf-${{ hashFiles('.test/esphome_idf_basic.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pio-idf-
+
+      - name: Create virtual environment with ESPHome
+        run: |
+          python -m venv ~/venv
+          ~/venv/bin/pip install --upgrade pip
+          ~/venv/bin/pip install esphome
+
+      - name: Verify ESPHome
+        run: |
+          source ~/venv/bin/activate
+          which esphome
+          esphome version
+
+      - name: Compile ESPHome
+        run: |
+          source ~/venv/bin/activate
+          esphome compile ".test/esphome_idf_basic.yaml"
+
+      - name: Package environment for artifact
+        run: |
+          tar -czhf esphome-env.tar.gz -C ~ venv .platformio
+
+      - name: Upload environment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: esphome-env
+          path: esphome-env.tar.gz
+          retention-days: 1
+
+  build_core_arduino:
+    name: Core (Arduino)
+    needs: build_core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download environment artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: esphome-env
+
+      - name: Extract environment
+        run: tar -xzf esphome-env.tar.gz -C ~
+
+      - name: Compile ESPHome
+        run: |
+          source ~/venv/bin/activate
+          esphome compile ".test/esphome_ard_basic.yaml"
+
+  build_ble_tracker:
+    name: BLE Tracker
+    needs: build_core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download environment artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: esphome-env
+
+      - name: Extract environment
+        run: tar -xzf esphome-env.tar.gz -C ~
+
+      - name: Compile ESPHome
+        run: |
+          source ~/venv/bin/activate
+          esphome compile ".test/esphome_idf_ble_tracker.yaml"
+
+  build_bluetooth_proxy:
+    name: Bluetooth Proxy
+    needs: build_core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download environment artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: esphome-env
+
+      - name: Extract environment
+        run: tar -xzf esphome-env.tar.gz -C ~
+
+      - name: Compile ESPHome
+        run: |
+          source ~/venv/bin/activate
+          esphome compile ".test/esphome_idf_bluetooth_proxy.yaml"
+
+  build_climate_cool:
+    name: Climate Cool
+    needs: build_core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download environment artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: esphome-env
+
+      - name: Extract environment
+        run: tar -xzf esphome-env.tar.gz -C ~
+
+      - name: Compile ESPHome
+        run: |
+          source ~/venv/bin/activate
+          esphome compile ".test/esphome_idf_climate_cool.yaml"
+
+  build_climate_heat:
+    name: Climate Heat
+    needs: build_core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download environment artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: esphome-env
+
+      - name: Extract environment
+        run: tar -xzf esphome-env.tar.gz -C ~
+
+      - name: Compile ESPHome
+        run: |
+          source ~/venv/bin/activate
+          esphome compile ".test/esphome_idf_climate_heat.yaml"
+
+  build_climate_dual:
+    name: Climate Dual
+    needs: build_core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download environment artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: esphome-env
+
+      - name: Extract environment
+        run: tar -xzf esphome-env.tar.gz -C ~
+
+      - name: Compile ESPHome
+        run: |
+          source ~/venv/bin/activate
+          esphome compile ".test/esphome_idf_climate_dual.yaml"
+
+  build_cover:
+    name: Cover
+    needs: build_core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download environment artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: esphome-env
+
+      - name: Extract environment
+        run: tar -xzf esphome-env.tar.gz -C ~
+
+      - name: Compile ESPHome
+        run: |
+          source ~/venv/bin/activate
+          esphome compile ".test/esphome_idf_cover.yaml"
+...
