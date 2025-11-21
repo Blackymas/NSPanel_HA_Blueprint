@@ -33,79 +33,64 @@ concurrency:
 
 jobs:
   setup_environment:
-    name: Setup Environment & Cache Dependencies
+    name: Setup Environment
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Cache ESP-IDF & PlatformIO dependencies
-        id: cache-idf
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.esphome/cache
-            ~/.platformio/packages
-            ~/.platformio/platforms
-          key: ${{ runner.os }}-esp-idf-${{ hashFiles('**/esphome_idf_basic.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-esp-idf-
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Restore ESPHome cache
+      - name: Cache ESPHome installation
         id: cache-esphome
         uses: actions/cache@v4
         with:
           path: |
             ~/.local/pipx/venvs/esphome
             ~/.local/bin/esphome
-            ~/.esphome/cache
-            ~/.platformio/packages
-            ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome
-          restore-keys: |
-            ${{ runner.os }}-esphome-
+          key: ${{ runner.os }}-esphome-v1
 
-      - name: Install pipx
-        run: python -m pip install --upgrade pip pipx
-
-      - name: Ensure pipx PATH
-        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Install ESPHome (if not cached)
+      - name: Install pipx and ESPHome
         if: steps.cache-esphome.outputs.cache-hit != 'true'
-        run: pipx install esphome
+        run: |
+          python -m pip install --upgrade pip pipx
+          pipx install esphome
+
+      - name: Add ESPHome to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Verify ESPHome
         run: esphome version
 
-      - name: Save ESPHome cache
-        uses: actions/cache@v4
+      - name: Package ESPHome for artifact
+        run: |
+          tar -czvf esphome-install.tar.gz \
+            -C ~ .local/pipx/venvs/esphome .local/bin/esphome
+
+      - name: Upload ESPHome artifact
+        uses: actions/upload-artifact@v4
         with:
-          path: |
-            ~/.local/pipx/venvs/esphome
-            ~/.local/bin/esphome
-            ~/.esphome/cache
-            ~/.platformio/packages
-            ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-esphome-
+          name: esphome-install
+          path: esphome-install.tar.gz
+          retention-days: 1
 
   code_scan:
     name: Code scan (YAML)
     runs-on: ubuntu-latest
-    needs: setup_environment
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install yamllint
-      - run: find . -name "*.yaml" -exec yamllint -c ./.rules/yamllint.yml {} +
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Run yamllint
+        run: find . -name "*.yaml" -exec yamllint -c ./.rules/yamllint.yml {} +
 
   build_core:
     name: Core
@@ -113,277 +98,285 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.local/pipx/venvs/esphome
-            ~/.local/bin/esphome
-            ~/.esphome/cache
-            ~/.platformio/packages
-            ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome
-          restore-keys: |
-            ${{ runner.os }}-esphome-
-      - run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-      - run: esphome compile ".test/esphome_idf_basic.yaml"
-      - name: Save updated ESPHome cache
+
+      - name: Cache PlatformIO
         uses: actions/cache@v4
         with:
           path: |
-            ~/.local/pipx/venvs/esphome
-            ~/.local/bin/esphome
             ~/.esphome/cache
             ~/.platformio/packages
             ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome-${{ github.job }}-${{ github.sha }}
+          key: ${{ runner.os }}-pio-idf-${{ hashFiles('.test/esphome_idf_basic.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-esphome-
+            ${{ runner.os }}-pio-idf-
+
+      - name: Download ESPHome artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: esphome-install
+
+      - name: Extract ESPHome
+        run: tar -xzvf esphome-install.tar.gz -C ~
+
+      - name: Add ESPHome to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Compile ESPHome
+        run: esphome compile ".test/esphome_idf_basic.yaml"
 
   build_core_arduino:
     name: Core (Arduino)
-    needs: build_core
+    needs: [code_scan, setup_environment]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.local/pipx/venvs/esphome
-            ~/.local/bin/esphome
-            ~/.esphome/cache
-            ~/.platformio/packages
-            ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome
-          restore-keys: |
-            ${{ runner.os }}-esphome-
-      - run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-      - run: esphome compile ".test/esphome_ard_basic.yaml"
-      - name: Save updated ESPHome cache
+
+      - name: Cache PlatformIO
         uses: actions/cache@v4
         with:
           path: |
-            ~/.local/pipx/venvs/esphome
-            ~/.local/bin/esphome
             ~/.esphome/cache
             ~/.platformio/packages
             ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome-${{ github.job }}-${{ github.sha }}
+          key: ${{ runner.os }}-pio-ard-${{ hashFiles('.test/esphome_ard_basic.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-esphome-
+            ${{ runner.os }}-pio-ard-
+
+      - name: Download ESPHome artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: esphome-install
+
+      - name: Extract ESPHome
+        run: tar -xzvf esphome-install.tar.gz -C ~
+
+      - name: Add ESPHome to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Compile ESPHome
+        run: esphome compile ".test/esphome_ard_basic.yaml"
 
   build_ble_tracker:
     name: BLE Tracker
-    needs: build_core
+    needs: [code_scan, setup_environment]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.local/pipx/venvs/esphome
-            ~/.local/bin/esphome
-            ~/.esphome/cache
-            ~/.platformio/packages
-            ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome
-          restore-keys: |
-            ${{ runner.os }}-esphome-
-      - run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-      - run: esphome compile ".test/esphome_idf_ble_tracker.yaml"
-      - name: Save updated ESPHome cache
+
+      - name: Cache PlatformIO
         uses: actions/cache@v4
         with:
           path: |
-            ~/.local/pipx/venvs/esphome
-            ~/.local/bin/esphome
             ~/.esphome/cache
             ~/.platformio/packages
             ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome-${{ github.job }}-${{ github.sha }}
+          key: ${{ runner.os }}-pio-idf-${{ hashFiles('.test/esphome_idf_basic.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-esphome-
+            ${{ runner.os }}-pio-idf-
+
+      - name: Download ESPHome artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: esphome-install
+
+      - name: Extract ESPHome
+        run: tar -xzvf esphome-install.tar.gz -C ~
+
+      - name: Add ESPHome to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Compile ESPHome
+        run: esphome compile ".test/esphome_idf_ble_tracker.yaml"
 
   build_bluetooth_proxy:
     name: Bluetooth Proxy
-    needs: build_core
+    needs: [code_scan, setup_environment]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.local/pipx/venvs/esphome
-            ~/.local/bin/esphome
-            ~/.esphome/cache
-            ~/.platformio/packages
-            ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome
-          restore-keys: |
-            ${{ runner.os }}-esphome-
-      - run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-      - run: esphome compile ".test/esphome_idf_bluetooth_proxy.yaml"
-      - name: Save updated ESPHome cache
+
+      - name: Cache PlatformIO
         uses: actions/cache@v4
         with:
           path: |
-            ~/.local/pipx/venvs/esphome
-            ~/.local/bin/esphome
             ~/.esphome/cache
             ~/.platformio/packages
             ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome-${{ github.job }}-${{ github.sha }}
+          key: ${{ runner.os }}-pio-idf-${{ hashFiles('.test/esphome_idf_basic.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-esphome-
+            ${{ runner.os }}-pio-idf-
+
+      - name: Download ESPHome artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: esphome-install
+
+      - name: Extract ESPHome
+        run: tar -xzvf esphome-install.tar.gz -C ~
+
+      - name: Add ESPHome to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Compile ESPHome
+        run: esphome compile ".test/esphome_idf_bluetooth_proxy.yaml"
 
   build_climate_cool:
     name: Climate Cool
-    needs: build_core
+    needs: [code_scan, setup_environment]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.local/pipx/venvs/esphome
-            ~/.local/bin/esphome
-            ~/.esphome/cache
-            ~/.platformio/packages
-            ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome
-          restore-keys: |
-            ${{ runner.os }}-esphome-
-      - run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-      - run: esphome compile ".test/esphome_idf_climate_cool.yaml"
-      - name: Save updated ESPHome cache
+
+      - name: Cache PlatformIO
         uses: actions/cache@v4
         with:
           path: |
-            ~/.local/pipx/venvs/esphome
-            ~/.local/bin/esphome
             ~/.esphome/cache
             ~/.platformio/packages
             ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome-${{ github.job }}-${{ github.sha }}
+          key: ${{ runner.os }}-pio-idf-${{ hashFiles('.test/esphome_idf_basic.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-esphome-
+            ${{ runner.os }}-pio-idf-
+
+      - name: Download ESPHome artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: esphome-install
+
+      - name: Extract ESPHome
+        run: tar -xzvf esphome-install.tar.gz -C ~
+
+      - name: Add ESPHome to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Compile ESPHome
+        run: esphome compile ".test/esphome_idf_climate_cool.yaml"
 
   build_climate_heat:
     name: Climate Heat
-    needs: build_core
+    needs: [code_scan, setup_environment]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.local/pipx/venvs/esphome
-            ~/.local/bin/esphome
-            ~/.esphome/cache
-            ~/.platformio/packages
-            ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome
-          restore-keys: |
-            ${{ runner.os }}-esphome-
-      - run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-      - run: esphome compile ".test/esphome_idf_climate_heat.yaml"
-      - name: Save updated ESPHome cache
+
+      - name: Cache PlatformIO
         uses: actions/cache@v4
         with:
           path: |
-            ~/.local/pipx/venvs/esphome
-            ~/.local/bin/esphome
             ~/.esphome/cache
             ~/.platformio/packages
             ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome-${{ github.job }}-${{ github.sha }}
+          key: ${{ runner.os }}-pio-idf-${{ hashFiles('.test/esphome_idf_basic.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-esphome-
+            ${{ runner.os }}-pio-idf-
+
+      - name: Download ESPHome artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: esphome-install
+
+      - name: Extract ESPHome
+        run: tar -xzvf esphome-install.tar.gz -C ~
+
+      - name: Add ESPHome to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Compile ESPHome
+        run: esphome compile ".test/esphome_idf_climate_heat.yaml"
 
   build_climate_dual:
     name: Climate Dual
-    needs: build_core
+    needs: [code_scan, setup_environment]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.local/pipx/venvs/esphome
-            ~/.local/bin/esphome
-            ~/.esphome/cache
-            ~/.platformio/packages
-            ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome
-          restore-keys: |
-            ${{ runner.os }}-esphome-
-      - run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-      - run: esphome compile ".test/esphome_idf_climate_dual.yaml"
-      - name: Save updated ESPHome cache
+
+      - name: Cache PlatformIO
         uses: actions/cache@v4
         with:
           path: |
-            ~/.local/pipx/venvs/esphome
-            ~/.local/bin/esphome
             ~/.esphome/cache
             ~/.platformio/packages
             ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome-${{ github.job }}-${{ github.sha }}
+          key: ${{ runner.os }}-pio-idf-${{ hashFiles('.test/esphome_idf_basic.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-esphome-
+            ${{ runner.os }}-pio-idf-
+
+      - name: Download ESPHome artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: esphome-install
+
+      - name: Extract ESPHome
+        run: tar -xzvf esphome-install.tar.gz -C ~
+
+      - name: Add ESPHome to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Compile ESPHome
+        run: esphome compile ".test/esphome_idf_climate_dual.yaml"
 
   build_cover:
     name: Cover
-    needs: build_core
+    needs: [code_scan, setup_environment]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.local/pipx/venvs/esphome
-            ~/.local/bin/esphome
-            ~/.esphome/cache
-            ~/.platformio/packages
-            ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome
-          restore-keys: |
-            ${{ runner.os }}-esphome-
-      - run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-      - run: esphome compile ".test/esphome_idf_cover.yaml"
-      - name: Save updated ESPHome cache
+
+      - name: Cache PlatformIO
         uses: actions/cache@v4
         with:
           path: |
-            ~/.local/pipx/venvs/esphome
-            ~/.local/bin/esphome
             ~/.esphome/cache
             ~/.platformio/packages
             ~/.platformio/platforms
-          key: ${{ runner.os }}-esphome-${{ github.job }}-${{ github.sha }}
+          key: ${{ runner.os }}-pio-idf-${{ hashFiles('.test/esphome_idf_basic.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-esphome-
+            ${{ runner.os }}-pio-idf-
+
+      - name: Download ESPHome artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: esphome-install
+
+      - name: Extract ESPHome
+        run: tar -xzvf esphome-install.tar.gz -C ~
+
+      - name: Add ESPHome to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Compile ESPHome
+        run: esphome compile ".test/esphome_idf_cover.yaml"
 ...
