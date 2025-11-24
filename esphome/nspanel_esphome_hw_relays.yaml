@@ -1,0 +1,79 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - HARDWARE - RELAYS                                                          #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+substitutions:
+  GPIO_RELAY_1_PIN: 22
+  GPIO_RELAY_2_PIN: 19
+
+script:
+  - id: !extend boot_nextion
+    then:
+      - lambda: |-
+          // Refresh relay chips with correct state-based colors after blueprint settings are received
+          refresh_relays->execute(3);
+          feed_wdt_delay(${DELAY_DEFAULT});
+
+          // Set relay chips to invisible initially (will be updated by refresh_relays when home page loads)
+          disp1->set_component_font_color(hmi::home::CHIP_RELAY1.name, Colors::BLACK);
+          disp1->set_component_font_color(hmi::home::CHIP_RELAY2.name, Colors::BLACK);
+          feed_wdt_delay(${DELAY_DEFAULT});
+
+  - id: !extend new_minute
+    then:
+      - script.execute:
+          id: refresh_relays
+          relay_mask: 3
+
+  - id: !extend page_home
+    then:
+      - script.execute:
+          id: refresh_relays
+          relay_mask: 3
+
+  - id: refresh_relays
+    mode: single
+    parameters:
+      relay_mask: uint8_t
+    then:
+      - lambda: |-
+          if (relay_mask & 1) {  // Chip - Relay 1
+            disp1->set_component_font_color("home.chip_relay1", relay_1->state ? id(home_relay1_icon_color) : 0);
+          }
+          if (relay_mask & 2) {  // Chip - Relay 2
+            disp1->set_component_font_color("home.chip_relay2", relay_2->state ? id(home_relay2_icon_color) : 0);
+          }
+
+  - id: !extend stop_all
+    then:
+      - lambda: refresh_relays->stop();
+
+switch:
+  - name: Relay 1  # Physical switch 1
+    platform: gpio
+    id: relay_1
+    pin: ${GPIO_RELAY_1_PIN}
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_state:
+      then:
+        - lambda: |-
+            if (id(hardware_settings).relay1_local) id(hardware_settings).button_left_state = x;
+            refresh_relays->execute(1);
+            refresh_hardware_buttons_bars->execute(1);
+
+  - name: Relay 2  # Physical switch 2
+    platform: gpio
+    id: relay_2
+    pin: ${GPIO_RELAY_2_PIN}
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_state:
+      then:
+        - lambda: |-
+            if (id(hardware_settings).relay2_local) id(hardware_settings).button_right_state = x;
+            refresh_relays->execute(2);
+            refresh_hardware_buttons_bars->execute(2);
+...
