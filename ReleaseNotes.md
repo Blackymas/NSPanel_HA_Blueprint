@@ -1,84 +1,73 @@
-# v2025110 - Display Light Add-on & Bug Fixes
+# v2025120 - Configurable Climate Page Button Icon Sizes
 
 ## Summary
 
-This release introduces an optional display control light entity add-on, prepares the codebase
-for upcoming ESPHome 2025.11.x optimizations, and includes numerous bug fixes, some imported
-from the unreleased v4.4 branch.
+This release introduces configurable icon sizes for climate page buttons, leverages new
+optimizations from ESPHome 2025.11.0, and includes breaking changes that require ESPHome
+2025.11.0 or newer.
+
+## Breaking Changes
+
+### ESPHome 2025.11.0 Required
+
+**ESPHome 2025.11.0 or newer is now required** - this release takes advantage of optimizations
+introduced in ESPHome 2025.11.0 and is not compatible with earlier versions.
+
+**Required action:**
+- Upgrade to ESPHome 2025.11.0 or newer before updating to this firmware version
+- Earlier ESPHome versions will not build this release successfully
+
+### Temperature Step Substitution Deprecated
+
+**Deprecated `temp_step` substitution** - temperature step values are now hard-coded for
+consistency and optimized memory usage.
+
+**Previous behavior:**
+- `temp_step` substitution allowed custom temperature step configuration
+
+**New behavior:**
+- Target temperature step: 0.5°C or 1°F (hard-coded)
+- Current temperature step: 0.1°C or 0.1°F (hard-coded)
+
+**Migration:**
+- Remove `temp_step` substitution from your configuration if present
+- Temperature steps now follow standard HVAC conventions
+
+**Result:** Simplified configuration with standardized temperature steps following common HVAC
+practices.
 
 ## Key Enhancements
 
-### Panel Display Control via Light Entity (Add-on)
+### Configurable Climate Page Icon Size
 
-**Added optional light entity add-on for display control** - introduced a new add-on that
-exposes display brightness, wake-up, and sleep control through a standard light entity in Home
-Assistant.
+**Added configurable icon size for climate page buttons** - climate page button icons can now
+be resized via automation/blueprint configuration.
 
 **New capabilities:**
-- Control display brightness through a light entity
-- Wake up the display by turning the light on
-- Put the display to sleep by turning the light off
-- Native integration with Home Assistant lighting controls and automations
+- Adjust icon size for climate control buttons
+- Larger touch area for improved usability
+- Configurable through Home Assistant automation/blueprint
 
-**Configuration:**
-To enable this add-on, uncomment the following line in your ESPHome YAML packages section:
-```yaml
-packages:
-  remote_package:
-    url: https://github.com/Blackymas/NSPanel_HA_Blueprint
-    ref: main
-    files:
-      - nspanel_esphome.yaml
-      # Optional add-ons
-      - esphome/nspanel_esphome_addon_display_light.yaml  # Uncomment to enable
-```
+**Benefits:**
+- Better accessibility with larger icons and touch areas
+- Customizable to user preferences
+- Improved touch responsiveness
 
-**Migration:**
-- **If using custom display light configuration:** Remove your custom YAML and use this add-on
-  instead for official support
-- **If not using display light control:** No action required, this is optional
+**Result:** More flexible and accessible climate page interface with configurable icon sizes and
+enhanced touch areas.
 
-**Use cases:**
-- Control display brightness alongside room lights
-- Include display in "all lights off" automations
-- Schedule display sleep/wake times using existing light automation tools
-- Unified control interface for all lighting including the panel
+### ESPHome 2025.11.0 Optimizations
 
-**Issues Reference:** #2091
-
-**Result:** Optional add-on providing display control via light entity, with cleaner integration
-than previous custom configurations.
-
-### ESPHome 2025.11.x Optimization Support
-
-**Prepared code for new ESPHome optimizations** - updated codebase to take advantage of new
-optimization features coming in ESPHome 2025.11.x (expected release: November 19, 2025).
+**Implemented optimizations enabled by ESPHome 2025.11.0** - leveraged new optimization
+features introduced in ESPHome 2025.11.0 for improved performance and memory efficiency.
 
 **Improvements:**
-- Code optimized for upcoming ESPHome 2025.11.x features
-- Maintains backward compatibility with current ESPHome versions
-- Ready to leverage performance improvements when ESPHome 2025.11.x is released
+- Reduced flash memory usage through ESPHome 2025.11.0 optimizations
+- Enhanced runtime performance
+- Better memory management
 
-**Note:** These optimizations will automatically activate when upgrading to ESPHome 2025.11.0 or
-later. No configuration changes required.
-
-**Result:** Future-ready codebase prepared for ESPHome 2025.11.x performance improvements.
-
-## Bug Fixes
-
-### Multiple Issue Resolutions
-
-**Fixed numerous bugs from v2025102 and unreleased v4.4** - resolved various issues including
-bug fixes that were developed for v4.4 but never released.
-
-**Fix sources:**
-- Issues reported after v2025102 release
-- Bug fixes from unreleased v4.4 branch integrated into this release
-- General stability and reliability improvements
-
-**Result:** Improved overall stability with comprehensive bug fixes from multiple development
-branches.
+**Result:** Improved performance and memory efficiency through ESPHome 2025.11.0 features.
 
 ---
 
-*Display control light entity and extensive bug fixes.*
+*Climate icon configuration and ESPHome 2025.11.0 optimizations. Requires ESPHome 2025.11.0+.*
