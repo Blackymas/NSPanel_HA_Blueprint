@@ -239,8 +239,7 @@ Furthermore, I have selected `18.3°C` as the default target temperature.
   temp_min: "15" 
   temp_max: "22" 
   temp_step: "0.1"
-  cold_tolerance: "0.1"
-  hot_tolerance: "0.1"
+  heat_deadband: "0.1"
     
   ##### CHANGE ME END #####
 climate:
