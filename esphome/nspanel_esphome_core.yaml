@@ -10,10 +10,6 @@ substitutions:
   ## Change only in your      ##
   ## local yaml substitutions ##
   ##############################
-  invalid_cooldown: "100ms"
-  GPIO_RELAY_1_PIN: 22
-  GPIO_RELAY_2_PIN: 19
-
   DELAY_DEFAULT: 25  # delay in msec
   DELAY_LONG: 125    # delay in msec
   DELAY_SHORT: 5     # delay in msec
@@ -48,23 +44,6 @@ globals:
     type: nspanel_ha_blueprint::HardwareSettings
     restore_value: true
     initial_value: 'nspanel_ha_blueprint::HardwareSettings{}'
-  ##### Relay icons #####
-  - id: home_relay1_icon
-    type: std::string
-    restore_value: true
-    initial_value: ''
-  - id: home_relay1_icon_color
-    type: uint16_t
-    restore_value: true
-    initial_value: '65535'
-  - id: home_relay2_icon
-    type: std::string
-    restore_value: true
-    initial_value: ''
-  - id: home_relay2_icon_color
-    type: uint16_t
-    restore_value: true
-    initial_value: '65535'
 
   #### Localization (MUI) ####
   - id: mui_decimal_separator
@@ -108,79 +87,7 @@ number:
       then:
         - script.execute: timer_dim
 
-##### START - SWITCH CONFIGURATION #####
-switch:
-  ##### PHYSICAL SWITCH 1 #####
-  - name: Relay 1
-    platform: gpio
-    id: relay_1
-    pin: ${GPIO_RELAY_1_PIN}
-    restore_mode: RESTORE_DEFAULT_OFF
-    on_state:
-      then:
-        - lambda: |-
-            if (id(hardware_settings).relay1_local) id(hardware_settings).button_left_state = x;
-            refresh_relays->execute(1);
-            refresh_hardware_buttons_bars->execute(1);
-  ##### PHYSICAL SWITCH 2 ######
-  - name: Relay 2
-    platform: gpio
-    id: relay_2
-    pin: ${GPIO_RELAY_2_PIN}
-    restore_mode: RESTORE_DEFAULT_OFF
-    on_state:
-      then:
-        - lambda: |-
-            if (id(hardware_settings).relay2_local) id(hardware_settings).button_right_state = x;
-            refresh_relays->execute(2);
-            refresh_hardware_buttons_bars->execute(2);
-
 script:  # Scripts
-  - id: !extend action_component_color
-    then:
-      - lambda: |-
-          if (page == "mem") {
-            if (component == "relay1_icon_color") {
-              id(home_relay1_icon_color) = color;
-              if (relay_1->state) disp1->set_component_font_color("home.chip_relay1", color);
-            } else if (component == "relay2_icon_color") {
-              id(home_relay2_icon_color) = color;
-              if (relay_2->state) disp1->set_component_font_color("home.chip_relay2", color);
-            }
-          }
-
-  - id: !extend action_component_text
-    then:
-      - lambda: |-
-          if (page == "mem") {
-            if (component == "decimal_separator") {
-              id(mui_decimal_separator) = txt[0];
-            } else if (component == "relay1_icon") {
-              id(home_relay1_icon) = txt;
-              disp1->set_component_text(hmi::home::CHIP_RELAY1.name, id(home_relay1_icon).c_str());
-            } else if (component == "relay2_icon") {
-              id(home_relay2_icon) = txt;
-              disp1->set_component_text(hmi::home::CHIP_RELAY2.name, id(home_relay2_icon).c_str());
-            }
-          }
-
-  - id: !extend action_component_val
-    then:
-      - lambda: |-
-          if (page == "mem") {
-            if (component == "relay_settings") {
-              // Extract individual relay settings from the calculated uint8_t value
-              // Bit layout from YAML calculation: bits 0,1,4,5 used
-              id(hardware_settings).relay1_local = (val >> 0) & 1;
-              id(hardware_settings).relay1_fallback = (val >> 1) & 1;
-              id(hardware_settings).relay2_local = (val >> 4) & 1;
-              id(hardware_settings).relay2_fallback = (val >> 5) & 1;
-
-              // Update blueprint status
-              blueprint_status_flags.relay_settings = true;
-            }
-          }
-
   - id: !extend dump_config
     then:
       - lambda: |-
@@ -238,23 +145,9 @@ script:  # Scripts
           #endif
           #endif
 
-  - id: refresh_relays
-    mode: single
-    parameters:
-      relay_mask: uint8_t
-    then:
-      - lambda: |-
-          if (relay_mask & 1) {  // Chip - Relay 1
-            disp1->set_component_font_color("home.chip_relay1", relay_1->state ? id(home_relay1_icon_color) : 0);
-          }
-          if (relay_mask & 2) {  // Chip - Relay 2
-            disp1->set_component_font_color("home.chip_relay2", relay_2->state ? id(home_relay2_icon_color) : 0);
-          }
-
   - id: !extend stop_all
     then:
       - lambda: |-
-          refresh_relays->stop();
           wait_for_api->stop();
           wait_for_blueprint->stop();
 

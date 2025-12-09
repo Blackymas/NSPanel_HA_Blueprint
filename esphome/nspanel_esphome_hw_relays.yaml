@@ -1,0 +1,179 @@
+#####################################################################################################
+##### NSPANEL ESPHOME created by Blackymas - https://github.com/Blackymas/NSPanel_HA_Blueprint  #####
+##### ESPHOME CORE - HARDWARE - RELAYS                                                          #####
+##### PLEASE only make changes if it is necessary and also the required knowledge is available. #####
+##### For normal use with the Blueprint, no changes are necessary.                              #####
+#####################################################################################################
+
+---
+substitutions:
+  GPIO_RELAY_1_PIN: 22
+  GPIO_RELAY_2_PIN: 19
+  TAG_HW_DISPLAY: nspanel.hw.relays
+
+esphome:
+  platformio_options:
+    build_flags:
+      - -D NSPANEL_HA_BLUEPRINT_HW_RELAYS
+
+globals:
+  ##### Relay icons #####
+  - id: home_relay1_icon
+    type: std::string
+    restore_value: true
+    initial_value: ''
+  - id: home_relay1_icon_color
+    type: uint16_t
+    restore_value: true
+    initial_value: '65535'
+  - id: home_relay2_icon
+    type: std::string
+    restore_value: true
+    initial_value: ''
+  - id: home_relay2_icon_color
+    type: uint16_t
+    restore_value: true
+    initial_value: '65535'
+
+script:
+  - id: !extend action_component_color
+    then:
+      - lambda: |-
+          if (page == "mem") {
+            if (component == "relay1_icon_color") {
+              id(home_relay1_icon_color) = color;
+              if (relay_1->state) disp1->set_component_font_color("home.chip_relay1", color);
+            } else if (component == "relay2_icon_color") {
+              id(home_relay2_icon_color) = color;
+              if (relay_2->state) disp1->set_component_font_color("home.chip_relay2", color);
+            }
+          }
+
+  - id: !extend action_component_text
+    then:
+      - lambda: |-
+          if (page == "mem") {
+            if (component == "decimal_separator") {
+              id(mui_decimal_separator) = txt[0];
+            } else if (component == "relay1_icon") {
+              id(home_relay1_icon) = txt;
+              disp1->set_component_text(hmi::home::CHIP_RELAY1.name, id(home_relay1_icon).c_str());
+            } else if (component == "relay2_icon") {
+              id(home_relay2_icon) = txt;
+              disp1->set_component_text(hmi::home::CHIP_RELAY2.name, id(home_relay2_icon).c_str());
+            }
+          }
+
+  - id: !extend action_component_val
+    then:
+      - lambda: |-
+          if (page == "mem") {
+            if (component == "chip_font") {
+              // Chips icon size
+              disp1->set_component_font(hmi::home::CHIP_RELAY1.name, val);
+              disp1->set_component_font(hmi::home::CHIP_RELAY2.name, val);
+            } else if (component == "relay_settings") {
+              // Extract individual relay settings from the calculated uint8_t value
+              // Bit layout from YAML calculation: bits 0,1,4,5 used
+              id(hardware_settings).relay1_local = (val >> 0) & 1;
+              id(hardware_settings).relay1_fallback = (val >> 1) & 1;
+              id(hardware_settings).relay2_local = (val >> 4) & 1;
+              id(hardware_settings).relay2_fallback = (val >> 5) & 1;
+
+              // Update blueprint status
+              blueprint_status_flags.relay_settings = true;
+            }
+          }
+
+  - id: !extend boot_nextion
+    then:
+      - lambda: |-
+          // Set relay chips to invisible initially (will be updated by refresh_relays when home page loads)
+          disp1->set_component_font_color(hmi::home::CHIP_RELAY1.name, Colors::BLACK);
+          disp1->set_component_font_color(hmi::home::CHIP_RELAY2.name, Colors::BLACK);
+          feed_wdt_delay(${DELAY_DEFAULT});
+
+  - id: !extend button_left_press_short
+    then:
+      - lambda: |-
+          if (id(hardware_settings).relay1_local) {
+            relay_1->toggle();
+            return;
+          }
+          if (id(hardware_settings).relay1_fallback and !api_server->is_connected() and !wifi_component->is_connected()) {
+            relay_1->toggle();
+            return;
+          }
+
+  - id: !extend button_right_press_short
+    then:
+      - lambda: |-
+          if (id(hardware_settings).relay2_local) {
+            relay_2->toggle();
+            return;
+          }
+          if (id(hardware_settings).relay2_fallback and !api_server->is_connected() and !wifi_component->is_connected()) {
+            relay_2->toggle();
+            return;
+          }
+
+  - id: !extend new_minute
+    then:
+      - script.execute:
+          id: refresh_relays
+          relay_mask: 3
+
+  - id: !extend page_home
+    then:
+      - script.execute:
+          id: refresh_relays
+          relay_mask: 3
+
+  - id: refresh_relays
+    mode: single
+    parameters:
+      relay_mask: uint8_t
+    then:
+      - lambda: |-
+          if (system_flags.tft_upload_active) return;  // Skip refresh if TFT update is in progress
+          ESP_LOGV("${TAG_HW_DISPLAY}", "Script: refresh_relays");
+          if (relay_mask & 1) {  // Chip - Relay 1
+            ESP_LOGV("${TAG_HW_DISPLAY}", "  relay1_local:    %s", YESNO(id(hardware_settings).relay1_local));
+            ESP_LOGV("${TAG_HW_DISPLAY}", "  relay1_fallback: %s", YESNO(id(hardware_settings).relay1_fallback));
+            disp1->set_component_font_color(hmi::home::CHIP_RELAY1.name, relay_1->state ? id(home_relay1_icon_color) : 0);
+          }
+          if (relay_mask & 2) {  // Chip - Relay 2
+            ESP_LOGV("${TAG_HW_DISPLAY}", "  relay2_local:    %s", YESNO(id(hardware_settings).relay2_local));
+            ESP_LOGV("${TAG_HW_DISPLAY}", "  relay2_fallback: %s", YESNO(id(hardware_settings).relay2_fallback));
+            disp1->set_component_font_color(hmi::home::CHIP_RELAY2.name, relay_2->state ? id(home_relay2_icon_color) : 0);
+          }
+
+  - id: !extend stop_all
+    then:
+      - lambda: refresh_relays->stop();
+
+switch:
+  - id: relay_1  # Physical switch 1
+    name: Relay 1
+    platform: gpio
+    pin: ${GPIO_RELAY_1_PIN}
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_state:
+      then:
+        - lambda: |-
+            if (id(hardware_settings).relay1_local) id(hardware_settings).button_left_state = x;
+            refresh_relays->execute(1);
+            refresh_hardware_buttons_bars->execute(1);
+
+  - id: relay_2  # Physical switch 2
+    name: Relay 2
+    platform: gpio
+    pin: ${GPIO_RELAY_2_PIN}
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_state:
+      then:
+        - lambda: |-
+            if (id(hardware_settings).relay2_local) id(hardware_settings).button_right_state = x;
+            refresh_relays->execute(2);
+            refresh_hardware_buttons_bars->execute(2);
+...
