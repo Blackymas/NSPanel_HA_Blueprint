@@ -1,73 +1,49 @@
-# v2025120 - Configurable Climate Page Button Icon Sizes
+# v2026010 – ESPHome 2026.1 Compatibility and Climate Page Fixes
 
 ## Summary
 
-This release introduces configurable icon sizes for climate page buttons, leverages new
-optimizations from ESPHome 2025.11.0, and includes breaking changes that require ESPHome
-2025.11.0 or newer.
+This release prepares the codebase for **ESPHome 2026.1.0** compatibility,
+fixes issues introduced by **Home Assistant 2026.1.0**, and resolves a climate page bug affecting maximum temperature selection when a large number of temperature steps is allowed.
 
-## Breaking Changes
+## Compatibility Notes
 
-### ESPHome 2025.11.0 Required
+### ESPHome 2026.1.0 Support (Upcoming)
 
-**ESPHome 2025.11.0 or newer is now required** - this release takes advantage of optimizations
-introduced in ESPHome 2025.11.0 and is not compatible with earlier versions.
+This release updates the codebase to support **ESPHome 2026.1.0**, scheduled for release on **January 21st**.
 
-**Required action:**
-- Upgrade to ESPHome 2025.11.0 or newer before updating to this firmware version
-- Earlier ESPHome versions will not build this release successfully
+**Notes:**
+- The changes are forward-compatible with ESPHome 2026.1.0
+- No functional behavior changes are expected for earlier supported ESPHome versions
+- This prepares the project for upcoming ESPHome internal and API changes
 
-### Temperature Step Substitution Deprecated
+**Result:** Smooth transition once ESPHome 2026.1.0 is released, with no further firmware changes required.
 
-**Deprecated `temp_step` substitution** - temperature step values are now hard-coded for
-consistency and optimized memory usage.
+### Home Assistant 2026.1.0 Fixes
+
+**Fixed issues introduced by Home Assistant 2026.1.0** (released January 7th).
+
+**Scope:**
+- Adjustments to maintain correct behavior after Home Assistant 2026.1 internal changes
+- Prevents regressions affecting UI behavior and entity handling
+
+**Result:** Restored correct operation when running Home Assistant 2026.1.0.
+
+## Bug Fixes
+
+### Climate Page – Maximum Temperature Selection
+
+**Fixed a bug in the climate page that caused the maximum temperature to break when more than 256 temperature steps are allowed.**
 
 **Previous behavior:**
-- `temp_step` substitution allowed custom temperature step configuration
+- When the climate entity allowed a large number of temperature steps, the maximum selectable temperature could not be reached correctly
+- This resulted in truncated or incorrect temperature limits on the climate page
 
 **New behavior:**
-- Target temperature step: 0.5°C or 1°F (hard-coded)
-- Current temperature step: 0.1°C or 0.1°F (hard-coded)
+- Correct handling of climate entities with more than 256 temperature steps
+- Maximum temperature can now be selected and displayed correctly regardless of step count
 
-**Migration:**
-- Remove `temp_step` substitution from your configuration if present
-- Temperature steps now follow standard HVAC conventions
-
-**Result:** Simplified configuration with standardized temperature steps following common HVAC
-practices.
-
-## Key Enhancements
-
-### Configurable Climate Page Icon Size
-
-**Added configurable icon size for climate page buttons** - climate page button icons can now
-be resized via automation/blueprint configuration.
-
-**New capabilities:**
-- Adjust icon size for climate control buttons
-- Larger touch area for improved usability
-- Configurable through Home Assistant automation/blueprint
-
-**Benefits:**
-- Better accessibility with larger icons and touch areas
-- Customizable to user preferences
-- Improved touch responsiveness
-
-**Result:** More flexible and accessible climate page interface with configurable icon sizes and
-enhanced touch areas.
-
-### ESPHome 2025.11.0 Optimizations
-
-**Implemented optimizations enabled by ESPHome 2025.11.0** - leveraged new optimization
-features introduced in ESPHome 2025.11.0 for improved performance and memory efficiency.
-
-**Improvements:**
-- Reduced flash memory usage through ESPHome 2025.11.0 optimizations
-- Enhanced runtime performance
-- Better memory management
-
-**Result:** Improved performance and memory efficiency through ESPHome 2025.11.0 features.
+**Result:** Reliable and correct temperature control for climate entities with fine-grained temperature resolution.
 
 ---
 
-*Climate icon configuration and ESPHome 2025.11.0 optimizations. Requires ESPHome 2025.11.0+.*
+*ESPHome 2026.1.0 compatibility preparation, Home Assistant 2026.1.0 fixes, and climate page temperature limit correction.*
