@@ -3,7 +3,8 @@
 ## Summary
 
 This release prepares the codebase for **ESPHome 2026.1.0** compatibility,
-fixes issues introduced by **Home Assistant 2026.1.0**, and resolves a climate page bug affecting maximum temperature selection when a large number of temperature steps is allowed.
+fixes issues introduced by **Home Assistant 2026.1.0**,
+and resolves a climate page bug affecting maximum temperature selection when a large number of temperature steps is allowed.
 
 ## Compatibility Notes
 
