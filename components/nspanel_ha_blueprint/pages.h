@@ -76,6 +76,7 @@ namespace nspanel_ha_blueprint {
         return UINT8_MAX;
     }
     inline uint8_t get_page_id(const esphome::StringRef& page_name) {
+        if (page_name.empty()) return UINT8_MAX;
         for (uint8_t i = 0; i < PAGE_COUNT; ++i) {
             if (page_name == page_names[i])
                 return i;

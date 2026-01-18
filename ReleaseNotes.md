@@ -2,49 +2,51 @@
 
 ## Summary
 
-This release prepares the codebase for **ESPHome 2026.1.0** compatibility,
+This release updates the codebase for compatibility with **ESPHome 2026.1.0**,
 fixes issues introduced by **Home Assistant 2026.1.0**,
-and resolves a climate page bug affecting maximum temperature selection when a large number of temperature steps is allowed.
+and includes fixes and improvements related to the climate page UI.
 
 ## Compatibility Notes
 
 ### ESPHome 2026.1.0 Support (Upcoming)
 
-This release updates the codebase to support **ESPHome 2026.1.0**, scheduled for release on **January 21st**.
+This release prepares the project for **ESPHome 2026.1.0**, scheduled for release on **January 21st**.
 
 **Notes:**
-- The changes are forward-compatible with ESPHome 2026.1.0
+- Forward-compatible changes aligned with ESPHome 2026.1 internal updates
+- Fixes build issues observed with early ESPHome 2026.1 development versions
 - No functional behavior changes are expected for earlier supported ESPHome versions
-- This prepares the project for upcoming ESPHome internal and API changes
 
-**Result:** Smooth transition once ESPHome 2026.1.0 is released, with no further firmware changes required.
+**Result:** The project will continue to build and operate correctly once ESPHome 2026.1.0 is released.
 
-### Home Assistant 2026.1.0 Fixes
+### Home Assistant 2026.1.0 Compatibility
 
 **Fixed issues introduced by Home Assistant 2026.1.0** (released January 7th).
 
 **Scope:**
-- Adjustments to maintain correct behavior after Home Assistant 2026.1 internal changes
-- Prevents regressions affecting UI behavior and entity handling
+- Adjustments required due to internal changes in Home Assistant 2026.1.0
+- Fixes regressions affecting normal operation and entity handling
 
-**Result:** Restored correct operation when running Home Assistant 2026.1.0.
+**Result:** Restored correct behavior when running Home Assistant 2026.1.0.
 
-## Bug Fixes
+## Climate Page Fixes and Improvements
 
-### Climate Page – Maximum Temperature Selection
+### Maximum Temperature Selection (Bug #3137)
 
-**Fixed a bug in the climate page that caused the maximum temperature to break when more than 256 temperature steps are allowed.**
+**Fixed an issue where the climate page could not correctly set or display target temperatures above 9.4 °C when a large number of temperature steps was allowed.**
 
-**Previous behavior:**
-- When the climate entity allowed a large number of temperature steps, the maximum selectable temperature could not be reached correctly
-- This resulted in truncated or incorrect temperature limits on the climate page
+**Details:**
+- The issue occurred with climate entities exposing fine-grained temperature steps
+- Internally, the temperature range overflowed when more than 256 steps were available
 
-**New behavior:**
-- Correct handling of climate entities with more than 256 temperature steps
-- Maximum temperature can now be selected and displayed correctly regardless of step count
+**Result:** Correct maximum temperature handling for climate entities with high-resolution step configurations. (Tracked as **#3137**)
 
-**Result:** Reliable and correct temperature control for climate entities with fine-grained temperature resolution.
+### Standardized Temperature Information (Enhancement #2343)
+
+**Standardized the display of temperature information across climate and weather-related views.**
+
+**Result:** Consistent and clearer temperature presentation using the configured temperature unit (°C / °F). (Tracked as **#2343**)
 
 ---
 
-*ESPHome 2026.1.0 compatibility preparation, Home Assistant 2026.1.0 fixes, and climate page temperature limit correction.*
+*ESPHome 2026.1.0 compatibility, Home Assistant 2026.1.0 fixes, and climate page UI improvements.*
