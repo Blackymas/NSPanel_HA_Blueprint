@@ -4,8 +4,9 @@
 
 #include <array>
 #include <cstdint>
-#include <string>
 #include <initializer_list>
+#include <string>
+#include "esphome/core/string_ref.h"  // For StringRef
 
 /**
 * @file pages.h
@@ -67,6 +68,20 @@ namespace nspanel_ha_blueprint {
     * @return The index of the page_name in the page_names array. If the page_name
     *         is not found, returns UINT8_MAX as an indicator that no matching page was found.
     */
-    uint8_t get_page_id(const char* page_name);
+    inline uint8_t get_page_id(const char* page_name) {
+        for (uint8_t i = 0; i < PAGE_COUNT; ++i) {
+            if (strcmp(page_names[i], page_name) == 0)
+                return i;
+        }
+        return UINT8_MAX;
+    }
+    inline uint8_t get_page_id(const esphome::StringRef& page_name) {
+        if (page_name.empty()) return UINT8_MAX;
+        for (uint8_t i = 0; i < PAGE_COUNT; ++i) {
+            if (page_name == page_names[i])
+                return i;
+        }
+        return UINT8_MAX;
+    }
 
 }  // namespace nspanel_ha_blueprint
