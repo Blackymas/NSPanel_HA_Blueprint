@@ -1,52 +1,51 @@
-# v2026010 – ESPHome 2026.1 Compatibility and Climate Page Fixes
+# v2026011 – Rollback of Home Assistant 2026.1 Blueprint Changes and Fixes
 
 ## Summary
 
-This release updates the codebase for compatibility with **ESPHome 2026.1.0**,
-fixes issues introduced by **Home Assistant 2026.1.0**,
-and includes fixes and improvements related to the climate page UI.
+This release **rolls back the blueprint changes introduced in v2026010 for Home Assistant 2026.1.0 compatibility**,
+as they caused automation breakage for many users.
+The original Home Assistant issue was limited to UI behavior and did not break functionality,
+so restoring stability is prioritized.
+This release also fixes an ESPHome compilation issue affecting temperature entities configured in Fahrenheit.
+
+## Rollback Details
+
+### Blueprint Changes for Home Assistant 2026.1.0
+
+**Reverted the blueprint modifications introduced to support Home Assistant 2026.1.0.**
+
+**Reason:**
+- The changes broke automations for a significant number of users
+- The underlying Home Assistant issue affected only the UI and not core functionality
+- The regression impact outweighed the benefit of the UI-related fix
+
+**Result:** Restored the previously stable and working automation behavior.
+
+## User Guidance
+
+If issues persist after updating to this release, it is recommended to **re-set or re-save automations affected by recent changes**,
+as some problems may be related to formatting changes introduced in **v2026010**.
+
+**Result:** Re-applying the configuration should restore correct behavior in remaining edge cases.
+
+## Bug Fixes
+
+### Temperature Entity (Fahrenheit) – ESPHome Compile Error
+
+**Fixed an issue with temperature entities configured in Fahrenheit that prevented ESPHome from compiling.**
+
+**Result:** ESPHome now compiles correctly when using Fahrenheit-based temperature entities.
 
 ## Compatibility Notes
 
-### ESPHome 2026.1.0 Support (Upcoming)
+### Home Assistant 2026.1.0
 
-This release prepares the project for **ESPHome 2026.1.0**, scheduled for release on **January 21st**.
+- Compatible with Home Assistant 2026.1.0
+- Blueprint changes related to HA 2026.1.0 have been reverted
+- A known UI limitation may remain, but functionality is preserved
 
-**Notes:**
-- Forward-compatible changes aligned with ESPHome 2026.1 internal updates
-- Fixes build issues observed with early ESPHome 2026.1 development versions
-- No functional behavior changes are expected for earlier supported ESPHome versions
-
-**Result:** The project will continue to build and operate correctly once ESPHome 2026.1.0 is released.
-
-### Home Assistant 2026.1.0 Compatibility
-
-**Fixed issues introduced by Home Assistant 2026.1.0** (released January 7th).
-
-**Scope:**
-- Adjustments required due to internal changes in Home Assistant 2026.1.0
-- Fixes regressions affecting normal operation and entity handling
-
-**Result:** Restored correct behavior when running Home Assistant 2026.1.0.
-
-## Climate Page Fixes and Improvements
-
-### Maximum Temperature Selection (Bug #3137)
-
-**Fixed an issue where the climate page could not correctly set or display target temperatures above 9.4 °C when a large number of temperature steps was allowed.**
-
-**Details:**
-- The issue occurred with climate entities exposing fine-grained temperature steps
-- Internally, the temperature range overflowed when more than 256 steps were available
-
-**Result:** Correct maximum temperature handling for climate entities with high-resolution step configurations. (Tracked as **#3137**)
-
-### Standardized Temperature Information (Enhancement #2343)
-
-**Standardized the display of temperature information across climate and weather-related views.**
-
-**Result:** Consistent and clearer temperature presentation using the configured temperature unit (°C / °F). (Tracked as **#2343**)
+**Result:** Stable operation without automation regressions.
 
 ---
 
-*ESPHome 2026.1.0 compatibility, Home Assistant 2026.1.0 fixes, and climate page UI improvements.*
+*Rollback release prioritizing automation stability, with additional fixes for Fahrenheit temperature entities and ESPHome compilation.*
