@@ -22,17 +22,13 @@ api:
   on_client_connected:
     then:
       - lambda: |-
-          system_flags.api_ready = true;
+          update_flag_api_ready->execute();
           boot_log->execute("API", "Client connected");
-          refresh_wifi_icon->execute();
           dump_config->execute();
 
   on_client_disconnected:
     then:
-      - lambda: |-
-          if (!api_server->is_connected())
-            system_flags.api_ready = false;
-          refresh_wifi_icon->execute();
+      - script.execute: update_flag_api_ready
 
   actions:
     # Sends custom commands directly to the display for dynamic interactions and updates.
@@ -369,11 +365,22 @@ script:
       - lambda: |-
           api_recover_from_failed->stop();
           ha_button->stop();
+          update_flag_api_ready->stop();
+
+  - id: update_flag_api_ready
+    then:
+      - lambda: |-
+          const bool previous_flag_api_ready = system_flags.api_ready;
+          system_flags.api_ready = api_server->is_connected();
+          if (previous_flag_api_ready != system_flags.api_ready) {
+            refresh_wifi_icon->execute();
+          }
 
   - id: !extend watchdog_round
     then:
       - lambda: |-
-          if (!api_server->is_connected() and
+          update_flag_api_ready->execute();
+          if (!system_flags.api_ready and
               current_page_id != ${PAGE_BOOT_ID} and
               current_page_id != ${PAGE_CONFIRM_ID} and
               current_page_id != ${PAGE_HOME_ID} and
@@ -384,8 +391,9 @@ script:
             ESP_LOGW("${TAG_API}", "API disconnected. Falling back to Home page.");
             goto_page->execute(${PAGE_HOME_ID});
           }
+
 wifi:
   on_connect:
     then:
-      - lambda: api_recover_from_failed->execute();
+      - script.execute: api_recover_from_failed
 ...
