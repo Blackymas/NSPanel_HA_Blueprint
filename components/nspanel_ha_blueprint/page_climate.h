@@ -20,6 +20,8 @@ namespace nspanel_ha_blueprint {
     extern std::string set_climate_climate_icon;
     extern bool set_climate_embedded_climate;
 
+    extern const char *temperature_unit;
+
 }  // namespace nspanel_ha_blueprint
 
 #endif  // NSPANEL_HA_BLUEPRINT_PAGE_CLIMATE
