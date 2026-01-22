@@ -10,7 +10,7 @@ blueprint:
   description: >
     # NSPanel Configuration via Blueprint: Complete UI-Based Setup
 
-    **Version**: v2026011
+    **Version**: v2026012
 
 
     This project enables comprehensive configuration of your NSPanel through a Blueprint featuring a user interface.
@@ -1553,6 +1553,15 @@ blueprint:
                   - scene
                   - script
                   - switch
+        left_button_click_custom_action:
+          name: Left hardware button custom action (Optional)
+          description: >-
+            `Optional`
+
+            Additional action(s) to run when the button is clicked.
+          default: []
+          selector:
+            action:
         left_button_name:
           name: Left hardware button - Label (Optional)
           description: >
@@ -1628,6 +1637,15 @@ blueprint:
             *Only one entity may be selected.*
           default: *selector_entity_single_default_empty
           selector: *hardware-button-selector
+        right_button_click_custom_action:
+          name: Right hardware button custom action (Optional)
+          description: >-
+            `Optional`
+
+            Additional action(s) to run when the button is clicked.
+          default: []
+          selector:
+            action:
         right_button_name:
           name: Right hardware button - Label (Optional)
           description: >
@@ -4454,7 +4472,7 @@ trigger_variables:
     }}
 
 variables:
-  blueprint_version: 2026011
+  blueprint_version: 2026012
   pages:
     current: '{{ states(currentpage) }}'
     home: "home"
@@ -9088,10 +9106,21 @@ action:
         conditions:
           - condition: trigger
             id: nspanel_event
+          - '{{ trigger is defined }}'
+          - '{{ trigger.event is defined }}'
+          - '{{ trigger.event.data is defined }}'
         sequence:  # nspanel_event
           - &variable_nspanel_event
             variables:
-              nspanel_event: '{{ trigger.event.data }}'
+              nspanel_event: >-
+                {{
+                  trigger.event.data
+                  if
+                    trigger is defined and
+                    trigger.event is defined and
+                    trigger.event.data is defined
+                  else none
+                }}
           - choose:
               ##### BOOT NSPANEL - boot init #####
               - alias: Boot init
@@ -9800,6 +9829,14 @@ action:
                               page: mem
                               id: decimal_separator
                               txt: !input decimal_separator
+                            continue_on_error: true
+
+                          - *delay_boot
+                          - action: 'esphome.{{ nspanel_name }}_component_text'
+                            data:
+                              page: mem
+                              id: temp_unit
+                              txt: !input temperature_unit
                             continue_on_error: true
 
                       - alias: Entity pages alignment
@@ -11018,7 +11055,8 @@ action:
                                   if alarm_entity_temp is string and alarm_entity_temp | length > 0
                                   else None
                                 }}
-                          - if: '{{ alarm_entity is string and alarm_entity is match "alarm_control_panel." }}'
+                          - alias: Alarm settings page - update
+                            if: '{{ alarm_entity is string and alarm_entity is match "alarm_control_panel." }}'
                             then:
                               - variables:
                                   entity_id: '{{ alarm_entity }}'
@@ -12147,6 +12185,7 @@ action:
                   - choose:
                       - alias: Hardware buttons
                         conditions:
+                          - '{{ nspanel_event is defined }}'
                           - '{{ nspanel_event.component is defined }}'
                           - '{{ nspanel_event.component in ["hw_bt_left", "hw_bt_right"] }}'
                         sequence:
@@ -12205,16 +12244,25 @@ action:
                                                       id: page_label
                                                       txt: '{{ entity.name }}'
                                                     continue_on_error: true
-                                      - alias: Custom action - Left
+                                      - alias: Custom hold action - Left
                                         conditions: '{{ last_click_button.hold_select == "Custom Action" and nspanel_event.component == "hw_bt_left" }}'
                                         sequence: !input left_button_hold_custom_action
-                                      - alias: Custom action - Right
+                                      - alias: Custom hold action - Right
                                         conditions: '{{ last_click_button.hold_select == "Custom Action" and nspanel_event.component == "hw_bt_right" }}'
                                         sequence: !input right_button_hold_custom_action
                               - alias: Short click
                                 conditions:
-                                  - '{{ nspanel_event.command == "short_click" and entity_domain not in ["alarm_control_panel", "climate", "media_player"] }}'
+                                  - '{{ nspanel_event.command == "short_click" }}'
+                                  - '{{ entity_domain not in ["alarm_control_panel", "climate", "media_player"] }}'
                                 sequence:
+                                  - alias: Custom click action - Left
+                                    if: '{{ nspanel_event.component == "hw_bt_left" }}'
+                                    then:
+                                      - sequence: !input left_button_click_custom_action
+                                  - alias: Custom click action - Right
+                                    if: '{{ nspanel_event.component == "hw_bt_right" }}'
+                                    then:
+                                      - sequence: !input right_button_click_custom_action
                                   - condition: '{{ last_click_button is defined }}'
                                   - condition: '{{ last_click_button.entity is defined }}'
                                   - condition: '{{ last_click_button.entity is string }}'
@@ -12333,6 +12381,7 @@ action:
                                 {{
                                   last_click_button.entity.split(".")[0] | default("unknown")
                                   if
+                                    last_click_button is defined and
                                     last_click_button.entity is defined and
                                     last_click_button.entity is string and
                                     last_click_button.entity | length > 0 and

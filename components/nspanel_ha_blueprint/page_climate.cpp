@@ -13,9 +13,11 @@ namespace nspanel_ha_blueprint {
     float set_climate_target_temp_low;
     uint8_t set_climate_temp_step;
     uint16_t set_climate_total_steps;
-    uint8_t set_climate_temp_offset;
+    uint16_t set_climate_temp_offset;
     std::string set_climate_climate_icon;
     bool set_climate_embedded_climate;
+
+    const char *temperature_unit = "°C";  // default
 
 }  // namespace nspanel_ha_blueprint
 
