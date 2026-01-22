@@ -195,62 +195,26 @@ script:
           ESP_LOGV("${TAG_PAGE_ALARM}", "  key: %s", key.c_str());
           ESP_LOGV("${TAG_PAGE_ALARM}", "  pin provided: %s", pin.empty() ? "NO" : "YES");
 
-          // Build action string
-          static std::string action_str;
-          action_str = "alarm_control_panel.alarm_";
-          if (key != "disarm") action_str += "arm_";
-          if (key == "bypass") action_str += "custom_";
-          action_str += key;
-          ESP_LOGV("${TAG_PAGE_ALARM}", "  action: %s", action_str.c_str());
-
-          // Create action request
-          esphome::api::HomeassistantActionRequest action_request;
-          #if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 0, 0)
-          action_request.service = StringRef(action_str);
-          #else
-          action_request.set_service(StringRef(action_str));
-          #endif
-          ESP_LOGV("${TAG_PAGE_ALARM}", "Service set");
-
-          const bool has_code = !pin.empty();
-
-          #if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 0, 0)
-          HomeassistantServiceMap resp_kv;
-          resp_kv.key = StringRef("entity_id");
-          resp_kv.value = StringRef(entity);
-          action_request.data.push_back(resp_kv);
-          if (has_code) {
-            resp_kv.key = StringRef("code");
-            resp_kv.value = StringRef(pin);
-            action_request.data.push_back(resp_kv);
-          }
-          #else
-          #if ESPHOME_VERSION_CODE >= VERSION_CODE(2025, 11, 0)
-          // IMPORTANT: FixedVector needs capacity before emplace_back()
-          action_request.data.init(has_code ? 2 : 1);  // entity_id [+ code]
-          #endif  // ESPHOME_VERSION_CODE >= VERSION_CODE(2025, 11, 0)
-
-          // Add entity_id
-          {
-            auto &kv = action_request.data.emplace_back();
-            kv.set_key(StringRef("entity_id"));
-            kv.value = entity;
-          }
-
-          // Add code if present
-          if (has_code) {
-            auto &kv = action_request.data.emplace_back();
-            kv.set_key(StringRef("code"));
-            kv.value = pin;
-          }  // if (has_code)
-          #endif  // ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 0, 0)
-
-          ESP_LOGV("${TAG_PAGE_ALARM}", "Final data size: %zu", action_request.data.size());
-          ESP_LOGV("${TAG_PAGE_ALARM}", "  (will send entity_id=%s%s)",
-                  entity.c_str(), has_code ? " and code=<hidden>" : "");
-
-          ESP_LOGV("${TAG_PAGE_ALARM}", "Sending action to Home Assistant");
-          api_server->send_homeassistant_action(action_request);
+      - if:
+          condition:
+            - lambda: return pin.empty();
+          then:
+            - homeassistant.action:
+                action: &alarm_control_panel_action !lambda |-
+                  static std::string action_str;
+                  action_str = "alarm_control_panel.alarm_";
+                  if (key != "disarm") action_str += "arm_";
+                  if (key == "bypass") action_str += "custom_";
+                  action_str += key;
+                  return action_str.c_str();
+                data:
+                  entity_id: !lambda return entity;
+          else:
+            - homeassistant.action:
+                action: *alarm_control_panel_action
+                data:
+                  entity_id: !lambda return entity;
+                  code: !lambda return pin;
 
   - id: !extend dump_config  # Defined by nspanel_esphome_core_base.yaml
     then:
