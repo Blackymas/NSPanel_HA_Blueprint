@@ -121,8 +121,6 @@ script:
 
   - id: nextion_upload
     mode: single
-    parameters:
-      baud_rate: uint32_t
     then:
       - lambda: |-
           ESP_LOGD("${TAG_UPLOAD_TFT}", "Waiting for empty UART and Nextion queues");
@@ -133,7 +131,7 @@ script:
       - delay: 2s
       - lambda: |-
           ESP_LOGD("${TAG_UPLOAD_TFT}", "Starting TFT upload");
-          tft_upload_result = disp1->upload_tft(baud_rate, !disp1->is_setup());
+          tft_upload_result = disp1->upload_tft(${upload_tft_baud_rate}, !disp1->is_setup());
           ESP_LOGV("${TAG_UPLOAD_TFT}", "TFT upload: %s", YESNO(tft_upload_result));
 
   - id: !extend stop_all
@@ -164,10 +162,7 @@ script:
           system_flags.tft_upload_active = true;
           ESP_LOGD("${TAG_UPLOAD_TFT}", "Starting the upload script");
           ESP_LOGV("${TAG_UPLOAD_TFT}", "  Valid TFT: %s", YESNO((display_mode > 0 and display_mode < 4)));
-          ESP_LOGV("${TAG_UPLOAD_TFT}", "  Current baud rate: %" PRIu32, tf_uart->get_baud_rate());
-          ESP_LOGV("${TAG_UPLOAD_TFT}", "  Target upload baud rate: %" PRIu32, ${upload_tft_baud_rate} == 0
-                                                                                ? tf_uart->get_baud_rate()
-                                                                                : ${upload_tft_baud_rate});
+          ESP_LOGV("${TAG_UPLOAD_TFT}", "  Baud rate: %" PRIu32, tf_uart->get_baud_rate());
 
           // Calculate URL if needed
           std::string resolved_url = url;
@@ -217,42 +212,22 @@ script:
             - lambda: return (!(display_mode > 0 and display_mode < 4));
           timeout: 1s
 
-      ### Attempt twice at the target baud rate
-      - script.execute:
-          id: upload_tft_sequence_attempt
-          baud_rate: ${upload_tft_baud_rate}
-      - script.wait: upload_tft_sequence_attempt
-
       ### Attempt twice at the original baud rate
       - if:
           condition:
             - lambda: return (tf_uart->get_baud_rate() != ${upload_tft_baud_rate});
           then:
-            - script.execute:
-                id: upload_tft_sequence_attempt
-                baud_rate: 0
+            - script.execute: upload_tft_sequence_attempt
             - script.wait: upload_tft_sequence_attempt
 
-      ### Attempt twice at the Nextion's default baud rate (115200bps)
-      - if:
-          condition:
-            - lambda: return (${upload_tft_baud_rate} != 115200) and (tf_uart->get_baud_rate() != 115200);
-          then:
-            - script.execute:
-                id: upload_tft_sequence_attempt
-                baud_rate: 115200
-            - script.wait: upload_tft_sequence_attempt
-
-      ### Restart Nextion and attempt twice again at default baud rate (115200bps)
+      ### Restart Nextion and attempt twice again at default baud rate
       - lambda: |-
           ESP_LOGD("${TAG_UPLOAD_TFT}", "Restarting Nextion display");
           screen_power->turn_off();
       - delay: 2s
       - switch.turn_on: screen_power
       - delay: 5s
-      - script.execute:
-          id: upload_tft_sequence_attempt
-          baud_rate: 115200
+      - script.execute: upload_tft_sequence_attempt
       - script.wait: upload_tft_sequence_attempt
 
       ### All tries failed ###
@@ -266,45 +241,34 @@ script:
 
   - id: upload_tft_sequence_attempt
     mode: single
-    parameters:
-      baud_rate: uint32_t
     then:
       - lambda: |-
           nextion_status->execute();
-          ESP_LOGD("${TAG_UPLOAD_TFT}", "Setting baud rate");
-          set_baud_rate->execute(baud_rate, false);
-      - script.wait: set_baud_rate
-      - delay: 2s
       - repeat:
           count: 2
           then:
             # First attempt
-            - script.execute:
-                id: upload_tft_attempt
-                baud_rate: !lambda return baud_rate;
+            - script.execute: upload_tft_attempt
             - script.wait: upload_tft_attempt
             - delay: 5s
 
   - id: upload_tft_attempt
     mode: single
-    parameters:
-      baud_rate: uint32_t
     then:
       - logger.log: "Attempting to upload TFT"
       - lambda: tft_upload_attempt++;
       - lambda: |-
           char update_msg[128];
-          sprintf(update_msg, "Attempt #%d at %" PRIu32 " bps", tft_upload_attempt, tf_uart->get_baud_rate());
+          sprintf(update_msg, "Attempt #%d", tft_upload_attempt);
           tft_upload_result = false;
           ESP_LOGD("${TAG_UPLOAD_TFT}", update_msg);
       - delay: 1s
-      - lambda: |-
-          nextion_upload->execute(baud_rate);
+      - script.execute: nextion_upload
       - script.wait: nextion_upload
       - lambda: |-
           char update_msg[128];
-          sprintf(update_msg, "Attempt #%d at %" PRIu32 " bps returned: %s", tft_upload_attempt,
-                  tf_uart->get_baud_rate(), tft_upload_result ? "Success!" : "FAILED");
+          sprintf(update_msg, "Attempt #%d returned: %s", tft_upload_attempt,
+                                                          tft_upload_result ? "Success!" : "FAILED");
           ESP_LOGD("${TAG_UPLOAD_TFT}", update_msg);
           ESP_LOGI("addon_upload_tft.script.upload_tft_attempt", "Restarting ESPHome");
           App.safe_reboot();
