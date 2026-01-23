@@ -1,51 +1,65 @@
-# v2026011 – Rollback of Home Assistant 2026.1 Blueprint Changes and Fixes
+# v2026012 – Climate Page Fixes, Alarm Page Regression Fix, and ESPHome 2026.2 Preparation
 
 ## Summary
 
-This release **rolls back the blueprint changes introduced in v2026010 for Home Assistant 2026.1.0 compatibility**,
-as they caused automation breakage for many users.
-The original Home Assistant issue was limited to UI behavior and did not break functionality,
-so restoring stability is prioritized.
-This release also fixes an ESPHome compilation issue affecting temperature entities configured in Fahrenheit.
+This release fixes multiple issues related to **climate page temperature handling**,
+resolves a **critical regression in the alarm page** introduced in v2026010,
+and addresses a **deprecation warning announced for ESPHome 2026.2.0**.
 
-## Rollback Details
+Starting with this version, **ESPHome 2026.1.0 is now required**.
 
-### Blueprint Changes for Home Assistant 2026.1.0
+## Breaking Changes
 
-**Reverted the blueprint modifications introduced to support Home Assistant 2026.1.0.**
+### ESPHome 2026.1.0 Required
+
+**ESPHome 2026.1.0 or newer is now required**.
 
 **Reason:**
-- The changes broke automations for a significant number of users
-- The underlying Home Assistant issue affected only the UI and not core functionality
-- The regression impact outweighed the benefit of the UI-related fix
+- The fixes and refactoring included in this release depend on changes introduced in ESPHome 2026.1.0
+- Ensures correct behavior and avoids compatibility issues with older ESPHome versions
 
-**Result:** Restored the previously stable and working automation behavior.
+**Required action:**
+- Upgrade ESPHome to **2026.1.0 or newer** before updating to this release
 
-## User Guidance
+**Result:** Guaranteed compatibility with current and upcoming ESPHome releases.
 
-If issues persist after updating to this release, it is recommended to **re-set or re-save automations affected by recent changes**,
-as some problems may be related to formatting changes introduced in **v2026010**.
+## Climate Page Fixes
 
-**Result:** Re-applying the configuration should restore correct behavior in remaining edge cases.
+### Fahrenheit (°F) Handling Improvements
 
-## Bug Fixes
+**Fixed issues affecting climate entities when operating in Fahrenheit mode.**
 
-### Temperature Entity (Fahrenheit) – ESPHome Compile Error
+**Scope:**
+- Corrected temperature handling and display inconsistencies when using °F
+- Prevented erratic or incorrect temperature values on the climate page
+- Improved robustness of climate logic for Fahrenheit-based entities
 
-**Fixed an issue with temperature entities configured in Fahrenheit that prevented ESPHome from compiling.**
+**Result:** Stable and correct climate page behavior when using Fahrenheit.
 
-**Result:** ESPHome now compiles correctly when using Fahrenheit-based temperature entities.
+## Alarm Page Fixes
 
-## Compatibility Notes
+### Alarm Action Not Sent Correctly (Regression since v2026010)
 
-### Home Assistant 2026.1.0
+**Fixed a critical regression where alarm state change actions were not being sent correctly.**
 
-- Compatible with Home Assistant 2026.1.0
-- Blueprint changes related to HA 2026.1.0 have been reverted
-- A known UI limitation may remain, but functionality is preserved
+**Details:**
+- The regression was introduced in **v2026010**
+- Alarm page interactions appeared correct in the UI but did not reliably propagate the action
 
-**Result:** Stable operation without automation regressions.
+**Result:** Alarm actions are now sent and processed correctly again.
+
+## Compatibility and Maintenance
+
+### ESPHome 2026.2.0 Deprecation Warning
+
+**Resolved a deprecation warning scheduled to be introduced with ESPHome 2026.2.0** (expected end of February).
+
+**Details:**
+- Updated affected code paths to align with upcoming ESPHome changes
+- Prevents future warnings and potential breakage
+
+**Result:** Clean builds and forward compatibility with ESPHome 2026.2.0.
 
 ---
 
-*Rollback release prioritizing automation stability, with additional fixes for Fahrenheit temperature entities and ESPHome compilation.*
+*Requires ESPHome 2026.1.0+. Includes climate page Fahrenheit fixes, alarm page regression fix, and preparation for ESPHome 2026.2.0.*
