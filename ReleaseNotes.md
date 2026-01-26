@@ -1,65 +1,43 @@
-# v2026012 – Climate Page Fixes, Alarm Page Regression Fix, and ESPHome 2026.2 Preparation
+# v2026013 – Fahrenheit Temperature Handling Fixes and Fixed Baud Rate
 
 ## Summary
 
-This release fixes multiple issues related to **climate page temperature handling**,
-resolves a **critical regression in the alarm page** introduced in v2026010,
-and addresses a **deprecation warning announced for ESPHome 2026.2.0**.
+This release focuses on **fixing temperature unit handling when using Fahrenheit**,
+addressing multiple issues related to incorrect display, reporting, and UI behavior.
+It also **standardizes the serial communication speed to 115200 bps**,
+removing configurable speed selectors to reduce the risk of baud rate mismatches between the TFT and ESPHome.
 
-Starting with this version, **ESPHome 2026.1.0 is now required**.
+## Climate and Temperature Fixes
 
-## Breaking Changes
+### Fahrenheit (°F) Temperature Handling
 
-### ESPHome 2026.1.0 Required
-
-**ESPHome 2026.1.0 or newer is now required**.
-
-**Reason:**
-- The fixes and refactoring included in this release depend on changes introduced in ESPHome 2026.1.0
-- Ensures correct behavior and avoids compatibility issues with older ESPHome versions
-
-**Required action:**
-- Upgrade ESPHome to **2026.1.0 or newer** before updating to this release
-
-**Result:** Guaranteed compatibility with current and upcoming ESPHome releases.
-
-## Climate Page Fixes
-
-### Fahrenheit (°F) Handling Improvements
-
-**Fixed issues affecting climate entities when operating in Fahrenheit mode.**
+**Fixed multiple issues affecting temperature display and behavior when using Fahrenheit.**
 
 **Scope:**
-- Corrected temperature handling and display inconsistencies when using °F
-- Prevented erratic or incorrect temperature values on the climate page
-- Improved robustness of climate logic for Fahrenheit-based entities
+- Corrected cases where temperatures were always reported or displayed as Celsius
+- Fixed erratic UI behavior when changing temperature values in Fahrenheit
+- Ensured hardware temperature sensors report the correct unit when `temp_units: "°F"` is configured
+- Improved consistency between Home Assistant, ESPHome, and panel UI when operating in Fahrenheit
 
-**Result:** Stable and correct climate page behavior when using Fahrenheit.
+**Result:** Correct, consistent, and predictable temperature handling when using Fahrenheit across the entire climate stack.
 
-## Alarm Page Fixes
+## Communication and Stability Improvements
 
-### Alarm Action Not Sent Correctly (Regression since v2026010)
+### Fixed Baud Rate at 115200 bps
 
-**Fixed a critical regression where alarm state change actions were not being sent correctly.**
+**Standardized the communication baud rate to 115200 bps across the project.**
 
-**Details:**
-- The regression was introduced in **v2026010**
-- Alarm page interactions appeared correct in the UI but did not reliably propagate the action
+**Changes:**
+- Removed baud rate / speed selectors to avoid configuration mismatches
+- The TFT file now enforces **115200 bps**
+- The ESPHome configuration is hard-coded to **115200 bps**
 
-**Result:** Alarm actions are now sent and processed correctly again.
+**Reason:**
+- Reduces the likelihood of communication issues caused by mismatched baud rates
+- Improves reliability during panel upgrades and restarts
 
-## Compatibility and Maintenance
-
-### ESPHome 2026.2.0 Deprecation Warning
-
-**Resolved a deprecation warning scheduled to be introduced with ESPHome 2026.2.0** (expected end of February).
-
-**Details:**
-- Updated affected code paths to align with upcoming ESPHome changes
-- Prevents future warnings and potential breakage
-
-**Result:** Clean builds and forward compatibility with ESPHome 2026.2.0.
+**Result:** More robust and predictable communication between ESPHome and the TFT, with fewer connection-related issues.
 
 ---
 
-*Requires ESPHome 2026.1.0+. Includes climate page Fahrenheit fixes, alarm page regression fix, and preparation for ESPHome 2026.2.0.*
+*Fixes Fahrenheit temperature handling issues and enforces a fixed 115200 bps baud rate to improve reliability.*
