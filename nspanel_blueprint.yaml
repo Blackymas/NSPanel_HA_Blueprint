@@ -10109,7 +10109,7 @@ action:
                             sequence:
                               - variables:
                                   outdoortemp_tmp: !input outdoortemp
-                                  outdoor_temp_entity: >-
+                                  outdoor_temp_entity: >
                                     {% if outdoortemp_tmp is defined
                                         and outdoortemp_tmp is list
                                         and (outdoortemp_tmp | count > 0)
@@ -10123,37 +10123,45 @@ action:
                                       {{ "" }}
                                     {% endif %}
 
-                                  outdoor_temp_state: >-
+                                  outdoor_temp_entity_valid: >
                                     {{
-                                      states(outdoor_temp_entity, rounded=true) | default("unavailable")
-                                      if outdoor_temp_entity is string
-                                        and outdoor_temp_entity is match "sensor."
-                                        and has_value(outdoor_temp_entity)
-                                      else "unavailable"
+                                      outdoor_temp_entity is string and
+                                      outdoor_temp_entity is match "sensor."
                                     }}
 
-                                  outdoor_temp: >-
-                                    {{
-                                      outdoor_temp_state if is_number(outdoor_temp_state)
-                                      else (state_attr(weather_entity, "temperature") | default("unavailable"))
-                                        if weather_entity is string else "unavailable"
-                                    }}
-
-                                  outdoor_temp_entity_uom: '{{ state_attr(outdoor_temp_entity, "unit_of_measurement") }}'
-
-                                  outdoor_temp_units: >
+                                  outdoor_temp: >
+                                    {% if outdoor_temp_entity_valid %}
                                       {{
-                                        outdoor_temp_entity_uom if outdoor_temp_entity_uom is string and outdoor_temp_entity_uom | length > 0
-                                        else temperature_units
+                                        states(outdoor_temp_entity, rounded=True, with_unit=True)
+                                        if has_value(outdoor_temp_entity)
+                                        else ""
                                       }}
+                                    {% elif weather_entity is string and weather_entity is match "weather." %}
+                                      {% set temp_from_weather = state_attr(weather_entity, "temperature") %}
+                                      {% if is_number(temp_from_weather) %}
+                                      {{
+                                        (
+                                          (temp_from_weather | float)
+                                          | round(0 if weather_temp_units in ["F", "f", "°F", "°f"] else 1)
+                                        ) ~ weather_temp_units
+                                      }}
+                                      {% else %}
+                                        {{ "" }}
+                                      {% endif %}
+                                    {% else %}
+                                      {{ "" }}
+                                    {% endif %}
 
-                              - condition: '{{ is_number(outdoor_temp) }}'
+                                  outdoor_temp_trimmed: >
+                                    {{ outdoor_temp | regex_replace('\s+', ' ') | trim }}
+
+                              - condition: "{{ outdoor_temp_trimmed != '' }}"
                               - *delay_default
                               - action: 'esphome.{{ nspanel_name }}_component_text'
                                 data:
                                   page: home
                                   id: outdoor_temp
-                                  txt: '{{ outdoor_temp | round(1) ~ outdoor_temp_units }}'
+                                  txt: '{{ outdoor_temp_trimmed }}'
                                 continue_on_error: true
 
                           ##### NSPanel Indoor Temp #####
