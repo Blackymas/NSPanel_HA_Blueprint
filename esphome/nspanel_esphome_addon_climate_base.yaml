@@ -45,8 +45,8 @@ climate:
       min_temperature: ${temp_min} ${temp_units}
       max_temperature: ${temp_max} ${temp_units}
       temperature_step:
-        target_temperature: ${1 if TEMP_UNIT_IS_FAHRENHEIT else 0.5}
-        current_temperature: ${1 if TEMP_UNIT_IS_FAHRENHEIT else 0.1}
+        target_temperature: ${1 if TEMP_UNIT_IS_FAHRENHEIT else 0.5} ${temp_units}
+        current_temperature: ${1 if TEMP_UNIT_IS_FAHRENHEIT else 0.1} ${temp_units}
     default_preset: "Off"
     on_boot_restore_from: memory
     startup_delay: true
@@ -103,21 +103,33 @@ script:
           ESP_LOGV("${TAG_ADDON_CLIMATE}", "Inform display that is showing embedded climate");
           disp1->set_component_value("climate.embedded", 1);
 
-          if (key == "temperature") {
-            temperature = stof(value) / 10;
-            ESP_LOGV("${TAG_ADDON_CLIMATE}", "Set target temperature to %f", temperature);
-            call.set_target_temperature(temperature);
-          } else if (key == "target_temp_high") {
-            temperature = stof(value) / 10;
-            ESP_LOGV("${TAG_ADDON_CLIMATE}", "Set target temperature high to %f", temperature);
-            call.set_target_temperature_high(temperature);
-          } else if (key == "target_temp_low") {
-            temperature = stof(value) / 10;
-            ESP_LOGV("${TAG_ADDON_CLIMATE}", "Set target temperature low to %f", temperature);
-            call.set_target_temperature_low(temperature);
-          } else if (key == "hvac_mode") {
+          if (key == "hvac_mode") {
             ESP_LOGV("${TAG_ADDON_CLIMATE}", "Set 'hvac_mode' to '%s'", value.c_str());
             call.set_mode(value);
+          } else {
+            temperature = stof(value) / 10;
+            if (key == "temperature") {
+              ESP_LOGV("${TAG_ADDON_CLIMATE}", "Set target temperature to %f${temp_units}", temperature);
+              #if NSPANEL_HA_BLUEPRINT_HW_TEMPERATURE_IS_FAHRENHEIT
+              call.set_target_temperature(fahrenheit_to_celsius(temperature));
+              #else  // Celsius
+              call.set_target_temperature(temperature);
+              #endif  // NSPANEL_HA_BLUEPRINT_HW_TEMPERATURE_IS_FAHRENHEIT
+            } else if (key == "target_temp_high") {
+              ESP_LOGV("${TAG_ADDON_CLIMATE}", "Set target temperature high to %f${temp_units}", temperature);
+              #if NSPANEL_HA_BLUEPRINT_HW_TEMPERATURE_IS_FAHRENHEIT
+              call.set_target_temperature_high(fahrenheit_to_celsius(temperature));
+              #else  // Celsius
+              call.set_target_temperature_high(temperature);
+              #endif  // NSPANEL_HA_BLUEPRINT_HW_TEMPERATURE_IS_FAHRENHEIT
+            } else if (key == "target_temp_low") {
+              ESP_LOGV("${TAG_ADDON_CLIMATE}", "Set target temperature low to %f${temp_units}", temperature);
+              #if NSPANEL_HA_BLUEPRINT_HW_TEMPERATURE_IS_FAHRENHEIT
+              call.set_target_temperature_low(fahrenheit_to_celsius(temperature));
+              #else  // Celsius
+              call.set_target_temperature_low(temperature);
+              #endif  // NSPANEL_HA_BLUEPRINT_HW_TEMPERATURE_IS_FAHRENHEIT
+            }
           }
 
           ESP_LOGV("${TAG_ADDON_CLIMATE}", "Perform action");
@@ -185,13 +197,19 @@ script:
           if (current_page_id != ${PAGE_CLIMATE_ID}) return;
 
           // Extract temperature values (static since they don't change during runtime)
-          ESP_LOGV("${TAG_ADDON_CLIMATE}", "Extract temperature values:");
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "Extracted temperature values:");
+          #if NSPANEL_HA_BLUEPRINT_HW_TEMPERATURE_IS_FAHRENHEIT
+          static const float temp_step = traits.get_visual_target_temperature_step();
+          static const float temp_offset = celsius_to_fahrenheit(traits.get_visual_min_temperature());
+          static const float temp_max = celsius_to_fahrenheit(traits.get_visual_max_temperature());
+          #else  // Celsius
           static const float temp_step = traits.get_visual_target_temperature_step();
           static const float temp_offset = traits.get_visual_min_temperature();
           static const float temp_max = traits.get_visual_max_temperature();
-          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_step: %f", temp_step);
-          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_offset: %f", temp_offset);
-          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_max: %f", temp_max);
+          #endif  // NSPANEL_HA_BLUEPRINT_HW_TEMPERATURE_IS_FAHRENHEIT
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_step: %f${temp_units}", temp_step);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_offset: %f${temp_units}", temp_offset);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_max: %f${temp_units}", temp_max);
 
           // Feed watchdog
           delay(${DELAY_SHORT});
@@ -199,12 +217,16 @@ script:
           if (current_page_id != ${PAGE_CLIMATE_ID}) return;
 
           // Calculate static values
-          ESP_LOGV("${TAG_ADDON_CLIMATE}", "Calculate static values:");
-          static float total_steps;
-          total_steps = (temp_max - temp_offset) / temp_step;
-          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_step: %f", temp_step);
-          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_offset: %f", temp_offset);
-          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  total_steps: %f", total_steps);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "Calculated static values:");
+          static uint16_t total_steps;
+          #if NSPANEL_HA_BLUEPRINT_HW_TEMPERATURE_IS_FAHRENHEIT
+          total_steps = static_cast<uint16_t>(std::round((temp_max - temp_offset) / (temp_step * 1.8f)));
+          #else  // Celsius
+          total_steps = static_cast<uint16_t>(std::round((temp_max - temp_offset) / temp_step));
+          #endif  // NSPANEL_HA_BLUEPRINT_HW_TEMPERATURE_IS_FAHRENHEIT
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_step: %f${temp_units}", temp_step);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_offset: %f${temp_units}", temp_offset);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  total_steps: %i", total_steps);
 
           // Feed watchdog
           delay(${DELAY_SHORT});
@@ -214,16 +236,23 @@ script:
           // Get dynamic temperature values
           ESP_LOGV("${TAG_ADDON_CLIMATE}", "Get dynamic temperature values:");
           static float temp_target;
-          temp_target = thermostat_embedded->target_temperature;
           static float temp_target_high;
-          temp_target_high = thermostat_embedded->target_temperature_high;
           static float temp_target_low;
+          #if NSPANEL_HA_BLUEPRINT_HW_TEMPERATURE_IS_FAHRENHEIT
+          temp_target = celsius_to_fahrenheit(thermostat_embedded->target_temperature);
+          temp_target_high = celsius_to_fahrenheit(thermostat_embedded->target_temperature_high);
+          temp_target_low = celsius_to_fahrenheit(thermostat_embedded->target_temperature_low);
+          const float temp_current = celsius_to_fahrenheit(thermostat_embedded->current_temperature);
+          #else  // Celsius
+          temp_target = thermostat_embedded->target_temperature;
+          temp_target_high = thermostat_embedded->target_temperature_high;
           temp_target_low = thermostat_embedded->target_temperature_low;
           const float temp_current = thermostat_embedded->current_temperature;
-          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target: %f", temp_target);
-          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target_high: %f", temp_target_high);
-          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target_low: %f", temp_target_low);
-          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_current: %f", temp_current);
+          #endif  // NSPANEL_HA_BLUEPRINT_HW_TEMPERATURE_IS_FAHRENHEIT
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target: %f${temp_units}", temp_target);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target_high: %f${temp_units}", temp_target_high);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_target_low: %f${temp_units}", temp_target_low);
+          ESP_LOGV("${TAG_ADDON_CLIMATE}", "  temp_current: %f${temp_units}", temp_current);
           feed_wdt_delay(${DELAY_SHORT});
           if (current_page_id != ${PAGE_CLIMATE_ID}) return;
 
@@ -248,7 +277,7 @@ script:
           set_climate_target_temp_low = -999;
           #endif  // NSPANEL_HA_BLUEPRINT_ADDON_CLIMATE_DUAL
           set_climate_temp_step = int(round(temp_step*10));
-          set_climate_total_steps = int(round(total_steps));
+          set_climate_total_steps = total_steps;
           set_climate_temp_offset = int(round(temp_offset*10));
           set_climate_climate_icon = "";
           set_climate_embedded_climate = true;
