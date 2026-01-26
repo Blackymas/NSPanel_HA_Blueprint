@@ -10188,28 +10188,18 @@ action:
                               - condition:
                                   - '{{ home_indoor_temp_visible is defined and home_indoor_temp_visible }}'
                                   - '{{ not embedded_indoor_temperature }}'
+                                  - '{{ has_value(temperature_sensor) }}'
                               - variables:
-                                  temperature_sensor: '{{ indoor_temperature_sensor }}'
-                                  indoor_temp:
-                                    state: '{{ states(temperature_sensor, rounded=true) | default("unavailable") }}'
-                                    sensor_uom: '{{ state_attr(temperature_sensor, "unit_of_measurement") }}'
-                                    nspaneltemp_uom: '{{ state_attr(nspaneltemp, "unit_of_measurement") }}'
-                                  indoor_temp_units: >
-                                      {{
-                                        indoor_temp.sensor_uom if indoor_temp.sensor_uom is string and indoor_temp.sensor_uom | length > 0
-                                        else
-                                          (
-                                            indoor_temp.nspaneltemp_uom if indoor_temp.nspaneltemp_uom is string and indoor_temp.nspaneltemp_uom | length > 0
-                                            else temperature_units
-                                          )
-                                      }}
-                              - condition: '{{ is_number(indoor_temp.state) }}'
+                                  indoor_temp: '{{ states(temperature_sensor, rounded=True, with_unit=True) }}'
+                                  indoor_temp_trimmed: >
+                                    {{ indoor_temp | regex_replace('\s+', ' ') | trim }}
+                              - condition: '{{ indoor_temp_trimmed != "" }}'
                               - *delay_default
                               - action: 'esphome.{{ nspanel_name }}_component_text'
                                 data:
                                   page: home
                                   id: indr_temp
-                                  txt: '{{ indoor_temp.state | round(1) ~ indoor_temp_units if not embedded_indoor_temperature else "" }}'
+                                  txt: '{{ indoor_temp_trimmed }}'
                                 continue_on_error: true
 
                           ###### Custom buttons ######
@@ -10542,7 +10532,13 @@ action:
                                             {{ (state_attr(entity_id, "current_position") | int(100)) | round(0) }}%
                                           {% elif entity_domain == "climate" and is_number(state_attr(entity_id, 'current_temperature')) %}
                                             {% set current_temperature = state_attr(entity_id, 'current_temperature') | float %}
-                                            {{ current_temperature | round(0 if current_temperature >= 100 or temperature_units in ["F", "f", "°F", "°f", "K", "k"] else 1) }}{{ temperature_units}}
+                                            {{
+                                              current_temperature
+                                              | round(
+                                                0 if current_temperature >= 100
+                                                      or temperature_units in ["F", "f", "°F", "°f", "K", "k"]
+                                                else 1)
+                                            }}{{ temperature_units }}
                                           {% else %} 0
                                           {% endif %}
                                     - *delay_default
