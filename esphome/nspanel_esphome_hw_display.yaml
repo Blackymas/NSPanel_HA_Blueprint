@@ -305,42 +305,6 @@ script:
           ESP_LOGV("${TAG_HW_DISPLAY}", "Update buttons bars on screen");
           refresh_hardware_buttons_bars->execute(3);
 
-  - id: set_baud_rate
-    mode: restart
-    parameters:
-      target_baud_rate: uint32_t
-      definitive: bool
-    then:
-      - lambda: |-
-          if (system_flags.ota_in_progress or system_flags.safe_mode_active or
-              disp1->is_updating()) {  // I cannot use NSPanelFlag::TFT_UPLOAD_ACTIVE as baud rate changes with that
-            ESP_LOGW("${TAG_BASE}", "Cannot change baud rate now as the system is busy");
-            set_baud_rate->stop();
-            return;
-          }
-          if (!isnan(target_baud_rate))
-            system_flags.baud_rate_set = true;
-      - if:
-          condition:
-            - lambda: return (tf_uart->get_baud_rate() != target_baud_rate);
-          then:
-            - lambda: |-
-                ESP_LOGD("${TAG_HW_DISPLAY}", "Baud rate changing from %" PRIu32 " to %" PRIu32 " bps", tf_uart->get_baud_rate(), target_baud_rate);
-                ESP_LOGV("${TAG_HW_DISPLAY}", "Flush UART");
-            - script.execute: wait_for_uart_available
-            - script.wait: wait_for_uart_available
-            - lambda: |-
-                ESP_LOGV("${TAG_HW_DISPLAY}", "Sending instruction '%s=%" PRIu32 "' to Nextion", definitive ? "bauds" : "baud", target_baud_rate);
-                disp1->send_command_printf("%s=%" PRIu32, definitive ? "bauds" : "baud", target_baud_rate);
-                ESP_LOGV("${TAG_HW_DISPLAY}", "Flush UART");
-            - script.execute: wait_for_uart_available
-            - script.wait: wait_for_uart_available
-            - lambda: |-
-                ESP_LOGV("${TAG_HW_DISPLAY}", "Set ESPHome new baud rate to %" PRIu32 " bps", target_baud_rate);
-                tf_uart->set_baud_rate(target_baud_rate);
-                tf_uart->load_settings();
-                ESP_LOGV("${TAG_HW_DISPLAY}", "Current baud rate: %" PRIu32 " bps", tf_uart->get_baud_rate());
-
   - id: set_brightness
     mode: single
     parameters:
@@ -368,7 +332,6 @@ script:
           event_from_display->stop();
           goto_page->stop();
           page_change->stop();
-          set_baud_rate->stop();
           set_brightness->stop();
           set_component_font_color->stop();
           timer_dim->stop();
@@ -507,40 +470,6 @@ script:
       - script.execute: wait_for_display
 
 select:
-  - id: baud_rate
-    name: Baud rate
-    platform: template
-    options:
-      - "2400"
-      - "4800"
-      - "9600"
-      - "19200"
-      - "31250"
-      - "38400"
-      - "57600"
-      - "115200"
-      - "230400"
-      - "250000"
-      - "256000"
-      - "512000"
-      - "921600"
-    initial_option: "115200"
-    optimistic: true
-    restore_value: true
-    internal: false
-    entity_category: config
-    disabled_by_default: true
-    icon: mdi:swap-horizontal
-    update_interval: never
-    on_value:
-      then:
-        - lambda: |-
-            if (system_flags.ota_in_progress or system_flags.safe_mode_active or system_flags.tft_upload_active) {
-              ESP_LOGW("${TAG_BASE}", "Cannot change baud rate as the system is busy");
-              return;
-            }
-            set_baud_rate->execute(std::stoi(x), true);
-
   - id: wakeup_page_name
     name: Wake-up page
     platform: template

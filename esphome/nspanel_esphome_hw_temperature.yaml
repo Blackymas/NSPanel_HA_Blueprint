@@ -35,7 +35,7 @@ number:
     name: Temperature Correction
     platform: template
     entity_category: config
-    unit_of_measurement: ${'°F' if TEMP_UNIT_IS_FAHRENHEIT else '°C'}
+    unit_of_measurement: ${temp_units}
     min_value: ${ -18.0 if TEMP_UNIT_IS_FAHRENHEIT else -10.0 }
     max_value: ${ 18.0 if TEMP_UNIT_IS_FAHRENHEIT else 10.0 }
     initial_value: 0
@@ -71,6 +71,10 @@ script:
               system_flags.wifi_ready and
               current_page_id != ${PAGE_BOOT_ID})
             return;
+          if (isnan(temp_nspanel->state)) {
+            disp1->set_component_text(hmi::home::INDR_TEMP.name, "");
+            return;
+          }
 
           static char buffer[15];
           #if NSPANEL_HA_BLUEPRINT_HW_TEMPERATURE_IS_FAHRENHEIT
@@ -98,7 +102,7 @@ script:
       - lambda: display_embedded_temp->stop();
 
 sensor:
-  # 1) Raw ADC – fast sampling, early spike removal
+  # 1) Raw ADC - fast sampling, early spike removal
   - id: ntc_source
     platform: adc
     pin: ${GPIO_TEMPERATURE_ADC_PIN}
@@ -124,7 +128,9 @@ sensor:
       - delta: ${ntc_source_filter_delta}
 
       # (D) If nothing changes, publish once every 5 minutes
-      - heartbeat: ${ntc_source_filter_heartbeat}
+      - heartbeat:
+          period: ${ntc_source_filter_heartbeat}
+          optimistic: true
 
   # 2) Convert to resistance
   - id: resistance_sensor
@@ -139,21 +145,33 @@ sensor:
     name: Temperature
     platform: ntc
     sensor: resistance_sensor
-    unit_of_measurement: ${'°F' if TEMP_UNIT_IS_FAHRENHEIT else '°C'}
-    accuracy_decimals: ${0 if TEMP_UNIT_IS_FAHRENHEIT else 1}
+    unit_of_measurement: °C
+    accuracy_decimals: 1
     internal: false
     calibration:
       b_constant: 3950
-      reference_temperature: ${'77°F' if TEMP_UNIT_IS_FAHRENHEIT else '25°C'}
+      reference_temperature: 25°C
       reference_resistance: 10kOhm
 
     filters:
       # Publish only when temperature changes meaningfully
-      - delta: ${0.1 if TEMP_UNIT_IS_FAHRENHEIT else 0.01}
+      - delta: 0.01
+
+      # (D) If nothing changes, publish once every 5 minutes
+      - heartbeat:
+          period: ${ntc_source_filter_heartbeat}
+          optimistic: true
 
       # Apply offset
       - lambda: |-
-          return x + temperature_correction->state;
+          // Apply offset based on correction units
+          #if NSPANEL_HA_BLUEPRINT_HW_TEMPERATURE_IS_FAHRENHEIT
+            // Offset is in °F, convert delta to °C before applying
+            return x + (temperature_correction->state / 1.8f);
+          #else
+            // Offset already in °C
+            return x + temperature_correction->state;
+          #endif
 
     on_value:
       then:
