@@ -13,6 +13,7 @@ substitutions:
   nextion_update_url: "${nextion_update_base_url}/main/hmi/nspanel_blank.tft"
   upload_tft_automatically: true
   upload_tft_baud_rate: 115200
+  upload_tft_wait_ms_after_boot: 300000  # 5min
   ##############################################
   TAG_UPLOAD_TFT: "nspanel.addon.upload_tft"
 
@@ -65,6 +66,12 @@ display:
   - id: !extend disp1
     tft_url: ${nextion_update_url}
     exit_reparse_on_start: true
+
+globals:
+  - id: first_time_synced_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
 
 nspanel_ha_blueprint:
   lwip_tcp_mss: 1400
@@ -144,6 +151,17 @@ script:
     parameters:
       url: string
     then:
+      - while:
+          condition:
+            - lambda: return (uint32_t)(millis() - id(first_time_synced_ms)) < ${upload_tft_wait_ms_after_boot};
+          then:
+            - lambda: |-
+                const uint32_t elapsed = (uint32_t)(millis() - id(first_time_synced_ms));
+                const uint32_t target = ${upload_tft_wait_ms_after_boot};
+                ESP_LOGD("${TAG_UPLOAD_TFT}", "Waiting after time sync: %u / %u ms elapsed (%.1f%%)",
+                  elapsed, target, (elapsed * 100.0f) / target);
+            - delay: 15s
+
       # Make sure the screen is ON
       - if:
           condition:
@@ -294,4 +312,12 @@ select:
     disabled_by_default: false
     icon: mdi:file-sync
     update_interval: never
+
+time:
+  - id: !extend time_provider
+    on_time_sync:
+      then:
+        - lambda: |-
+            if (id(first_time_synced_ms) > 0) return;  // First time sync already registered
+            id(first_time_synced_ms) = millis();
 ...
