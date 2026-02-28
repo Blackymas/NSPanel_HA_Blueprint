@@ -308,8 +308,6 @@ The Simpsons:d=4,o=5,b=160:c.6,e6,f#6,8a6,g.6,e6,c6,8a,8f#,8f#,8f#,2g,8p,8p,8f#,
 
 More information: https://esphome.io/components/rtttl.html#common-beeps
 
-More songs: https://codebender.cc/sketch:109888#RTTTL%20Songs.ino
-
 > [!NOTE]
 > For more details about this action call, please refer to our [API documentation](api.md#rtttl-play-action-rtttl_play).
 
@@ -345,10 +343,10 @@ Failing to update both simultaneously can lead to connection issues.
          - priority: 600
            then:
              - lambda: |-
-                 id(my_ota).set_auth_password("Your new Wi-Fi password");
+                 id(ota_std).set_auth_password("Your new Wi-Fi password");
      ota:
-       password: "Your current Wi-Fi password"
-       id: my_ota
+       - id: !extend ota_std 
+         password: "Your current Wi-Fi password"
      ```
 
    - Flash your device.
