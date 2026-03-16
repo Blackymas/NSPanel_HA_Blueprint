@@ -19,12 +19,6 @@ esphome:
     build_flags:
       - -D NSPANEL_HA_BLUEPRINT_DATETIME
 
-globals:
-  - id: mui_timezone
-    type: std::string
-    restore_value: true
-    initial_value: ""
-
 script:
   - id: !extend action_component_text
     then:
@@ -39,9 +33,6 @@ script:
             } else if (component == "meridiem_pm") {
               id(mui_meridiem_pm) = txt;
               return;
-            } else if (component == "timezone") {
-              set_timezone->execute(txt.c_str());
-              return;
             }
           }
 
@@ -49,7 +40,6 @@ script:
     then:
       - lambda: |-
           boot_log->execute("Date/Time", "Set time zone");
-          set_timezone_from_globals->execute();
 
   - id: new_minute
     mode: restart
@@ -104,42 +94,10 @@ script:
                                                       meridiem_text.c_str() : " ");
           disp1->set_component_text("home.time", id(time_provider).now().strftime(time_format_str).c_str());
 
-  - id: set_timezone
-    mode: single
-    parameters:
-      timezone: string
-    then:
-      - lambda: |-
-          if (timezone.empty() or timezone == id(mui_timezone)) return;
-          id(mui_timezone) = timezone;
-          set_timezone_from_globals->execute();
-
-  - id: set_timezone_from_globals
-    mode: single
-    then:
-      - lambda: |-
-          if (id(mui_timezone).empty()) {
-            return;
-          }
-          ESP_LOGI("${TAG_DATETIME}", "Setting timezone: %s", id(mui_timezone).c_str());
-          const size_t start = id(mui_timezone).find('<');
-          if (start != std::string::npos) {
-            const size_t end = id(mui_timezone).find('>');
-            if (end != std::string::npos && end > start) {
-              id(mui_timezone).replace(start, (end - start) + 1, "UTC");
-            }  // if valid brackets found
-          }  // if formatting needed
-          time_provider->set_timezone(id(mui_timezone).c_str());
-          time_provider->call_setup();
-          time_provider->dump_config();
-          refresh_datetime->execute();
-
   - id: !extend stop_all
     then:
       - lambda: |-
           refresh_datetime->stop();
-          set_timezone->stop();
-          set_timezone_from_globals->stop();
 
 time:  # Keeps time display updated
   - id: time_provider
