@@ -1,3 +1,10 @@
+> [!NOTE]
+> **Development Status**: Active development has transitioned to [NSPanel Easy](https://github.com/edwardtfn/NSPanel-Easy), a continuation of this project. This repository remains available and will receive critical fixes for compilation issues, but new features and enhancements are being developed in the new repository.
+>
+> **Migrating**: If you're interested in moving to the actively developed version, there's a [migration guide](https://github.com/edwardtfn/NSPanel-Easy/blob/main/docs/migration_from_blackymas.md) that takes about 10 minutes with no serial flashing required.
+>
+> **Support**: For new issues or feature requests, please consider using the [NSPanel Easy repository](https://github.com/edwardtfn/NSPanel-Easy/issues). Critical bugs affecting compilation will still be addressed here.
+
 # NSPanel Custom with HA Blueprint
 
 [![GitHub Release][releases-shield]][releases]
